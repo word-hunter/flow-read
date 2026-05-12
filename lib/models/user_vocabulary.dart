@@ -1,0 +1,1 @@
+enum UserWordStatus { known, learning }
