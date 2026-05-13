@@ -23,10 +23,11 @@ class ProfileScreen extends StatelessWidget {
         centerTitle: false,
       ),
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircleAvatar(
                 radius: 48,
@@ -203,6 +204,7 @@ class ProfileScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }
