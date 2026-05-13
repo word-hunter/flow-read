@@ -3,6 +3,7 @@ import '../models/analysis_result.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_constants.dart';
 
 typedef WordTapCallback = void Function(String word, String contextText);
 
@@ -202,8 +203,28 @@ class _HighlightBuilder {
             ),
           ),
         );
-      } else {
+      } else if (lower.length < AppConstants.minWordLength) {
         spans.add(TextSpan(text: word));
+      } else {
+        final unknownColor =
+            colorSettings?.unknownColor ?? AppColors.familiarityLow;
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: buildWordTapable(
+              word: word,
+              color: unknownColor,
+              textStyle: theme.textTheme.bodyLarge!.copyWith(
+                height: lineHeight,
+                letterSpacing: 0.3,
+                fontFamily: fontFamily,
+                fontSize: fontSize,
+              ),
+              onWordTapped: onWordTapped,
+              contextText: '...$word...',
+            ),
+          ),
+        );
       }
       lastIndex = match.end;
     }
