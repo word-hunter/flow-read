@@ -16,7 +16,9 @@ class ReaderBookSidebar extends StatelessWidget {
 
     final bookTitle = provider.book?.title ?? '';
     final bookAuthor = provider.book?.chapters.isNotEmpty == true ? '' : '';
-    final meta = provider.allBooks.where((b) => b.id == provider.activeBookId).firstOrNull;
+    final meta = provider.allBooks
+        .where((b) => b.id == provider.activeBookId)
+        .firstOrNull;
     final coverBytes = meta != null ? provider.getCoverBytes(meta.id) : null;
     final progressPercent = (provider.readingProgress * 100).toInt();
     final chapterNum = provider.currentChapter + 1;
@@ -32,7 +34,11 @@ class ReaderBookSidebar extends StatelessWidget {
           const SizedBox(height: 24),
           _buildCover(theme, coverBytes),
           const SizedBox(height: 12),
-          _buildBookInfo(theme, meta?.title ?? bookTitle, meta?.author ?? bookAuthor),
+          _buildBookInfo(
+            theme,
+            meta?.title ?? bookTitle,
+            meta?.author ?? bookAuthor,
+          ),
           const SizedBox(height: 20),
           _buildProgress(theme, progressPercent),
           if (totalChapters > 0) ...[
@@ -57,6 +63,7 @@ class ReaderBookSidebar extends StatelessWidget {
       ),
     );
   }
+
   Widget _buildCover(ThemeData theme, Uint8List? coverBytes) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -76,8 +83,11 @@ class ReaderBookSidebar extends StatelessWidget {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: coverBytes != null
-                ? Image.memory(coverBytes, fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _buildPlaceholderCover(theme))
+                ? Image.memory(
+                    coverBytes,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => _buildPlaceholderCover(theme),
+                  )
                 : _buildPlaceholderCover(theme),
           ),
         ),
@@ -89,8 +99,11 @@ class ReaderBookSidebar extends StatelessWidget {
     return Container(
       color: theme.colorScheme.primaryContainer,
       child: Center(
-        child: Icon(Icons.menu_book, size: 40,
-            color: theme.colorScheme.primary.withValues(alpha: 0.6)),
+        child: Icon(
+          Icons.menu_book,
+          size: 40,
+          color: theme.colorScheme.primary.withValues(alpha: 0.6),
+        ),
       ),
     );
   }
@@ -131,16 +144,26 @@ class ReaderBookSidebar extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.menu_book, size: 16, color: theme.colorScheme.onSurfaceVariant),
-              const SizedBox(width: 6),
-              Text('阅读进度', style: theme.textTheme.labelMedium?.copyWith(
+              Icon(
+                Icons.menu_book,
+                size: 16,
                 color: theme.colorScheme.onSurfaceVariant,
-              )),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '阅读进度',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
               const Spacer(),
-              Text('$percent%', style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.primary,
-              )),
+              Text(
+                '$percent%',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -150,7 +173,9 @@ class ReaderBookSidebar extends StatelessWidget {
               value: percent / 100,
               minHeight: 6,
               backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                theme.colorScheme.primary,
+              ),
             ),
           ),
         ],
@@ -158,7 +183,11 @@ class ReaderBookSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildTocButton(BuildContext context, ThemeData theme, ReadingProvider provider) {
+  Widget _buildTocButton(
+    BuildContext context,
+    ThemeData theme,
+    ReadingProvider provider,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: OutlinedButton.icon(
@@ -172,16 +201,24 @@ class ReaderBookSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoItem(ThemeData theme, IconData icon, String label, int count) {
+  Widget _buildInfoItem(
+    ThemeData theme,
+    IconData icon,
+    String label,
+    int count,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       child: Row(
         children: [
           Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 12),
-          Text(label, style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          )),
+          Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -202,7 +239,11 @@ class ReaderBookSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomActions(BuildContext context, ThemeData theme, SettingsService settings) {
+  Widget _buildBottomActions(
+    BuildContext context,
+    ThemeData theme,
+    SettingsService settings,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(

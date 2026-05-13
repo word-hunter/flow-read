@@ -14,9 +14,11 @@ class ReadingConfigService {
   }
 
   void _load() {
-    fontSize = double.tryParse(_box.get('fontSize', defaultValue: '16.0')!) ?? 16.0;
+    fontSize =
+        double.tryParse(_box.get('fontSize', defaultValue: '16.0')!) ?? 16.0;
     fontFamily = _box.get('fontFamily', defaultValue: 'Serif')!;
-    lineHeight = double.tryParse(_box.get('lineHeight', defaultValue: '2.0')!) ?? 2.0;
+    lineHeight =
+        double.tryParse(_box.get('lineHeight', defaultValue: '2.0')!) ?? 2.0;
     theme = _box.get('theme', defaultValue: 'light')!;
   }
 

@@ -61,7 +61,11 @@ class _ReaderPageState extends State<ReaderPage> {
       _scrollController.position.minScrollExtent,
       _scrollController.position.maxScrollExtent,
     );
-    _scrollController.animateTo(target, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   void _onWordTapped(String word, String contextText) {
@@ -177,7 +181,10 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   TextStyle _buildBaseTextStyle(ThemeData theme, ReadingProvider provider) {
-    final isDark = provider.readingTheme == 'dark' || (theme.brightness == Brightness.dark && provider.readingTheme == 'light');
+    final isDark =
+        provider.readingTheme == 'dark' ||
+        (theme.brightness == Brightness.dark &&
+            provider.readingTheme == 'light');
     final color = isDark
         ? const Color(0xFFE0E0E0)
         : theme.colorScheme.onSurface;
@@ -195,7 +202,9 @@ class _ReaderPageState extends State<ReaderPage> {
     final provider = context.watch<ReadingProvider>();
     final result = provider.result;
     if (result == null) {
-      return _buildPageScaffold(child: const Center(child: CircularProgressIndicator()));
+      return _buildPageScaffold(
+        child: const Center(child: CircularProgressIndicator()),
+      );
     }
 
     final paragraphs = splitIntoParagraphs(result.passageText);
@@ -214,14 +223,19 @@ class _ReaderPageState extends State<ReaderPage> {
           child: Column(
             children: [
               _buildNavBar(provider, theme, showSidebarToggle: isWide),
-              if (provider.hasBook && provider.chapterCount > 1) buildChapterNav(context, provider, theme),
+              if (provider.hasBook && provider.chapterCount > 1)
+                buildChapterNav(context, provider, theme),
               Expanded(
                 child: isWide
                     ? Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: _buildReadingContent(paragraphs, result, theme),
+                            child: _buildReadingContent(
+                              paragraphs,
+                              result,
+                              theme,
+                            ),
                           ),
                           AnimatedSize(
                             duration: const Duration(milliseconds: 250),
@@ -229,7 +243,8 @@ class _ReaderPageState extends State<ReaderPage> {
                             alignment: Alignment.topCenter,
                             child: _sidebarOpen
                                 ? ReaderWordSidebar(
-                                    onClose: () => setState(() => _sidebarOpen = false),
+                                    onClose: () =>
+                                        setState(() => _sidebarOpen = false),
                                   )
                                 : const SizedBox.shrink(),
                           ),
@@ -237,7 +252,13 @@ class _ReaderPageState extends State<ReaderPage> {
                       )
                     : _buildReadingContent(paragraphs, result, theme),
               ),
-              _buildBottomBar(context, _displayProgress, theme, chapterTitle, progressPercent),
+              _buildBottomBar(
+                context,
+                _displayProgress,
+                theme,
+                chapterTitle,
+                progressPercent,
+              ),
             ],
           ),
         );
@@ -252,14 +273,22 @@ class _ReaderPageState extends State<ReaderPage> {
         color: _readerBackgroundColor(provider),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: ClipRRect(borderRadius: BorderRadius.circular(24), child: child),
     );
   }
 
-  Widget _buildReadingContent(List<String> paragraphs, AnalysisResult result, ThemeData theme) {
+  Widget _buildReadingContent(
+    List<String> paragraphs,
+    AnalysisResult result,
+    ThemeData theme,
+  ) {
     return SelectionArea(
       onSelectionChanged: (selection) {
         if (selection != null) {
@@ -298,7 +327,8 @@ class _ReaderPageState extends State<ReaderPage> {
               itemBuilder: (context, index) {
                 if (index == 0) return _buildTitleBlock(result, theme);
                 final paraIndex = index - 1;
-                if (paraIndex >= paragraphs.length) return const SizedBox.shrink();
+                if (paraIndex >= paragraphs.length)
+                  return const SizedBox.shrink();
                 return _buildParagraph(paragraphs[paraIndex], result, theme);
               },
             ),
@@ -310,19 +340,29 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Widget _buildTitleBlock(AnalysisResult result, ThemeData theme) {
     final provider = context.read<ReadingProvider>();
-    final isDark = provider.readingTheme == 'dark' || (theme.brightness == Brightness.dark && provider.readingTheme == 'light');
+    final isDark =
+        provider.readingTheme == 'dark' ||
+        (theme.brightness == Brightness.dark &&
+            provider.readingTheme == 'light');
     final titleColor = isDark
         ? const Color(0xFFE0E0E0)
         : theme.colorScheme.onSurface;
-    final dividerColor = isDark ? const Color(0xFF3A3A3A) : const Color(0xFFEEEEEE);
+    final dividerColor = isDark
+        ? const Color(0xFF3A3A3A)
+        : const Color(0xFFEEEEEE);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(result.title,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold, color: titleColor, fontFamily: provider.fontFamily)),
+          Text(
+            result.title,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: titleColor,
+              fontFamily: provider.fontFamily,
+            ),
+          ),
           const SizedBox(height: 12),
           Divider(color: dividerColor),
           const SizedBox(height: 12),
@@ -331,25 +371,47 @@ class _ReaderPageState extends State<ReaderPage> {
     );
   }
 
-  Widget _buildParagraph(String paragraph, AnalysisResult result, ThemeData theme) {
+  Widget _buildParagraph(
+    String paragraph,
+    AnalysisResult result,
+    ThemeData theme,
+  ) {
     final provider = context.read<ReadingProvider>();
     final baseStyle = _buildBaseTextStyle(theme, provider);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Text.rich(
-        buildHighlightedParagraph(paragraph, result, theme,
-            onWordTapped: _onWordTapped, fontSize: provider.fontSize, lineHeight: provider.lineHeight, fontFamily: provider.fontFamily),
+        buildHighlightedParagraph(
+          paragraph,
+          result,
+          theme,
+          onWordTapped: _onWordTapped,
+          fontSize: provider.fontSize,
+          lineHeight: provider.lineHeight,
+          fontFamily: provider.fontFamily,
+        ),
         style: baseStyle,
       ),
     );
   }
 
-  Widget _buildNavBar(ReadingProvider provider, ThemeData theme, {bool showSidebarToggle = false}) {
-    final isDark = provider.readingTheme == 'dark' || (theme.brightness == Brightness.dark && provider.readingTheme == 'light');
-    final borderColor = isDark ? const Color(0xFF3A3A3A) : const Color(0xFFEEEEEE);
+  Widget _buildNavBar(
+    ReadingProvider provider,
+    ThemeData theme, {
+    bool showSidebarToggle = false,
+  }) {
+    final isDark =
+        provider.readingTheme == 'dark' ||
+        (theme.brightness == Brightness.dark &&
+            provider.readingTheme == 'light');
+    final borderColor = isDark
+        ? const Color(0xFF3A3A3A)
+        : const Color(0xFFEEEEEE);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: borderColor))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: borderColor)),
+      ),
       child: Row(
         children: [
           IconButton(
@@ -369,15 +431,21 @@ class _ReaderPageState extends State<ReaderPage> {
             ),
           const Spacer(),
           Flexible(
-            child: Text('${(_displayProgress * 100).toInt()}%',
-                style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+            child: Text(
+              '${(_displayProgress * 100).toInt()}%',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
+              ),
+            ),
           ),
           const SizedBox(width: 8),
           if (showSidebarToggle)
             IconButton(
               icon: Icon(
-                _sidebarOpen ? Icons.vertical_split : Icons.vertical_split_outlined,
+                _sidebarOpen
+                    ? Icons.vertical_split
+                    : Icons.vertical_split_outlined,
                 size: 22,
               ),
               tooltip: _sidebarOpen ? '收起侧栏' : '展开侧栏',
@@ -386,22 +454,28 @@ class _ReaderPageState extends State<ReaderPage> {
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
           IconButton(
-              icon: const Icon(Icons.search, size: 22),
-              onPressed: () {},
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36)),
+            icon: const Icon(Icons.search, size: 22),
+            onPressed: () {},
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
           IconButton(
-              icon: const Icon(Icons.text_fields, size: 22),
-              onPressed: _showFontSettingsSheet,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36)),
+            icon: const Icon(Icons.text_fields, size: 22),
+            onPressed: _showFontSettingsSheet,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
           IconButton(
-              icon: Icon(
-                  provider.isCurrentPositionBookmarked() ? Icons.bookmark : Icons.bookmark_outline,
-                  size: 22),
-              onPressed: _onBookmarkTap,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36)),
+            icon: Icon(
+              provider.isCurrentPositionBookmarked()
+                  ? Icons.bookmark
+                  : Icons.bookmark_outline,
+              size: 22,
+            ),
+            onPressed: _onBookmarkTap,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_horiz, size: 22),
             padding: EdgeInsets.zero,
@@ -441,12 +515,25 @@ class _ReaderPageState extends State<ReaderPage> {
     );
   }
 
-  Widget _buildBottomBar(BuildContext context, double progress, ThemeData theme, String chapterTitle, int progressPercent) {
+  Widget _buildBottomBar(
+    BuildContext context,
+    double progress,
+    ThemeData theme,
+    String chapterTitle,
+    int progressPercent,
+  ) {
     final provider = context.read<ReadingProvider>();
-    final isDark = provider.readingTheme == 'dark' || (theme.brightness == Brightness.dark && provider.readingTheme == 'light');
+    final isDark =
+        provider.readingTheme == 'dark' ||
+        (theme.brightness == Brightness.dark &&
+            provider.readingTheme == 'light');
     final bgColor = _readerBackgroundColor(provider);
-    final borderColor = isDark ? const Color(0xFF3A3A3A) : const Color(0xFFEEEEEE);
-    final textColor = isDark ? const Color(0xFFB0B0B0) : theme.colorScheme.onSurfaceVariant;
+    final borderColor = isDark
+        ? const Color(0xFF3A3A3A)
+        : const Color(0xFFEEEEEE);
+    final textColor = isDark
+        ? const Color(0xFFB0B0B0)
+        : theme.colorScheme.onSurfaceVariant;
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
       decoration: BoxDecoration(
@@ -469,9 +556,22 @@ class _ReaderPageState extends State<ReaderPage> {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(chapterTitle, style: theme.textTheme.labelSmall?.copyWith(color: textColor), overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+                          child: Text(
+                            chapterTitle,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: textColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                        Text('$progressPercent%', style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+                        Text(
+                          '$progressPercent%',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -480,8 +580,11 @@ class _ReaderPageState extends State<ReaderPage> {
                       child: LinearProgressIndicator(
                         value: progress,
                         minHeight: 4,
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                        backgroundColor:
+                            theme.colorScheme.surfaceContainerHighest,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          theme.colorScheme.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -498,5 +601,4 @@ class _ReaderPageState extends State<ReaderPage> {
       ),
     );
   }
-
 }

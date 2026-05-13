@@ -52,7 +52,9 @@ class ReadingStatsRing extends StatelessWidget {
             child: CustomPaint(
               painter: _RingPainter(
                 progress: progress,
-                trackColor: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+                trackColor: theme.colorScheme.outlineVariant.withValues(
+                  alpha: 0.4,
+                ),
                 progressColor: theme.colorScheme.primary,
               ),
               child: Center(

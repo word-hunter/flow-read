@@ -65,11 +65,16 @@ class RssFeedSubscriptionAdapter extends TypeAdapter<RssFeedSubscription> {
   void write(BinaryWriter writer, RssFeedSubscription obj) {
     writer
       ..writeByte(5)
-      ..writeByte(0)..write(obj.url)
-      ..writeByte(1)..write(obj.title)
-      ..writeByte(2)..write(obj.description)
-      ..writeByte(3)..write(obj.imageUrl)
-      ..writeByte(4)..write(obj.lastFetchedAt);
+      ..writeByte(0)
+      ..write(obj.url)
+      ..writeByte(1)
+      ..write(obj.title)
+      ..writeByte(2)
+      ..write(obj.description)
+      ..writeByte(3)
+      ..write(obj.imageUrl)
+      ..writeByte(4)
+      ..write(obj.lastFetchedAt);
   }
 
   @override
@@ -102,8 +107,9 @@ class RssArticle {
     this.author,
     this.isRead = false,
     String? id,
-  }) : id = id ??
-            '${feedUrl.hashCode}_${title.hashCode}_${pubDate?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch}';
+  }) : id =
+           id ??
+           '${feedUrl.hashCode}_${title.hashCode}_${pubDate?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch}';
 
   RssArticle copyWith({
     String? feedUrl,

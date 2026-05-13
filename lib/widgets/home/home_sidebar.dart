@@ -21,9 +21,17 @@ class HomeSidebar extends StatelessWidget {
   });
 
   static const _navItems = [
-    (icon: Icons.menu_book_outlined, selectedIcon: Icons.menu_book, label: '书架'),
+    (
+      icon: Icons.menu_book_outlined,
+      selectedIcon: Icons.menu_book,
+      label: '书架',
+    ),
     (icon: Icons.rss_feed_outlined, selectedIcon: Icons.rss_feed, label: 'RSS'),
-    (icon: Icons.text_fields_outlined, selectedIcon: Icons.text_fields, label: '词汇'),
+    (
+      icon: Icons.text_fields_outlined,
+      selectedIcon: Icons.text_fields,
+      label: '词汇',
+    ),
     (icon: Icons.person_outlined, selectedIcon: Icons.person, label: '我的'),
   ];
 
@@ -49,6 +57,7 @@ class HomeSidebar extends StatelessWidget {
       ),
     );
   }
+
   Widget _buildLogo(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -105,7 +114,9 @@ class HomeSidebar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Material(
-        color: isSelected ? theme.colorScheme.primaryContainer : Colors.transparent,
+        color: isSelected
+            ? theme.colorScheme.primaryContainer
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
@@ -125,7 +136,9 @@ class HomeSidebar extends StatelessWidget {
                 Text(
                   label,
                   style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                     color: isSelected
                         ? theme.colorScheme.primary
                         : theme.colorScheme.onSurfaceVariant,
@@ -151,7 +164,9 @@ class HomeSidebar extends StatelessWidget {
             tooltip: '设置',
           ),
           IconButton(
-            icon: Icon(isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+            icon: Icon(
+              isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+            ),
             color: theme.colorScheme.onSurfaceVariant,
             onPressed: onThemeToggle,
             tooltip: isDarkMode ? '浅色模式' : '深色模式',

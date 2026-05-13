@@ -34,7 +34,8 @@ class TocBottomSheet extends StatelessWidget {
                           width: 40,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -44,7 +45,10 @@ class TocBottomSheet extends StatelessWidget {
                       icon: const Icon(Icons.close, size: 18),
                       onPressed: () => Navigator.pop(context),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
                     ),
                   ],
                 ),
@@ -53,9 +57,19 @@ class TocBottomSheet extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    Text('目录', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      '目录',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const Spacer(),
-                    Text('${book.chapters.length} 章', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                    Text(
+                      '${book.chapters.length} 章',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -63,22 +77,30 @@ class TocBottomSheet extends StatelessWidget {
               Expanded(
                 child: ListView.builder(
                   controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   itemCount: book.chapters.length,
                   itemBuilder: (context, index) {
                     final isSelected = index == provider.currentChapter;
                     return ListTile(
                       selected: isSelected,
-                      selectedTileColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      selectedTileColor: theme.colorScheme.primaryContainer
+                          .withValues(alpha: 0.3),
                       leading: CircleAvatar(
                         radius: 14,
-                        backgroundColor: isSelected ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHighest,
+                        backgroundColor: isSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.surfaceContainerHighest,
                         child: Text(
                           '${index + 1}',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
+                            color: isSelected
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -87,7 +109,9 @@ class TocBottomSheet extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                       ),
                       onTap: () {

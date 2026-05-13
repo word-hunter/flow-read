@@ -5,7 +5,8 @@ class PromptRegistry {
   // 1. Text Analysis
   // ============================================================
 
-  static const textAnalysisSystem = 'You are an English reading tutor helping Chinese speakers understand English novels. '
+  static const textAnalysisSystem =
+      'You are an English reading tutor helping Chinese speakers understand English novels. '
       'Analyze ONLY the provided text. Do NOT reference any external knowledge about the book or author. '
       'Every analysis point MUST cite the exact source text. '
       'Explain grammar and vocabulary in Chinese (Simplified). '

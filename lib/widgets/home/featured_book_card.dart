@@ -44,6 +44,7 @@ class FeaturedBookCard extends StatelessWidget {
       ),
     );
   }
+
   Widget _buildCover(ThemeData theme) {
     return Container(
       width: 140,
@@ -61,8 +62,11 @@ class FeaturedBookCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: coverBytes != null
-            ? Image.memory(coverBytes!, fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _buildPlaceholder(theme))
+            ? Image.memory(
+                coverBytes!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _buildPlaceholder(theme),
+              )
             : _buildPlaceholder(theme),
       ),
     );
@@ -81,8 +85,11 @@ class FeaturedBookCard extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Icon(Icons.menu_book, size: 48,
-            color: theme.colorScheme.onPrimary.withValues(alpha: 0.8)),
+        child: Icon(
+          Icons.menu_book,
+          size: 48,
+          color: theme.colorScheme.onPrimary.withValues(alpha: 0.8),
+        ),
       ),
     );
   }
@@ -114,7 +121,11 @@ class FeaturedBookCard extends StatelessWidget {
         const SizedBox(height: 16),
         Row(
           children: [
-            Icon(Icons.schedule, size: 16, color: theme.colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.schedule,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(width: 6),
             Text(
               '阅读进度',
@@ -134,7 +145,9 @@ class FeaturedBookCard extends StatelessWidget {
                   value: progressPercent / 100,
                   minHeight: 8,
                   backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    theme.colorScheme.primary,
+                  ),
                 ),
               ),
             ),

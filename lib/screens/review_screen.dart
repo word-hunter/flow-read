@@ -21,7 +21,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final result = provider.result;
     if (result == null) return const Center(child: CircularProgressIndicator());
 
-    final chapterTitle = provider.book?.chapters[provider.currentChapter].title ?? result.title;
+    final chapterTitle =
+        provider.book?.chapters[provider.currentChapter].title ?? result.title;
 
     final aiPractice = provider.aiPractice;
 
@@ -42,7 +43,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
 
     if (aiPractice != null && aiPractice.questions.isNotEmpty) {
-      return _AIReview(chapterTitle: chapterTitle, questions: aiPractice.questions);
+      return _AIReview(
+        chapterTitle: chapterTitle,
+        questions: aiPractice.questions,
+      );
     }
 
     final questions = ReviewService.generateQuestions(result);
@@ -79,11 +83,17 @@ class _NarrowReview extends StatelessWidget {
           children: [
             Text(
               '章节回顾',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: theme.colorScheme.onSurface),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
             Text(
               chapterTitle,
-              style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ],
@@ -140,7 +150,11 @@ class _WideReview extends StatelessWidget {
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+                    side: BorderSide(
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.2,
+                      ),
+                    ),
                   ),
                   child: ListTile(
                     leading: CircleAvatar(
@@ -149,9 +163,13 @@ class _WideReview extends StatelessWidget {
                           ? AppColors.correct.withValues(alpha: 0.15)
                           : theme.colorScheme.primaryContainer,
                       child: Icon(
-                        q.isCompleted ? Icons.check : Icons.radio_button_unchecked,
+                        q.isCompleted
+                            ? Icons.check
+                            : Icons.radio_button_unchecked,
                         size: 16,
-                        color: q.isCompleted ? AppColors.correct : theme.colorScheme.primary,
+                        color: q.isCompleted
+                            ? AppColors.correct
+                            : theme.colorScheme.primary,
                       ),
                     ),
                     title: Text(
@@ -159,7 +177,9 @@ class _WideReview extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: q.isCompleted ? FontWeight.normal : FontWeight.w600,
+                        fontWeight: q.isCompleted
+                            ? FontWeight.normal
+                            : FontWeight.w600,
                         color: q.isCompleted
                             ? theme.colorScheme.onSurfaceVariant
                             : theme.colorScheme.onSurface,
@@ -181,7 +201,11 @@ class _WideReview extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.edit_note, size: 48, color: theme.colorScheme.primary.withValues(alpha: 0.4)),
+                      Icon(
+                        Icons.edit_note,
+                        size: 48,
+                        color: theme.colorScheme.primary.withValues(alpha: 0.4),
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         '选择左侧问题，在此处作答',
@@ -193,7 +217,9 @@ class _WideReview extends StatelessWidget {
                       Text(
                         '基于原文内容回答，练习阅读理解与推理能力',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -204,18 +230,27 @@ class _WideReview extends StatelessWidget {
                           decoration: InputDecoration(
                             hintText: '在此输入你的回答...',
                             filled: true,
-                            fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                            fillColor: theme.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.3),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                              borderSide: BorderSide(
+                                color: theme.colorScheme.outlineVariant
+                                    .withValues(alpha: 0.3),
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                              borderSide: BorderSide(
+                                color: theme.colorScheme.outlineVariant
+                                    .withValues(alpha: 0.3),
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: theme.colorScheme.primary),
+                              borderSide: BorderSide(
+                                color: theme.colorScheme.primary,
+                              ),
                             ),
                             contentPadding: const EdgeInsets.all(16),
                           ),
@@ -226,7 +261,10 @@ class _WideReview extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           IconButton(
-                            icon: Icon(Icons.mic, color: theme.colorScheme.primary),
+                            icon: Icon(
+                              Icons.mic,
+                              color: theme.colorScheme.primary,
+                            ),
                             onPressed: () {},
                           ),
                           FilledButton(
@@ -297,7 +335,10 @@ class _QuestionCardState extends State<_QuestionCard> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(8),
@@ -313,7 +354,10 @@ class _QuestionCardState extends State<_QuestionCard> {
                 if (widget.isCompleted) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.correct.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -350,11 +394,16 @@ class _QuestionCardState extends State<_QuestionCard> {
               decoration: InputDecoration(
                 hintText: '输入你的回答...',
                 suffixIcon: IconButton(
-                  icon: Icon(Icons.mic, color: theme.colorScheme.primary.withValues(alpha: 0.5)),
+                  icon: Icon(
+                    Icons.mic,
+                    color: theme.colorScheme.primary.withValues(alpha: 0.5),
+                  ),
                   onPressed: () {},
                 ),
                 filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -396,7 +445,9 @@ class _QuestionCardState extends State<_QuestionCard> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.2),
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.2,
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -441,12 +492,17 @@ class _AIReviewState extends State<_AIReview> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('AI 练习题',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            Text(widget.chapterTitle,
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                overflow: TextOverflow.ellipsis),
+            const Text(
+              'AI 练习题',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            Text(
+              widget.chapterTitle,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
         actions: [
@@ -497,7 +553,7 @@ class _AIReviewState extends State<_AIReview> {
         side: BorderSide(
           color: showAnswer
               ? (isCorrect ? AppColors.correct : AppColors.familiarityLow)
-                  .withValues(alpha: 0.3)
+                    .withValues(alpha: 0.3)
               : theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
         ),
       ),
@@ -509,8 +565,10 @@ class _AIReviewState extends State<_AIReview> {
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(8),
@@ -518,128 +576,152 @@ class _AIReviewState extends State<_AIReview> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(typeIcons[q.type] ?? Icons.quiz,
-                          size: 14, color: theme.colorScheme.onPrimaryContainer),
+                      Icon(
+                        typeIcons[q.type] ?? Icons.quiz,
+                        size: 14,
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
                       const SizedBox(width: 4),
-                      Text(typeLabels[q.type] ?? q.type,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.onPrimaryContainer,
-                          )),
+                      Text(
+                        typeLabels[q.type] ?? q.type,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: q.difficulty == 'easy'
                         ? Colors.green.withValues(alpha: 0.1)
                         : q.difficulty == 'hard'
-                            ? Colors.red.withValues(alpha: 0.1)
-                            : Colors.orange.withValues(alpha: 0.1),
+                        ? Colors.red.withValues(alpha: 0.1)
+                        : Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text(q.difficulty,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: q.difficulty == 'easy'
-                            ? Colors.green
-                            : q.difficulty == 'hard'
-                                ? Colors.red
-                                : Colors.orange,
-                      )),
+                  child: Text(
+                    q.difficulty,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: q.difficulty == 'easy'
+                          ? Colors.green
+                          : q.difficulty == 'hard'
+                          ? Colors.red
+                          : Colors.orange,
+                    ),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(q.question,
-                style: theme.textTheme.bodyLarge
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              q.question,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 12),
-            ...List.generate(
-              4,
-              (i) {
-                final isDistractor = i < q.distractors.length;
-                final text = isDistractor ? q.distractors[i].text : '';
-                if (!isDistractor) return const SizedBox.shrink();
+            ...List.generate(4, (i) {
+              final isDistractor = i < q.distractors.length;
+              final text = isDistractor ? q.distractors[i].text : '';
+              if (!isDistractor) return const SizedBox.shrink();
 
-                final isSelected = selected == i;
-                final showResult = showAnswer;
+              final isSelected = selected == i;
+              final showResult = showAnswer;
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: GestureDetector(
-                    onTap: showAnswer
-                        ? null
-                        : () =>
-                            setState(() => _selectedAnswers[index] = i),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: showResult
-                            ? (text == q.answer
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: GestureDetector(
+                  onTap: showAnswer
+                      ? null
+                      : () => setState(() => _selectedAnswers[index] = i),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: showResult
+                          ? (text == q.answer
                                 ? AppColors.correct.withValues(alpha: 0.1)
                                 : isSelected
-                                    ? AppColors.familiarityLow.withValues(alpha: 0.1)
-                                    : null)
-                            : (isSelected
-                                ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-                                : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: showResult
-                              ? (text == q.answer
+                                ? AppColors.familiarityLow.withValues(
+                                    alpha: 0.1,
+                                  )
+                                : null)
+                          : (isSelected
+                                ? theme.colorScheme.primaryContainer.withValues(
+                                    alpha: 0.3,
+                                  )
+                                : theme.colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.3)),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: showResult
+                            ? (text == q.answer
                                   ? AppColors.correct
                                   : isSelected
-                                      ? AppColors.familiarityLow
-                                      : theme.colorScheme.outlineVariant.withValues(alpha: 0.2))
-                              : (isSelected
+                                  ? AppColors.familiarityLow
+                                  : theme.colorScheme.outlineVariant.withValues(
+                                      alpha: 0.2,
+                                    ))
+                            : (isSelected
                                   ? theme.colorScheme.primary
-                                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.1)),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: showResult && text == q.answer
-                                    ? AppColors.correct
-                                    : theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-                                width: 2,
-                              ),
-                              color: showResult && text == q.answer
-                                  ? AppColors.correct
-                                  : null,
-                            ),
-                            child: showResult && text == q.answer
-                                ? const Icon(Icons.check, size: 14, color: Colors.white)
-                                : null,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(text,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurface,
-                                  fontWeight:
-                                      isSelected && !showResult
-                                          ? FontWeight.w600
-                                          : null,
-                                )),
-                          ),
-                        ],
+                                  : theme.colorScheme.outlineVariant.withValues(
+                                      alpha: 0.1,
+                                    )),
                       ),
                     ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: showResult && text == q.answer
+                                  ? AppColors.correct
+                                  : theme.colorScheme.outlineVariant.withValues(
+                                      alpha: 0.3,
+                                    ),
+                              width: 2,
+                            ),
+                            color: showResult && text == q.answer
+                                ? AppColors.correct
+                                : null,
+                          ),
+                          child: showResult && text == q.answer
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            text,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurface,
+                              fontWeight: isSelected && !showResult
+                                  ? FontWeight.w600
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            }),
             if (!showAnswer) ...[
               const SizedBox(height: 8),
               Center(
@@ -677,26 +759,32 @@ class _AIReviewState extends State<_AIReview> {
                     ),
                     if (!isCorrect) ...[
                       const SizedBox(height: 4),
-                      Text('正确答案: ${q.answer}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.correct,
-                          )),
+                      Text(
+                        '正确答案: ${q.answer}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.correct,
+                        ),
+                      ),
                     ],
                     if (q.answerExplanation.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      Text(q.answerExplanation,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            height: 1.4,
-                          )),
+                      Text(
+                        q.answerExplanation,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          height: 1.4,
+                        ),
+                      ),
                     ],
                     if (selected != null && !isCorrect) ...[
                       const SizedBox(height: 8),
                       Text(
                         q.distractors[selected].whyWrong,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.familiarityLow.withValues(alpha: 0.8),
+                          color: AppColors.familiarityLow.withValues(
+                            alpha: 0.8,
+                          ),
                           height: 1.4,
                         ),
                       ),

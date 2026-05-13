@@ -50,7 +50,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Display Settings', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text(
+          'Display Settings',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         centerTitle: false,
       ),
       body: ListView(
@@ -60,28 +63,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 4),
           Text(
             'Words not yet in your vocabulary list',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
-          _buildColorPicker(context, settings, 'unknown', settings.colors.unknownColor, (c) => settings.setUnknownColor(c)),
+          _buildColorPicker(
+            context,
+            settings,
+            'unknown',
+            settings.colors.unknownColor,
+            (c) => settings.setUnknownColor(c),
+          ),
           const SizedBox(height: 24),
           _buildSectionTitle(theme, 'Learning Words'),
           const SizedBox(height: 4),
           Text(
             'Words you are currently studying',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
-          _buildColorPicker(context, settings, 'learning', settings.colors.learningColor, (c) => settings.setLearningColor(c)),
+          _buildColorPicker(
+            context,
+            settings,
+            'learning',
+            settings.colors.learningColor,
+            (c) => settings.setLearningColor(c),
+          ),
           const SizedBox(height: 24),
           _buildSectionTitle(theme, 'Known Words'),
           const SizedBox(height: 4),
           Text(
             'Words you have already mastered (shown with subtle underline)',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
-          _buildColorPicker(context, settings, 'known', settings.colors.knownColor, (c) => settings.setKnownColor(c)),
+          _buildColorPicker(
+            context,
+            settings,
+            'known',
+            settings.colors.knownColor,
+            (c) => settings.setKnownColor(c),
+          ),
           const SizedBox(height: 32),
           const Divider(),
           const SizedBox(height: 24),
@@ -89,7 +116,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 4),
           Text(
             'Configure your DeepSeek API key to enable AI features',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
           _buildApiKeyField(theme, settings),
@@ -122,11 +151,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         hintText: 'sk-...',
         prefixIcon: const Icon(Icons.key, size: 20),
         suffixIcon: IconButton(
-          icon: Icon(_obscureKey ? Icons.visibility : Icons.visibility_off, size: 20),
+          icon: Icon(
+            _obscureKey ? Icons.visibility : Icons.visibility_off,
+            size: 20,
+          ),
           onPressed: () => setState(() => _obscureKey = !_obscureKey),
         ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       onChanged: (value) {
         settings.setApiKey(value);
@@ -143,7 +178,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ? null
             : () => _testConnection(settings),
         icon: _testingConnection
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             : const Icon(Icons.wifi_find, size: 18),
         label: Text(_testingConnection ? '测试中...' : '测试连接'),
       ),
@@ -195,9 +234,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.pop(dialogContext);
               await context.read<ReadingProvider>().clearAICache();
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('AI 缓存已清除')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('AI 缓存已清除')));
               }
             },
             child: const Text('确认清除'),
@@ -208,7 +247,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSectionTitle(ThemeData theme, String title) {
-    return Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600));
+    return Text(
+      title,
+      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+    );
   }
 
   Widget _buildColorPicker(
@@ -232,10 +274,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: opt.color,
               shape: BoxShape.circle,
               border: isSelected
-                  ? Border.all(color: Theme.of(context).colorScheme.onSurface, width: 3)
-                  : Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                  ? Border.all(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      width: 3,
+                    )
+                  : Border.all(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
               boxShadow: isSelected
-                  ? [BoxShadow(color: opt.color.withValues(alpha: 0.4), blurRadius: 8, spreadRadius: 1)]
+                  ? [
+                      BoxShadow(
+                        color: opt.color.withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ]
                   : null,
             ),
             child: isSelected
@@ -259,7 +314,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         style: TextStyle(
           fontWeight: FontWeight.w600,
           color: color,
-          decoration: showUnderline ? TextDecoration.underline : TextDecoration.underline,
+          decoration: showUnderline
+              ? TextDecoration.underline
+              : TextDecoration.underline,
           decorationColor: color.withValues(alpha: 0.5),
         ),
       ),

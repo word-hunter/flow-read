@@ -52,12 +52,19 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
         ? allVocab
         : allVocab.where((v) => v.word.contains(_searchQuery)).toList();
 
-    final unknownCount = filtered.where((v) => provider.getWordStatus(v.word) == null).length;
-    final learningCount = filtered.where((v) => provider.getWordStatus(v.word) == UserWordStatus.learning).length;
+    final unknownCount = filtered
+        .where((v) => provider.getWordStatus(v.word) == null)
+        .length;
+    final learningCount = filtered
+        .where((v) => provider.getWordStatus(v.word) == UserWordStatus.learning)
+        .length;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vocabulary', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text(
+          'Vocabulary',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         centerTitle: false,
       ),
       body: Column(
@@ -71,14 +78,16 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                 : ListView.builder(
                     padding: const EdgeInsets.only(bottom: 24),
                     itemCount: filtered.length,
-                     itemBuilder: (context, index) {
+                    itemBuilder: (context, index) {
                       final vocab = filtered[index];
                       return _VocabItem(
                         vocab: vocab,
                         status: provider.getWordStatus(vocab.word),
                         onMarkKnown: () => provider.markWordKnown(vocab.word),
-                        onMarkLearning: () => provider.markWordLearning(vocab.word),
-                        onMarkUnknown: () => provider.markWordUnknown(vocab.word),
+                        onMarkLearning: () =>
+                            provider.markWordLearning(vocab.word),
+                        onMarkUnknown: () =>
+                            provider.markWordUnknown(vocab.word),
                         onTap: () => provider.lookupWord(vocab.word),
                       );
                     },
@@ -96,8 +105,14 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Search words...',
-          hintStyle: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          prefixIcon: Icon(Icons.search, size: 20, color: theme.colorScheme.onSurfaceVariant),
+          hintStyle: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            size: 20,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear, size: 18),
@@ -105,7 +120,9 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                 )
               : null,
           filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.3,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
@@ -121,7 +138,12 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
       child: Row(
         children: [
-          Text('$total words', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            '$total words',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           if (unknown > 0) ...[
             const SizedBox(width: 10),
             Container(
@@ -130,7 +152,14 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                 color: AppColors.familiarityLow.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text('$unknown new', style: TextStyle(fontSize: 11, color: AppColors.familiarityLow, fontWeight: FontWeight.w600)),
+              child: Text(
+                '$unknown new',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.familiarityLow,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
           if (learning > 0) ...[
@@ -138,10 +167,17 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                          color: AppColors.vocabLearning.withValues(alpha: 0.12),
+                color: AppColors.vocabLearning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text('$learning learning', style: TextStyle(fontSize: 11, color: AppColors.vocabLearning, fontWeight: FontWeight.w600)),
+              child: Text(
+                '$learning learning',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.vocabLearning,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ],
@@ -170,17 +206,34 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
     );
   }
 
-  Widget _sortChip({required String label, required bool selected, required VoidCallback onTap}) {
+  Widget _sortChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
     final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
-          color: selected ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          color: selected
+              ? theme.colorScheme.primaryContainer
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: selected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected
+                ? theme.colorScheme.onPrimaryContainer
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }
@@ -190,11 +243,17 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.menu_book_outlined, size: 56, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
+          Icon(
+            Icons.menu_book_outlined,
+            size: 56,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+          ),
           const SizedBox(height: 16),
           Text(
             'Import a book to see vocabulary',
-            style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -226,13 +285,20 @@ class _VocabItem extends StatelessWidget {
 
   Color _levelColor(String level) {
     switch (level) {
-      case 'Primary School': return Colors.green;
-      case 'Middle School': return Colors.teal;
-      case 'High School': return Colors.blue;
-      case 'CET-4': return Colors.orange;
-      case 'CET-6': return Colors.deepOrange;
-      case 'GRE': return Colors.red;
-      default: return Colors.grey;
+      case 'Primary School':
+        return Colors.green;
+      case 'Middle School':
+        return Colors.teal;
+      case 'High School':
+        return Colors.blue;
+      case 'CET-4':
+        return Colors.orange;
+      case 'CET-6':
+        return Colors.deepOrange;
+      case 'GRE':
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -246,7 +312,9 @@ class _VocabItem extends StatelessWidget {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.15)),
+          side: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.15),
+          ),
         ),
         child: InkWell(
           onTap: onTap,
@@ -270,26 +338,56 @@ class _VocabItem extends StatelessWidget {
                     ),
                     if (vocab.level != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: _levelColor(vocab.level!).withValues(alpha: 0.12),
+                          color: _levelColor(
+                            vocab.level!,
+                          ).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(vocab.level!, style: TextStyle(fontSize: 10, color: _levelColor(vocab.level!), fontWeight: FontWeight.w600)),
+                        child: Text(
+                          vocab.level!,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: _levelColor(vocab.level!),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     if (vocab.level != null) const SizedBox(width: 4),
                     if (status == UserWordStatus.learning)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                color: AppColors.vocabLearning.withValues(alpha: 0.12),
+                          color: AppColors.vocabLearning.withValues(
+                            alpha: 0.12,
+                          ),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text('learning', style: TextStyle(fontSize: 10, color: AppColors.vocabLearning, fontWeight: FontWeight.w600)),
+                        child: Text(
+                          'learning',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.vocabLearning,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     const SizedBox(width: 6),
-                    Text('Ch.${vocab.firstChapter + 1}',
-                        style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6))),
+                    Text(
+                      'Ch.${vocab.firstChapter + 1}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -297,7 +395,9 @@ class _VocabItem extends StatelessWidget {
                   vocab.meaning,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -330,7 +430,11 @@ class _VocabItem extends StatelessWidget {
     );
   }
 
-  Widget _miniButton({required String label, required Color color, required VoidCallback onTap}) {
+  Widget _miniButton({
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
@@ -341,7 +445,14 @@ class _VocabItem extends StatelessWidget {
             border: Border.all(color: color.withValues(alpha: 0.3)),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ),
     );

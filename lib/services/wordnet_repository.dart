@@ -62,11 +62,11 @@ class WordNetRepository implements WordRepository {
     }
     if (word.endsWith('er')) {
       forms.add(word.substring(0, word.length - 2));
-      forms.add('${word.substring(0, word.length - 1)}');
+      forms.add(word.substring(0, word.length - 1));
     }
     if (word.endsWith('est')) {
       forms.add(word.substring(0, word.length - 3));
-      forms.add('${word.substring(0, word.length - 2)}');
+      forms.add(word.substring(0, word.length - 2));
     }
     if (word.endsWith('ly')) {
       forms.add(word.substring(0, word.length - 2));
@@ -101,7 +101,7 @@ class WordNetRepository implements WordRepository {
     if (wordData == null) return null;
 
     if (wordData is! List) return null;
-    final entry = _parseEntry(word, wordData as List<dynamic>);
+    final entry = _parseEntry(word, wordData);
     if (entry != null) {
       _resultCache[word] = entry;
     }

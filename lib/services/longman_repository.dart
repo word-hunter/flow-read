@@ -25,9 +25,9 @@ class LongmanRepository implements WordRepository {
 
     try {
       final url = '$_apiBase${Uri.encodeComponent(lower.replaceAll(' ', '-'))}';
-      final response = await http.get(Uri.parse(url)).timeout(
-        const Duration(seconds: 8),
-      );
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) return null;
 
@@ -110,14 +110,17 @@ class LongmanRepository implements WordRepository {
               definitions.add(d.text.trim());
             }
             if (definitions.isNotEmpty) {
-              meanings.add(Meaning(partOfSpeech: pos, definitions: definitions));
+              meanings.add(
+                Meaning(partOfSpeech: pos, definitions: definitions),
+              );
             }
           }
         }
       }
     }
 
-    final sourceUrl = '$_apiBase${Uri.encodeComponent(word.replaceAll(' ', '-'))}';
+    final sourceUrl =
+        '$_apiBase${Uri.encodeComponent(word.replaceAll(' ', '-'))}';
 
     return meanings.isEmpty && phonetic == null
         ? null
@@ -133,9 +136,18 @@ class LongmanRepository implements WordRepository {
 
   void _cleanElement(dom.Element root) {
     final toRemove = [
-      'script', 'style', 'noscript', 'iframe', 'input', 'label',
-      '.asset', '.assetlink', '.Thesref', '.etym',
-      '.topslot-container', '.contentslot',
+      'script',
+      'style',
+      'noscript',
+      'iframe',
+      'input',
+      'label',
+      '.asset',
+      '.assetlink',
+      '.Thesref',
+      '.etym',
+      '.topslot-container',
+      '.contentslot',
       'span[id^="ad_"][class^="am-"]',
     ];
     for (final selector in toRemove) {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/rss_models.dart';
+
 import '../providers/rss_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/rss/rss_article_list.dart';
@@ -28,7 +28,11 @@ class RssScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWideLayout(BuildContext context, RssProvider provider, ThemeData theme) {
+  Widget _buildWideLayout(
+    BuildContext context,
+    RssProvider provider,
+    ThemeData theme,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -43,15 +47,20 @@ class RssScreen extends StatelessWidget {
             onRemoveFeed: (url) => provider.removeFeed(url),
           ),
         ),
-        VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
-        Expanded(
-          child: _buildArticlePanel(context, provider, theme),
+        VerticalDivider(
+          width: 1,
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
+        Expanded(child: _buildArticlePanel(context, provider, theme)),
       ],
     );
   }
 
-  Widget _buildNarrowLayout(BuildContext context, RssProvider provider, ThemeData theme) {
+  Widget _buildNarrowLayout(
+    BuildContext context,
+    RssProvider provider,
+    ThemeData theme,
+  ) {
     final hasSelection = provider.selectedFeedUrl != null;
 
     return Column(
@@ -60,14 +69,14 @@ class RssScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+              bottom: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+              ),
             ),
           ),
           child: Row(
             children: [
-              Expanded(
-                child: _buildFeedSelector(context, provider, theme),
-              ),
+              Expanded(child: _buildFeedSelector(context, provider, theme)),
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.add_circle_outline, size: 22),
@@ -80,9 +89,14 @@ class RssScreen extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.refresh, size: 20),
                   tooltip: '刷新',
-                  onPressed: provider.isFetchingArticles ? null : () => provider.refreshAll(),
+                  onPressed: provider.isFetchingArticles
+                      ? null
+                      : () => provider.refreshAll(),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
                 ),
             ],
           ),
@@ -95,7 +109,9 @@ class RssScreen extends StatelessWidget {
               child: Text(
                 '选择一个订阅源',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.5,
+                  ),
                 ),
               ),
             ),
@@ -104,7 +120,11 @@ class RssScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeedSelector(BuildContext context, RssProvider provider, ThemeData theme) {
+  Widget _buildFeedSelector(
+    BuildContext context,
+    RssProvider provider,
+    ThemeData theme,
+  ) {
     return DropdownButton<String?>(
       value: provider.selectedFeedUrl,
       hint: const Text('选择订阅源'),
@@ -126,7 +146,11 @@ class RssScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildArticlePanel(BuildContext context, RssProvider provider, ThemeData theme) {
+  Widget _buildArticlePanel(
+    BuildContext context,
+    RssProvider provider,
+    ThemeData theme,
+  ) {
     if (provider.selectedFeedUrl == null) {
       return Center(
         child: Text(
@@ -151,19 +175,32 @@ class RssScreen extends StatelessWidget {
             color: theme.colorScheme.errorContainer,
             child: Row(
               children: [
-                Icon(Icons.error_outline, size: 18, color: theme.colorScheme.error),
+                Icon(
+                  Icons.error_outline,
+                  size: 18,
+                  color: theme.colorScheme.error,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     provider.errorMessage!,
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onErrorContainer),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.close, size: 16, color: theme.colorScheme.onErrorContainer),
+                  icon: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
                   onPressed: provider.clearError,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
                 ),
               ],
             ),

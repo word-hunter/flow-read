@@ -15,7 +15,9 @@ class SyntaxCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -51,7 +53,9 @@ class SyntaxCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.2),
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.2,
+                ),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: theme.colorScheme.primary.withValues(alpha: 0.15),
@@ -66,7 +70,11 @@ class SyntaxCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.arrow_forward, size: 16, color: theme.colorScheme.secondary),
+                Icon(
+                  Icons.arrow_forward,
+                  size: 16,
+                  color: theme.colorScheme.secondary,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -84,7 +92,9 @@ class SyntaxCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(

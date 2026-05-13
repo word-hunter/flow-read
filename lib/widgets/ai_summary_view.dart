@@ -33,14 +33,19 @@ class _AISummaryViewState extends State<AISummaryView> {
               _buildHeader(theme, provider),
               _buildLanguageToggle(theme, provider),
               Divider(
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+              ),
               Expanded(
                 child: provider.isGeneratingSummary
                     ? _buildLoadingView(theme)
                     : provider.aiSummary == null || provider.aiSummary!.isEmpty
-                        ? _buildEmptyView(theme, provider)
-                        : _buildSummaryContent(
-                            scrollController, provider.aiSummary!, theme, provider),
+                    ? _buildEmptyView(theme, provider)
+                    : _buildSummaryContent(
+                        scrollController,
+                        provider.aiSummary!,
+                        theme,
+                        provider,
+                      ),
               ),
             ],
           ),
@@ -60,7 +65,9 @@ class _AISummaryViewState extends State<AISummaryView> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.4,
+                  ),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -135,12 +142,18 @@ class _AISummaryViewState extends State<AISummaryView> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.auto_awesome, size: 48,
-              color: theme.colorScheme.primary.withValues(alpha: 0.4)),
+          Icon(
+            Icons.auto_awesome,
+            size: 48,
+            color: theme.colorScheme.primary.withValues(alpha: 0.4),
+          ),
           const SizedBox(height: 12),
-          Text('暂无总结',
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            '暂无总结',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: () => provider.generateSummary(),
@@ -171,7 +184,9 @@ class _AISummaryViewState extends State<AISummaryView> {
           ],
           if (summary.characterDevelopments.isNotEmpty) ...[
             _buildSectionHeader(theme, '角色发展', Icons.person),
-            ...summary.characterDevelopments.map((c) => _buildCharacterCard(c, theme)),
+            ...summary.characterDevelopments.map(
+              (c) => _buildCharacterCard(c, theme),
+            ),
             const SizedBox(height: 20),
           ],
           if (summary.keyVocabulary.isNotEmpty) ...[
@@ -185,14 +200,18 @@ class _AISummaryViewState extends State<AISummaryView> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+                color: theme.colorScheme.tertiaryContainer.withValues(
+                  alpha: 0.3,
+                ),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Text(summary.readingGuidance,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onTertiaryContainer,
-                    height: 1.5,
-                  )),
+              child: Text(
+                summary.readingGuidance,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onTertiaryContainer,
+                  height: 1.5,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
           ],
@@ -218,11 +237,13 @@ class _AISummaryViewState extends State<AISummaryView> {
         children: [
           Icon(icon, size: 18, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
-          Text(title,
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.primary,
-              )),
+          Text(
+            title,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.primary,
+            ),
+          ),
         ],
       ),
     );
@@ -232,8 +253,8 @@ class _AISummaryViewState extends State<AISummaryView> {
     final confidenceColor = event.confidence == 'high'
         ? Colors.green
         : event.confidence == 'medium'
-            ? Colors.orange
-            : Colors.red;
+        ? Colors.orange
+        : Colors.red;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -245,24 +266,31 @@ class _AISummaryViewState extends State<AISummaryView> {
             Row(
               children: [
                 Expanded(
-                  child: Text(event.description,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onSurface,
-                      )),
+                  child: Text(
+                    event.description,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: confidenceColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text(event.confidence,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: confidenceColor,
-                      )),
+                  child: Text(
+                    event.confidence,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: confidenceColor,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -272,7 +300,9 @@ class _AISummaryViewState extends State<AISummaryView> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -286,11 +316,13 @@ class _AISummaryViewState extends State<AISummaryView> {
             ],
             if (event.significance.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text(event.significance,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.4,
-                  )),
+              Text(
+                event.significance,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.4,
+                ),
+              ),
             ],
           ],
         ),
@@ -312,26 +344,37 @@ class _AISummaryViewState extends State<AISummaryView> {
                 CircleAvatar(
                   radius: 12,
                   backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Text(cd.character.isNotEmpty ? cd.character[0].toUpperCase() : '?',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onPrimaryContainer)),
+                  child: Text(
+                    cd.character.isNotEmpty
+                        ? cd.character[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(cd.character,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onSurface,
-                      )),
+                  child: Text(
+                    cd.character,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            Text(cd.change,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.4,
-                )),
+            Text(
+              cd.change,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.4,
+              ),
+            ),
           ],
         ),
       ),
@@ -347,24 +390,30 @@ class _AISummaryViewState extends State<AISummaryView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(vocab.word,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.vocabLearning,
-                  fontFamily: 'Serif',
-                )),
+            Text(
+              vocab.word,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.vocabLearning,
+                fontFamily: 'Serif',
+              ),
+            ),
             const SizedBox(height: 4),
-            Text(vocab.meaningInContext,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                )),
+            Text(
+              vocab.meaningInContext,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
             if (vocab.sentence.isNotEmpty) ...[
               const SizedBox(height: 6),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(

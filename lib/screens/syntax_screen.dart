@@ -17,7 +17,10 @@ class SyntaxScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('句型分析', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text(
+          '句型分析',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         centerTitle: false,
       ),
       body: result.syntaxPatterns.isEmpty
@@ -65,7 +68,9 @@ class _SyntaxCardItemState extends State<_SyntaxCardItem> {
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         children: [
@@ -82,7 +87,9 @@ class _SyntaxCardItemState extends State<_SyntaxCardItem> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.5,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -117,7 +124,9 @@ class _SyntaxCardItemState extends State<_SyntaxCardItem> {
                     ),
                   ),
                   Icon(
-                    _expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    _expanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ],
@@ -125,12 +134,14 @@ class _SyntaxCardItemState extends State<_SyntaxCardItem> {
             ),
           ),
           if (_expanded) ...[
-            Divider(height: 1, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+            Divider(
+              height: 1,
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+            ),
             SyntaxBreakdown(pattern: widget.pattern),
           ],
         ],
       ),
     );
   }
-
 }

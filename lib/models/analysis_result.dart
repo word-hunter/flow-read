@@ -24,12 +24,12 @@ class Vocabulary {
   }
 
   Map<String, dynamic> toJson() => {
-        'word': word,
-        'meaning': meaning,
-        'context': context,
-        'familiarity': familiarity,
-        'level': level,
-      };
+    'word': word,
+    'meaning': meaning,
+    'context': context,
+    'familiarity': familiarity,
+    'level': level,
+  };
 }
 
 class SyntaxPattern {
@@ -55,11 +55,11 @@ class SyntaxPattern {
   }
 
   Map<String, dynamic> toJson() => {
-        'type': type,
-        'original_sentence': originalSentence,
-        'simplified_sentence': simplifiedSentence,
-        'explanation': explanation,
-      };
+    'type': type,
+    'original_sentence': originalSentence,
+    'simplified_sentence': simplifiedSentence,
+    'explanation': explanation,
+  };
 }
 
 class Comprehension {
@@ -82,10 +82,10 @@ class Comprehension {
   }
 
   Map<String, dynamic> toJson() => {
-        'what_happened': whatHappened,
-        'why_happened': whyHappened,
-        'implicit_meaning': implicitMeaning,
-      };
+    'what_happened': whatHappened,
+    'why_happened': whyHappened,
+    'implicit_meaning': implicitMeaning,
+  };
 }
 
 class Practice {
@@ -108,10 +108,10 @@ class Practice {
   }
 
   Map<String, dynamic> toJson() => {
-        'type': type,
-        'question': question,
-        'expected_reasoning': expectedReasoning,
-      };
+    'type': type,
+    'question': question,
+    'expected_reasoning': expectedReasoning,
+  };
 }
 
 class Difficulty {
@@ -137,11 +137,11 @@ class Difficulty {
   }
 
   Map<String, dynamic> toJson() => {
-        'vocab': vocab,
-        'syntax': syntax,
-        'inference': inference,
-        'explanation': explanation,
-      };
+    'vocab': vocab,
+    'syntax': syntax,
+    'inference': inference,
+    'explanation': explanation,
+  };
 }
 
 class AnalysisResult {
@@ -174,11 +174,13 @@ class AnalysisResult {
       vocabulary: (json['vocabulary'] as List)
           .map((e) => Vocabulary.fromJson(e as Map<String, dynamic>))
           .toList(),
-      knownWords: (json['known_words'] as List<dynamic>?)
+      knownWords:
+          (json['known_words'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toSet() ??
           const {},
-      learningWords: (json['learning_words'] as List<dynamic>?)
+      learningWords:
+          (json['learning_words'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toSet() ??
           const {},
@@ -186,24 +188,26 @@ class AnalysisResult {
           .map((e) => SyntaxPattern.fromJson(e as Map<String, dynamic>))
           .toList(),
       comprehension: Comprehension.fromJson(
-          json['comprehension'] as Map<String, dynamic>),
+        json['comprehension'] as Map<String, dynamic>,
+      ),
       practice: (json['practice'] as List)
           .map((e) => Practice.fromJson(e as Map<String, dynamic>))
           .toList(),
       difficulty: Difficulty.fromJson(
-          json['difficulty'] as Map<String, dynamic>),
+        json['difficulty'] as Map<String, dynamic>,
+      ),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'passage_text': passageText,
-        'title': title,
-        'vocabulary': vocabulary.map((e) => e.toJson()).toList(),
-        'known_words': knownWords.toList(),
-        'learning_words': learningWords.toList(),
-        'syntax_patterns': syntaxPatterns.map((e) => e.toJson()).toList(),
-        'comprehension': comprehension.toJson(),
-        'practice': practice.map((e) => e.toJson()).toList(),
-        'difficulty': difficulty.toJson(),
-      };
+    'passage_text': passageText,
+    'title': title,
+    'vocabulary': vocabulary.map((e) => e.toJson()).toList(),
+    'known_words': knownWords.toList(),
+    'learning_words': learningWords.toList(),
+    'syntax_patterns': syntaxPatterns.map((e) => e.toJson()).toList(),
+    'comprehension': comprehension.toJson(),
+    'practice': practice.map((e) => e.toJson()).toList(),
+    'difficulty': difficulty.toJson(),
+  };
 }

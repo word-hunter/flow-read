@@ -6,17 +6,16 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/aggregated_vocabulary.dart';
+import '../models/ai_practice_questions.dart';
+import '../models/ai_summary.dart';
+import '../models/ai_text_analysis.dart';
 import '../models/analysis_result.dart';
 import '../models/book.dart';
 import '../models/book_metadata.dart';
 import '../models/bookmarked_word.dart';
-import '../models/chapter.dart';
 import '../models/reading_bookmark.dart';
-import '../models/user_vocabulary.dart';
 import '../models/sentence_breakdown.dart';
-import '../models/ai_practice_questions.dart';
-import '../models/ai_summary.dart';
-import '../models/ai_text_analysis.dart';
+import '../models/user_vocabulary.dart';
 import '../models/word_analysis.dart';
 import '../services/ai_cache_service.dart';
 import '../services/ai_service.dart';
@@ -132,11 +131,14 @@ class ReadingProvider extends ChangeNotifier {
     }
     return vocab;
   }
+
   int get totalVocabularyCount => _allVocab.length;
 
   // -- Bookmarks --
-  List<BookmarkedWord> get bookmarkedWords => List.unmodifiable(_bookmarkedWords);
-  List<ReadingBookmark> get readingBookmarks => List.unmodifiable(_readingBookmarks);
+  List<BookmarkedWord> get bookmarkedWords =>
+      List.unmodifiable(_bookmarkedWords);
+  List<ReadingBookmark> get readingBookmarks =>
+      List.unmodifiable(_readingBookmarks);
 
   // -- Bookshelf --
   List<BookMetadata> get allBooks {
@@ -148,13 +150,17 @@ class ReadingProvider extends ChangeNotifier {
     });
     return list;
   }
+
   double get globalProgress {
     if (_activeBookId != null) {
-      final meta = _bookService.books.where((b) => b.id == _activeBookId).firstOrNull;
+      final meta = _bookService.books
+          .where((b) => b.id == _activeBookId)
+          .firstOrNull;
       if (meta != null) return meta.globalProgress;
     }
     return 0.0;
   }
+
   Uint8List? getCoverBytes(String bookId) => _bookService.loadCover(bookId);
 
   // -- UI --
@@ -209,16 +215,20 @@ class ReadingProvider extends ChangeNotifier {
   // ============================================================
 
   void setBookService(BookService service) => _bookService = service;
-  void setBookmarkService(BookmarkService service) => _bookmarkService = service;
-  void setReadingConfig(ReadingConfigService service) => _readingConfig = service;
+  void setBookmarkService(BookmarkService service) =>
+      _bookmarkService = service;
+  void setReadingConfig(ReadingConfigService service) =>
+      _readingConfig = service;
   void setReadingTime(ReadingTimeService service) => _readingTime = service;
   void setWordRepository(WordRepository repo) => _wordRepo = repo;
   void setUserVocabulary(UserVocabularyService vocab) => _userVocab = vocab;
-  void setSentenceAnalyzer(SentenceAnalyzer analyzer) => _sentenceAnalyzer = analyzer;
+  void setSentenceAnalyzer(SentenceAnalyzer analyzer) =>
+      _sentenceAnalyzer = analyzer;
   void setSettings(SettingsService settings) => _settings = settings;
   void setAIService(AIService service) => _aiService = service;
   void setAICache(AICacheService cache) => _aiCache = cache;
-  void setWordLevelService(WordLevelService service) => _wordLevelService = service;
+  void setWordLevelService(WordLevelService service) =>
+      _wordLevelService = service;
 
   // ============================================================
   // Initialisation
@@ -255,15 +265,17 @@ class ReadingProvider extends ChangeNotifier {
         coverPath = await _bookService.saveCover(bookId, book.coverBytes!);
       }
 
-      await _bookService.addBook(BookMetadata(
-        id: bookId,
-        title: book.title,
-        author: book.author,
-        sourcePath: copiedPath,
-        coverPath: coverPath,
-        totalChapters: book.chapters.length,
-        lastReadAt: DateTime.now(),
-      ));
+      await _bookService.addBook(
+        BookMetadata(
+          id: bookId,
+          title: book.title,
+          author: book.author,
+          sourcePath: copiedPath,
+          coverPath: coverPath,
+          totalChapters: book.chapters.length,
+          lastReadAt: DateTime.now(),
+        ),
+      );
 
       _book = book;
       _activeBookId = bookId;
@@ -380,7 +392,10 @@ class ReadingProvider extends ChangeNotifier {
     if (_book == null) return;
     final chapter = _book!.chapters[_currentChapter];
     _result = AnalysisService.analyzeChapter(
-      chapter.title, chapter.plainText, _userVocab, _wordLevelService,
+      chapter.title,
+      chapter.plainText,
+      _userVocab,
+      _wordLevelService,
     );
     _updateAllVocab();
     notifyListeners();
@@ -400,8 +415,11 @@ class ReadingProvider extends ChangeNotifier {
         );
       } else {
         _allVocab[lower] = AggregatedVocabulary(
-          word: lower, meaning: v.meaning, firstChapter: _currentChapter,
-          context: v.context, chapterIndices: {_currentChapter},
+          word: lower,
+          meaning: v.meaning,
+          firstChapter: _currentChapter,
+          context: v.context,
+          chapterIndices: {_currentChapter},
           level: v.level,
         );
       }
@@ -465,7 +483,10 @@ class ReadingProvider extends ChangeNotifier {
   void analyzeSelectedText(String text) {
     _selectedText = text;
     _selectedAnalysis = AnalysisService.analyzeChapter(
-      'Selected Text', text, _userVocab, _wordLevelService,
+      'Selected Text',
+      text,
+      _userVocab,
+      _wordLevelService,
     );
     _selectedBreakdowns = _sentenceAnalyzer.analyze(text);
     notifyListeners();
@@ -503,13 +524,22 @@ class ReadingProvider extends ChangeNotifier {
     String context = '';
     if (_result != null) {
       for (final v in _result!.vocabulary) {
-        if (v.word.toLowerCase() == lower) { context = v.context; break; }
+        if (v.word.toLowerCase() == lower) {
+          context = v.context;
+          break;
+        }
       }
     }
-    _bookmarkedWords.insert(0, BookmarkedWord(
-      word: word, translation: translation, context: context,
-      addedAt: DateTime.now(), bookId: _activeBookId!,
-    ));
+    _bookmarkedWords.insert(
+      0,
+      BookmarkedWord(
+        word: word,
+        translation: translation,
+        context: context,
+        addedAt: DateTime.now(),
+        bookId: _activeBookId!,
+      ),
+    );
     _bookmarkService?.saveWordBookmarks(_activeBookId!, _bookmarkedWords);
     notifyListeners();
   }
@@ -526,7 +556,9 @@ class ReadingProvider extends ChangeNotifier {
 
   bool isCurrentPositionBookmarked() {
     return _readingBookmarks.any(
-      (b) => b.chapterIndex == _currentChapter && (b.progress - _readingProgress).abs() < 0.01,
+      (b) =>
+          b.chapterIndex == _currentChapter &&
+          (b.progress - _readingProgress).abs() < 0.01,
     );
   }
 
@@ -536,23 +568,33 @@ class ReadingProvider extends ChangeNotifier {
     String excerpt = '';
     if (_result != null) {
       final paragraphs = _result!.passageText.split(RegExp(r'\n\s*\n'));
-      final idx = (_readingProgress * paragraphs.length).round().clamp(0, paragraphs.length - 1);
+      final idx = (_readingProgress * paragraphs.length).round().clamp(
+        0,
+        paragraphs.length - 1,
+      );
       excerpt = paragraphs[idx].trim();
       if (excerpt.length > 80) excerpt = '${excerpt.substring(0, 80)}...';
     }
     String chapterTitle = _book?.chapters[_currentChapter].title ?? '';
 
-    _readingBookmarks.insert(0, ReadingBookmark(
-      chapterIndex: _currentChapter, progress: _readingProgress,
-      chapterTitle: chapterTitle, excerpt: excerpt,
-      createdAt: DateTime.now(), bookId: _activeBookId!,
-    ));
+    _readingBookmarks.insert(
+      0,
+      ReadingBookmark(
+        chapterIndex: _currentChapter,
+        progress: _readingProgress,
+        chapterTitle: chapterTitle,
+        excerpt: excerpt,
+        createdAt: DateTime.now(),
+        bookId: _activeBookId!,
+      ),
+    );
     _bookmarkService?.saveReadingBookmarks(_activeBookId!, _readingBookmarks);
     notifyListeners();
   }
 
   void removeReadingBookmark(int index) {
-    if (_activeBookId == null || index < 0 || index >= _readingBookmarks.length) return;
+    if (_activeBookId == null || index < 0 || index >= _readingBookmarks.length)
+      return;
     _readingBookmarks.removeAt(index);
     _bookmarkService?.saveReadingBookmarks(_activeBookId!, _readingBookmarks);
     notifyListeners();
@@ -560,7 +602,8 @@ class ReadingProvider extends ChangeNotifier {
 
   void goToReadingBookmark(ReadingBookmark bookmark) {
     if (_book == null) return;
-    if (bookmark.chapterIndex >= 0 && bookmark.chapterIndex < _book!.chapters.length) {
+    if (bookmark.chapterIndex >= 0 &&
+        bookmark.chapterIndex < _book!.chapters.length) {
       goToChapter(bookmark.chapterIndex);
     }
     _readingProgress = bookmark.progress;
@@ -595,16 +638,26 @@ class ReadingProvider extends ChangeNotifier {
   // AI
   // ============================================================
 
-  Future<void> analyzeSelectedTextAI(String text, String before, String after) async {
+  Future<void> analyzeSelectedTextAI(
+    String text,
+    String before,
+    String after,
+  ) async {
     if (_aiService == null) return;
     _isAnalyzingText = true;
     _aiTextAnalysis = null;
     _aiTranslation = null;
     notifyListeners();
     try {
-      _aiTextAnalysis = await _aiService!.analyzeText(selectedText: text, contextBefore: before, contextAfter: after);
+      _aiTextAnalysis = await _aiService!.analyzeText(
+        selectedText: text,
+        contextBefore: before,
+        contextAfter: after,
+      );
       _settings?.incrementAIUsage(textAnalysis: true);
-    } catch (e) { _errorMessage = 'AI 解析失败: $e'; }
+    } catch (e) {
+      _errorMessage = 'AI 解析失败: $e';
+    }
     _isAnalyzingText = false;
     notifyListeners();
   }
@@ -614,8 +667,11 @@ class ReadingProvider extends ChangeNotifier {
     _isTranslatingText = true;
     _aiTranslation = null;
     notifyListeners();
-    try { _aiTranslation = await _aiService!.translateText(text); }
-    catch (e) { _errorMessage = '翻译失败: $e'; }
+    try {
+      _aiTranslation = await _aiService!.translateText(text);
+    } catch (e) {
+      _errorMessage = '翻译失败: $e';
+    }
     _isTranslatingText = false;
     notifyListeners();
   }
@@ -626,9 +682,15 @@ class ReadingProvider extends ChangeNotifier {
     _aiSummary = null;
     notifyListeners();
     try {
-      final cacheJson = await _aiCache?.loadSummary(_activeBookId!, _currentChapter, _summaryLanguage);
+      final cacheJson = await _aiCache?.loadSummary(
+        _activeBookId!,
+        _currentChapter,
+        _summaryLanguage,
+      );
       if (cacheJson != null) {
-        _aiSummary = AISummary.fromJson(jsonDecode(cacheJson) as Map<String, dynamic>);
+        _aiSummary = AISummary.fromJson(
+          jsonDecode(cacheJson) as Map<String, dynamic>,
+        );
         _isGeneratingSummary = false;
         notifyListeners();
         return;
@@ -640,9 +702,16 @@ class ReadingProvider extends ChangeNotifier {
       )) {
         _aiSummary = summary;
         _settings?.incrementAIUsage(chapterSummary: true);
-        await _aiCache?.saveSummary(_activeBookId!, _currentChapter, _summaryLanguage, jsonEncode(summary.toJson()));
+        await _aiCache?.saveSummary(
+          _activeBookId!,
+          _currentChapter,
+          _summaryLanguage,
+          jsonEncode(summary.toJson()),
+        );
       }
-    } catch (e) { _errorMessage = '生成总结失败: $e'; }
+    } catch (e) {
+      _errorMessage = '生成总结失败: $e';
+    }
     _isGeneratingSummary = false;
     notifyListeners();
   }
@@ -659,9 +728,14 @@ class ReadingProvider extends ChangeNotifier {
     _aiPractice = null;
     notifyListeners();
     try {
-      final cacheJson = await _aiCache?.loadPractice(_activeBookId!, _currentChapter);
+      final cacheJson = await _aiCache?.loadPractice(
+        _activeBookId!,
+        _currentChapter,
+      );
       if (cacheJson != null) {
-        _aiPractice = AIPracticeSet.fromJson(jsonDecode(cacheJson) as Map<String, dynamic>);
+        _aiPractice = AIPracticeSet.fromJson(
+          jsonDecode(cacheJson) as Map<String, dynamic>,
+        );
         _isGeneratingPractice = false;
         notifyListeners();
         return;
@@ -673,9 +747,15 @@ class ReadingProvider extends ChangeNotifier {
       )) {
         _aiPractice = practice;
         _settings?.incrementAIUsage(practice: true);
-        await _aiCache?.savePractice(_activeBookId!, _currentChapter, jsonEncode(practice.toJson()));
+        await _aiCache?.savePractice(
+          _activeBookId!,
+          _currentChapter,
+          jsonEncode(practice.toJson()),
+        );
       }
-    } catch (e) { _errorMessage = '生成练习题失败: $e'; }
+    } catch (e) {
+      _errorMessage = '生成练习题失败: $e';
+    }
     _isGeneratingPractice = false;
     notifyListeners();
   }
@@ -686,9 +766,15 @@ class ReadingProvider extends ChangeNotifier {
     _aiWordAnalysis = null;
     notifyListeners();
     try {
-      _aiWordAnalysis = await _aiService!.analyzeWord(word: word, sentence: sentence, chapterContext: _result!.passageText);
+      _aiWordAnalysis = await _aiService!.analyzeWord(
+        word: word,
+        sentence: sentence,
+        chapterContext: _result!.passageText,
+      );
       _settings?.incrementAIUsage(wordAnalysis: true);
-    } catch (e) { _errorMessage = 'AI 单词解析失败: $e'; }
+    } catch (e) {
+      _errorMessage = 'AI 单词解析失败: $e';
+    }
     _isAnalyzingWord = false;
     notifyListeners();
   }
@@ -710,11 +796,18 @@ class ReadingProvider extends ChangeNotifier {
   // Helpers
   // ============================================================
 
-  void clearError() { _errorMessage = null; notifyListeners(); }
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
 
   void _saveCurrentProgress() {
     if (_activeBookId == null || _book == null) return;
-    _bookService.updateProgress(_activeBookId!, _currentChapter, _readingProgress);
+    _bookService.updateProgress(
+      _activeBookId!,
+      _currentChapter,
+      _readingProgress,
+    );
   }
 
   String _generateBookId(String fileName) {

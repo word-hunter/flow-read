@@ -22,10 +22,26 @@ class _ReadingDeskScreenState extends State<ReadingDeskScreen> {
   ];
 
   static const _navDestinations = [
-    NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Reader'),
-    NavigationDestination(icon: Icon(Icons.translate_outlined), selectedIcon: Icon(Icons.translate), label: 'Vocab'),
-    NavigationDestination(icon: Icon(Icons.fitness_center_outlined), selectedIcon: Icon(Icons.fitness_center), label: 'Training'),
-    NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'Stats'),
+    NavigationDestination(
+      icon: Icon(Icons.menu_book_outlined),
+      selectedIcon: Icon(Icons.menu_book),
+      label: 'Reader',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.translate_outlined),
+      selectedIcon: Icon(Icons.translate),
+      label: 'Vocab',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.fitness_center_outlined),
+      selectedIcon: Icon(Icons.fitness_center),
+      label: 'Training',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.bar_chart_outlined),
+      selectedIcon: Icon(Icons.bar_chart),
+      label: 'Stats',
+    ),
   ];
 
   @override
@@ -36,10 +52,7 @@ class _ReadingDeskScreenState extends State<ReadingDeskScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: IndexedStack(
-            index: _currentIndex,
-            children: _pages,
-          ),
+          child: IndexedStack(index: _currentIndex, children: _pages),
         ),
       ),
       bottomNavigationBar: NavigationBar(

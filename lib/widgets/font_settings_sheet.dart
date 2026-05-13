@@ -20,7 +20,7 @@ class FontSettingsSheet extends StatelessWidget {
             color: theme.colorScheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
-            child: ListView(
+          child: ListView(
             controller: scrollController,
             padding: const EdgeInsets.fromLTRB(20, 14, 12, 20),
             children: [
@@ -31,12 +31,20 @@ class FontSettingsSheet extends StatelessWidget {
                     icon: const Icon(Icons.close, size: 20),
                     onPressed: () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 36,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 4),
-              Text('字体设置', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                '字体设置',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 24),
               _buildFontSizeSection(provider, theme),
               const SizedBox(height: 20),
@@ -59,11 +67,19 @@ class FontSettingsSheet extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text('字号', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              '字号',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const Spacer(),
             Text(
               '${provider.fontSize.toInt()}',
-              style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w600),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -91,7 +107,12 @@ class FontSettingsSheet extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('字体', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          '字体',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -103,7 +124,9 @@ class FontSettingsSheet extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: family,
                   fontSize: 14,
-                  color: isSelected ? theme.colorScheme.onPrimaryContainer : null,
+                  color: isSelected
+                      ? theme.colorScheme.onPrimaryContainer
+                      : null,
                 ),
               ),
               selected: isSelected,
@@ -122,11 +145,19 @@ class FontSettingsSheet extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text('行间距', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              '行间距',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const Spacer(),
             Text(
               provider.lineHeight.toStringAsFixed(1),
-              style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w600),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -152,7 +183,12 @@ class FontSettingsSheet extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('主题', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          '主题',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 8),
         Row(
           children: themes.map((t) {
@@ -170,19 +206,36 @@ class FontSettingsSheet extends StatelessWidget {
                         color: t['color'] as Color,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outlineVariant.withValues(
+                                  alpha: 0.5,
+                                ),
                           width: isSelected ? 2.5 : 1,
                         ),
                       ),
                       child: isSelected
-                          ? Icon(Icons.check, color: t['key'] == 'dark' ? Colors.white : theme.colorScheme.primary, size: 20)
+                          ? Icon(
+                              Icons.check,
+                              color: t['key'] == 'dark'
+                                  ? Colors.white
+                                  : theme.colorScheme.primary,
+                              size: 20,
+                            )
                           : null,
                     ),
                     const SizedBox(height: 4),
-                    Text(t['label'] as String, style: theme.textTheme.labelSmall?.copyWith(
-                      color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    )),
+                    Text(
+                      t['label'] as String,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: isSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurfaceVariant,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
                   ],
                 ),
               ),

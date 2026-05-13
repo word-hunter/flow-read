@@ -46,12 +46,14 @@ class ReviewService {
       }
       usedIndices.add(idx);
 
-      questions.add(ReviewQuestion(
-        id: 'q_$i',
-        question: _questionPool[idx % _questionPool.length],
-        hint: _hintPool[idx % _hintPool.length],
-        isCompleted: false,
-      ));
+      questions.add(
+        ReviewQuestion(
+          id: 'q_$i',
+          question: _questionPool[idx % _questionPool.length],
+          hint: _hintPool[idx % _hintPool.length],
+          isCompleted: false,
+        ),
+      );
     }
 
     return questions;

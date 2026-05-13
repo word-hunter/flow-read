@@ -69,11 +69,13 @@ class WordLevelService {
 
         final level = LevelKey.fromString(levelStr);
 
-        batch.add(WordLevelInfo(
-          word: word,
-          originForm: originForm.isNotEmpty ? originForm : word,
-          levelIndex: level.index,
-        ));
+        batch.add(
+          WordLevelInfo(
+            word: word,
+            originForm: originForm.isNotEmpty ? originForm : word,
+            levelIndex: level.index,
+          ),
+        );
         _levelMap[word] = level;
         _levelMap[originForm.isNotEmpty ? originForm : word] = level;
       }

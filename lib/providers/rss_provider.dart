@@ -21,6 +21,7 @@ class RssProvider extends ChangeNotifier {
     if (_selectedFeedUrl == null) return null;
     return _subscriptions.where((s) => s.url == _selectedFeedUrl).firstOrNull;
   }
+
   List<RssArticle> get articles => _articles;
   bool get isLoading => _isLoading;
   bool get isFetchingArticles => _isFetchingArticles;
@@ -112,10 +113,5 @@ class RssProvider extends ChangeNotifier {
   void clearError() {
     _errorMessage = null;
     notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }

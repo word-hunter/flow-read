@@ -67,7 +67,15 @@ InlineSpan buildHighlightedText(
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
 }) {
-  return _HighlightBuilder(result, theme, onWordTapped, fontSize, lineHeight, fontFamily, colorSettings).build();
+  return _HighlightBuilder(
+    result,
+    theme,
+    onWordTapped,
+    fontSize,
+    lineHeight,
+    fontFamily,
+    colorSettings,
+  ).build();
 }
 
 InlineSpan buildHighlightedParagraph(
@@ -80,7 +88,15 @@ InlineSpan buildHighlightedParagraph(
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
 }) {
-  return _HighlightBuilder(result, theme, onWordTapped, fontSize, lineHeight, fontFamily, colorSettings).buildParagraph(paragraph);
+  return _HighlightBuilder(
+    result,
+    theme,
+    onWordTapped,
+    fontSize,
+    lineHeight,
+    fontFamily,
+    colorSettings,
+  ).buildParagraph(paragraph);
 }
 
 class _HighlightBuilder {
@@ -94,7 +110,15 @@ class _HighlightBuilder {
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
 
-  _HighlightBuilder(this.result, this.theme, this.onWordTapped, this.fontSize, this.lineHeight, this.fontFamily, this.colorSettings) {
+  _HighlightBuilder(
+    this.result,
+    this.theme,
+    this.onWordTapped,
+    this.fontSize,
+    this.lineHeight,
+    this.fontFamily,
+    this.colorSettings,
+  ) {
     vocabWords = {};
     for (final v in result.vocabulary) {
       vocabWords[v.word.toLowerCase()] = v;
@@ -138,42 +162,46 @@ class _HighlightBuilder {
       if (isVocab) {
         final vocab = vocabWords[lower]!;
         final color = _colorForVocab(vocab);
-        spans.add(WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: buildWordTapable(
-            word: word,
-            color: color,
-            textStyle: theme.textTheme.bodyLarge!.copyWith(
-              height: lineHeight,
-              letterSpacing: 0.3,
-              fontFamily: fontFamily,
-              fontSize: fontSize,
-            ),
-            onWordTapped: onWordTapped,
-            contextText: vocab.context,
-          ),
-        ));
-      } else if (isKnown) {
-        final knownColor = _colorForKnown();
-        spans.add(WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: GestureDetector(
-            onTap: () => onWordTapped(word, '...$word...'),
-            child: Text(
-              word,
-              style: theme.textTheme.bodyLarge!.copyWith(
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: buildWordTapable(
+              word: word,
+              color: color,
+              textStyle: theme.textTheme.bodyLarge!.copyWith(
                 height: lineHeight,
                 letterSpacing: 0.3,
                 fontFamily: fontFamily,
                 fontSize: fontSize,
-                color: knownColor,
-                decoration: TextDecoration.underline,
-                decorationColor: knownColor.withValues(alpha: 0.15),
-                decorationStyle: TextDecorationStyle.dotted,
+              ),
+              onWordTapped: onWordTapped,
+              contextText: vocab.context,
+            ),
+          ),
+        );
+      } else if (isKnown) {
+        final knownColor = _colorForKnown();
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: GestureDetector(
+              onTap: () => onWordTapped(word, '...$word...'),
+              child: Text(
+                word,
+                style: theme.textTheme.bodyLarge!.copyWith(
+                  height: lineHeight,
+                  letterSpacing: 0.3,
+                  fontFamily: fontFamily,
+                  fontSize: fontSize,
+                  color: knownColor,
+                  decoration: TextDecoration.underline,
+                  decorationColor: knownColor.withValues(alpha: 0.15),
+                  decorationStyle: TextDecorationStyle.dotted,
+                ),
               ),
             ),
           ),
-        ));
+        );
       } else {
         spans.add(TextSpan(text: word));
       }
@@ -190,43 +218,67 @@ class _HighlightBuilder {
   }
 }
 
-Widget buildChapterNav(BuildContext context, ReadingProvider provider, ThemeData theme) {
+Widget buildChapterNav(
+  BuildContext context,
+  ReadingProvider provider,
+  ThemeData theme,
+) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     decoration: BoxDecoration(
       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-      border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3))),
+      border: Border(
+        bottom: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
     ),
     child: Row(
       children: [
         IconButton(
           icon: const Icon(Icons.chevron_left),
           tooltip: 'Previous chapter',
-          onPressed: provider.currentChapter > 0 ? () => provider.goToChapter(provider.currentChapter - 1) : null,
+          onPressed: provider.currentChapter > 0
+              ? () => provider.goToChapter(provider.currentChapter - 1)
+              : null,
         ),
         Expanded(
           child: Text(
             'Ch ${provider.currentChapter + 1} of ${provider.chapterCount}',
             textAlign: TextAlign.center,
-            style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
         IconButton(
           icon: const Icon(Icons.chevron_right),
           tooltip: 'Next chapter',
-          onPressed: provider.currentChapter < provider.chapterCount - 1 ? () => provider.goToChapter(provider.currentChapter + 1) : null,
+          onPressed: provider.currentChapter < provider.chapterCount - 1
+              ? () => provider.goToChapter(provider.currentChapter + 1)
+              : null,
         ),
       ],
     ),
   );
 }
 
-Widget buildProgressBar(BuildContext context, double readingProgress, ThemeData theme, String chapterTitle, int progressPercent) {
+Widget buildProgressBar(
+  BuildContext context,
+  double readingProgress,
+  ThemeData theme,
+  String chapterTitle,
+  int progressPercent,
+) {
   return Container(
     padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
     decoration: BoxDecoration(
       color: theme.colorScheme.surface,
-      border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3))),
+      border: Border(
+        top: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
     ),
     child: Column(
       mainAxisSize: MainAxisSize.min,
@@ -234,9 +286,21 @@ Widget buildProgressBar(BuildContext context, double readingProgress, ThemeData 
         Row(
           children: [
             Expanded(
-              child: Text(chapterTitle, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), overflow: TextOverflow.ellipsis),
+              child: Text(
+                chapterTitle,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            Text('$progressPercent%', style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+            Text(
+              '$progressPercent%',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -246,7 +310,9 @@ Widget buildProgressBar(BuildContext context, double readingProgress, ThemeData 
             value: readingProgress,
             minHeight: 4,
             backgroundColor: theme.colorScheme.surfaceContainerHighest,
-            valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              theme.colorScheme.primary,
+            ),
           ),
         ),
       ],
@@ -254,7 +320,11 @@ Widget buildProgressBar(BuildContext context, double readingProgress, ThemeData 
   );
 }
 
-Widget buildInlineDictionaryPopup(BuildContext context, ReadingProvider provider, ThemeData theme) {
+Widget buildInlineDictionaryPopup(
+  BuildContext context,
+  ReadingProvider provider,
+  ThemeData theme,
+) {
   return Container(
     constraints: const BoxConstraints(maxHeight: 300),
     decoration: BoxDecoration(
@@ -281,19 +351,35 @@ Widget _buildPopupHeader(ReadingProvider provider, ThemeData theme) {
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     decoration: BoxDecoration(
       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-      border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3))),
+      border: Border(
+        bottom: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
     ),
     child: Row(
       children: [
         Icon(Icons.translate, size: 18, color: theme.colorScheme.primary),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(provider.selectedWord!, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+          child: Text(
+            provider.selectedWord!,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
         if (provider.isLoadingWord)
-          const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
         else
-          IconButton(icon: const Icon(Icons.close, size: 18), onPressed: provider.clearWordLookup),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            onPressed: provider.clearWordLookup,
+          ),
       ],
     ),
   );
@@ -301,17 +387,31 @@ Widget _buildPopupHeader(ReadingProvider provider, ThemeData theme) {
 
 Widget _buildDictionaryContent(ReadingProvider provider, ThemeData theme) {
   if (provider.isLoadingWord) {
-    return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: CircularProgressIndicator(),
+      ),
+    );
   }
   final entry = provider.selectedWordEntry;
   if (entry == null) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('No definition found', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(
+          'No definition found',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 8),
-        Text('Try checking the spelling or your network connection.',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7))),
+        Text(
+          'Try checking the spelling or your network connection.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+          ),
+        ),
       ],
     );
   }
@@ -319,37 +419,63 @@ Widget _buildDictionaryContent(ReadingProvider provider, ThemeData theme) {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       if (entry.phonetic != null) ...[
-        Text(entry.phonetic!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)),
+        Text(
+          entry.phonetic!,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
         const SizedBox(height: 8),
       ],
-      ...entry.meanings.map((meaning) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (meaning.partOfSpeech.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(color: theme.colorScheme.secondaryContainer, borderRadius: BorderRadius.circular(4)),
-                    child: Text(meaning.partOfSpeech, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSecondaryContainer, fontWeight: FontWeight.w600)),
+      ...entry.meanings.map(
+        (meaning) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (meaning.partOfSpeech.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
                   ),
-                const SizedBox(height: 4),
-                ...meaning.definitions.asMap().entries.map((e) {
-                  final isExample = e.value.startsWith('Example:');
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 4, left: 4),
-                    child: Text(
-                      '${e.key + 1}. ${e.value}',
-                      style: (isExample ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium)?.copyWith(
-                        color: isExample ? theme.colorScheme.tertiary : theme.colorScheme.onSurface,
-                        fontStyle: isExample ? FontStyle.italic : null,
-                      ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    meaning.partOfSpeech,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSecondaryContainer,
+                      fontWeight: FontWeight.w600,
                     ),
-                  );
-                }),
-              ],
-            ),
-          )),
+                  ),
+                ),
+              const SizedBox(height: 4),
+              ...meaning.definitions.asMap().entries.map((e) {
+                final isExample = e.value.startsWith('Example:');
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 4),
+                  child: Text(
+                    '${e.key + 1}. ${e.value}',
+                    style:
+                        (isExample
+                                ? theme.textTheme.bodySmall
+                                : theme.textTheme.bodyMedium)
+                            ?.copyWith(
+                              color: isExample
+                                  ? theme.colorScheme.tertiary
+                                  : theme.colorScheme.onSurface,
+                              fontStyle: isExample ? FontStyle.italic : null,
+                            ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
     ],
   );
 }

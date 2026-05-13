@@ -27,71 +27,186 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
   // ---------- 封闭词类静态表 ----------
 
   static const _pronouns = {
-    'i', 'you', 'he', 'she', 'it', 'we', 'they',
-    'me', 'him', 'her', 'us', 'them',
-    'my', 'your', 'his', 'its', 'our', 'their',
-    'mine', 'yours', 'hers', 'ours', 'theirs',
-    'myself', 'yourself', 'himself', 'herself', 'itself',
-    'ourselves', 'yourselves', 'themselves',
-    'this', 'that', 'these', 'those',
-    'who', 'whom', 'whose', 'which', 'what',
-    'someone', 'anyone', 'everyone', 'no one', 'nobody',
-    'something', 'anything', 'everything', 'nothing',
+    'i',
+    'you',
+    'he',
+    'she',
+    'it',
+    'we',
+    'they',
+    'me',
+    'him',
+    'her',
+    'us',
+    'them',
+    'my',
+    'your',
+    'his',
+    'its',
+    'our',
+    'their',
+    'mine',
+    'yours',
+    'hers',
+    'ours',
+    'theirs',
+    'myself',
+    'yourself',
+    'himself',
+    'herself',
+    'itself',
+    'ourselves',
+    'yourselves',
+    'themselves',
+    'this',
+    'that',
+    'these',
+    'those',
+    'who',
+    'whom',
+    'whose',
+    'which',
+    'what',
+    'someone',
+    'anyone',
+    'everyone',
+    'no one',
+    'nobody',
+    'something',
+    'anything',
+    'everything',
+    'nothing',
   };
 
   static const _determiners = {
-    'the', 'a', 'an',
-    'this', 'that', 'these', 'those',
-    'my', 'your', 'his', 'her', 'its', 'our', 'their',
-    'some', 'any', 'every', 'each', 'all', 'both',
-    'few', 'many', 'much', 'several', 'no',
+    'the',
+    'a',
+    'an',
+    'this',
+    'that',
+    'these',
+    'those',
+    'my',
+    'your',
+    'his',
+    'her',
+    'its',
+    'our',
+    'their',
+    'some',
+    'any',
+    'every',
+    'each',
+    'all',
+    'both',
+    'few',
+    'many',
+    'much',
+    'several',
+    'no',
   };
 
   static const _auxiliaries = {
-    'be', 'am', 'is', 'are', 'was', 'were', 'been', 'being',
-    'have', 'has', 'had', 'having',
-    'do', 'does', 'did',
-    'will', 'would', 'shall', 'should',
-    'can', 'could', 'may', 'might', 'must',
+    'be',
+    'am',
+    'is',
+    'are',
+    'was',
+    'were',
+    'been',
+    'being',
+    'have',
+    'has',
+    'had',
+    'having',
+    'do',
+    'does',
+    'did',
+    'will',
+    'would',
+    'shall',
+    'should',
+    'can',
+    'could',
+    'may',
+    'might',
+    'must',
     'ought',
   };
 
   static const _prepositions = {
-    'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-    'from', 'about', 'into', 'through', 'during', 'before',
-    'after', 'above', 'below', 'between', 'under', 'over',
-    'without', 'within', 'along', 'among', 'upon', 'across',
-    'behind', 'beyond', 'toward', 'towards', 'against',
-    'around', 'beside', 'inside', 'outside', 'onto', 'off',
-    'up', 'down', 'like', 'as', 'than', 'until', 'since',
+    'in',
+    'on',
+    'at',
+    'to',
+    'for',
+    'of',
+    'with',
+    'by',
+    'from',
+    'about',
+    'into',
+    'through',
+    'during',
+    'before',
+    'after',
+    'above',
+    'below',
+    'between',
+    'under',
+    'over',
+    'without',
+    'within',
+    'along',
+    'among',
+    'upon',
+    'across',
+    'behind',
+    'beyond',
+    'toward',
+    'towards',
+    'against',
+    'around',
+    'beside',
+    'inside',
+    'outside',
+    'onto',
+    'off',
+    'up',
+    'down',
+    'like',
+    'as',
+    'than',
+    'until',
+    'since',
   };
 
   // 从属连词 → 从句类型
   static const _subordinatorType = {
-    'which':  ClauseType.relative,
-    'who':    ClauseType.relative,
-    'whom':   ClauseType.relative,
-    'whose':  ClauseType.relative,
-    'that':   ClauseType.relative,  // could also be nominal
-    'because':ClauseType.adverbial,
-    'since':  ClauseType.adverbial,
-    'although':ClauseType.adverbial,
+    'which': ClauseType.relative,
+    'who': ClauseType.relative,
+    'whom': ClauseType.relative,
+    'whose': ClauseType.relative,
+    'that': ClauseType.relative, // could also be nominal
+    'because': ClauseType.adverbial,
+    'since': ClauseType.adverbial,
+    'although': ClauseType.adverbial,
     'though': ClauseType.adverbial,
     'unless': ClauseType.adverbial,
-    'until':  ClauseType.adverbial,
-    'while':  ClauseType.adverbial,
-    'whereas':ClauseType.adverbial,
-    'when':   ClauseType.adverbial,
-    'whenever':ClauseType.adverbial,
-    'where':  ClauseType.adverbial,
-    'wherever':ClauseType.adverbial,
-    'if':     ClauseType.adverbial,
-    'even':   ClauseType.adverbial,
-    'after':  ClauseType.adverbial,
+    'until': ClauseType.adverbial,
+    'while': ClauseType.adverbial,
+    'whereas': ClauseType.adverbial,
+    'when': ClauseType.adverbial,
+    'whenever': ClauseType.adverbial,
+    'where': ClauseType.adverbial,
+    'wherever': ClauseType.adverbial,
+    'if': ClauseType.adverbial,
+    'even': ClauseType.adverbial,
+    'after': ClauseType.adverbial,
     'before': ClauseType.adverbial,
-    'as':     ClauseType.adverbial,
-    'whether':ClauseType.nominal,
-    'what':   ClauseType.nominal,
+    'as': ClauseType.adverbial,
+    'whether': ClauseType.nominal,
+    'what': ClauseType.nominal,
   };
 
   // 并列连词
@@ -100,10 +215,10 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
   static const _coordinatorLabel = {
     'and': '并列 (and)',
     'but': '转折 (but)',
-    'or':  '选择 (or)',
+    'or': '选择 (or)',
     'nor': '并列否定 (nor)',
     'yet': '转折 (yet)',
-    'so':  '因果 (so)',
+    'so': '因果 (so)',
   };
 
   // ---------- 断句 ----------
@@ -122,7 +237,10 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
       final t = s.trim();
       if (t.isEmpty) continue;
       if (merged.isNotEmpty &&
-          (t.startsWith('"') || t.startsWith("'") || t.startsWith('—') || t.startsWith('-'))) {
+          (t.startsWith('"') ||
+              t.startsWith("'") ||
+              t.startsWith('—') ||
+              t.startsWith('-'))) {
         merged.last = '${merged.last} $t';
       } else {
         merged.add(t);
@@ -155,10 +273,12 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
     if (clauses.length == 1 && clauses.first.type == ClauseType.main) {
       structureLabel = '简单句';
     } else if (clauses.any((c) => c.type == ClauseType.coordinate) &&
-        !clauses.any((c) =>
-            c.type == ClauseType.relative ||
-            c.type == ClauseType.adverbial ||
-            c.type == ClauseType.nominal)) {
+        !clauses.any(
+          (c) =>
+              c.type == ClauseType.relative ||
+              c.type == ClauseType.adverbial ||
+              c.type == ClauseType.nominal,
+        )) {
       structureLabel = '并列句';
     } else {
       structureLabel = '主从复合句';
@@ -174,7 +294,10 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
     );
   }
 
-  String _buildOverallExplanation(List<ClauseInfo> clauses, String structureLabel) {
+  String _buildOverallExplanation(
+    List<ClauseInfo> clauses,
+    String structureLabel,
+  ) {
     if (clauses.isEmpty) return '无法解析的句子。';
 
     final mainCount = clauses.where((c) => c.type == ClauseType.main).length;
@@ -230,11 +353,13 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
         final mainWords = words.sublist(wordIdx, marker.index);
         final mainText = mainWords.join(' ');
         if (mainText.trim().isNotEmpty) {
-          clauses.add(_buildClause(
-            text: mainText,
-            type: ClauseType.main,
-            label: clauses.isEmpty ? '主句' : '主句（续）',
-          ));
+          clauses.add(
+            _buildClause(
+              text: mainText,
+              type: ClauseType.main,
+              label: clauses.isEmpty ? '主句' : '主句（续）',
+            ),
+          );
         }
       }
 
@@ -250,7 +375,9 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
     }
 
     if (clauses.isEmpty) {
-      clauses.add(_buildClause(text: sentence, type: ClauseType.main, label: '主句'));
+      clauses.add(
+        _buildClause(text: sentence, type: ClauseType.main, label: '主句'),
+      );
     }
 
     return clauses;
@@ -280,15 +407,15 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
 
     if (leftWords.isEmpty || rightWords.isEmpty) return null;
 
-    final leftType = _hasSubordinator(leftWords) ? ClauseType.main : ClauseType.main;
-    final rightType = _hasSubordinator(rightWords) ? ClauseType.main : ClauseType.main;
+    final leftType = _hasSubordinator(leftWords)
+        ? ClauseType.main
+        : ClauseType.main;
+    final rightType = _hasSubordinator(rightWords)
+        ? ClauseType.main
+        : ClauseType.main;
 
     return [
-      _buildClause(
-        text: leftWords.join(' '),
-        type: leftType,
-        label: '分句 1',
-      ),
+      _buildClause(text: leftWords.join(' '), type: leftType, label: '分句 1'),
       ClauseInfo(
         text: bestCoord,
         type: ClauseType.coordinate,
@@ -297,11 +424,7 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
           const SlotInfo(role: SlotRole.connector, text: '', label: '连接词'),
         ],
       ),
-      _buildClause(
-        text: rightWords.join(' '),
-        type: rightType,
-        label: '分句 2',
-      ),
+      _buildClause(text: rightWords.join(' '), type: rightType, label: '分句 2'),
     ];
   }
 
@@ -317,16 +440,20 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
     // 分词短语：句首 -ing 形式
     final participial = _extractParticipial(sentence);
     if (participial != null) {
-      clauses.add(ClauseInfo(
-        text: participial,
-        type: ClauseType.participial,
-        label: '分词短语',
-      ));
+      clauses.add(
+        ClauseInfo(
+          text: participial,
+          type: ClauseType.participial,
+          label: '分词短语',
+        ),
+      );
       final rest = sentence.substring(participial.length).trim();
       // 去掉前导逗号
       final cleanRest = rest.startsWith(',') ? rest.substring(1).trim() : rest;
       if (cleanRest.isNotEmpty) {
-        clauses.add(_buildClause(text: cleanRest, type: ClauseType.main, label: '主句'));
+        clauses.add(
+          _buildClause(text: cleanRest, type: ClauseType.main, label: '主句'),
+        );
       }
       return clauses;
     }
@@ -334,20 +461,26 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
     // 不定式：句首 to + verb
     final infinitive = _extractInfinitive(sentence);
     if (infinitive != null) {
-      clauses.add(ClauseInfo(
-        text: infinitive,
-        type: ClauseType.infinitive,
-        label: '不定式短语',
-      ));
+      clauses.add(
+        ClauseInfo(
+          text: infinitive,
+          type: ClauseType.infinitive,
+          label: '不定式短语',
+        ),
+      );
       final rest = sentence.substring(infinitive.length).trim();
       final cleanRest = rest.startsWith(',') ? rest.substring(1).trim() : rest;
       if (cleanRest.isNotEmpty) {
-        clauses.add(_buildClause(text: cleanRest, type: ClauseType.main, label: '主句'));
+        clauses.add(
+          _buildClause(text: cleanRest, type: ClauseType.main, label: '主句'),
+        );
       }
       return clauses;
     }
 
-    clauses.add(_buildClause(text: sentence, type: ClauseType.main, label: '主句'));
+    clauses.add(
+      _buildClause(text: sentence, type: ClauseType.main, label: '主句'),
+    );
     return clauses;
   }
 
@@ -364,7 +497,8 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
       // 找第一个限定动词作为边界
       int? verbIdx;
       for (int i = 1; i < words.length; i++) {
-        if (_auxiliaries.contains(words[i].toLowerCase()) || _isLikelyVerb(words[i])) {
+        if (_auxiliaries.contains(words[i].toLowerCase()) ||
+            _isLikelyVerb(words[i])) {
           verbIdx = i;
           break;
         }
@@ -386,7 +520,8 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
       }
       int? verbIdx;
       for (int i = 2; i < words.length; i++) {
-        if (_auxiliaries.contains(words[i].toLowerCase()) || _isLikelyVerb(words[i])) {
+        if (_auxiliaries.contains(words[i].toLowerCase()) ||
+            _isLikelyVerb(words[i])) {
           verbIdx = i;
           break;
         }
@@ -406,12 +541,7 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
     required String label,
   }) {
     final slots = _detectSlots(text);
-    return ClauseInfo(
-      text: text,
-      type: type,
-      label: label,
-      slots: slots,
-    );
+    return ClauseInfo(text: text, type: type, label: label, slots: slots);
   }
 
   // ---------- 主/谓/宾检测 ----------
@@ -450,14 +580,24 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
         slots.add(SlotInfo(role: SlotRole.object, text: objText, label: '宾语'));
         if (objEnd < words.length) {
           final advText = words.sublist(objEnd).join(' ');
-          slots.add(SlotInfo(role: SlotRole.adverbial, text: advText, label: '状语'));
+          slots.add(
+            SlotInfo(role: SlotRole.adverbial, text: advText, label: '状语'),
+          );
         }
       } else {
         // 全是状语或补语
         if (_startsWithPreposition(words, pos)) {
-          slots.add(SlotInfo(role: SlotRole.adverbial, text: remaining, label: '状语'));
+          slots.add(
+            SlotInfo(role: SlotRole.adverbial, text: remaining, label: '状语'),
+          );
         } else {
-          slots.add(SlotInfo(role: SlotRole.complement, text: remaining, label: '补语/状语'));
+          slots.add(
+            SlotInfo(
+              role: SlotRole.complement,
+              text: remaining,
+              label: '补语/状语',
+            ),
+          );
         }
       }
     }
@@ -478,7 +618,9 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
     // 名词短语：determiner? adjective* noun+
     int end = start;
     if (_determiners.contains(words[end].toLowerCase())) end++;
-    while (end < words.length && _isLikelyAdjective(words[end])) end++;
+    while (end < words.length && _isLikelyAdjective(words[end])) {
+      end++;
+    }
     if (end < words.length && _isLikelyNoun(words[end])) {
       end++;
       // 可能的后置修饰
@@ -624,13 +766,20 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
 
   String _clauseTypeLabel(ClauseType type) {
     switch (type) {
-      case ClauseType.main: return '主句';
-      case ClauseType.relative: return '定语从句';
-      case ClauseType.adverbial: return '状语从句';
-      case ClauseType.nominal: return '名词性从句';
-      case ClauseType.participial: return '分词短语';
-      case ClauseType.infinitive: return '不定式短语';
-      case ClauseType.coordinate: return '并列分句';
+      case ClauseType.main:
+        return '主句';
+      case ClauseType.relative:
+        return '定语从句';
+      case ClauseType.adverbial:
+        return '状语从句';
+      case ClauseType.nominal:
+        return '名词性从句';
+      case ClauseType.participial:
+        return '分词短语';
+      case ClauseType.infinitive:
+        return '不定式短语';
+      case ClauseType.coordinate:
+        return '并列分句';
     }
   }
 }

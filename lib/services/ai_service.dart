@@ -132,8 +132,7 @@ class AIService {
     for (final point in result.grammarPoints) {
       if (point.source.isNotEmpty &&
           !originalText.toLowerCase().contains(point.source.toLowerCase())) {
-        debugPrint(
-            '[AI] Grammar source not found in text: "${point.source}"');
+        debugPrint('[AI] Grammar source not found in text: "${point.source}"');
       }
     }
     for (final note in result.vocabularyNotes) {
@@ -146,8 +145,7 @@ class AIService {
 
   void _validateSummary(AISummary summary, String originalText) {
     for (final event in summary.events) {
-      if (event.source.isNotEmpty &&
-          !originalText.contains(event.source)) {
+      if (event.source.isNotEmpty && !originalText.contains(event.source)) {
         debugPrint('[AI] Event source not found: "${event.source}"');
       }
     }

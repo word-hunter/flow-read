@@ -5,17 +5,17 @@ class AIPracticeSet {
 
   factory AIPracticeSet.fromJson(Map<String, dynamic> json) {
     return AIPracticeSet(
-      questions: (json['questions'] as List<dynamic>?)
-              ?.map(
-                  (e) => PracticeQuestion.fromJson(e as Map<String, dynamic>))
+      questions:
+          (json['questions'] as List<dynamic>?)
+              ?.map((e) => PracticeQuestion.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'questions': questions.map((e) => e.toJson()).toList(),
-      };
+    'questions': questions.map((e) => e.toJson()).toList(),
+  };
 
   factory AIPracticeSet.empty() => const AIPracticeSet(questions: []);
 
@@ -48,7 +48,8 @@ class PracticeQuestion {
       source: json['source'] as String? ?? '',
       answer: json['answer'] as String? ?? '',
       answerExplanation: json['answer_explanation'] as String? ?? '',
-      distractors: (json['distractors'] as List<dynamic>?)
+      distractors:
+          (json['distractors'] as List<dynamic>?)
               ?.map((e) => Distractor.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
@@ -57,14 +58,14 @@ class PracticeQuestion {
   }
 
   Map<String, dynamic> toJson() => {
-        'type': type,
-        'question': question,
-        'source': source,
-        'answer': answer,
-        'answer_explanation': answerExplanation,
-        'distractors': distractors.map((e) => e.toJson()).toList(),
-        'difficulty': difficulty,
-      };
+    'type': type,
+    'question': question,
+    'source': source,
+    'answer': answer,
+    'answer_explanation': answerExplanation,
+    'distractors': distractors.map((e) => e.toJson()).toList(),
+    'difficulty': difficulty,
+  };
 }
 
 class Distractor {
@@ -80,8 +81,5 @@ class Distractor {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'text': text,
-        'why_wrong': whyWrong,
-      };
+  Map<String, dynamic> toJson() => {'text': text, 'why_wrong': whyWrong};
 }

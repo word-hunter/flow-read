@@ -14,11 +14,13 @@ class AITextAnalysis {
   factory AITextAnalysis.fromJson(Map<String, dynamic> json) {
     return AITextAnalysis(
       translation: json['translation'] as String? ?? '',
-      grammarPoints: (json['grammar_points'] as List<dynamic>?)
+      grammarPoints:
+          (json['grammar_points'] as List<dynamic>?)
               ?.map((e) => GrammarPoint.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      vocabularyNotes: (json['vocabulary_notes'] as List<dynamic>?)
+      vocabularyNotes:
+          (json['vocabulary_notes'] as List<dynamic>?)
               ?.map((e) => VocabularyNote.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],

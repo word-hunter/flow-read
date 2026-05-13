@@ -9,7 +9,7 @@ enum SelectedTextTab { analysis, translate }
 
 class SelectedTextSheet extends StatefulWidget {
   final String selectedText;
-  final AnalysisResult? analysis;           // 兼容旧的分析结果
+  final AnalysisResult? analysis; // 兼容旧的分析结果
   final List<SentenceBreakdown>? breakdowns; // 新的逐句分析
   final SelectedTextTab tab;
   final String analyzerName;
@@ -95,7 +95,9 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.4,
+                  ),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -131,7 +133,9 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
         dividerColor: Colors.transparent,
         labelColor: theme.colorScheme.onPrimaryContainer,
         unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-        labelStyle: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+        labelStyle: theme.textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
         unselectedLabelStyle: theme.textTheme.labelLarge,
         tabs: const [
           Tab(text: '结构分析'),
@@ -170,7 +174,8 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
                 child: _buildSentenceCard(bd, idx + 1, theme),
               );
             }),
-          ] else if (widget.analysis != null && widget.analysis!.syntaxPatterns.isNotEmpty) ...[
+          ] else if (widget.analysis != null &&
+              widget.analysis!.syntaxPatterns.isNotEmpty) ...[
             // fallback: 旧格式
             Text(
               '句型解析',
@@ -242,13 +247,19 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
 
   // ======== 逐句卡片 ========
 
-  Widget _buildSentenceCard(SentenceBreakdown breakdown, int index, ThemeData theme) {
+  Widget _buildSentenceCard(
+    SentenceBreakdown breakdown,
+    int index,
+    ThemeData theme,
+  ) {
     final typeColor = _structureColor(breakdown.structureLabel, theme);
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.25,
+        ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
@@ -262,12 +273,17 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
             decoration: BoxDecoration(
               color: typeColor.withValues(alpha: 0.08),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
+              ),
             ),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: typeColor.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(6),
@@ -282,7 +298,10 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: typeColor.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(6),
@@ -325,7 +344,9 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
                 // 从句分解
                 if (breakdown.clauses.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  ...breakdown.clauses.map((clause) => _buildClauseRow(clause, typeColor, theme)),
+                  ...breakdown.clauses.map(
+                    (clause) => _buildClauseRow(clause, typeColor, theme),
+                  ),
                 ],
 
                 // 整体说明
@@ -372,7 +393,10 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
               children: [
                 // 从句标签 + 文本
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: barColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
@@ -445,7 +469,10 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
 
   // ======== 翻译 Tab ========
 
-  Widget _buildTranslateTab(ThemeData theme, ScrollController scrollController) {
+  Widget _buildTranslateTab(
+    ThemeData theme,
+    ScrollController scrollController,
+  ) {
     final provider = context.watch<ReadingProvider>();
     final translation = provider.aiTranslation;
     final isTranslating = provider.isTranslatingText;
@@ -484,10 +511,18 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
       ),
       child: Column(
         children: [
-          const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+          const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
           const SizedBox(height: 12),
-          Text(message,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            message,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -511,19 +546,23 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
             children: [
               Icon(Icons.translate, size: 18, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
-              Text('AI 翻译',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.primary,
-                  )),
+              Text(
+                'AI 翻译',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(translation,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                height: 1.7,
-                color: theme.colorScheme.onSurface,
-              )),
+          Text(
+            translation,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              height: 1.7,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
         ],
       ),
     );
@@ -541,7 +580,13 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
         children: [
           Icon(Icons.error_outline, color: theme.colorScheme.error, size: 28),
           const SizedBox(height: 8),
-          Text(error, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error), textAlign: TextAlign.center),
+          Text(
+            error,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -560,13 +605,18 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
       ),
       child: Column(
         children: [
-          Icon(Icons.translate, size: 36,
-              color: theme.colorScheme.tertiary.withValues(alpha: 0.4)),
+          Icon(
+            Icons.translate,
+            size: 36,
+            color: theme.colorScheme.tertiary.withValues(alpha: 0.4),
+          ),
           const SizedBox(height: 12),
-          Text('选中文本后点击翻译',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              )),
+          Text(
+            '选中文本后点击翻译',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -630,7 +680,9 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                  color: theme.colorScheme.secondaryContainer.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
@@ -673,7 +725,8 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
 
   // ======== 空状态 ========
 
-  Widget _buildEmptyState(ThemeData theme, {
+  Widget _buildEmptyState(
+    ThemeData theme, {
     required IconData icon,
     required String title,
     required String subtitle,
@@ -687,7 +740,11 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
       ),
       child: Column(
         children: [
-          Icon(icon, size: 32, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+          Icon(
+            icon,
+            size: 32,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
           const SizedBox(height: 10),
           Text(
             title,
@@ -744,25 +801,39 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
 
   IconData _slotIcon(SlotRole role) {
     switch (role) {
-      case SlotRole.subject:     return Icons.person_outline;
-      case SlotRole.verb:        return Icons.play_circle_outline;
-      case SlotRole.object:      return Icons.inbox_outlined;
-      case SlotRole.complement:  return Icons.check_box_outline_blank;
-      case SlotRole.adverbial:   return Icons.map_outlined;
-      case SlotRole.modifier:    return Icons.brush_outlined;
-      case SlotRole.connector:   return Icons.link;
+      case SlotRole.subject:
+        return Icons.person_outline;
+      case SlotRole.verb:
+        return Icons.play_circle_outline;
+      case SlotRole.object:
+        return Icons.inbox_outlined;
+      case SlotRole.complement:
+        return Icons.check_box_outline_blank;
+      case SlotRole.adverbial:
+        return Icons.map_outlined;
+      case SlotRole.modifier:
+        return Icons.brush_outlined;
+      case SlotRole.connector:
+        return Icons.link;
     }
   }
 
   Color _slotColor(SlotRole role, ThemeData theme) {
     switch (role) {
-      case SlotRole.subject:     return const Color(0xFFE74C3C);
-      case SlotRole.verb:        return const Color(0xFF2980B9);
-      case SlotRole.object:      return const Color(0xFF27AE60);
-      case SlotRole.complement:  return const Color(0xFF8E44AD);
-      case SlotRole.adverbial:   return const Color(0xFF7F8C8D);
-      case SlotRole.modifier:    return const Color(0xFFD35400);
-      case SlotRole.connector:   return const Color(0xFF95A5A6);
+      case SlotRole.subject:
+        return const Color(0xFFE74C3C);
+      case SlotRole.verb:
+        return const Color(0xFF2980B9);
+      case SlotRole.object:
+        return const Color(0xFF27AE60);
+      case SlotRole.complement:
+        return const Color(0xFF8E44AD);
+      case SlotRole.adverbial:
+        return const Color(0xFF7F8C8D);
+      case SlotRole.modifier:
+        return const Color(0xFFD35400);
+      case SlotRole.connector:
+        return const Color(0xFF95A5A6);
     }
   }
 }

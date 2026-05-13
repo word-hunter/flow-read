@@ -91,7 +91,9 @@ class DonutChartPainter extends CustomPainter {
     );
     labelPainter.layout();
 
-    final totalHeight = valuePainter.height + (centerLabel.isNotEmpty ? labelPainter.height + 2 : 0);
+    final totalHeight =
+        valuePainter.height +
+        (centerLabel.isNotEmpty ? labelPainter.height + 2 : 0);
     final startY = center.dy - totalHeight / 2;
 
     valuePainter.paint(
@@ -102,7 +104,10 @@ class DonutChartPainter extends CustomPainter {
     if (centerLabel.isNotEmpty) {
       labelPainter.paint(
         canvas,
-        Offset(center.dx - labelPainter.width / 2, startY + valuePainter.height + 2),
+        Offset(
+          center.dx - labelPainter.width / 2,
+          startY + valuePainter.height + 2,
+        ),
       );
     }
   }

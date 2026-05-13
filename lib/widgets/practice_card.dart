@@ -32,7 +32,9 @@ class _PracticeCardState extends State<PracticeCard> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -47,7 +49,11 @@ class _PracticeCardState extends State<PracticeCard> {
                     color: typeColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(SyntaxHelpers.practiceTypeIcon(widget.practice.type), size: 20, color: typeColor),
+                  child: Icon(
+                    SyntaxHelpers.practiceTypeIcon(widget.practice.type),
+                    size: 20,
+                    color: typeColor,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -96,7 +102,9 @@ class _PracticeCardState extends State<PracticeCard> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+                  color: theme.colorScheme.tertiaryContainer.withValues(
+                    alpha: 0.3,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: theme.colorScheme.tertiary.withValues(alpha: 0.2),

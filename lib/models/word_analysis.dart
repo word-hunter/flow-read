@@ -14,12 +14,15 @@ class WordAnalysis {
   factory WordAnalysis.fromJson(Map<String, dynamic> json) {
     return WordAnalysis(
       pronunciation: json['pronunciation'] as String? ?? '',
-      meanings: (json['meanings'] as List<dynamic>?)
+      meanings:
+          (json['meanings'] as List<dynamic>?)
               ?.map(
-                  (e) => ContextualMeaning.fromJson(e as Map<String, dynamic>))
+                (e) => ContextualMeaning.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           [],
-      usageTips: (json['usage_tips'] as List<dynamic>?)
+      usageTips:
+          (json['usage_tips'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
@@ -38,10 +41,7 @@ class ContextualMeaning {
   final String meaning;
   final String explanation;
 
-  const ContextualMeaning({
-    required this.meaning,
-    required this.explanation,
-  });
+  const ContextualMeaning({required this.meaning, required this.explanation});
 
   factory ContextualMeaning.fromJson(Map<String, dynamic> json) {
     return ContextualMeaning(

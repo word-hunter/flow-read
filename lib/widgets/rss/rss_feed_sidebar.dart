@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../models/rss_models.dart';
 
 class RssFeedSidebar extends StatelessWidget {
@@ -29,7 +30,9 @@ class RssFeedSidebar extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+              bottom: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+              ),
             ),
           ),
           child: Row(
@@ -38,7 +41,9 @@ class RssFeedSidebar extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 '订阅源',
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const Spacer(),
               IconButton(
@@ -62,7 +67,9 @@ class RssFeedSidebar extends StatelessWidget {
             child: Text(
               '点击 + 添加 RSS 源',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.5,
+                ),
               ),
             ),
           )
@@ -83,13 +90,19 @@ class RssFeedSidebar extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+                top: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.2,
+                  ),
+                ),
               ),
             ),
             child: Text(
               '${subscriptions.length} 个订阅源',
               style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.6,
+                ),
               ),
             ),
           ),
@@ -97,11 +110,18 @@ class RssFeedSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildFeedItem(BuildContext context, RssFeedSubscription sub, bool isSelected, ThemeData theme) {
+  Widget _buildFeedItem(
+    BuildContext context,
+    RssFeedSubscription sub,
+    bool isSelected,
+    ThemeData theme,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: Material(
-        color: isSelected ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
+        color: isSelected
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
@@ -118,7 +138,7 @@ class RssFeedSidebar extends StatelessWidget {
                       width: 24,
                       height: 24,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(
+                      errorBuilder: (_, _, _) => Icon(
                         Icons.rss_feed,
                         size: 20,
                         color: theme.colorScheme.primary,
@@ -136,8 +156,12 @@ class RssFeedSidebar extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface,
                         ),
                       ),
                       if (sub.lastFetchedAt != null) ...[
@@ -145,7 +169,8 @@ class RssFeedSidebar extends StatelessWidget {
                         Text(
                           _formatTime(sub.lastFetchedAt!),
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.5),
                             fontSize: 10,
                           ),
                         ),
@@ -156,12 +181,18 @@ class RssFeedSidebar extends StatelessWidget {
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert, size: 16),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
                   onSelected: (value) {
                     if (value == 'delete') onRemoveFeed(sub.url);
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(value: 'delete', child: Text('取消订阅', style: TextStyle(color: Colors.red))),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('取消订阅', style: TextStyle(color: Colors.red)),
+                    ),
                   ],
                 ),
               ],

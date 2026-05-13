@@ -40,9 +40,13 @@ class _BookshelfContentState extends State<BookshelfContent> {
 
     final filteredBooks = _searchQuery.isEmpty
         ? allBooks
-        : allBooks.where((b) =>
-            b.title.toLowerCase().contains(_searchQuery) ||
-            b.author.toLowerCase().contains(_searchQuery)).toList();
+        : allBooks
+              .where(
+                (b) =>
+                    b.title.toLowerCase().contains(_searchQuery) ||
+                    b.author.toLowerCase().contains(_searchQuery),
+              )
+              .toList();
 
     if (allBooks.isEmpty) {
       return _buildEmptyState(context, provider, theme);
@@ -59,21 +63,27 @@ class _BookshelfContentState extends State<BookshelfContent> {
               title: filteredBooks.first.title,
               author: filteredBooks.first.author,
               coverBytes: provider.getCoverBytes(filteredBooks.first.id),
-              progressPercent: (filteredBooks.first.globalProgress * 100).toInt(),
+              progressPercent: (filteredBooks.first.globalProgress * 100)
+                  .toInt(),
               lastReadAt: filteredBooks.first.lastReadAt,
-              onContinueReading: () => _openBook(provider, filteredBooks.first.id),
+              onContinueReading: () =>
+                  _openBook(provider, filteredBooks.first.id),
             ),
           ],
           const SizedBox(height: 32),
           _buildSectionHeader(theme, '最近阅读'),
           const SizedBox(height: 12),
           BookShelfRow(
-            books: filteredBooks.map((b) => BookShelfData(
-              title: b.title,
-              coverBytes: provider.getCoverBytes(b.id),
-              progressPercent: (b.globalProgress * 100).toInt(),
-              onTap: () => _openBook(provider, b.id),
-            )).toList(),
+            books: filteredBooks
+                .map(
+                  (b) => BookShelfData(
+                    title: b.title,
+                    coverBytes: provider.getCoverBytes(b.id),
+                    progressPercent: (b.globalProgress * 100).toInt(),
+                    onTap: () => _openBook(provider, b.id),
+                  ),
+                )
+                .toList(),
             onAddBook: () => _importEpub(provider),
           ),
           const SizedBox(height: 32),
@@ -89,6 +99,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
       ),
     );
   }
+
   Widget _buildHeader(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
@@ -114,11 +125,15 @@ class _BookshelfContentState extends State<BookshelfContent> {
                 contentPadding: const EdgeInsets.symmetric(vertical: 8),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+                  borderSide: BorderSide(
+                    color: theme.colorScheme.outlineVariant,
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+                  borderSide: BorderSide(
+                    color: theme.colorScheme.outlineVariant,
+                  ),
                 ),
                 filled: true,
                 fillColor: theme.colorScheme.surface,
@@ -150,46 +165,58 @@ class _BookshelfContentState extends State<BookshelfContent> {
             ),
           ),
           const Spacer(),
-          TextButton(
-            onPressed: () {},
-            child: const Text('查看全部 >'),
-          ),
+          TextButton(onPressed: () {}, child: const Text('查看全部 >')),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, ReadingProvider provider, ThemeData theme) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    ReadingProvider provider,
+    ThemeData theme,
+  ) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.menu_book, size: 80,
-                color: theme.colorScheme.primary.withValues(alpha: 0.5)),
+            Icon(
+              Icons.menu_book,
+              size: 80,
+              color: theme.colorScheme.primary.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 24),
             Text(
               'FlowRead',
-              style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               '导入 EPUB 电子书，开始英文阅读训练',
               style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant),
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
             if (provider.isLoading && provider.importStage.isNotEmpty) ...[
               const LinearProgressIndicator(minHeight: 4),
               const SizedBox(height: 12),
-              Text(provider.importStage,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant)),
+              Text(
+                provider.importStage,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ] else
               FilledButton.icon(
-                onPressed: provider.isLoading ? null : () => _importEpub(provider),
+                onPressed: provider.isLoading
+                    ? null
+                    : () => _importEpub(provider),
                 icon: const Icon(Icons.file_open),
                 label: Text(provider.isLoading ? '导入中...' : '导入 EPUB'),
               ),

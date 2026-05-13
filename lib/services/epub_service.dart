@@ -42,21 +42,25 @@ class EpubService {
         final chapterTitle = _extractTitle(document, i, title);
 
         if (plainText.trim().isNotEmpty) {
-          chapters.add(Chapter(
-            title: chapterTitle,
-            plainText: plainText,
-            rawHtml: htmlContent,
-          ));
+          chapters.add(
+            Chapter(
+              title: chapterTitle,
+              plainText: plainText,
+              rawHtml: htmlContent,
+            ),
+          );
         }
       }
     }
 
     if (chapters.isEmpty) {
-      chapters.add(const Chapter(
-        title: 'Content',
-        plainText: '(No readable content found)',
-        rawHtml: '',
-      ));
+      chapters.add(
+        const Chapter(
+          title: 'Content',
+          plainText: '(No readable content found)',
+          rawHtml: '',
+        ),
+      );
     }
 
     return Book(
@@ -73,20 +77,24 @@ class EpubService {
 
     _removeUnwantedElements(body);
 
-    return body.text
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+    return body.text.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
   static void _removeUnwantedElements(dom.Element element) {
-    element.querySelectorAll('script, style, nav, .nav').forEach((e) => e.remove());
+    element
+        .querySelectorAll('script, style, nav, .nav')
+        .forEach((e) => e.remove());
 
     for (final child in element.children) {
       _removeUnwantedElements(child);
     }
   }
 
-  static String _extractTitle(dom.Document document, int index, String bookTitle) {
+  static String _extractTitle(
+    dom.Document document,
+    int index,
+    String bookTitle,
+  ) {
     final h1 = document.querySelector('h1');
     if (h1 != null && h1.text.trim().isNotEmpty) {
       return h1.text.trim();

@@ -50,8 +50,16 @@ class BookShelfRow extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDark
-                  ? [const Color(0xFF4A3520), const Color(0xFF5C4430), const Color(0xFF4A3520)]
-                  : [const Color(0xFF8B6914), const Color(0xFFA0784C), const Color(0xFF8B6914)],
+                  ? [
+                      const Color(0xFF4A3520),
+                      const Color(0xFF5C4430),
+                      const Color(0xFF4A3520),
+                    ]
+                  : [
+                      const Color(0xFF8B6914),
+                      const Color(0xFFA0784C),
+                      const Color(0xFF8B6914),
+                    ],
             ),
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(4),
@@ -69,6 +77,7 @@ class BookShelfRow extends StatelessWidget {
       ],
     );
   }
+
   Widget _buildAddCard(ThemeData theme) {
     return GestureDetector(
       onTap: onAddBook,

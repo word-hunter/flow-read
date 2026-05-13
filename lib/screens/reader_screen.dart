@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../models/analysis_result.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
-import '../widgets/reader_text_view.dart';
 import '../widgets/reader/reader_book_sidebar.dart';
+import '../widgets/reader_text_view.dart';
 import '../widgets/selected_text_sheet.dart';
 import '../widgets/toc_bottom_sheet.dart';
 
@@ -55,7 +56,9 @@ class _NarrowReaderState extends State<_NarrowReader> {
     if (!_scrollController.hasClients) return;
     final maxScroll = _scrollController.position.maxScrollExtent;
     if (maxScroll <= 0) return;
-    context.read<ReadingProvider>().updateReadingProgress(_scrollController.offset / maxScroll);
+    context.read<ReadingProvider>().updateReadingProgress(
+      _scrollController.offset / maxScroll,
+    );
   }
 
   void _scrollPage(bool forward) {
@@ -67,7 +70,11 @@ class _NarrowReaderState extends State<_NarrowReader> {
       _scrollController.position.minScrollExtent,
       _scrollController.position.maxScrollExtent,
     );
-    _scrollController.animateTo(target, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   void _onWordTapped(String word, String contextText) {
@@ -95,7 +102,12 @@ class _NarrowReaderState extends State<_NarrowReader> {
     final theme = Theme.of(context);
     showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx + 1, position.dy + 1),
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx + 1,
+        position.dy + 1,
+      ),
       color: theme.colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       items: [
@@ -103,7 +115,11 @@ class _NarrowReaderState extends State<_NarrowReader> {
           value: 'analyze',
           child: Row(
             children: [
-              Icon(Icons.account_tree_outlined, size: 20, color: theme.colorScheme.primary),
+              Icon(
+                Icons.account_tree_outlined,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
               const SizedBox(width: 12),
               Text('分析句子结构', style: theme.textTheme.labelLarge),
             ],
@@ -113,7 +129,11 @@ class _NarrowReaderState extends State<_NarrowReader> {
           value: 'translate',
           child: Row(
             children: [
-              Icon(Icons.translate, size: 20, color: theme.colorScheme.tertiary),
+              Icon(
+                Icons.translate,
+                size: 20,
+                color: theme.colorScheme.tertiary,
+              ),
               const SizedBox(width: 12),
               Text('翻译', style: theme.textTheme.labelLarge),
             ],
@@ -123,7 +143,11 @@ class _NarrowReaderState extends State<_NarrowReader> {
           value: 'copy',
           child: Row(
             children: [
-              Icon(Icons.copy, size: 20, color: theme.colorScheme.onSurfaceVariant),
+              Icon(
+                Icons.copy,
+                size: 20,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 12),
               Text('复制', style: theme.textTheme.labelLarge),
             ],
@@ -209,8 +233,15 @@ class _NarrowReaderState extends State<_NarrowReader> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: provider.exitReader),
-        title: Text(result.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16), overflow: TextOverflow.ellipsis),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: provider.exitReader,
+        ),
+        title: Text(
+          result.title,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           if (provider.hasBook && provider.chapterCount > 1)
             IconButton(
@@ -222,7 +253,8 @@ class _NarrowReaderState extends State<_NarrowReader> {
       ),
       body: Column(
         children: [
-          if (provider.hasBook && provider.chapterCount > 1) buildChapterNav(context, provider, theme),
+          if (provider.hasBook && provider.chapterCount > 1)
+            buildChapterNav(context, provider, theme),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -238,11 +270,14 @@ class _NarrowReaderState extends State<_NarrowReader> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(result.title,
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: theme.colorScheme.onSurface,
-                                    fontFamily: 'Serif')),
+                            Text(
+                              result.title,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                                fontFamily: 'Serif',
+                              ),
+                            ),
                             const SizedBox(height: 12),
                             Divider(color: theme.colorScheme.outlineVariant),
                             const SizedBox(height: 12),
@@ -251,7 +286,8 @@ class _NarrowReaderState extends State<_NarrowReader> {
                       );
                     }
                     final paraIndex = index - 1;
-                    if (paraIndex >= paragraphs.length) return const SizedBox.shrink();
+                    if (paraIndex >= paragraphs.length)
+                      return const SizedBox.shrink();
 
                     final isSelected = _selectedParagraphIndex == paraIndex;
                     return GestureDetector(
@@ -264,7 +300,9 @@ class _NarrowReaderState extends State<_NarrowReader> {
                         duration: const Duration(milliseconds: 200),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.25)
+                              ? theme.colorScheme.primaryContainer.withValues(
+                                  alpha: 0.25,
+                                )
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -296,18 +334,34 @@ class _NarrowReaderState extends State<_NarrowReader> {
           ),
           if (provider.selectedWord != null)
             buildInlineDictionaryPopup(context, provider, theme),
-          _buildBottomBar(context, provider.readingProgress, theme, chapterTitle, progressPercent),
+          _buildBottomBar(
+            context,
+            provider.readingProgress,
+            theme,
+            chapterTitle,
+            progressPercent,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildBottomBar(BuildContext context, double progress, ThemeData theme, String chapterTitle, int progressPercent) {
+  Widget _buildBottomBar(
+    BuildContext context,
+    double progress,
+    ThemeData theme,
+    String chapterTitle,
+    int progressPercent,
+  ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3))),
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -325,9 +379,22 @@ class _NarrowReaderState extends State<_NarrowReader> {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(chapterTitle, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+                          child: Text(
+                            chapterTitle,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                        Text('$progressPercent%', style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+                        Text(
+                          '$progressPercent%',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -336,8 +403,11 @@ class _NarrowReaderState extends State<_NarrowReader> {
                       child: LinearProgressIndicator(
                         value: progress,
                         minHeight: 4,
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                        backgroundColor:
+                            theme.colorScheme.surfaceContainerHighest,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          theme.colorScheme.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -384,7 +454,9 @@ class _WideReaderState extends State<_WideReader> {
     if (!_scrollController.hasClients) return;
     final maxScroll = _scrollController.position.maxScrollExtent;
     if (maxScroll <= 0) return;
-    context.read<ReadingProvider>().updateReadingProgress(_scrollController.offset / maxScroll);
+    context.read<ReadingProvider>().updateReadingProgress(
+      _scrollController.offset / maxScroll,
+    );
   }
 
   void _onWordTapped(String word, String contextText) {
@@ -401,7 +473,12 @@ class _WideReaderState extends State<_WideReader> {
     final theme = Theme.of(context);
     showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx + 1, position.dy + 1),
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx + 1,
+        position.dy + 1,
+      ),
       color: theme.colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       items: [
@@ -409,7 +486,11 @@ class _WideReaderState extends State<_WideReader> {
           value: 'analyze',
           child: Row(
             children: [
-              Icon(Icons.account_tree_outlined, size: 20, color: theme.colorScheme.primary),
+              Icon(
+                Icons.account_tree_outlined,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
               const SizedBox(width: 12),
               Text('分析句子结构', style: theme.textTheme.labelLarge),
             ],
@@ -419,7 +500,11 @@ class _WideReaderState extends State<_WideReader> {
           value: 'translate',
           child: Row(
             children: [
-              Icon(Icons.translate, size: 20, color: theme.colorScheme.tertiary),
+              Icon(
+                Icons.translate,
+                size: 20,
+                color: theme.colorScheme.tertiary,
+              ),
               const SizedBox(width: 12),
               Text('翻译', style: theme.textTheme.labelLarge),
             ],
@@ -429,7 +514,11 @@ class _WideReaderState extends State<_WideReader> {
           value: 'copy',
           child: Row(
             children: [
-              Icon(Icons.copy, size: 20, color: theme.colorScheme.onSurfaceVariant),
+              Icon(
+                Icons.copy,
+                size: 20,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 12),
               Text('复制', style: theme.textTheme.labelLarge),
             ],
@@ -453,9 +542,12 @@ class _WideReaderState extends State<_WideReader> {
               duration: const Duration(seconds: 1),
               behavior: SnackBarBehavior.floating,
               width: 200,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
+
           break;
       }
     });
@@ -517,15 +609,25 @@ class _WideReaderState extends State<_WideReader> {
             child: Row(
               children: [
                 const ReaderBookSidebar(),
-                VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
+                VerticalDivider(
+                  width: 1,
+                  color: theme.colorScheme.outlineVariant,
+                ),
                 Expanded(
                   child: Column(
                     children: [
                       Expanded(
                         child: Center(
                           child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: AppConstants.readerMaxWidth),
-                            child: _buildReadingContent(paragraphs, result, theme, colorSettings),
+                            constraints: const BoxConstraints(
+                              maxWidth: AppConstants.readerMaxWidth,
+                            ),
+                            child: _buildReadingContent(
+                              paragraphs,
+                              result,
+                              theme,
+                              colorSettings,
+                            ),
                           ),
                         ),
                       ),
@@ -543,14 +645,23 @@ class _WideReaderState extends State<_WideReader> {
     );
   }
 
-  Widget _buildTopBar(ThemeData theme, ReadingProvider provider, String chapterTitle, int progressPercent) {
+  Widget _buildTopBar(
+    ThemeData theme,
+    ReadingProvider provider,
+    String chapterTitle,
+    int progressPercent,
+  ) {
     final chapterNum = provider.currentChapter + 1;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3))),
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -591,10 +702,26 @@ class _WideReaderState extends State<_WideReader> {
               color: theme.colorScheme.primary,
             ),
           ),
-          IconButton(icon: const Icon(Icons.search), onPressed: () {}, tooltip: '搜索'),
-          IconButton(icon: const Icon(Icons.text_fields), onPressed: () {}, tooltip: '字体'),
-          IconButton(icon: const Icon(Icons.bookmark_outline), onPressed: () {}, tooltip: '书签'),
-          IconButton(icon: const Icon(Icons.more_horiz), onPressed: () {}, tooltip: '更多'),
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {},
+            tooltip: '搜索',
+          ),
+          IconButton(
+            icon: const Icon(Icons.text_fields),
+            onPressed: () {},
+            tooltip: '字体',
+          ),
+          IconButton(
+            icon: const Icon(Icons.bookmark_outline),
+            onPressed: () {},
+            tooltip: '书签',
+          ),
+          IconButton(
+            icon: const Icon(Icons.more_horiz),
+            onPressed: () {},
+            tooltip: '更多',
+          ),
         ],
       ),
     );
@@ -615,7 +742,12 @@ class _WideReaderState extends State<_WideReader> {
 
         Widget paragraphWidget;
         if (index == 0 && paragraphs[index].isNotEmpty) {
-          paragraphWidget = _buildDropCapParagraph(paragraphs[index], result, theme, colorSettings);
+          paragraphWidget = _buildDropCapParagraph(
+            paragraphs[index],
+            result,
+            theme,
+            colorSettings,
+          );
         } else {
           paragraphWidget = Text.rich(
             buildHighlightedParagraph(
@@ -637,7 +769,9 @@ class _WideReaderState extends State<_WideReader> {
 
         return GestureDetector(
           onLongPressStart: (details) => _onParagraphLongPress(
-            index, paragraphs[index], details.globalPosition,
+            index,
+            paragraphs[index],
+            details.globalPosition,
           ),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
@@ -703,18 +837,29 @@ class _WideReaderState extends State<_WideReader> {
     );
   }
 
-  Widget _buildBottomSlider(ThemeData theme, ReadingProvider provider, int progressPercent) {
+  Widget _buildBottomSlider(
+    ThemeData theme,
+    ReadingProvider provider,
+    int progressPercent,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3))),
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+        ),
       ),
       child: Row(
         children: [
-          Text('0%', style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          )),
+          Text(
+            '0%',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           Expanded(
             child: SliderTheme(
               data: SliderThemeData(
@@ -731,9 +876,12 @@ class _WideReaderState extends State<_WideReader> {
               ),
             ),
           ),
-          Text('100%', style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          )),
+          Text(
+            '100%',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(width: 16),
           TextButton.icon(
             onPressed: provider.currentChapter < provider.chapterCount - 1

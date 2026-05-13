@@ -63,12 +63,10 @@ class HomeScreen extends StatelessWidget {
       },
     );
   }
+
   Widget _buildNarrowLayout(BuildContext context, ReadingProvider provider) {
     return Scaffold(
-      body: IndexedStack(
-        index: provider.currentTab,
-        children: _narrowPanels,
-      ),
+      body: IndexedStack(index: provider.currentTab, children: _narrowPanels),
       bottomNavigationBar: NavigationBar(
         selectedIndex: provider.currentTab,
         onDestinationSelected: provider.switchTab,
@@ -119,14 +117,19 @@ class _WideHomeLayout extends StatelessWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: provider.isLoading ? null : () => _importEpub(context, provider),
+        onPressed: provider.isLoading
+            ? null
+            : () => _importEpub(context, provider),
         icon: const Icon(Icons.add),
         label: const Text('导入'),
       ),
     );
   }
 
-  Future<void> _importEpub(BuildContext context, ReadingProvider provider) async {
+  Future<void> _importEpub(
+    BuildContext context,
+    ReadingProvider provider,
+  ) async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['epub'],

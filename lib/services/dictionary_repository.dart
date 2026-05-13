@@ -62,7 +62,9 @@ class DictionaryRepository implements WordRepository {
           }
         }
         if (definitions.isNotEmpty) {
-          meanings.add(Meaning(partOfSpeech: partOfSpeech, definitions: definitions));
+          meanings.add(
+            Meaning(partOfSpeech: partOfSpeech, definitions: definitions),
+          );
         }
       }
     }

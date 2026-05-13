@@ -29,7 +29,11 @@ class RssArticleList extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.article_outlined, size: 48, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
+            Icon(
+              Icons.article_outlined,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+            ),
             const SizedBox(height: 12),
             Text(
               '暂无文章',
@@ -51,7 +55,8 @@ class RssArticleList extends StatelessWidget {
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               itemCount: articles.length,
-              itemBuilder: (context, index) => _buildArticleCard(context, articles[index], theme),
+              itemBuilder: (context, index) =>
+                  _buildArticleCard(context, articles[index], theme),
             ),
           ),
         ),
@@ -64,7 +69,9 @@ class RssArticleList extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
         ),
       ),
       child: Row(
@@ -72,7 +79,9 @@ class RssArticleList extends StatelessWidget {
           Expanded(
             child: Text(
               feedTitle,
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -104,15 +113,23 @@ class RssArticleList extends StatelessWidget {
     );
   }
 
-  Widget _buildArticleCard(BuildContext context, RssArticle article, ThemeData theme) {
+  Widget _buildArticleCard(
+    BuildContext context,
+    RssArticle article,
+    ThemeData theme,
+  ) {
     return Card(
       elevation: 0,
-      color: article.isRead ? null : theme.colorScheme.primaryContainer.withValues(alpha: 0.08),
+      color: article.isRead
+          ? null
+          : theme.colorScheme.primaryContainer.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: article.isRead
             ? BorderSide.none
-            : BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.15)),
+            : BorderSide(
+                color: theme.colorScheme.primary.withValues(alpha: 0.15),
+              ),
       ),
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: InkWell(
@@ -130,7 +147,9 @@ class RssArticleList extends StatelessWidget {
                     child: Text(
                       article.title,
                       style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: article.isRead ? FontWeight.normal : FontWeight.w600,
+                        fontWeight: article.isRead
+                            ? FontWeight.normal
+                            : FontWeight.w600,
                         color: article.isRead
                             ? theme.colorScheme.onSurfaceVariant
                             : theme.colorScheme.onSurface,
@@ -149,14 +168,17 @@ class RssArticleList extends StatelessWidget {
                     ),
                 ],
               ),
-              if (article.description != null && article.description!.isNotEmpty) ...[
+              if (article.description != null &&
+                  article.description!.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
                   article.description!,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.8,
+                    ),
                     height: 1.4,
                   ),
                 ),
@@ -165,33 +187,55 @@ class RssArticleList extends StatelessWidget {
               Row(
                 children: [
                   if (article.author != null) ...[
-                    Icon(Icons.person_outline, size: 14, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                    Icon(
+                      Icons.person_outline,
+                      size: 14,
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       article.author!,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                   ],
                   if (article.pubDate != null) ...[
-                    Icon(Icons.schedule, size: 14, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                    Icon(
+                      Icons.schedule,
+                      size: 14,
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       _formatDate(article.pubDate!),
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                   ],
                   const Spacer(),
                   GestureDetector(
-                    onTap: () => article.isRead ? onMarkUnread(article.id) : onMarkRead(article.id),
+                    onTap: () => article.isRead
+                        ? onMarkUnread(article.id)
+                        : onMarkRead(article.id),
                     child: Icon(
-                      article.isRead ? Icons.mark_email_unread : Icons.mark_email_read,
+                      article.isRead
+                          ? Icons.mark_email_unread
+                          : Icons.mark_email_read,
                       size: 18,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.4,
+                      ),
                     ),
                   ),
                 ],

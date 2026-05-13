@@ -48,7 +48,7 @@ class LLMClient {
             body: jsonEncode({
               'model': _model,
               'messages': [
-                {'role': 'user', 'content': 'hello'}
+                {'role': 'user', 'content': 'hello'},
               ],
               'max_tokens': 5,
             }),
@@ -90,8 +90,12 @@ class LLMClient {
       );
     }
 
-    final body = _buildBody(systemPrompt, userPrompt,
-        jsonMode: jsonMode, stream: true);
+    final body = _buildBody(
+      systemPrompt,
+      userPrompt,
+      jsonMode: jsonMode,
+      stream: true,
+    );
     final uri = Uri.parse('$_baseUrl/chat/completions');
     final bytes = utf8.encode(jsonEncode(body));
     final request = http.StreamedRequest('POST', uri);
@@ -103,8 +107,7 @@ class LLMClient {
 
     http.StreamedResponse response;
     try {
-      response =
-          await request.send().timeout(const Duration(seconds: 180));
+      response = await request.send().timeout(const Duration(seconds: 180));
     } on TimeoutException {
       throw AIClientException('请求超时', AIClientErrorType.timeout);
     } on http.ClientException {
@@ -118,10 +121,7 @@ class LLMClient {
       );
     }
     if (response.statusCode == 429) {
-      throw AIClientException(
-        '请求频率过高，请稍后重试',
-        AIClientErrorType.rateLimited,
-      );
+      throw AIClientException('请求频率过高，请稍后重试', AIClientErrorType.rateLimited);
     }
     if (response.statusCode != 200) {
       throw AIClientException(
@@ -197,10 +197,7 @@ class LLMClient {
         AIClientErrorType.unauthorized,
       );
     } else if (response.statusCode == 429) {
-      throw AIClientException(
-        '请求频率过高，请稍后重试',
-        AIClientErrorType.rateLimited,
-      );
+      throw AIClientException('请求频率过高，请稍后重试', AIClientErrorType.rateLimited);
     } else {
       final body = response.body;
       String msg = '服务器错误 (${response.statusCode})';

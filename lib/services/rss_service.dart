@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:hive/hive.dart';
-import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html;
+import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 import '../models/rss_models.dart';
@@ -19,7 +19,7 @@ class RssService {
     _feedBox = Hive.box<RssFeedSubscription>(_boxName);
     _metaBox = Hive.box('settings');
 
-    final readIdsJson = _metaBox?.get(_readArticlesKey) as String?;
+    final readIdsJson = _metaBox?.get(_readArticlesKey);
     if (readIdsJson != null && readIdsJson.isNotEmpty) {
       final list = jsonDecode(readIdsJson) as List<dynamic>;
       _readArticleIds.addAll(list.cast<String>());
@@ -31,7 +31,9 @@ class RssService {
 
   Future<RssFeedSubscription> addSubscription(String url) async {
     final normalizedUrl = _normalizeUrl(url);
-    final existing = subscriptions.where((s) => s.url == normalizedUrl).firstOrNull;
+    final existing = subscriptions
+        .where((s) => s.url == normalizedUrl)
+        .firstOrNull;
     if (existing != null) return existing;
 
     final info = await _fetchFeedInfo(normalizedUrl);
@@ -64,9 +66,9 @@ class RssService {
     if (cached != null) return cached;
 
     try {
-      final response = await http.get(Uri.parse(feedUrl)).timeout(
-        const Duration(seconds: 15),
-      );
+      final response = await http
+          .get(Uri.parse(feedUrl))
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) return [];
 
       final body = utf8.decode(response.bodyBytes);
@@ -119,7 +121,8 @@ class RssService {
 
   String _normalizeUrl(String url) {
     var normalized = url.trim();
-    if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+    if (!normalized.startsWith('http://') &&
+        !normalized.startsWith('https://')) {
       normalized = 'https://$normalized';
     }
     return normalized;
@@ -127,9 +130,9 @@ class RssService {
 
   Future<Map<String, String?>> _fetchFeedInfo(String url) async {
     try {
-      final response = await http.get(Uri.parse(url)).timeout(
-        const Duration(seconds: 10),
-      );
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) return {};
 
       final body = utf8.decode(response.bodyBytes);
@@ -141,8 +144,16 @@ class RssService {
       if (channel != null) {
         return {
           'title': channel.findElements('title').firstOrNull?.innerText,
-          'description': channel.findElements('description').firstOrNull?.innerText,
-          'imageUrl': channel.findElements('image').firstOrNull?.findElements('url').firstOrNull?.innerText,
+          'description': channel
+              .findElements('description')
+              .firstOrNull
+              ?.innerText,
+          'imageUrl': channel
+              .findElements('image')
+              .firstOrNull
+              ?.findElements('url')
+              .firstOrNull
+              ?.innerText,
         };
       }
       if (feedEl != null) {
@@ -169,14 +180,20 @@ class RssService {
   List<RssArticle> _parseRss(XmlDocument document, String feedUrl) {
     final items = document.findAllElements('item');
     return items.map((item) {
-      final description = item.findElements('description').firstOrNull?.innerText;
+      final description = item
+          .findElements('description')
+          .firstOrNull
+          ?.innerText;
       return RssArticle(
         feedUrl: feedUrl,
         title: item.findElements('title').firstOrNull?.innerText ?? 'Untitled',
         link: item.findElements('link').firstOrNull?.innerText,
         description: description != null ? _stripHtml(description) : null,
-        pubDate: _parseDate(item.findElements('pubDate').firstOrNull?.innerText),
-        author: item.findElements('author').firstOrNull?.innerText ??
+        pubDate: _parseDate(
+          item.findElements('pubDate').firstOrNull?.innerText,
+        ),
+        author:
+            item.findElements('author').firstOrNull?.innerText ??
             item.findElements('dc:creator').firstOrNull?.innerText,
       );
     }).toList();
@@ -185,7 +202,8 @@ class RssService {
   List<RssArticle> _parseAtom(XmlDocument document, String feedUrl) {
     final entries = document.findAllElements('entry');
     return entries.map((entry) {
-      final summary = entry.findElements('summary').firstOrNull?.innerText ??
+      final summary =
+          entry.findElements('summary').firstOrNull?.innerText ??
           entry.findElements('content').firstOrNull?.innerText;
       return RssArticle(
         feedUrl: feedUrl,
@@ -196,7 +214,12 @@ class RssService {
           entry.findElements('published').firstOrNull?.innerText ??
               entry.findElements('updated').firstOrNull?.innerText,
         ),
-        author: entry.findElements('author').firstOrNull?.findElements('name').firstOrNull?.innerText,
+        author: entry
+            .findElements('author')
+            .firstOrNull
+            ?.findElements('name')
+            .firstOrNull
+            ?.innerText,
       );
     }).toList();
   }
@@ -208,7 +231,10 @@ class RssService {
     } catch (_) {
       try {
         final cleaned = dateStr
-            .replaceAll(RegExp(r'\s+(?:GMT|UTC|EST|EDT|CST|CDT|MST|MDT|PST|PDT)$'), '')
+            .replaceAll(
+              RegExp(r'\s+(?:GMT|UTC|EST|EDT|CST|CDT|MST|MDT|PST|PDT)$'),
+              '',
+            )
             .replaceAll(RegExp(r'\s+[+-]\d{4}$'), '')
             .trim();
         return DateTime.parse(cleaned);

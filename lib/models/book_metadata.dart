@@ -74,17 +74,17 @@ class BookMetadata {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'author': author,
-        'sourcePath': sourcePath,
-        'coverPath': coverPath,
-        'totalChapters': totalChapters,
-        'globalProgress': globalProgress,
-        'currentChapter': currentChapter,
-        'chapterProgress': chapterProgress,
-        'lastReadAt': lastReadAt?.toIso8601String(),
-      };
+    'id': id,
+    'title': title,
+    'author': author,
+    'sourcePath': sourcePath,
+    'coverPath': coverPath,
+    'totalChapters': totalChapters,
+    'globalProgress': globalProgress,
+    'currentChapter': currentChapter,
+    'chapterProgress': chapterProgress,
+    'lastReadAt': lastReadAt?.toIso8601String(),
+  };
 
   factory BookMetadata.fromJson(Map<String, dynamic> json) {
     return BookMetadata(

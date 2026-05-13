@@ -25,9 +25,9 @@ class CollinsRepository implements WordRepository {
 
     try {
       final url = '$_apiBase${Uri.encodeComponent(lower.replaceAll(' ', '-'))}';
-      final response = await http.get(Uri.parse(url)).timeout(
-        const Duration(seconds: 8),
-      );
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) return null;
 
@@ -93,7 +93,8 @@ class CollinsRepository implements WordRepository {
       }
     }
 
-    final sourceUrl = '$_apiBase${Uri.encodeComponent(word.replaceAll(' ', '-'))}';
+    final sourceUrl =
+        '$_apiBase${Uri.encodeComponent(word.replaceAll(' ', '-'))}';
 
     return meanings.isEmpty && phonetic == null
         ? null
@@ -107,7 +108,11 @@ class CollinsRepository implements WordRepository {
           );
   }
 
-  void _extractMeaningFromHom(dom.Element hom, String basePos, List<Meaning> meanings) {
+  void _extractMeaningFromHom(
+    dom.Element hom,
+    String basePos,
+    List<Meaning> meanings,
+  ) {
     final posElement = hom.querySelector('.gramGrp .pos, .gramGrp.pos');
     final pos = posElement?.text.trim() ?? basePos;
 
@@ -120,7 +125,9 @@ class CollinsRepository implements WordRepository {
           definitions.add(defElement.text.trim());
         }
 
-        final examples = sense.querySelectorAll('.cit.type-example, .type-example .quote');
+        final examples = sense.querySelectorAll(
+          '.cit.type-example, .type-example .quote',
+        );
         for (final ex in examples) {
           final text = ex.text.trim();
           if (text.isNotEmpty) {
@@ -144,7 +151,11 @@ class CollinsRepository implements WordRepository {
     }
   }
 
-  void _extractMeaningFromBlock(dom.Element block, String basePos, List<Meaning> meanings) {
+  void _extractMeaningFromBlock(
+    dom.Element block,
+    String basePos,
+    List<Meaning> meanings,
+  ) {
     final posElement = block.querySelector('.gramGrp .pos, .gramGrp.pos');
     final pos = posElement?.text.trim() ?? basePos;
 
@@ -169,14 +180,35 @@ class CollinsRepository implements WordRepository {
 
   void _cleanElement(dom.Element root) {
     final toRemove = [
-      'script', 'style', 'noscript', 'iframe', 'input', 'label',
-      '.navigation', '.share-button', '.share-overlay', '.popup-overlay',
-      '.cobuild-logo', '.socialButtons', '.mpuslot_b-container',
-      '.copyright', '.cB-hook', '.beta', '.link_logo_information',
-      '.type-thesaurus', '.extra-link', '.carousel-title',
-      '.btmslot_a-container', '.pB-quiz', '.specialQuiz',
-      '.new-from-collins', '.suggest_new_word_wrapper', '.miniWordle',
-      '#videos', '.cB-n-w', '.cB-o',
+      'script',
+      'style',
+      'noscript',
+      'iframe',
+      'input',
+      'label',
+      '.navigation',
+      '.share-button',
+      '.share-overlay',
+      '.popup-overlay',
+      '.cobuild-logo',
+      '.socialButtons',
+      '.mpuslot_b-container',
+      '.copyright',
+      '.cB-hook',
+      '.beta',
+      '.link_logo_information',
+      '.type-thesaurus',
+      '.extra-link',
+      '.carousel-title',
+      '.btmslot_a-container',
+      '.pB-quiz',
+      '.specialQuiz',
+      '.new-from-collins',
+      '.suggest_new_word_wrapper',
+      '.miniWordle',
+      '#videos',
+      '.cB-n-w',
+      '.cB-o',
       '[data-type-block="Word usage trends"]',
       '[data-type-block="Word lists"]',
     ];

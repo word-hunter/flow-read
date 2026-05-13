@@ -32,7 +32,10 @@ class _NarrowBookshelf extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的书架', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text(
+          '我的书架',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         centerTitle: false,
         actions: [
           IconButton(
@@ -47,7 +50,9 @@ class _NarrowBookshelf extends StatelessWidget {
           : _buildEmptyState(context, provider, theme),
       floatingActionButton: books.isNotEmpty
           ? FloatingActionButton.extended(
-              onPressed: provider.isLoading ? null : () => _importEpub(context, provider),
+              onPressed: provider.isLoading
+                  ? null
+                  : () => _importEpub(context, provider),
               icon: const Icon(Icons.add),
               label: const Text('导入'),
             )
@@ -74,7 +79,10 @@ class _WideBookshelfState extends State<_WideBookshelf> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的书架', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text(
+          '我的书架',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         centerTitle: false,
         actions: [
           if (books.isNotEmpty)
@@ -91,11 +99,20 @@ class _WideBookshelfState extends State<_WideBookshelf> {
         ],
       ),
       body: books.isNotEmpty
-          ? _buildBookList(context, books, provider, theme, isNarrow: false, isGrid: _isGridView)
+          ? _buildBookList(
+              context,
+              books,
+              provider,
+              theme,
+              isNarrow: false,
+              isGrid: _isGridView,
+            )
           : _buildEmptyState(context, provider, theme),
       floatingActionButton: books.isNotEmpty
           ? FloatingActionButton.extended(
-              onPressed: provider.isLoading ? null : () => _importEpub(context, provider),
+              onPressed: provider.isLoading
+                  ? null
+                  : () => _importEpub(context, provider),
               icon: const Icon(Icons.add),
               label: const Text('导入新书'),
             )
@@ -118,7 +135,13 @@ Widget _buildBookList(
       itemCount: books.length,
       itemBuilder: (context, index) => Padding(
         padding: EdgeInsets.only(bottom: index < books.length - 1 ? 16 : 0),
-        child: _buildBookCard(context, books[index], theme, _BookCardSize.compact, provider),
+        child: _buildBookCard(
+          context,
+          books[index],
+          theme,
+          _BookCardSize.compact,
+          provider,
+        ),
       ),
     );
   }
@@ -134,7 +157,13 @@ Widget _buildBookList(
           mainAxisSpacing: 24,
         ),
         itemCount: books.length,
-        itemBuilder: (context, index) => _buildBookCard(context, books[index], theme, _BookCardSize.medium, provider),
+        itemBuilder: (context, index) => _buildBookCard(
+          context,
+          books[index],
+          theme,
+          _BookCardSize.medium,
+          provider,
+        ),
       ),
     );
   }
@@ -144,7 +173,13 @@ Widget _buildBookList(
     itemCount: books.length,
     itemBuilder: (context, index) => Padding(
       padding: EdgeInsets.only(bottom: index < books.length - 1 ? 16 : 0),
-      child: _buildBookCard(context, books[index], theme, _BookCardSize.large, provider),
+      child: _buildBookCard(
+        context,
+        books[index],
+        theme,
+        _BookCardSize.large,
+        provider,
+      ),
     ),
   );
 }
@@ -164,15 +199,30 @@ Widget _buildBookCard(
   final coverHeight = isCompact ? 160.0 : (isMedium ? 220.0 : 280.0);
   final progressPercent = (meta.globalProgress * 100).toInt();
 
-  final coverWidget = _buildCover(context, meta, theme, coverWidth, coverHeight, isCompact);
-  final bookDetails = _buildBookDetails(context, meta, theme, progressPercent, provider);
+  final coverWidget = _buildCover(
+    context,
+    meta,
+    theme,
+    coverWidth,
+    coverHeight,
+    isCompact,
+  );
+  final bookDetails = _buildBookDetails(
+    context,
+    meta,
+    theme,
+    progressPercent,
+    provider,
+  );
 
   if (isMedium) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
       ),
       child: InkWell(
         onTap: () => _openBook(context, provider, meta.id),
@@ -180,11 +230,7 @@ Widget _buildBookCard(
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
-            children: [
-              coverWidget,
-              const SizedBox(height: 12),
-              bookDetails,
-            ],
+            children: [coverWidget, const SizedBox(height: 12), bookDetails],
           ),
         ),
       ),
@@ -195,7 +241,9 @@ Widget _buildBookCard(
     elevation: 0,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(16),
-      side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+      side: BorderSide(
+        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+      ),
     ),
     child: InkWell(
       onTap: () => _openBook(context, provider, meta.id),
@@ -236,7 +284,8 @@ Widget _buildCover(
               width: width,
               height: height,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => _buildPlaceholderCover(theme, isCompact),
+              errorBuilder: (_, _, _) =>
+                  _buildPlaceholderCover(theme, isCompact),
             ),
           )
         : _buildPlaceholderCover(theme, isCompact),
@@ -341,7 +390,11 @@ Widget _buildBookDetails(
   );
 }
 
-void _openBook(BuildContext context, ReadingProvider provider, String bookId) async {
+void _openBook(
+  BuildContext context,
+  ReadingProvider provider,
+  String bookId,
+) async {
   await provider.switchToBook(bookId);
   if (context.mounted) {
     provider.enterReader();
@@ -359,16 +412,24 @@ Widget _buildEmptyState(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.menu_book, size: 80, color: theme.colorScheme.primary.withValues(alpha: 0.5)),
+          Icon(
+            Icons.menu_book,
+            size: 80,
+            color: theme.colorScheme.primary.withValues(alpha: 0.5),
+          ),
           const SizedBox(height: 24),
           Text(
             'Flow Read',
-            style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             '导入 EPUB 电子书，开始英文阅读训练',
-            style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
@@ -377,18 +438,27 @@ Widget _buildEmptyState(
               children: [
                 const LinearProgressIndicator(minHeight: 4),
                 const SizedBox(height: 12),
-                Text(provider.importStage,
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                Text(
+                  provider.importStage,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ] else
             FilledButton.icon(
-              onPressed: provider.isLoading ? null : () => _importEpub(context, provider),
+              onPressed: provider.isLoading
+                  ? null
+                  : () => _importEpub(context, provider),
               icon: provider.isLoading
                   ? SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.onPrimary),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: theme.colorScheme.onPrimary,
+                      ),
                     )
                   : const Icon(Icons.file_open),
               label: Text(provider.isLoading ? '导入中...' : '导入 EPUB'),
@@ -403,16 +473,26 @@ Widget _buildEmptyState(
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline, color: theme.colorScheme.error, size: 20),
+                  Icon(
+                    Icons.error_outline,
+                    color: theme.colorScheme.error,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       provider.errorMessage!,
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onErrorContainer),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, size: 18, color: theme.colorScheme.error),
+                    icon: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: theme.colorScheme.error,
+                    ),
                     onPressed: provider.clearError,
                   ),
                 ],

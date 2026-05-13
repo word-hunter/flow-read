@@ -16,7 +16,10 @@ class DashboardScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('阅读分析', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text(
+          '阅读分析',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         centerTitle: false,
       ),
       body: SingleChildScrollView(
@@ -30,7 +33,9 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   '难度概览',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -63,7 +68,11 @@ class DashboardScreen extends StatelessWidget {
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+                side: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.2,
+                  ),
+                ),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -72,7 +81,11 @@ class DashboardScreen extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.info_outline, size: 18, color: theme.colorScheme.primary),
+                        Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           '分析说明',
@@ -100,7 +113,11 @@ class DashboardScreen extends StatelessWidget {
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+                side: BorderSide(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.2,
+                  ),
+                ),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),

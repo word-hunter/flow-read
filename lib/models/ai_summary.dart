@@ -13,16 +13,20 @@ class AISummary {
 
   factory AISummary.fromJson(Map<String, dynamic> json) {
     return AISummary(
-      events: (json['events'] as List<dynamic>?)
+      events:
+          (json['events'] as List<dynamic>?)
               ?.map((e) => SummaryEvent.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      characterDevelopments: (json['character_developments'] as List<dynamic>?)
-              ?.map((e) =>
-                  CharacterDevelopment.fromJson(e as Map<String, dynamic>))
+      characterDevelopments:
+          (json['character_developments'] as List<dynamic>?)
+              ?.map(
+                (e) => CharacterDevelopment.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           [],
-      keyVocabulary: (json['key_vocabulary'] as List<dynamic>?)
+      keyVocabulary:
+          (json['key_vocabulary'] as List<dynamic>?)
               ?.map((e) => KeyVocabulary.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
@@ -31,19 +35,20 @@ class AISummary {
   }
 
   Map<String, dynamic> toJson() => {
-        'events': events.map((e) => e.toJson()).toList(),
-        'character_developments':
-            characterDevelopments.map((e) => e.toJson()).toList(),
-        'key_vocabulary': keyVocabulary.map((e) => e.toJson()).toList(),
-        'reading_guidance': readingGuidance,
-      };
+    'events': events.map((e) => e.toJson()).toList(),
+    'character_developments': characterDevelopments
+        .map((e) => e.toJson())
+        .toList(),
+    'key_vocabulary': keyVocabulary.map((e) => e.toJson()).toList(),
+    'reading_guidance': readingGuidance,
+  };
 
   factory AISummary.empty() => const AISummary(
-        events: [],
-        characterDevelopments: [],
-        keyVocabulary: [],
-        readingGuidance: '',
-      );
+    events: [],
+    characterDevelopments: [],
+    keyVocabulary: [],
+    readingGuidance: '',
+  );
 
   bool get isEmpty =>
       events.isEmpty &&
@@ -75,11 +80,11 @@ class SummaryEvent {
   }
 
   Map<String, dynamic> toJson() => {
-        'description': description,
-        'source': source,
-        'significance': significance,
-        'confidence': confidence,
-      };
+    'description': description,
+    'source': source,
+    'significance': significance,
+    'confidence': confidence,
+  };
 }
 
 class CharacterDevelopment {
@@ -105,11 +110,11 @@ class CharacterDevelopment {
   }
 
   Map<String, dynamic> toJson() => {
-        'character': character,
-        'change': change,
-        'source': source,
-        'confidence': confidence,
-      };
+    'character': character,
+    'change': change,
+    'source': source,
+    'confidence': confidence,
+  };
 }
 
 class KeyVocabulary {
@@ -135,9 +140,9 @@ class KeyVocabulary {
   }
 
   Map<String, dynamic> toJson() => {
-        'word': word,
-        'sentence': sentence,
-        'meaning_in_context': meaningInContext,
-        'why_important': whyImportant,
-      };
+    'word': word,
+    'sentence': sentence,
+    'meaning_in_context': meaningInContext,
+    'why_important': whyImportant,
+  };
 }

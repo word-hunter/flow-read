@@ -11,9 +11,7 @@ class ReviewQuestion {
     this.isCompleted = false,
   });
 
-  ReviewQuestion copyWith({
-    bool? isCompleted,
-  }) {
+  ReviewQuestion copyWith({bool? isCompleted}) {
     return ReviewQuestion(
       id: id,
       question: question,

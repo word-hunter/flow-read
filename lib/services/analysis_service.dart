@@ -9,13 +9,33 @@ class AnalysisService {
   static final RegExp _sentenceSplitter = RegExp(r'(?<=[.!?])\s+');
   static final RegExp _wordSplitter = RegExp(r"[a-zA-Z]+(?:'[a-zA-Z]+)?");
   static final Set<String> _subordinatingMarkers = {
-    'which', 'who', 'whom', 'whose', 'that', 'although', 'though',
-    'because', 'since', 'unless', 'until', 'while', 'whereas',
-    'wherever', 'whenever', 'where', 'when', 'if', 'even',
+    'which',
+    'who',
+    'whom',
+    'whose',
+    'that',
+    'although',
+    'though',
+    'because',
+    'since',
+    'unless',
+    'until',
+    'while',
+    'whereas',
+    'wherever',
+    'whenever',
+    'where',
+    'when',
+    'if',
+    'even',
   };
 
-  static AnalysisResult analyzeChapter(String title, String text,
-      [UserVocabularyService? userVocab, WordLevelService? wordLevelService]) {
+  static AnalysisResult analyzeChapter(
+    String title,
+    String text, [
+    UserVocabularyService? userVocab,
+    WordLevelService? wordLevelService,
+  ]) {
     final sentences = _splitSentences(text);
     final words = _extractWords(text);
 
@@ -23,9 +43,17 @@ class AnalysisService {
     final knownWords = _extractKnownWords(words, userVocab);
     final learningWords = _extractLearningWords(words, userVocab);
     final syntaxPatterns = _analyzeSyntax(sentences);
-    final comprehension = _buildComprehension(sentences, vocabulary, syntaxPatterns);
+    final comprehension = _buildComprehension(
+      sentences,
+      vocabulary,
+      syntaxPatterns,
+    );
     final practice = _buildPractice(sentences, vocabulary, syntaxPatterns);
-    final difficulty = _calculateDifficulty(vocabulary, syntaxPatterns, sentences);
+    final difficulty = _calculateDifficulty(
+      vocabulary,
+      syntaxPatterns,
+      sentences,
+    );
 
     return AnalysisResult(
       passageText: text,
@@ -41,18 +69,21 @@ class AnalysisService {
   }
 
   static List<String> _splitSentences(String text) {
-    return text.split(_sentenceSplitter).where((s) => s.trim().isNotEmpty).toList();
-  }
-
-  static List<String> _extractWords(String text) {
-    return _wordSplitter
-        .allMatches(text)
-        .map((m) => m.group(0)!)
+    return text
+        .split(_sentenceSplitter)
+        .where((s) => s.trim().isNotEmpty)
         .toList();
   }
 
-  static List<Vocabulary> _analyzeVocabulary(List<String> words,
-      [UserVocabularyService? userVocab, WordLevelService? wordLevelService]) {
+  static List<String> _extractWords(String text) {
+    return _wordSplitter.allMatches(text).map((m) => m.group(0)!).toList();
+  }
+
+  static List<Vocabulary> _analyzeVocabulary(
+    List<String> words, [
+    UserVocabularyService? userVocab,
+    WordLevelService? wordLevelService,
+  ]) {
     final wordMap = <String, int>{};
     for (final w in words) {
       final lower = w.toLowerCase();
@@ -75,7 +106,9 @@ class AnalysisService {
 
       final context = _extractContext(words, word);
       final meaning = _generateSimpleMeaning(lower);
-      double familiarity = userVocab != null && userVocab.isLearning(lower) ? 0.45 : 0.2;
+      double familiarity = userVocab != null && userVocab.isLearning(lower)
+          ? 0.45
+          : 0.2;
 
       String? levelLabel;
       if (wordLevelService != null && wordLevelService.hasWord(lower)) {
@@ -84,13 +117,15 @@ class AnalysisService {
         familiarity = _adjustFamiliarityByLevel(familiarity, level);
       }
 
-      result.add(Vocabulary(
-        word: lower,
-        meaning: meaning,
-        context: context,
-        familiarity: familiarity,
-        level: levelLabel,
-      ));
+      result.add(
+        Vocabulary(
+          word: lower,
+          meaning: meaning,
+          context: context,
+          familiarity: familiarity,
+          level: levelLabel,
+        ),
+      );
     }
 
     result.sort((a, b) => a.familiarity.compareTo(b.familiarity));
@@ -104,8 +139,10 @@ class AnalysisService {
     return (base * (0.5 + score * 0.07)).clamp(0.05, 0.95);
   }
 
-  static Set<String> _extractKnownWords(List<String> words,
-      [UserVocabularyService? userVocab]) {
+  static Set<String> _extractKnownWords(
+    List<String> words, [
+    UserVocabularyService? userVocab,
+  ]) {
     if (userVocab == null) return {};
     final seen = <String>{};
     for (final w in words) {
@@ -119,8 +156,10 @@ class AnalysisService {
     return seen;
   }
 
-  static Set<String> _extractLearningWords(List<String> words,
-      [UserVocabularyService? userVocab]) {
+  static Set<String> _extractLearningWords(
+    List<String> words, [
+    UserVocabularyService? userVocab,
+  ]) {
     if (userVocab == null) return {};
     final seen = <String>{};
     for (final w in words) {
@@ -135,7 +174,9 @@ class AnalysisService {
   }
 
   static String _extractContext(List<String> allWords, String targetWord) {
-    final idx = allWords.indexWhere((w) => w.toLowerCase() == targetWord.toLowerCase());
+    final idx = allWords.indexWhere(
+      (w) => w.toLowerCase() == targetWord.toLowerCase(),
+    );
     if (idx == -1) return targetWord;
 
     final start = (idx - 4).clamp(0, allWords.length);
@@ -162,10 +203,15 @@ class AnalysisService {
       final base = word.substring(0, word.length - 2);
       if (isCommonWord(base)) return 'Adverb form of "$base"';
     }
-    if (word.endsWith('ment') || word.endsWith('tion') || word.endsWith('sion')) {
+    if (word.endsWith('ment') ||
+        word.endsWith('tion') ||
+        word.endsWith('sion')) {
       return '(noun) Tap for full definition';
     }
-    if (word.endsWith('ous') || word.endsWith('ive') || word.endsWith('ful') || word.endsWith('less')) {
+    if (word.endsWith('ous') ||
+        word.endsWith('ive') ||
+        word.endsWith('ful') ||
+        word.endsWith('less')) {
       return '(adjective) Tap for full definition';
     }
 
@@ -181,27 +227,34 @@ class AnalysisService {
       final lower = sentence.toLowerCase();
 
       if (wordCount > AppConstants.longSentenceThreshold) {
-        patterns.add(SyntaxPattern(
-          type: 'long_sentence',
-          originalSentence: sentence.trim(),
-          simplifiedSentence: '(This sentence contains $wordCount words)',
-          explanation: 'This is a complex sentence with $wordCount words. '
-              'Long sentences often contain multiple clauses and ideas. '
-              'Try breaking it down into smaller parts to understand each piece.',
-        ));
+        patterns.add(
+          SyntaxPattern(
+            type: 'long_sentence',
+            originalSentence: sentence.trim(),
+            simplifiedSentence: '(This sentence contains $wordCount words)',
+            explanation:
+                'This is a complex sentence with $wordCount words. '
+                'Long sentences often contain multiple clauses and ideas. '
+                'Try breaking it down into smaller parts to understand each piece.',
+          ),
+        );
         continue;
       }
 
       for (final marker in _subordinatingMarkers) {
         if (lower.contains(' $marker ')) {
-          patterns.add(SyntaxPattern(
-            type: '${marker}_clause',
-            originalSentence: sentence.trim(),
-            simplifiedSentence: '(Contains a subordinate clause with "$marker")',
-            explanation: 'This sentence uses "$marker" to introduce a subordinate clause. '
-                'The part after "$marker" provides additional context or explanation '
-                'for the main idea.',
-          ));
+          patterns.add(
+            SyntaxPattern(
+              type: '${marker}_clause',
+              originalSentence: sentence.trim(),
+              simplifiedSentence:
+                  '(Contains a subordinate clause with "$marker")',
+              explanation:
+                  'This sentence uses "$marker" to introduce a subordinate clause. '
+                  'The part after "$marker" provides additional context or explanation '
+                  'for the main idea.',
+            ),
+          );
           break;
         }
       }
@@ -246,59 +299,74 @@ class AnalysisService {
 
     if (vocabulary.isNotEmpty) {
       final v = vocabulary.first;
-      practice.add(Practice(
-        type: 'vocabulary_in_context',
-        question: 'Look at the word "${v.word}" in the passage. '
-            'Based on the context, what do you think it means before looking it up?',
-        expectedReasoning:
-            'Context clue: "${v.context}". '
-            'Try to infer the meaning from the surrounding words, then use the dictionary to verify.',
-      ));
+      practice.add(
+        Practice(
+          type: 'vocabulary_in_context',
+          question:
+              'Look at the word "${v.word}" in the passage. '
+              'Based on the context, what do you think it means before looking it up?',
+          expectedReasoning:
+              'Context clue: "${v.context}". '
+              'Try to infer the meaning from the surrounding words, then use the dictionary to verify.',
+        ),
+      );
     }
 
     if (vocabulary.length > 1) {
       final v = vocabulary[1];
-      practice.add(Practice(
-        type: 'vocabulary_in_context',
-        question: 'Find the word "${v.word}" in the text. '
-            'What part of speech is it, and how does it function in its sentence?',
-        expectedReasoning:
-            'Identify if "${v.word}" is a noun, verb, adjective, or adverb based on its '
-            'position and ending. Look at the words around it for clues.',
-      ));
+      practice.add(
+        Practice(
+          type: 'vocabulary_in_context',
+          question:
+              'Find the word "${v.word}" in the text. '
+              'What part of speech is it, and how does it function in its sentence?',
+          expectedReasoning:
+              'Identify if "${v.word}" is a noun, verb, adjective, or adverb based on its '
+              'position and ending. Look at the words around it for clues.',
+        ),
+      );
     }
 
     if (syntax.isNotEmpty) {
-      practice.add(Practice(
-        type: 'sentence_structure',
-        question: 'How many clauses can you identify in this sentence?\n'
-            '"${syntax.first.originalSentence}"',
-        expectedReasoning:
-            'Count the subject-verb pairs. Each independent or dependent clause '
-            'has its own subject and verb. Try to separate the clauses mentally.',
-      ));
+      practice.add(
+        Practice(
+          type: 'sentence_structure',
+          question:
+              'How many clauses can you identify in this sentence?\n'
+              '"${syntax.first.originalSentence}"',
+          expectedReasoning:
+              'Count the subject-verb pairs. Each independent or dependent clause '
+              'has its own subject and verb. Try to separate the clauses mentally.',
+        ),
+      );
     }
 
     if (sentences.length > 1) {
-      practice.add(Practice(
-        type: 'inference',
-        question: 'Read the full passage. What is the main idea or theme? '
-            'Summarize it in your own words.',
-        expectedReasoning:
-            'Identify the key subject matter, the author\'s perspective, and any '
-            'emotional tone. Consider what the passage is trying to convey overall.',
-      ));
+      practice.add(
+        Practice(
+          type: 'inference',
+          question:
+              'Read the full passage. What is the main idea or theme? '
+              'Summarize it in your own words.',
+          expectedReasoning:
+              'Identify the key subject matter, the author\'s perspective, and any '
+              'emotional tone. Consider what the passage is trying to convey overall.',
+        ),
+      );
     }
 
     if (vocabulary.length > 2) {
-      practice.add(Practice(
-        type: 'paraphrasing',
-        question: 'Try to paraphrase a sentence from the passage that contains '
-            'one of the vocabulary words, using simpler language.',
-        expectedReasoning:
-            'Focus on conveying the same meaning using words you already know well. '
-            'Replace difficult words with simpler synonyms while keeping the original meaning.',
-      ));
+      practice.add(
+        Practice(
+          type: 'paraphrasing',
+          question:
+              'Try to paraphrase a sentence from the passage that contains '
+              'one of the vocabulary words, using simpler language.',
+          expectedReasoning:
+              'Focus on conveying the same meaning using words you already know well. '
+              'Replace difficult words with simpler synonyms while keeping the original meaning.',
+        ),
+      );
     }
 
     return practice;
@@ -311,29 +379,47 @@ class AnalysisService {
   ) {
     final avgFamiliarity = vocabulary.isEmpty
         ? 1.0
-        : vocabulary.map((v) => v.familiarity).reduce((a, b) => a + b) / vocabulary.length;
+        : vocabulary.map((v) => v.familiarity).reduce((a, b) => a + b) /
+              vocabulary.length;
 
-    final vocabDifficulty = ((1.0 - avgFamiliarity) * 100).round().clamp(0, 100);
+    final vocabDifficulty = ((1.0 - avgFamiliarity) * 100).round().clamp(
+      0,
+      100,
+    );
 
     final longSentenceRatio = sentences.isEmpty
         ? 0.0
-        : sentences.where((s) => s.split(RegExp(r'\s+')).length > AppConstants.veryLongSentenceThreshold).length / sentences.length;
-    final syntaxDifficulty = (syntax.length * 12 + longSentenceRatio * 50).round().clamp(0, 100);
+        : sentences
+                  .where(
+                    (s) =>
+                        s.split(RegExp(r'\s+')).length >
+                        AppConstants.veryLongSentenceThreshold,
+                  )
+                  .length /
+              sentences.length;
+    final syntaxDifficulty = (syntax.length * 12 + longSentenceRatio * 50)
+        .round()
+        .clamp(0, 100);
 
-    final inferenceDifficulty = (vocabulary.length * 2 + syntax.length * 3).clamp(0, 100);
+    final inferenceDifficulty = (vocabulary.length * 2 + syntax.length * 3)
+        .clamp(0, 100);
 
     String explanation;
     if (vocabDifficulty < 30 && syntaxDifficulty < 30) {
-      explanation = 'This is an easy passage. Most vocabulary should be familiar, '
+      explanation =
+          'This is an easy passage. Most vocabulary should be familiar, '
           'and the sentence structures are straightforward.';
     } else if (vocabDifficulty < 50 && syntaxDifficulty < 50) {
-      explanation = 'This passage has moderate difficulty. Some vocabulary may be new, '
+      explanation =
+          'This passage has moderate difficulty. Some vocabulary may be new, '
           'and there are a few complex sentences to work through.';
     } else if (vocabDifficulty < 70) {
-      explanation = 'This is a challenging passage. Expect to encounter unfamiliar vocabulary '
+      explanation =
+          'This is a challenging passage. Expect to encounter unfamiliar vocabulary '
           'and some complex sentence structures. Take your time.';
     } else {
-      explanation = 'This passage is quite difficult. It contains many unfamiliar words '
+      explanation =
+          'This passage is quite difficult. It contains many unfamiliar words '
           'and complex sentence patterns. Consider using the dictionary frequently '
           'and re-reading sections as needed.';
     }

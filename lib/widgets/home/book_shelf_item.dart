@@ -56,7 +56,10 @@ class BookShelfItem extends StatelessWidget {
                   left: 6,
                   bottom: 6,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(4),

@@ -56,7 +56,11 @@ class BookService {
     }
   }
 
-  Future<void> updateProgress(String id, int currentChapter, double chapterProgress) async {
+  Future<void> updateProgress(
+    String id,
+    int currentChapter,
+    double chapterProgress,
+  ) async {
     final meta = _box.get(id);
     if (meta == null) return;
 

@@ -15,11 +15,11 @@ class AIUsageStats {
   });
 
   Map<String, dynamic> toJson() => {
-        'chapterSummaryCount': chapterSummaryCount,
-        'textAnalysisCount': textAnalysisCount,
-        'practiceCount': practiceCount,
-        'wordAnalysisCount': wordAnalysisCount,
-      };
+    'chapterSummaryCount': chapterSummaryCount,
+    'textAnalysisCount': textAnalysisCount,
+    'practiceCount': practiceCount,
+    'wordAnalysisCount': wordAnalysisCount,
+  };
 
   factory AIUsageStats.fromJson(Map<String, dynamic>? json) {
     if (json == null) return AIUsageStats();
@@ -32,7 +32,10 @@ class AIUsageStats {
   }
 
   int get totalCalls =>
-      chapterSummaryCount + textAnalysisCount + practiceCount + wordAnalysisCount;
+      chapterSummaryCount +
+      textAnalysisCount +
+      practiceCount +
+      wordAnalysisCount;
 }
 
 class VocabularyColorSettings {
@@ -47,10 +50,10 @@ class VocabularyColorSettings {
   });
 
   Map<String, dynamic> toJson() => {
-        'unknownColor': unknownColor.toARGB32(),
-        'learningColor': learningColor.toARGB32(),
-        'knownColor': knownColor.toARGB32(),
-      };
+    'unknownColor': unknownColor.toARGB32(),
+    'learningColor': learningColor.toARGB32(),
+    'knownColor': knownColor.toARGB32(),
+  };
 
   factory VocabularyColorSettings.fromJson(Map<String, dynamic> json) {
     return VocabularyColorSettings(
@@ -93,7 +96,8 @@ class SettingsService extends ChangeNotifier {
       wordAnalysisCount: _box.get('aiWordAnalysisCount', defaultValue: 0),
     );
     final themeModeIndex = _box.get('themeMode', defaultValue: 0) as int;
-    _themeMode = ThemeMode.values[themeModeIndex.clamp(0, ThemeMode.values.length - 1)];
+    _themeMode =
+        ThemeMode.values[themeModeIndex.clamp(0, ThemeMode.values.length - 1)];
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
@@ -103,7 +107,9 @@ class SettingsService extends ChangeNotifier {
   }
 
   void toggleThemeMode() {
-    final next = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    final next = _themeMode == ThemeMode.dark
+        ? ThemeMode.light
+        : ThemeMode.dark;
     setThemeMode(next);
   }
 

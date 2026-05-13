@@ -22,10 +22,7 @@ class Meaning {
   final String partOfSpeech;
   final List<String> definitions;
 
-  const Meaning({
-    required this.partOfSpeech,
-    required this.definitions,
-  });
+  const Meaning({required this.partOfSpeech, required this.definitions});
 }
 
 abstract class WordRepository {

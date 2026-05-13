@@ -43,7 +43,10 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
       final word = shuffled[i];
       final wordLower = word.word.toLowerCase();
 
-      final regex = RegExp(r'\b' + RegExp.escape(word.word) + r'\b', caseSensitive: false);
+      final regex = RegExp(
+        r'\b' + RegExp.escape(word.word) + r'\b',
+        caseSensitive: false,
+      );
       final match = regex.firstMatch(text);
       if (match == null) continue;
 
@@ -64,12 +67,14 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
           .map((v) => v.word)
           .toList();
 
-      _items.add(_FillBlank(
-        word: word.word,
-        context: contextText,
-        blankSentence: blankContext,
-        options: [word.word, ...wrongOptions]..shuffle(rng),
-      ));
+      _items.add(
+        _FillBlank(
+          word: word.word,
+          context: contextText,
+          blankSentence: blankContext,
+          options: [word.word, ...wrongOptions]..shuffle(rng),
+        ),
+      );
     }
 
     for (final item in _items) {
@@ -110,16 +115,22 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= AppConstants.layoutBreakpoint;
         final item = _items[_currentIndex];
-        final accuracy = _currentIndex > 0 ? (_correctCount * 100.0 / _currentIndex).round() : 100;
+        final accuracy = _currentIndex > 0
+            ? (_correctCount * 100.0 / _currentIndex).round()
+            : 100;
 
         return Scaffold(
           appBar: AppBar(
             title: Text(
-              isWide ? '间隔复习 · ${_currentIndex + 1} / ${_items.length}'
-                     : '${_currentIndex + 1} of ${_items.length}',
+              isWide
+                  ? '间隔复习 · ${_currentIndex + 1} / ${_items.length}'
+                  : '${_currentIndex + 1} of ${_items.length}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
           ),
           body: isWide
               ? _buildWideBody(item, accuracy)
@@ -132,13 +143,22 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
   Widget _buildEmptyState() {
     return Scaffold(
       appBar: AppBar(title: const Text('间隔复习')),
-      body: Center(child: Text('暂无复习内容', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant))),
+      body: Center(
+        child: Text(
+          '暂无复习内容',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildDoneState() {
     final theme = Theme.of(context);
-    final accuracy = _items.isNotEmpty ? (_correctCount * 100 / _items.length).round() : 0;
+    final accuracy = _items.isNotEmpty
+        ? (_correctCount * 100 / _items.length).round()
+        : 0;
     return Scaffold(
       appBar: AppBar(title: const Text('复习完成')),
       body: Center(
@@ -147,13 +167,30 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.emoji_events, size: 72, color: theme.colorScheme.primary.withValues(alpha: 0.5)),
+              Icon(
+                Icons.emoji_events,
+                size: 72,
+                color: theme.colorScheme.primary.withValues(alpha: 0.5),
+              ),
               const SizedBox(height: 20),
-              Text('复习完成!', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                '复习完成!',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 12),
-              Text('正确率: $accuracy% ($_correctCount / ${_items.length})', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.primary)),
+              Text(
+                '正确率: $accuracy% ($_correctCount / ${_items.length})',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
               const SizedBox(height: 28),
-              FilledButton(onPressed: () => Navigator.pop(context), child: const Text('返回阅读')),
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('返回阅读'),
+              ),
             ],
           ),
         ),
@@ -173,13 +210,22 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
               value: _currentIndex / _items.length,
               minHeight: 4,
               backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                theme.colorScheme.primary,
+              ),
             ),
           ),
           const SizedBox(height: 32),
           _buildContextCard(theme, item.context),
           const SizedBox(height: 24),
-          Text(item.blankSentence, style: theme.textTheme.headlineSmall?.copyWith(height: 1.8, fontFamily: 'Serif', color: theme.colorScheme.onSurface)),
+          Text(
+            item.blankSentence,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              height: 1.8,
+              fontFamily: 'Serif',
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 32),
           ..._buildOptionCards(theme, item),
           if (_showResult) ...[
@@ -214,19 +260,35 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
                   children: [
                     _buildContextCard(theme, item.context),
                     const SizedBox(height: 28),
-                    Text(item.blankSentence, textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineSmall?.copyWith(height: 1.8, fontFamily: 'Serif', color: theme.colorScheme.onSurface)),
+                    Text(
+                      item.blankSentence,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        height: 1.8,
+                        fontFamily: 'Serif',
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
                     const SizedBox(height: 36),
-                    ..._buildOptionCards(theme, item,
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500, fontFamily: 'Serif', color: theme.colorScheme.onSurface),
-                        centered: true),
+                    ..._buildOptionCards(
+                      theme,
+                      item,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Serif',
+                        color: theme.colorScheme.onSurface,
+                      ),
+                      centered: true,
+                    ),
                     if (_showResult) ...[
                       const SizedBox(height: 28),
                       SizedBox(
                         width: 200,
                         child: FilledButton(
                           onPressed: _nextQuestion,
-                          child: Text(_currentIndex < _items.length - 1 ? '下一题' : '完成复习'),
+                          child: Text(
+                            _currentIndex < _items.length - 1 ? '下一题' : '完成复习',
+                          ),
                         ),
                       ),
                     ],
@@ -247,17 +309,32 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.15)),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.15),
+        ),
       ),
-      child: Text(context, textAlign: TextAlign.center,
-          style: theme.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, height: 1.5, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7))),
+      child: Text(
+        context,
+        textAlign: TextAlign.center,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          fontStyle: FontStyle.italic,
+          height: 1.5,
+          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+        ),
+      ),
     );
   }
 
-  List<Widget> _buildOptionCards(ThemeData theme, _FillBlank item, {TextStyle? style, bool centered = false}) {
+  List<Widget> _buildOptionCards(
+    ThemeData theme,
+    _FillBlank item, {
+    TextStyle? style,
+    bool centered = false,
+  }) {
     return List.generate(item.options.length, (index) {
       final isCorrect = index == item.correctIndex;
-      final isSelectedWrong = _showResult && _selectedAnswer == index && !isCorrect;
+      final isSelectedWrong =
+          _showResult && _selectedAnswer == index && !isCorrect;
 
       Color? bgColor;
       Color? borderColor;
@@ -281,7 +358,9 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
           text: item.options[index],
           theme: theme,
           bgColor: bgColor,
-          borderColor: borderColor ?? theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          borderColor:
+              borderColor ??
+              theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
           trailing: trailing,
           onTap: _showResult ? null : () => _selectAnswer(index),
           style: style,
@@ -298,7 +377,12 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('复习队列', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            '复习队列',
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 12),
           ...List.generate(_items.length, (index) {
             final isActive = index == _currentIndex;
@@ -306,9 +390,16 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
             return Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: isActive ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
+                  color: isActive
+                      ? theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.3,
+                        )
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -316,25 +407,43 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
                     Icon(
                       isDone ? Icons.check_circle : Icons.circle_outlined,
                       size: 16,
-                      color: isDone ? AppColors.correct
-                          : isActive ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                      color: isDone
+                          ? AppColors.correct
+                          : isActive
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant.withValues(
+                              alpha: 0.3,
+                            ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(_items[index].word,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                              color: isActive ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant)),
+                      child: Text(
+                        _items[index].word,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: isActive
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          color: isActive
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             );
           }),
-          Divider(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+          Divider(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
           const SizedBox(height: 8),
-          Text('SRS 统计', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            'SRS 统计',
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 12),
           _buildStatRow('当前正确率', '$accuracy%'),
           const SizedBox(height: 6),
@@ -351,8 +460,19 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        Text(value, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.primary,
+          ),
+        ),
       ],
     );
   }
@@ -406,12 +526,26 @@ class _ReviewOption extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: borderColor)),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: borderColor),
+            ),
             child: Row(
-              mainAxisAlignment: centered ? MainAxisAlignment.center : MainAxisAlignment.start,
+              mainAxisAlignment: centered
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
               children: [
                 if (trailing != null) ...[trailing!, const SizedBox(width: 8)],
-                Text(text, style: style ?? theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500, fontFamily: 'Serif', color: theme.colorScheme.onSurface)),
+                Text(
+                  text,
+                  style:
+                      style ??
+                      theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Serif',
+                        color: theme.colorScheme.onSurface,
+                      ),
+                ),
               ],
             ),
           ),

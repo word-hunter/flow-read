@@ -8,13 +8,20 @@ import 'reader_text_view.dart' show WordTapCallback;
 
 Color _sidebarLevelColor(String level) {
   switch (level) {
-    case 'Primary School': return Colors.green;
-    case 'Middle School': return Colors.teal;
-    case 'High School': return Colors.blue;
-    case 'CET-4': return Colors.orange;
-    case 'CET-6': return Colors.deepOrange;
-    case 'GRE': return Colors.red;
-    default: return Colors.grey;
+    case 'Primary School':
+      return Colors.green;
+    case 'Middle School':
+      return Colors.teal;
+    case 'High School':
+      return Colors.blue;
+    case 'CET-4':
+      return Colors.orange;
+    case 'CET-6':
+      return Colors.deepOrange;
+    case 'GRE':
+      return Colors.red;
+    default:
+      return Colors.grey;
   }
 }
 
@@ -38,26 +45,45 @@ class ReaderSidebar extends StatelessWidget {
         _buildHeader(theme, provider),
         if (provider.hasBook && provider.chapterCount > 1) ...[
           _buildChapterList(context, theme, provider),
-          Divider(height: 1, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+          Divider(
+            height: 1,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
         ],
-        Expanded(child: _buildVocabularyPanel(context, theme, result, provider)),
-        if (provider.selectedWord != null) _buildFloatingWordCard(theme, provider),
+        Expanded(
+          child: _buildVocabularyPanel(context, theme, result, provider),
+        ),
+        if (provider.selectedWord != null)
+          _buildFloatingWordCard(theme, provider),
       ],
     );
   }
 
   Widget _buildHeader(ThemeData theme, ReadingProvider provider) {
-    final unknownCount = result.vocabulary.where((v) => v.familiarity <= 0.3).length;
-    final learningCount = result.vocabulary.where((v) => v.familiarity > 0.3 && v.familiarity <= 0.5).length;
+    final unknownCount = result.vocabulary
+        .where((v) => v.familiarity <= 0.3)
+        .length;
+    final learningCount = result.vocabulary
+        .where((v) => v.familiarity > 0.3 && v.familiarity <= 0.5)
+        .length;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3))),
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
+        ),
       ),
       child: Row(
         children: [
-          Text('Vocabulary', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            'Vocabulary',
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const Spacer(),
           if (unknownCount > 0) ...[
             Container(
@@ -66,7 +92,13 @@ class ReaderSidebar extends StatelessWidget {
                 color: AppColors.familiarityLow.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text('$unknownCount new', style: theme.textTheme.labelSmall?.copyWith(color: AppColors.familiarityLow, fontWeight: FontWeight.w600)),
+              child: Text(
+                '$unknownCount new',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: AppColors.familiarityLow,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             const SizedBox(width: 6),
           ],
@@ -77,14 +109,24 @@ class ReaderSidebar extends StatelessWidget {
                 color: AppColors.vocabLearning.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text('$learningCount learning', style: theme.textTheme.labelSmall?.copyWith(color: AppColors.vocabLearning, fontWeight: FontWeight.w600)),
+              child: Text(
+                '$learningCount learning',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: AppColors.vocabLearning,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildChapterList(BuildContext context, ThemeData theme, ReadingProvider provider) {
+  Widget _buildChapterList(
+    BuildContext context,
+    ThemeData theme,
+    ReadingProvider provider,
+  ) {
     return SizedBox(
       height: 160,
       child: ListView.builder(
@@ -95,16 +137,22 @@ class ReaderSidebar extends StatelessWidget {
           return ListTile(
             dense: true,
             selected: isSelected,
-            selectedTileColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+            selectedTileColor: theme.colorScheme.primaryContainer.withValues(
+              alpha: 0.3,
+            ),
             leading: CircleAvatar(
               radius: 12,
-              backgroundColor: isSelected ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHighest,
+              backgroundColor: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.surfaceContainerHighest,
               child: Text(
                 '${index + 1}',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
+                  color: isSelected
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -112,7 +160,9 @@ class ReaderSidebar extends StatelessWidget {
               provider.book!.chapters[index].title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
             onTap: () => provider.goToChapter(index),
           );
@@ -121,10 +171,20 @@ class ReaderSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildVocabularyPanel(BuildContext context, ThemeData theme, AnalysisResult result, ReadingProvider provider) {
+  Widget _buildVocabularyPanel(
+    BuildContext context,
+    ThemeData theme,
+    AnalysisResult result,
+    ReadingProvider provider,
+  ) {
     if (result.vocabulary.isEmpty) {
       return Center(
-        child: Text('暂无生词', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        child: Text(
+          '暂无生词',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
       );
     }
 
@@ -133,15 +193,23 @@ class ReaderSidebar extends StatelessWidget {
       itemCount: result.vocabulary.length,
       itemBuilder: (context, index) {
         final vocab = result.vocabulary[index];
-        final isSelected = vocab.word.toLowerCase() == (provider.selectedWord?.toLowerCase() ?? '');
+        final isSelected =
+            vocab.word.toLowerCase() ==
+            (provider.selectedWord?.toLowerCase() ?? '');
 
         return Card(
           elevation: 0,
-          color: isSelected ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3) : Colors.transparent,
+          color: isSelected
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+              : Colors.transparent,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
-            side: BorderSide(color: isSelected ? theme.colorScheme.primary.withValues(alpha: 0.3) : Colors.transparent),
+            side: BorderSide(
+              color: isSelected
+                  ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                  : Colors.transparent,
+            ),
           ),
           child: InkWell(
             onTap: () => onWordTapped(vocab.word, vocab.context),
@@ -156,44 +224,87 @@ class ReaderSidebar extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Text(vocab.word,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w600, color: AppColors.familiarityColor(vocab.familiarity), fontFamily: 'Serif')),
+                            Text(
+                              vocab.word,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.familiarityColor(
+                                  vocab.familiarity,
+                                ),
+                                fontFamily: 'Serif',
+                              ),
+                            ),
                             if (vocab.level != null) ...[
                               const SizedBox(width: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: _sidebarLevelColor(vocab.level!).withValues(alpha: 0.12),
+                                  color: _sidebarLevelColor(
+                                    vocab.level!,
+                                  ).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(3),
                                 ),
-                                child: Text(vocab.level!,
-                                    style: TextStyle(fontSize: 8, color: _sidebarLevelColor(vocab.level!), fontWeight: FontWeight.w600)),
+                                child: Text(
+                                  vocab.level!,
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    color: _sidebarLevelColor(vocab.level!),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
                             ],
-                            if (vocab.familiarity > 0.3 && vocab.familiarity <= 0.5) ...[
+                            if (vocab.familiarity > 0.3 &&
+                                vocab.familiarity <= 0.5) ...[
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.vocabLearning.withValues(alpha: 0.12),
+                                  color: AppColors.vocabLearning.withValues(
+                                    alpha: 0.12,
+                                  ),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: Text('learning', style: TextStyle(fontSize: 9, color: AppColors.vocabLearning.withValues(alpha: 0.8), fontWeight: FontWeight.w600)),
+                                child: Text(
+                                  'learning',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: AppColors.vocabLearning.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
                             ],
                           ],
                         ),
                         const SizedBox(height: 2),
-                        Text(vocab.meaning, maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                        Text(
+                          vocab.meaning,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text('${(vocab.familiarity * 100).toInt()}%',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w600, color: AppColors.familiarityColor(vocab.familiarity))),
+                  Text(
+                    '${(vocab.familiarity * 100).toInt()}%',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.familiarityColor(vocab.familiarity),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -212,8 +323,17 @@ class ReaderSidebar extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3), width: 1.5),
-        boxShadow: [BoxShadow(color: theme.colorScheme.primary.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))],
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,11 +342,19 @@ class ReaderSidebar extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(provider.selectedWord!, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, fontFamily: 'Serif')),
+                child: Text(
+                  provider.selectedWord!,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Serif',
+                  ),
+                ),
               ),
               IconButton(
                 icon: Icon(
-                  provider.isBookmarked(provider.selectedWord!) ? Icons.bookmark : Icons.bookmark_border,
+                  provider.isBookmarked(provider.selectedWord!)
+                      ? Icons.bookmark
+                      : Icons.bookmark_border,
                   size: 20,
                   color: theme.colorScheme.primary,
                 ),
@@ -235,29 +363,60 @@ class ReaderSidebar extends StatelessWidget {
                     if (provider.isBookmarked(provider.selectedWord!)) {
                       provider.removeBookmark(provider.selectedWord!);
                     } else {
-                      provider.addBookmark(provider.selectedWord!, provider.selectedWordTranslation!);
+                      provider.addBookmark(
+                        provider.selectedWord!,
+                        provider.selectedWordTranslation!,
+                      );
                     }
                   }
                 },
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
-              IconButton(icon: const Icon(Icons.close, size: 18), onPressed: provider.clearWordLookup, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+              IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                onPressed: provider.clearWordLookup,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
             ],
           ),
           if (provider.selectedWordTranslation != null) ...[
             const SizedBox(height: 6),
-            Text(provider.selectedWordTranslation!, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+            Text(
+              provider.selectedWordTranslation!,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
+              ),
+            ),
           ],
           if (provider.isLoadingWord)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.primary)),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
             ),
           if (provider.selectedWordEntry != null) ...[
             const SizedBox(height: 8),
-            ...provider.selectedWordEntry!.meanings.take(1).map((m) => Text(m.definitions.firstOrNull ?? '',
-                maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))),
+            ...provider.selectedWordEntry!.meanings
+                .take(1)
+                .map(
+                  (m) => Text(
+                    m.definitions.firstOrNull ?? '',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
           ],
           const SizedBox(height: 10),
           Row(
@@ -274,7 +433,8 @@ class ReaderSidebar extends StatelessWidget {
                   label: 'Learning',
                   icon: Icons.school_outlined,
                   color: AppColors.vocabLearning,
-                  onTap: () => provider.markWordLearning(provider.selectedWord!),
+                  onTap: () =>
+                      provider.markWordLearning(provider.selectedWord!),
                 ),
               if (status != null)
                 _miniActionChip(
@@ -312,7 +472,14 @@ class ReaderSidebar extends StatelessWidget {
             children: [
               Icon(icon, size: 12, color: color),
               const SizedBox(width: 4),
-              Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),

@@ -30,10 +30,16 @@ class _SyntaxBreakdownState extends State<SyntaxBreakdown> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(SyntaxHelpers.typeIcon(widget.pattern.type), size: 20, color: theme.colorScheme.primary),
+                child: Icon(
+                  SyntaxHelpers.typeIcon(widget.pattern.type),
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
               ),
               const SizedBox(width: 10),
               Text(
@@ -63,14 +69,22 @@ class _SyntaxBreakdownState extends State<SyntaxBreakdown> {
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2)),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.2,
+                  ),
+                ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    _showTranslation ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    _showTranslation
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
                     size: 20,
                     color: theme.colorScheme.primary,
                   ),
@@ -86,7 +100,9 @@ class _SyntaxBreakdownState extends State<SyntaxBreakdown> {
                   Icon(
                     Icons.translate,
                     size: 16,
-                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.5,
+                    ),
                   ),
                 ],
               ),
@@ -98,7 +114,9 @@ class _SyntaxBreakdownState extends State<SyntaxBreakdown> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.2),
+                color: theme.colorScheme.tertiaryContainer.withValues(
+                  alpha: 0.2,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -115,7 +133,9 @@ class _SyntaxBreakdownState extends State<SyntaxBreakdown> {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.3,
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -185,10 +205,22 @@ class _SyntaxBreakdownState extends State<SyntaxBreakdown> {
               width: 24,
               child: Column(
                 children: [
-                  Container(width: 2, height: 16, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                  Container(
+                    width: 2,
+                    height: 16,
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: 0.4,
+                    ),
+                  ),
                   Row(
                     children: [
-                      Container(width: 12, height: 2, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                      Container(
+                        width: 12,
+                        height: 2,
+                        color: theme.colorScheme.outlineVariant.withValues(
+                          alpha: 0.4,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -214,9 +246,7 @@ class _SyntaxBreakdownState extends State<SyntaxBreakdown> {
               decoration: BoxDecoration(
                 color: bgColor,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: color.withValues(alpha: 0.15),
-                ),
+                border: Border.all(color: color.withValues(alpha: 0.15)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,7 +254,10 @@ class _SyntaxBreakdownState extends State<SyntaxBreakdown> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: color.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
@@ -243,7 +276,9 @@ class _SyntaxBreakdownState extends State<SyntaxBreakdown> {
                   Text(
                     part.text,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: isMainClause ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight: isMainClause
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                       height: 1.5,
                       color: theme.colorScheme.onSurface,
                     ),
@@ -263,10 +298,24 @@ class _SyntaxBreakdownState extends State<SyntaxBreakdown> {
     final words = sentence.split(RegExp(r'\s+'));
 
     final markers = [
-      'which', 'who', 'whom', 'whose', 'that',
-      'because', 'since', 'although', 'though',
-      'unless', 'until', 'while', 'whereas',
-      'wherever', 'whenever', 'where', 'when', 'if',
+      'which',
+      'who',
+      'whom',
+      'whose',
+      'that',
+      'because',
+      'since',
+      'although',
+      'though',
+      'unless',
+      'until',
+      'while',
+      'whereas',
+      'wherever',
+      'whenever',
+      'where',
+      'when',
+      'if',
     ];
 
     int? splitIndex;
@@ -284,43 +333,32 @@ class _SyntaxBreakdownState extends State<SyntaxBreakdown> {
 
     if (splitIndex != null && foundMarker != null) {
       final before = sentence.substring(0, splitIndex).trim();
-      final markerPart = sentence.substring(splitIndex, splitIndex + foundMarker.length);
+      final markerPart = sentence.substring(
+        splitIndex,
+        splitIndex + foundMarker.length,
+      );
       final after = sentence.substring(splitIndex + foundMarker.length).trim();
       final subClause = '$markerPart $after';
 
       if (before.isNotEmpty) {
-        parts.add(_ClausePart(
-          text: before,
-          label: '主句 (Main Clause)',
-          isMain: true,
-        ));
+        parts.add(
+          _ClausePart(text: before, label: '主句 (Main Clause)', isMain: true),
+        );
       }
-      parts.add(_ClausePart(
-        text: subClause,
-        label: '从句 ($foundMarker)',
-        isMain: false,
-      ));
+      parts.add(
+        _ClausePart(text: subClause, label: '从句 ($foundMarker)', isMain: false),
+      );
     } else if (words.length > 25) {
       final mid = words.length ~/ 2;
       final firstHalf = words.sublist(0, mid).join(' ');
       final secondHalf = words.sublist(mid).join(' ');
 
-      parts.add(_ClausePart(
-        text: firstHalf,
-        label: '前半部分',
-        isMain: true,
-      ));
-      parts.add(_ClausePart(
-        text: secondHalf,
-        label: '后半部分',
-        isMain: false,
-      ));
+      parts.add(_ClausePart(text: firstHalf, label: '前半部分', isMain: true));
+      parts.add(_ClausePart(text: secondHalf, label: '后半部分', isMain: false));
     } else {
-      parts.add(_ClausePart(
-        text: sentence,
-        label: '主句 (Main Clause)',
-        isMain: true,
-      ));
+      parts.add(
+        _ClausePart(text: sentence, label: '主句 (Main Clause)', isMain: true),
+      );
     }
 
     return parts;
