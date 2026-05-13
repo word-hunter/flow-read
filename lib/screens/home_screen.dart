@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
@@ -116,28 +115,6 @@ class _WideHomeLayout extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: provider.isLoading
-            ? null
-            : () => _importEpub(context, provider),
-        icon: const Icon(Icons.add),
-        label: const Text('导入'),
-      ),
     );
-  }
-
-  Future<void> _importEpub(
-    BuildContext context,
-    ReadingProvider provider,
-  ) async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['epub'],
-    );
-    if (result != null && result.files.single.path != null) {
-      if (context.mounted) {
-        await provider.importBook(result.files.single.path!);
-      }
-    }
   }
 }
