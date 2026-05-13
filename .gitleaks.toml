@@ -1,0 +1,20 @@
+# Gitleaks configuration for Flutter project
+# Docs: https://github.com/gitleaks/gitleaks?tab=readme-ov-file#configuration
+
+title = "flow_read gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+  description = "Global allowlist"
+  paths = [
+    '''build/''',
+    '''.dart_tool/''',
+    '''.pub-cache/''',
+    '''pubspec.lock''',
+    '''ios/Pods/''',
+    '''android/.gradle/''',
+    '''.idea/''',
+    '''\.DS_Store''',
+  ]
