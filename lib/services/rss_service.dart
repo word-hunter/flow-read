@@ -11,7 +11,7 @@ class RssService {
   static const _boxName = 'rss_subscriptions';
   static const _readArticlesKey = 'rss_read_articles';
   Box<RssFeedSubscription>? _feedBox;
-  Box<String?>? _metaBox;
+  Box? _metaBox;
   final Map<String, List<RssArticle>> _articleCache = {};
   final Set<String> _readArticleIds = {};
 
