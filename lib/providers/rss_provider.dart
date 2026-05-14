@@ -12,21 +12,37 @@ class RssProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isFetchingArticles = false;
   String? _errorMessage;
+  String _articleQuery = '';
 
   // ---- getters ----
 
   List<RssFeedSubscription> get subscriptions => _subscriptions;
   String? get selectedFeedUrl => _selectedFeedUrl;
+  bool get isLatestSelected => _selectedFeedUrl == null;
   RssFeedSubscription? get selectedFeed {
     if (_selectedFeedUrl == null) return null;
     return _subscriptions.where((s) => s.url == _selectedFeedUrl).firstOrNull;
   }
 
   List<RssArticle> get articles => _articles;
+  List<RssArticle> get visibleArticles {
+    final query = _articleQuery.trim().toLowerCase();
+    if (query.isEmpty) return _articles;
+    return _articles.where((article) {
+      return article.title.toLowerCase().contains(query) ||
+          (article.description?.toLowerCase().contains(query) ?? false) ||
+          (article.content?.toLowerCase().contains(query) ?? false) ||
+          article.feedTitle.toLowerCase().contains(query);
+    }).toList();
+  }
+
   bool get isLoading => _isLoading;
   bool get isFetchingArticles => _isFetchingArticles;
   String? get errorMessage => _errorMessage;
-  int get unreadCount => _articles.where((a) => !a.isRead).length;
+  String get articleQuery => _articleQuery;
+  int get unreadCount => visibleArticles.where((a) => !a.isRead).length;
+  String get currentTitle =>
+      isLatestSelected ? '最新内容' : (selectedFeed?.title ?? 'RSS');
 
   // ---- init ----
 
@@ -35,6 +51,9 @@ class RssProvider extends ChangeNotifier {
     notifyListeners();
     await _service.init();
     _subscriptions = _service.subscriptions;
+    if (_subscriptions.isNotEmpty) {
+      _articles = await _service.fetchLatestArticles();
+    }
     _isLoading = false;
     notifyListeners();
   }
@@ -49,9 +68,44 @@ class RssProvider extends ChangeNotifier {
       final sub = await _service.addSubscription(url);
       _subscriptions = _service.subscriptions;
       _selectedFeedUrl = sub.url;
+      _articleQuery = '';
       await fetchArticlesForSelectedFeed();
     } catch (e) {
+      debugPrint('RSS add feed failed for $url: $e');
       _errorMessage = '添加订阅失败: $e';
+    }
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> updateFeed({
+    required String originalUrl,
+    required String url,
+    required String title,
+    String? description,
+    bool refreshMetadata = false,
+  }) async {
+    _errorMessage = null;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final updated = await _service.updateSubscription(
+        originalUrl: originalUrl,
+        url: url,
+        title: title,
+        description: description,
+        refreshMetadata: refreshMetadata,
+      );
+      _subscriptions = _service.subscriptions;
+      if (_selectedFeedUrl == originalUrl) {
+        _selectedFeedUrl = updated?.url;
+        await fetchArticlesForSelectedFeed();
+      } else if (_selectedFeedUrl == null) {
+        await fetchArticlesForSelectedFeed();
+      }
+    } catch (e) {
+      debugPrint('RSS update feed failed for $url: $e');
+      _errorMessage = '更新订阅失败: $e';
     }
     _isLoading = false;
     notifyListeners();
@@ -62,13 +116,23 @@ class RssProvider extends ChangeNotifier {
     _service.clearArticleCache(url);
     _subscriptions = _service.subscriptions;
     if (_selectedFeedUrl == url) {
-      _selectedFeedUrl = _subscriptions.firstOrNull?.url;
+      _selectedFeedUrl = null;
       _articles = [];
-      if (_selectedFeedUrl != null) {
+      if (_subscriptions.isNotEmpty) {
         await fetchArticlesForSelectedFeed();
       }
+    } else if (_selectedFeedUrl == null) {
+      await fetchArticlesForSelectedFeed();
     }
     notifyListeners();
+  }
+
+  void selectLatest() {
+    if (_selectedFeedUrl == null) return;
+    _selectedFeedUrl = null;
+    _articles = [];
+    notifyListeners();
+    fetchArticlesForSelectedFeed();
   }
 
   void selectFeed(String url) {
@@ -80,13 +144,20 @@ class RssProvider extends ChangeNotifier {
   }
 
   Future<void> fetchArticlesForSelectedFeed() async {
-    if (_selectedFeedUrl == null) return;
+    if (_subscriptions.isEmpty) {
+      _articles = [];
+      notifyListeners();
+      return;
+    }
     _isFetchingArticles = true;
     _errorMessage = null;
     notifyListeners();
     try {
-      _articles = await _service.fetchArticles(_selectedFeedUrl!);
+      _articles = _selectedFeedUrl == null
+          ? await _service.fetchLatestArticles()
+          : await _service.fetchArticles(_selectedFeedUrl!);
     } catch (e) {
+      debugPrint('RSS fetch articles failed: $e');
       _errorMessage = '获取文章失败: $e';
     }
     _isFetchingArticles = false;
@@ -94,19 +165,26 @@ class RssProvider extends ChangeNotifier {
   }
 
   Future<void> refreshAll() async {
-    _service.clearArticleCache();
-    if (_selectedFeedUrl != null) {
-      await fetchArticlesForSelectedFeed();
+    if (_selectedFeedUrl == null) {
+      _service.clearArticleCache();
+    } else {
+      _service.clearArticleCache(_selectedFeedUrl);
     }
+    await fetchArticlesForSelectedFeed();
   }
 
-  void markAsRead(String articleId) {
-    _service.markAsRead(articleId);
+  Future<void> markAsRead(String articleId) async {
+    await _service.markAsRead(articleId);
     notifyListeners();
   }
 
-  void markAsUnread(String articleId) {
-    _service.markAsUnread(articleId);
+  Future<void> markAsUnread(String articleId) async {
+    await _service.markAsUnread(articleId);
+    notifyListeners();
+  }
+
+  void updateArticleQuery(String query) {
+    _articleQuery = query;
     notifyListeners();
   }
 

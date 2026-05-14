@@ -6,8 +6,11 @@ class RssFeedSidebar extends StatelessWidget {
   final List<RssFeedSubscription> subscriptions;
   final String? selectedUrl;
   final bool isLoading;
+  final bool isLatestSelected;
+  final VoidCallback onSelectLatest;
   final void Function(String url) onSelectFeed;
   final VoidCallback onAddFeed;
+  final void Function(RssFeedSubscription subscription) onEditFeed;
   final void Function(String url) onRemoveFeed;
 
   const RssFeedSidebar({
@@ -15,8 +18,11 @@ class RssFeedSidebar extends StatelessWidget {
     required this.subscriptions,
     required this.selectedUrl,
     required this.isLoading,
+    required this.isLatestSelected,
+    required this.onSelectLatest,
     required this.onSelectFeed,
     required this.onAddFeed,
+    required this.onEditFeed,
     required this.onRemoveFeed,
   });
 
@@ -75,14 +81,21 @@ class RssFeedSidebar extends StatelessWidget {
           )
         else
           Expanded(
-            child: ListView.builder(
+            child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              itemCount: subscriptions.length,
-              itemBuilder: (context, index) {
-                final sub = subscriptions[index];
-                final isSelected = sub.url == selectedUrl;
-                return _buildFeedItem(context, sub, isSelected, theme);
-              },
+              children: [
+                _buildLatestItem(context, theme),
+                Divider(
+                  height: 12,
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.18,
+                  ),
+                ),
+                ...subscriptions.map((sub) {
+                  final isSelected = sub.url == selectedUrl;
+                  return _buildFeedItem(context, sub, isSelected, theme);
+                }),
+              ],
             ),
           ),
         if (!isLoading && subscriptions.isNotEmpty)
@@ -107,6 +120,52 @@ class RssFeedSidebar extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildLatestItem(BuildContext context, ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: Material(
+        color: isLatestSelected
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onSelectLatest,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.dynamic_feed_outlined,
+                  size: 20,
+                  color: isLatestSelected
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '最新内容',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: isLatestSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                      color: isLatestSelected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -186,12 +245,33 @@ class RssFeedSidebar extends StatelessWidget {
                     minHeight: 24,
                   ),
                   onSelected: (value) {
+                    if (value == 'edit') onEditFeed(sub);
                     if (value == 'delete') onRemoveFeed(sub.url);
                   },
                   itemBuilder: (_) => [
                     const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('编辑'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
                       value: 'delete',
-                      child: Text('取消订阅', style: TextStyle(color: Colors.red)),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.delete_outline,
+                            size: 18,
+                            color: Colors.red,
+                          ),
+                          SizedBox(width: 8),
+                          Text('取消订阅', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
                     ),
                   ],
                 ),

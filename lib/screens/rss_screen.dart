@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/rss_models.dart';
 import '../providers/rss_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/rss/rss_article_list.dart';
@@ -9,13 +10,15 @@ import '../widgets/rss/rss_feed_sidebar.dart';
 class RssScreen extends StatelessWidget {
   const RssScreen({super.key});
 
+  static const _latestFeedValue = '__flow_read_latest__';
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<RssProvider>();
     final theme = Theme.of(context);
 
     if (provider.subscriptions.isEmpty) {
-      return _buildEmptyState(context, theme);
+      return _buildEmptyState(context, provider, theme);
     }
 
     return LayoutBuilder(
@@ -42,8 +45,12 @@ class RssScreen extends StatelessWidget {
             subscriptions: provider.subscriptions,
             selectedUrl: provider.selectedFeedUrl,
             isLoading: provider.isLoading,
+            isLatestSelected: provider.isLatestSelected,
+            onSelectLatest: provider.selectLatest,
             onSelectFeed: provider.selectFeed,
             onAddFeed: () => _showAddFeedDialog(context),
+            onEditFeed: (subscription) =>
+                _showEditFeedDialog(context, subscription),
             onRemoveFeed: (url) => provider.removeFeed(url),
           ),
         ),
@@ -61,7 +68,7 @@ class RssScreen extends StatelessWidget {
     RssProvider provider,
     ThemeData theme,
   ) {
-    final hasSelection = provider.selectedFeedUrl != null;
+    final hasSelection = provider.subscriptions.isNotEmpty;
 
     return Column(
       children: [
@@ -125,23 +132,36 @@ class RssScreen extends StatelessWidget {
     RssProvider provider,
     ThemeData theme,
   ) {
-    return DropdownButton<String?>(
-      value: provider.selectedFeedUrl,
-      hint: const Text('选择订阅源'),
+    return DropdownButton<String>(
+      value: provider.selectedFeedUrl ?? _latestFeedValue,
       isExpanded: true,
       underline: const SizedBox(),
-      items: provider.subscriptions.map((sub) {
-        return DropdownMenuItem(
-          value: sub.url,
+      items: [
+        DropdownMenuItem(
+          value: _latestFeedValue,
           child: Text(
-            sub.title,
+            '最新内容',
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodyMedium,
           ),
-        );
-      }).toList(),
+        ),
+        ...provider.subscriptions.map((sub) {
+          return DropdownMenuItem(
+            value: sub.url,
+            child: Text(
+              sub.title,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium,
+            ),
+          );
+        }),
+      ],
       onChanged: (url) {
-        if (url != null) provider.selectFeed(url);
+        if (url == _latestFeedValue) {
+          provider.selectLatest();
+        } else if (url != null) {
+          provider.selectFeed(url);
+        }
       },
     );
   }
@@ -151,10 +171,10 @@ class RssScreen extends StatelessWidget {
     RssProvider provider,
     ThemeData theme,
   ) {
-    if (provider.selectedFeedUrl == null) {
+    if (provider.subscriptions.isEmpty) {
       return Center(
         child: Text(
-          '选择一个订阅源',
+          '暂无 RSS 订阅',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
           ),
@@ -207,10 +227,13 @@ class RssScreen extends StatelessWidget {
           ),
         Expanded(
           child: RssArticleList(
-            articles: provider.articles,
-            feedTitle: provider.selectedFeed?.title ?? '',
+            articles: provider.visibleArticles,
+            feedTitle: provider.currentTitle,
             unreadCount: provider.unreadCount,
+            query: provider.articleQuery,
+            showFeedName: provider.isLatestSelected,
             onRefresh: provider.refreshAll,
+            onSearchChanged: provider.updateArticleQuery,
             onMarkRead: provider.markAsRead,
             onMarkUnread: provider.markAsUnread,
           ),
@@ -219,7 +242,11 @@ class RssScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, ThemeData theme) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    RssProvider provider,
+    ThemeData theme,
+  ) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -244,10 +271,67 @@ class RssScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+          if (provider.errorMessage != null) ...[
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 18,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        provider.errorMessage!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        size: 16,
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                      tooltip: '关闭',
+                      onPressed: provider.clearError,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 28,
+                        minHeight: 28,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           FilledButton.icon(
-            onPressed: () => _showAddFeedDialog(context),
-            icon: const Icon(Icons.add),
-            label: const Text('添加订阅'),
+            onPressed: provider.isLoading
+                ? null
+                : () => _showAddFeedDialog(context),
+            icon: provider.isLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.add),
+            label: Text(provider.isLoading ? '正在添加' : '添加订阅'),
           ),
         ],
       ),
@@ -290,6 +374,90 @@ class RssScreen extends StatelessWidget {
             child: const Text('添加'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEditFeedDialog(
+    BuildContext context,
+    RssFeedSubscription subscription,
+  ) {
+    final titleController = TextEditingController(text: subscription.title);
+    final urlController = TextEditingController(text: subscription.url);
+    final descriptionController = TextEditingController(
+      text: subscription.description ?? '',
+    );
+    var refreshMetadata = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('编辑 RSS 订阅'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: '名称',
+                    prefixIcon: Icon(Icons.title),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: urlController,
+                  decoration: const InputDecoration(
+                    labelText: 'RSS 地址',
+                    prefixIcon: Icon(Icons.link),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descriptionController,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: '备注',
+                    prefixIcon: Icon(Icons.notes_outlined),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('重新获取源信息'),
+                  value: refreshMetadata,
+                  onChanged: (value) => setState(() => refreshMetadata = value),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final url = urlController.text.trim();
+                if (url.isNotEmpty) {
+                  context.read<RssProvider>().updateFeed(
+                    originalUrl: subscription.url,
+                    url: url,
+                    title: titleController.text,
+                    description: descriptionController.text,
+                    refreshMetadata: refreshMetadata,
+                  );
+                  Navigator.pop(ctx);
+                }
+              },
+              child: const Text('保存'),
+            ),
+          ],
+        ),
       ),
     );
   }

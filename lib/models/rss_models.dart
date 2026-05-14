@@ -90,9 +90,11 @@ class RssFeedSubscriptionAdapter extends TypeAdapter<RssFeedSubscription> {
 
 class RssArticle {
   final String feedUrl;
+  final String feedTitle;
   final String title;
   final String? link;
   final String? description;
+  final String? content;
   final DateTime? pubDate;
   final String? author;
   bool isRead;
@@ -100,22 +102,26 @@ class RssArticle {
 
   RssArticle({
     required this.feedUrl,
+    this.feedTitle = '',
     required this.title,
     this.link,
     this.description,
+    this.content,
     this.pubDate,
     this.author,
     this.isRead = false,
     String? id,
   }) : id =
            id ??
-           '${feedUrl.hashCode}_${title.hashCode}_${pubDate?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch}';
+           '${feedUrl.hashCode}_${(link ?? title).hashCode}_${pubDate?.millisecondsSinceEpoch ?? 0}';
 
   RssArticle copyWith({
     String? feedUrl,
+    String? feedTitle,
     String? title,
     String? link,
     String? description,
+    String? content,
     DateTime? pubDate,
     String? author,
     bool? isRead,
@@ -123,9 +129,11 @@ class RssArticle {
   }) {
     return RssArticle(
       feedUrl: feedUrl ?? this.feedUrl,
+      feedTitle: feedTitle ?? this.feedTitle,
       title: title ?? this.title,
       link: link ?? this.link,
       description: description ?? this.description,
+      content: content ?? this.content,
       pubDate: pubDate ?? this.pubDate,
       author: author ?? this.author,
       isRead: isRead ?? this.isRead,
