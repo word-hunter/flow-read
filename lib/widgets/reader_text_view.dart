@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/analysis_result.dart';
+import '../models/content_block.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
@@ -98,6 +99,132 @@ InlineSpan buildHighlightedParagraph(
     fontFamily,
     colorSettings,
   ).buildParagraph(paragraph);
+}
+
+InlineSpan buildStyledBlock(
+  TextBlock block,
+  AnalysisResult result,
+  ThemeData theme, {
+  required WordTapCallback onWordTapped,
+  double fontSize = 16.0,
+  double lineHeight = 2.0,
+  String fontFamily = 'Serif',
+  VocabularyColorSettings? colorSettings,
+}) {
+  return _StyledBlockBuilder(
+    block,
+    result,
+    theme,
+    onWordTapped,
+    fontSize,
+    lineHeight,
+    fontFamily,
+    colorSettings,
+  ).build();
+}
+
+Widget buildBlockWidget(
+  ContentBlock block,
+  AnalysisResult result,
+  ThemeData theme, {
+  required WordTapCallback onWordTapped,
+  required void Function(String) onParagraphLongPress,
+  double fontSize = 16.0,
+  double lineHeight = 2.0,
+  String fontFamily = 'Serif',
+  VocabularyColorSettings? colorSettings,
+}) {
+  switch (block) {
+    case TextBlock():
+      final effectiveFontSize = switch (block.type) {
+        BlockType.heading => switch (block.headingLevel) {
+            1 => fontSize * 1.5,
+            2 => fontSize * 1.3,
+            3 => fontSize * 1.15,
+            _ => fontSize * 1.1,
+          },
+        _ => fontSize,
+      };
+
+      final span = buildStyledBlock(
+        block,
+        result,
+        theme,
+        onWordTapped: onWordTapped,
+        fontSize: effectiveFontSize,
+        lineHeight: lineHeight,
+        fontFamily: fontFamily,
+        colorSettings: colorSettings,
+      );
+
+      Widget textWidget = GestureDetector(
+        onLongPress: () => onParagraphLongPress(block.plainText),
+        child: Text.rich(
+          span as TextSpan,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            height: lineHeight,
+            letterSpacing: 0.3,
+            fontFamily: fontFamily,
+            fontSize: effectiveFontSize,
+            fontWeight: block.type == BlockType.heading ? FontWeight.bold : null,
+          ),
+        ),
+      );
+
+      final padding = switch (block.type) {
+        BlockType.heading => const EdgeInsets.only(top: 16, bottom: 8),
+        BlockType.paragraph => const EdgeInsets.only(bottom: 12),
+        BlockType.listItem => const EdgeInsets.only(bottom: 4),
+        BlockType.blockquote => const EdgeInsets.only(bottom: 12),
+      };
+
+      if (block.type == BlockType.listItem) {
+        textWidget = Padding(
+          padding: EdgeInsets.only(left: 16.0 * block.indent),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 2, right: 8),
+                child: Text('•', style: TextStyle(fontSize: fontSize)),
+              ),
+              Expanded(child: textWidget),
+            ],
+          ),
+        );
+      } else if (block.type == BlockType.blockquote) {
+        textWidget = Container(
+          padding: const EdgeInsets.only(left: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                color: theme.colorScheme.outlineVariant,
+                width: 3,
+              ),
+            ),
+          ),
+          child: textWidget,
+        );
+      }
+
+      return Padding(padding: padding, child: textWidget);
+
+    case ImageBlock():
+      if (block.bytes == null) {
+        return const SizedBox.shrink();
+      }
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 400),
+          child: Image.memory(
+            block.bytes!,
+            fit: BoxFit.contain,
+            errorBuilder: (_, e, s) => const SizedBox.shrink(),
+          ),
+        ),
+      );
+  }
 }
 
 class _HighlightBuilder {
@@ -236,6 +363,184 @@ class _HighlightBuilder {
       spans.add(TextSpan(text: paragraph));
     }
     return TextSpan(children: spans);
+  }
+}
+
+class _StyledBlockBuilder {
+  final TextBlock block;
+  final AnalysisResult result;
+  final ThemeData theme;
+  final WordTapCallback onWordTapped;
+  final double fontSize;
+  final double lineHeight;
+  final String fontFamily;
+  final VocabularyColorSettings? colorSettings;
+  late final Map<String, Vocabulary> vocabWords;
+  late final Set<String> knownSet;
+
+  _StyledBlockBuilder(
+    this.block,
+    this.result,
+    this.theme,
+    this.onWordTapped,
+    this.fontSize,
+    this.lineHeight,
+    this.fontFamily,
+    this.colorSettings,
+  ) {
+    vocabWords = {};
+    for (final v in result.vocabulary) {
+      vocabWords[v.word.toLowerCase()] = v;
+    }
+    knownSet = result.knownWords;
+  }
+
+  Color _colorForVocab(Vocabulary vocab) {
+    if (vocab.familiarity >= 0.4 && vocab.familiarity <= 0.5) {
+      return colorSettings?.learningColor ?? AppColors.vocabLearning;
+    }
+    return colorSettings?.unknownColor ?? AppColors.familiarityLow;
+  }
+
+  Color _colorForKnown() {
+    return colorSettings?.knownColor ?? theme.colorScheme.onSurface;
+  }
+
+  InlineSpan build() {
+    final fullText = block.plainText;
+    final spans = <InlineSpan>[];
+    final wordPattern = RegExp(r"[a-zA-Z]+(?:'[a-zA-Z]+)?");
+    final matches = wordPattern.allMatches(fullText).toList();
+    int lastIndex = 0;
+
+    // Build offset-to-style mapping
+    final styleRanges = <({int start, int end, InlineStyle style})>[];
+    int offset = 0;
+    for (final styledText in block.spans) {
+      styleRanges.add((
+        start: offset,
+        end: offset + styledText.text.length,
+        style: styledText.style,
+      ));
+      offset += styledText.text.length;
+    }
+
+    for (final match in matches) {
+      final word = match.group(0)!;
+      final lower = word.toLowerCase();
+
+      if (match.start > lastIndex) {
+        final segment = fullText.substring(lastIndex, match.start);
+        final segStyle = _styleAt(styleRanges, lastIndex);
+        spans.add(TextSpan(
+          text: segment,
+          style: _textStyleFor(segStyle),
+        ));
+      }
+
+      final wordStyle = _styleAt(styleRanges, match.start);
+      final isVocab = vocabWords.containsKey(lower);
+      final isKnown = !isVocab && knownSet.contains(lower);
+
+      if (isVocab) {
+        final vocab = vocabWords[lower]!;
+        final color = _colorForVocab(vocab);
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: GestureDetector(
+              onTap: () => onWordTapped(word, vocab.context),
+              child: Text(
+                word,
+                style: _textStyleFor(wordStyle).copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                  decoration: TextDecoration.underline,
+                  decorationColor: color.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          ),
+        );
+      } else if (isKnown) {
+        final knownColor = _colorForKnown();
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: GestureDetector(
+              onTap: () => onWordTapped(word, '...$word...'),
+              child: Text(
+                word,
+                style: _textStyleFor(wordStyle).copyWith(
+                  color: knownColor,
+                  decoration: TextDecoration.underline,
+                  decorationColor: knownColor.withValues(alpha: 0.15),
+                  decorationStyle: TextDecorationStyle.dotted,
+                ),
+              ),
+            ),
+          ),
+        );
+      } else if (lower.length < AppConstants.minWordLength) {
+        spans.add(TextSpan(text: word, style: _textStyleFor(wordStyle)));
+      } else {
+        final unknownColor =
+            colorSettings?.unknownColor ?? AppColors.familiarityLow;
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: GestureDetector(
+              onTap: () => onWordTapped(word, '...$word...'),
+              child: Text(
+                word,
+                style: _textStyleFor(wordStyle).copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: unknownColor,
+                  decoration: TextDecoration.underline,
+                  decorationColor: unknownColor.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < fullText.length) {
+      final segStyle = _styleAt(styleRanges, lastIndex);
+      spans.add(TextSpan(
+        text: fullText.substring(lastIndex),
+        style: _textStyleFor(segStyle),
+      ));
+    }
+    if (spans.isEmpty) {
+      spans.add(TextSpan(text: fullText));
+    }
+    return TextSpan(children: spans);
+  }
+
+  InlineStyle _styleAt(
+    List<({int start, int end, InlineStyle style})> ranges,
+    int offset,
+  ) {
+    for (final range in ranges) {
+      if (offset >= range.start && offset < range.end) {
+        return range.style;
+      }
+    }
+    return InlineStyle.normal;
+  }
+
+  TextStyle _textStyleFor(InlineStyle style) {
+    return theme.textTheme.bodyLarge!.copyWith(
+      height: lineHeight,
+      letterSpacing: 0.3,
+      fontFamily: fontFamily,
+      fontSize: fontSize,
+      fontWeight: style.bold ? FontWeight.bold : null,
+      fontStyle: style.italic ? FontStyle.italic : null,
+    );
   }
 }
 

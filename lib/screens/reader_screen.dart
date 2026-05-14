@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/analysis_result.dart';
+import '../models/content_block.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
@@ -224,11 +225,15 @@ class _NarrowReaderState extends State<_NarrowReader> {
 
     if (result == null) return const Center(child: CircularProgressIndicator());
 
-    final paragraphs = splitIntoParagraphs(result.passageText);
+    final chapter = provider.hasBook && provider.chapterCount > 0
+        ? provider.book!.chapters[provider.currentChapter]
+        : null;
+    final blocks = chapter?.blocks ?? const [];
+    final useBlocks = blocks.isNotEmpty;
+    final paragraphs = useBlocks ? <String>[] : splitIntoParagraphs(result.passageText);
+    final itemCount = useBlocks ? blocks.length + 1 : paragraphs.length + 1;
     final progressPercent = (provider.readingProgress * 100).toInt();
-    final chapterTitle = provider.hasBook && provider.chapterCount > 0
-        ? provider.book!.chapters[provider.currentChapter].title
-        : result.title;
+    final chapterTitle = chapter?.title ?? result.title;
     final colorSettings = settings.colors;
 
     return Scaffold(
@@ -262,7 +267,7 @@ class _NarrowReaderState extends State<_NarrowReader> {
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(20),
-                  itemCount: paragraphs.length + 1,
+                  itemCount: itemCount,
                   itemBuilder: (context, index) {
                     if (index == 0) {
                       return Padding(
@@ -285,15 +290,30 @@ class _NarrowReaderState extends State<_NarrowReader> {
                         ),
                       );
                     }
-                    final paraIndex = index - 1;
-                    if (paraIndex >= paragraphs.length)
+                    final itemIndex = index - 1;
+
+                    if (useBlocks) {
+                      if (itemIndex >= blocks.length) return const SizedBox.shrink();
+                      return buildBlockWidget(
+                        blocks[itemIndex],
+                        result,
+                        theme,
+                        onWordTapped: _onWordTapped,
+                        onParagraphLongPress: (text) => _onParagraphLongPress(
+                          itemIndex, text, Offset.zero,
+                        ),
+                        colorSettings: colorSettings,
+                      );
+                    }
+
+                    if (itemIndex >= paragraphs.length)
                       return const SizedBox.shrink();
 
-                    final isSelected = _selectedParagraphIndex == paraIndex;
+                    final isSelected = _selectedParagraphIndex == itemIndex;
                     return GestureDetector(
                       onLongPressStart: (details) => _onParagraphLongPress(
-                        paraIndex,
-                        paragraphs[paraIndex],
+                        itemIndex,
+                        paragraphs[itemIndex],
                         details.globalPosition,
                       ),
                       child: AnimatedContainer(
@@ -311,7 +331,7 @@ class _NarrowReaderState extends State<_NarrowReader> {
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Text.rich(
                             buildHighlightedParagraph(
-                              paragraphs[paraIndex],
+                              paragraphs[itemIndex],
                               result,
                               theme,
                               onWordTapped: _onWordTapped,
@@ -594,11 +614,14 @@ class _WideReaderState extends State<_WideReader> {
 
     if (result == null) return const Center(child: CircularProgressIndicator());
 
-    final paragraphs = splitIntoParagraphs(result.passageText);
+    final chapter = provider.hasBook && provider.chapterCount > 0
+        ? provider.book!.chapters[provider.currentChapter]
+        : null;
+    final wideBlocks = chapter?.blocks ?? const [];
+    final wideUseBlocks = wideBlocks.isNotEmpty;
+    final paragraphs = wideUseBlocks ? <String>[] : splitIntoParagraphs(result.passageText);
     final progressPercent = (provider.readingProgress * 100).toInt();
-    final chapterTitle = provider.hasBook && provider.chapterCount > 0
-        ? provider.book!.chapters[provider.currentChapter].title
-        : result.title;
+    final chapterTitle = chapter?.title ?? result.title;
     final colorSettings = settings.colors;
 
     return Scaffold(
@@ -627,6 +650,8 @@ class _WideReaderState extends State<_WideReader> {
                               result,
                               theme,
                               colorSettings,
+                              blocks: wideBlocks,
+                              useBlocks: wideUseBlocks,
                             ),
                           ),
                         ),
@@ -731,8 +756,31 @@ class _WideReaderState extends State<_WideReader> {
     List<String> paragraphs,
     AnalysisResult result,
     ThemeData theme,
-    VocabularyColorSettings colorSettings,
-  ) {
+    VocabularyColorSettings colorSettings, {
+    List<ContentBlock> blocks = const [],
+    bool useBlocks = false,
+  }) {
+    if (useBlocks) {
+      return ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(32),
+        itemCount: blocks.length,
+        itemBuilder: (context, index) {
+          return buildBlockWidget(
+            blocks[index],
+            result,
+            theme,
+            onWordTapped: _onWordTapped,
+            onParagraphLongPress: (text) => _onParagraphLongPress(
+              index, text, Offset.zero,
+            ),
+            fontSize: 18,
+            colorSettings: colorSettings,
+          );
+        },
+      );
+    }
+
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(32),
