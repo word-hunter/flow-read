@@ -222,9 +222,12 @@ class _ReaderPageState extends State<ReaderPage> {
         return _buildPageScaffold(
           child: Column(
             children: [
-              _buildNavBar(provider, theme, showSidebarToggle: isWide),
-              if (provider.hasBook && provider.chapterCount > 1)
-                buildChapterNav(context, provider, theme),
+              _buildNavBar(
+                provider,
+                theme,
+                chapterTitle,
+                showSidebarToggle: isWide,
+              ),
               Expanded(
                 child: isWide
                     ? Row(
@@ -319,18 +322,40 @@ class _ReaderPageState extends State<ReaderPage> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           _viewportHeight = constraints.maxHeight;
-          return Padding(
-            padding: const EdgeInsets.all(20),
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: paragraphs.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) return _buildTitleBlock(result, theme);
-                final paraIndex = index - 1;
-                if (paraIndex >= paragraphs.length)
-                  return const SizedBox.shrink();
-                return _buildParagraph(paragraphs[paraIndex], result, theme);
-              },
+          final provider = context.read<ReadingProvider>();
+          final showTitleBlock = !provider.hasBook;
+          final topPadding = showTitleBlock ? 14.0 : 10.0;
+          final horizontalPadding = _isWideScreen ? 32.0 : 18.0;
+          final maxTextWidth = _isWideScreen ? 920.0 : double.infinity;
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxTextWidth),
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  topPadding,
+                  horizontalPadding,
+                  24,
+                ),
+                itemCount: paragraphs.length + (showTitleBlock ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (showTitleBlock && index == 0) {
+                    return _buildTitleBlock(result, theme);
+                  }
+                  final paraIndex = showTitleBlock ? index - 1 : index;
+                  if (paraIndex >= paragraphs.length) {
+                    return const SizedBox.shrink();
+                  }
+                  return _buildParagraph(
+                    paragraphs[paraIndex],
+                    result,
+                    theme,
+                    isFirstParagraph: paraIndex == 0 && provider.hasBook,
+                  );
+                },
+              ),
             ),
           );
         },
@@ -351,21 +376,21 @@ class _ReaderPageState extends State<ReaderPage> {
         ? const Color(0xFF3A3A3A)
         : const Color(0xFFEEEEEE);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             result.title,
-            style: theme.textTheme.headlineSmall?.copyWith(
+            style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
               color: titleColor,
               fontFamily: provider.fontFamily,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Divider(color: dividerColor),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -374,12 +399,21 @@ class _ReaderPageState extends State<ReaderPage> {
   Widget _buildParagraph(
     String paragraph,
     AnalysisResult result,
-    ThemeData theme,
-  ) {
+    ThemeData theme, {
+    bool isFirstParagraph = false,
+  }) {
     final provider = context.read<ReadingProvider>();
     final baseStyle = _buildBaseTextStyle(theme, provider);
+
+    if (isFirstParagraph && paragraph.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: _buildDropCapParagraph(paragraph, result, theme, baseStyle),
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Text.rich(
         buildHighlightedParagraph(
           paragraph,
@@ -395,9 +429,72 @@ class _ReaderPageState extends State<ReaderPage> {
     );
   }
 
+  Widget _buildDropCapParagraph(
+    String paragraph,
+    AnalysisResult result,
+    ThemeData theme,
+    TextStyle baseStyle,
+  ) {
+    final provider = context.read<ReadingProvider>();
+    final firstLetter = paragraph.substring(0, 1).toUpperCase();
+    final restText = paragraph.substring(1).trimLeft();
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(right: 10, top: 5),
+          child: Text(
+            firstLetter,
+            style: baseStyle.copyWith(
+              fontSize: provider.fontSize * 3.05,
+              height: 0.84,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text.rich(
+            buildHighlightedParagraph(
+              restText,
+              result,
+              theme,
+              onWordTapped: _onWordTapped,
+              fontSize: provider.fontSize,
+              lineHeight: provider.lineHeight,
+              fontFamily: provider.fontFamily,
+            ),
+            style: baseStyle,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _compactIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onPressed,
+    double size = 20,
+  }) {
+    return IconButton(
+      icon: Icon(icon, size: size),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+      visualDensity: VisualDensity.compact,
+      style: IconButton.styleFrom(
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
   Widget _buildNavBar(
     ReadingProvider provider,
-    ThemeData theme, {
+    ThemeData theme,
+    String chapterTitle, {
     bool showSidebarToggle = false,
   }) {
     final isDark =
@@ -407,81 +504,136 @@ class _ReaderPageState extends State<ReaderPage> {
     final borderColor = isDark
         ? const Color(0xFF3A3A3A)
         : const Color(0xFFEEEEEE);
+    final showSearch = _layoutWidth >= 520;
+    final showChapterStep = _layoutWidth >= 680 && provider.chapterCount > 1;
+    final chapterLabel = provider.hasBook
+        ? 'Chapter ${provider.currentChapter + 1}'
+        : 'Reader';
+    final canGoPreviousChapter =
+        provider.hasBook && provider.currentChapter > 0;
+    final canGoNextChapter =
+        provider.hasBook && provider.currentChapter < provider.chapterCount - 1;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: borderColor)),
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, size: 22),
+          _compactIconButton(
+            icon: Icons.arrow_back,
+            tooltip: '返回',
             onPressed: () => context.read<ReadingProvider>().exitReader(),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
-          const SizedBox(width: 4),
           if (provider.hasBook && provider.chapterCount > 1)
-            IconButton(
-              icon: const Icon(Icons.menu, size: 22),
+            _compactIconButton(
+              icon: Icons.menu,
               tooltip: '目录',
               onPressed: _showTocSheet,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
-          const Spacer(),
-          Flexible(
-            child: Text(
-              '${(_displayProgress * 100).toInt()}%',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.primary,
-              ),
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (showChapterStep)
+                  _compactIconButton(
+                    icon: Icons.chevron_left,
+                    tooltip: '上一章',
+                    onPressed: canGoPreviousChapter
+                        ? () =>
+                              provider.goToChapter(provider.currentChapter - 1)
+                        : null,
+                  ),
+                Flexible(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        chapterLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface,
+                          height: 1.05,
+                        ),
+                      ),
+                      Text(
+                        chapterTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          height: 1.05,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (showChapterStep)
+                  _compactIconButton(
+                    icon: Icons.chevron_right,
+                    tooltip: '下一章',
+                    onPressed: canGoNextChapter
+                        ? () =>
+                              provider.goToChapter(provider.currentChapter + 1)
+                        : null,
+                  ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
+          Text(
+            '${(_displayProgress * 100).toInt()}%',
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 6),
           if (showSidebarToggle)
-            IconButton(
-              icon: Icon(
-                _sidebarOpen
-                    ? Icons.vertical_split
-                    : Icons.vertical_split_outlined,
-                size: 22,
-              ),
+            _compactIconButton(
+              icon: _sidebarOpen
+                  ? Icons.vertical_split
+                  : Icons.vertical_split_outlined,
               tooltip: _sidebarOpen ? '收起侧栏' : '展开侧栏',
               onPressed: () => setState(() => _sidebarOpen = !_sidebarOpen),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
-          IconButton(
-            icon: const Icon(Icons.search, size: 22),
-            onPressed: () {},
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          ),
-          IconButton(
-            icon: const Icon(Icons.text_fields, size: 22),
+          if (showSearch)
+            _compactIconButton(
+              icon: Icons.search,
+              tooltip: '搜索',
+              onPressed: () {},
+            ),
+          _compactIconButton(
+            icon: Icons.text_fields,
+            tooltip: '字体',
             onPressed: _showFontSettingsSheet,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
-          IconButton(
-            icon: Icon(
-              provider.isCurrentPositionBookmarked()
-                  ? Icons.bookmark
-                  : Icons.bookmark_outline,
-              size: 22,
-            ),
+          _compactIconButton(
+            icon: provider.isCurrentPositionBookmarked()
+                ? Icons.bookmark
+                : Icons.bookmark_outline,
+            tooltip: '书签',
             onPressed: _onBookmarkTap,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_horiz, size: 22),
+            icon: const Icon(Icons.more_horiz, size: 20),
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+            tooltip: '更多',
             onSelected: (value) {
               switch (value) {
+                case 'prevChapter':
+                  if (canGoPreviousChapter) {
+                    provider.goToChapter(provider.currentChapter - 1);
+                  }
+                  break;
+                case 'nextChapter':
+                  if (canGoNextChapter) {
+                    provider.goToChapter(provider.currentChapter + 1);
+                  }
+                  break;
                 case 'summary':
                   provider.generateSummary();
                   showModalBottomSheet(
@@ -505,6 +657,19 @@ class _ReaderPageState extends State<ReaderPage> {
               }
             },
             itemBuilder: (context) => [
+              if (provider.hasBook && provider.chapterCount > 1) ...[
+                PopupMenuItem(
+                  value: 'prevChapter',
+                  enabled: canGoPreviousChapter,
+                  child: const Text('上一章'),
+                ),
+                PopupMenuItem(
+                  value: 'nextChapter',
+                  enabled: canGoNextChapter,
+                  child: const Text('下一章'),
+                ),
+                const PopupMenuDivider(),
+              ],
               const PopupMenuItem(value: 'summary', child: Text('AI 总结本章')),
               const PopupMenuItem(value: 'practice', child: Text('生成练习题')),
               const PopupMenuItem(value: 'bookmarks', child: Text('历史书签')),

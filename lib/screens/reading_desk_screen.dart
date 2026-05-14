@@ -51,11 +51,12 @@ class _ReadingDeskScreenState extends State<ReadingDeskScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(8),
           child: IndexedStack(index: _currentIndex, children: _pages),
         ),
       ),
       bottomNavigationBar: NavigationBar(
+        height: 64,
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) => setState(() => _currentIndex = index),
         destinations: _navDestinations,
