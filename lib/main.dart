@@ -35,29 +35,164 @@ import 'services/word_level_service.dart';
 import 'services/wordnet_repository.dart';
 import 'theme/app_theme.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  runApp(const FlowReadBootstrapApp());
+}
 
+Future<void> _bootstrapStorage() async {
   await Hive.initFlutter();
-  Hive.registerAdapter(BookMetadataAdapter());
-  Hive.registerAdapter(BookmarkedWordAdapter());
-  Hive.registerAdapter(ReadingBookmarkAdapter());
-  Hive.registerAdapter(ReadingConfigAdapter());
-  Hive.registerAdapter(WordLevelInfoAdapter());
-  Hive.registerAdapter(RssFeedSubscriptionAdapter());
 
-  await Hive.openBox<BookMetadata>('books');
-  await Hive.openBox<String>('user_vocabulary');
-  await Hive.openBox('settings');
-  await Hive.openBox<String>('word_bookmarks');
-  await Hive.openBox<String>('reading_bookmarks');
-  await Hive.openBox<String>('reading_config');
-  await Hive.openBox<int>('reading_time');
-  await Hive.openBox<WordLevelInfo>('word_levels');
-  await Hive.openBox<String>('dictionary_cache');
-  await Hive.openBox<RssFeedSubscription>('rss_subscriptions');
+  _registerHiveAdapter(0, BookMetadataAdapter());
+  _registerHiveAdapter(1, BookmarkedWordAdapter());
+  _registerHiveAdapter(2, ReadingBookmarkAdapter());
+  _registerHiveAdapter(3, ReadingConfigAdapter());
+  _registerHiveAdapter(4, WordLevelInfoAdapter());
+  _registerHiveAdapter(10, RssFeedSubscriptionAdapter());
 
-  runApp(const FlowReadApp());
+  await Future.wait([
+    Hive.openBox<BookMetadata>('books'),
+    Hive.openBox<String>('user_vocabulary'),
+    Hive.openBox('settings'),
+    Hive.openBox<String>('word_bookmarks'),
+    Hive.openBox<String>('reading_bookmarks'),
+    Hive.openBox<String>('reading_config'),
+    Hive.openBox<int>('reading_time'),
+    Hive.openBox<WordLevelInfo>('word_levels'),
+    Hive.openBox<String>('dictionary_cache'),
+    Hive.openBox<RssFeedSubscription>('rss_subscriptions'),
+  ]);
+}
+
+void _registerHiveAdapter<T>(int typeId, TypeAdapter<T> adapter) {
+  if (!Hive.isAdapterRegistered(typeId)) {
+    Hive.registerAdapter(adapter);
+  }
+}
+
+class FlowReadBootstrapApp extends StatefulWidget {
+  const FlowReadBootstrapApp({super.key});
+
+  @override
+  State<FlowReadBootstrapApp> createState() => _FlowReadBootstrapAppState();
+}
+
+class _FlowReadBootstrapAppState extends State<FlowReadBootstrapApp> {
+  late Future<void> _bootstrapFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrapFuture = _bootstrapStorage();
+  }
+
+  void _retry() {
+    setState(() {
+      _bootstrapFuture = _bootstrapStorage();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _bootstrapFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            !snapshot.hasError) {
+          return const FlowReadApp();
+        }
+
+        return MaterialApp(
+          title: 'Flow Read',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          home: StartupScreen(error: snapshot.error, onRetry: _retry),
+        );
+      },
+    );
+  }
+}
+
+class StartupScreen extends StatelessWidget {
+  const StartupScreen({super.key, this.error, required this.onRetry});
+
+  final Object? error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final hasError = error != null;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: hasError
+                        ? Icon(
+                            Icons.error_outline_rounded,
+                            size: 36,
+                            color: colorScheme.error,
+                          )
+                        : const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Flow Read',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    hasError ? '启动失败，请重试' : '正在准备书架...',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (hasError) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      '$error',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    TextButton.icon(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('重试'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class FlowReadApp extends StatelessWidget {
