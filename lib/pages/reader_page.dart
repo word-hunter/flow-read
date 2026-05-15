@@ -29,6 +29,9 @@ class _ReaderPageState extends State<ReaderPage> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final Map<int, GlobalKey> _contentKeys = {};
+  ReadingProvider? _readingProvider;
+  String? _lastReaderLocationKey;
+  bool _scrollResetQueued = false;
   double _viewportHeight = 0;
   String _selectedText = '';
   bool _sidebarOpen = false;
@@ -48,12 +51,67 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final provider = context.read<ReadingProvider>();
+    if (identical(_readingProvider, provider)) return;
+
+    _readingProvider?.removeListener(_onReadingProviderChanged);
+    _readingProvider = provider;
+    _lastReaderLocationKey = _readerLocationKey(provider);
+    provider.addListener(_onReadingProviderChanged);
+  }
+
+  @override
   void dispose() {
+    _readingProvider?.removeListener(_onReadingProviderChanged);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  String _readerLocationKey(ReadingProvider provider) {
+    final book = provider.book;
+    final bookKey =
+        provider.activeBookId ??
+        (book == null
+            ? 'standalone'
+            : '${identityHashCode(book)}:${book.title}');
+    return '$bookKey:${provider.currentChapter}';
+  }
+
+  void _onReadingProviderChanged() {
+    final provider = _readingProvider;
+    if (provider == null) return;
+
+    final nextLocationKey = _readerLocationKey(provider);
+    if (_lastReaderLocationKey == null) {
+      _lastReaderLocationKey = nextLocationKey;
+      return;
+    }
+    if (_lastReaderLocationKey == nextLocationKey) return;
+
+    _lastReaderLocationKey = nextLocationKey;
+    _queueScrollToTopForNewLocation();
+  }
+
+  void _queueScrollToTopForNewLocation() {
+    if (mounted) {
+      setState(() {
+        _displayProgress = 0.0;
+        _contentKeys.clear();
+      });
+    }
+
+    if (_scrollResetQueued) return;
+    _scrollResetQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollResetQueued = false;
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+    });
   }
 
   void _onScroll() {
