@@ -74,6 +74,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
               lastReadAt: filteredBooks.first.lastReadAt,
               onContinueReading: () =>
                   _openBook(provider, filteredBooks.first.id),
+              onRemove: () => _confirmRemoveBook(provider, filteredBooks.first),
             ),
           ],
           const SizedBox(height: 32),
@@ -85,6 +86,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
                     coverBytes: provider.getCoverBytes(b.id),
                     progressPercent: (b.globalProgress * 100).toInt(),
                     onTap: () => _openBook(provider, b.id),
+                    onRemove: () => _confirmRemoveBook(provider, b),
                   ),
                 )
                 .toList(),
@@ -305,6 +307,46 @@ class _BookshelfContentState extends State<BookshelfContent> {
     if (mounted) {
       provider.enterReader();
     }
+  }
+
+  Future<void> _confirmRemoveBook(
+    ReadingProvider provider,
+    BookMetadata book,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        return AlertDialog(
+          title: const Text('移除书籍？'),
+          content: Text(
+            '将从书架移除《${book.title}》，并清空该书的阅读进度、生词本、阅读书签、AI 缓存以及本地 EPUB/封面文件。此操作不可撤销。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('取消'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('移除并清空'),
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.error,
+                foregroundColor: theme.colorScheme.onError,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+    await provider.removeBook(book.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('已移除《${book.title}》')));
   }
 
   Future<void> _importEpub(ReadingProvider provider) async {

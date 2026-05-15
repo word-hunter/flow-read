@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../providers/reading_provider.dart';
+import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
 import '../widgets/ai_summary_view.dart';
 import '../widgets/bookmark_sheet.dart';
@@ -201,6 +202,7 @@ class _ReaderPageState extends State<ReaderPage> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ReadingProvider>();
+    final settings = context.watch<SettingsService>();
     final result = provider.result;
     if (result == null) {
       return _buildPageScaffold(
@@ -217,6 +219,7 @@ class _ReaderPageState extends State<ReaderPage> {
     final chapterTitle = provider.hasBook && provider.chapterCount > 0
         ? provider.book!.chapters[provider.currentChapter].title
         : result.title;
+    final colorSettings = settings.colors;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -243,6 +246,7 @@ class _ReaderPageState extends State<ReaderPage> {
                               blocks,
                               result,
                               theme,
+                              colorSettings,
                             ),
                           ),
                           AnimatedSize(
@@ -258,7 +262,13 @@ class _ReaderPageState extends State<ReaderPage> {
                           ),
                         ],
                       )
-                    : _buildReadingContent(paragraphs, blocks, result, theme),
+                    : _buildReadingContent(
+                        paragraphs,
+                        blocks,
+                        result,
+                        theme,
+                        colorSettings,
+                      ),
               ),
               _buildBottomBar(
                 context,
@@ -297,6 +307,7 @@ class _ReaderPageState extends State<ReaderPage> {
     List<ContentBlock> blocks,
     AnalysisResult result,
     ThemeData theme,
+    VocabularyColorSettings colorSettings,
   ) {
     return SelectionArea(
       onSelectionChanged: (selection) {
@@ -362,6 +373,7 @@ class _ReaderPageState extends State<ReaderPage> {
                       blocks[contentIndex],
                       result,
                       theme,
+                      colorSettings: colorSettings,
                       isFirstBlock: contentIndex == 0 && provider.hasBook,
                     );
                   }
@@ -370,6 +382,7 @@ class _ReaderPageState extends State<ReaderPage> {
                     paragraphs[contentIndex],
                     result,
                     theme,
+                    colorSettings: colorSettings,
                     isFirstParagraph: contentIndex == 0 && provider.hasBook,
                   );
                 },
@@ -385,6 +398,7 @@ class _ReaderPageState extends State<ReaderPage> {
     ContentBlock block,
     AnalysisResult result,
     ThemeData theme, {
+    required VocabularyColorSettings colorSettings,
     bool isFirstBlock = false,
   }) {
     final provider = context.read<ReadingProvider>();
@@ -399,6 +413,7 @@ class _ReaderPageState extends State<ReaderPage> {
           block.plainText,
           result,
           theme,
+          colorSettings,
           _buildBaseTextStyle(theme, provider),
         ),
       );
@@ -412,6 +427,7 @@ class _ReaderPageState extends State<ReaderPage> {
       fontSize: provider.fontSize,
       lineHeight: provider.lineHeight,
       fontFamily: provider.fontFamily,
+      colorSettings: colorSettings,
     );
   }
 
@@ -452,6 +468,7 @@ class _ReaderPageState extends State<ReaderPage> {
     String paragraph,
     AnalysisResult result,
     ThemeData theme, {
+    required VocabularyColorSettings colorSettings,
     bool isFirstParagraph = false,
   }) {
     final provider = context.read<ReadingProvider>();
@@ -460,7 +477,13 @@ class _ReaderPageState extends State<ReaderPage> {
     if (isFirstParagraph && paragraph.isNotEmpty) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: _buildDropCapParagraph(paragraph, result, theme, baseStyle),
+        child: _buildDropCapParagraph(
+          paragraph,
+          result,
+          theme,
+          colorSettings,
+          baseStyle,
+        ),
       );
     }
 
@@ -475,6 +498,7 @@ class _ReaderPageState extends State<ReaderPage> {
           fontSize: provider.fontSize,
           lineHeight: provider.lineHeight,
           fontFamily: provider.fontFamily,
+          colorSettings: colorSettings,
         ),
         style: baseStyle,
       ),
@@ -485,6 +509,7 @@ class _ReaderPageState extends State<ReaderPage> {
     String paragraph,
     AnalysisResult result,
     ThemeData theme,
+    VocabularyColorSettings colorSettings,
     TextStyle baseStyle,
   ) {
     final provider = context.read<ReadingProvider>();
@@ -516,6 +541,7 @@ class _ReaderPageState extends State<ReaderPage> {
               fontSize: provider.fontSize,
               lineHeight: provider.lineHeight,
               fontFamily: provider.fontFamily,
+              colorSettings: colorSettings,
             ),
             style: baseStyle,
           ),

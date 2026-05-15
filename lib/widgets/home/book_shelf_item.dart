@@ -6,6 +6,7 @@ class BookShelfItem extends StatelessWidget {
   final Uint8List? coverBytes;
   final int progressPercent;
   final VoidCallback? onTap;
+  final VoidCallback? onRemove;
 
   const BookShelfItem({
     super.key,
@@ -13,6 +14,7 @@ class BookShelfItem extends StatelessWidget {
     this.coverBytes,
     required this.progressPercent,
     this.onTap,
+    this.onRemove,
   });
 
   @override
@@ -74,6 +76,30 @@ class BookShelfItem extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (onRemove != null)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Tooltip(
+                      message: '移除书籍',
+                      child: IconButton.filledTonal(
+                        onPressed: onRemove,
+                        icon: const Icon(Icons.delete_outline, size: 16),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 30,
+                          height: 30,
+                        ),
+                        style: IconButton.styleFrom(
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          backgroundColor: theme.colorScheme.surface.withValues(
+                            alpha: 0.88,
+                          ),
+                          foregroundColor: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ],

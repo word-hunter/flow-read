@@ -333,9 +333,11 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   Future<void> removeBook(String bookId) async {
+    _errorMessage = null;
     await _bookService.removeBook(bookId);
     await _bookmarkService?.deleteWordBookmarks(bookId);
     await _bookmarkService?.deleteReadingBookmarks(bookId);
+    await _aiCache?.clearBookCache(bookId);
 
     if (_activeBookId == bookId) {
       _book = null;
@@ -343,12 +345,24 @@ class ReadingProvider extends ChangeNotifier {
       _result = null;
       _currentChapter = 0;
       _readingProgress = 0.0;
+      _hasBeenOpened = false;
       _allVocab.clear();
       _bookmarkedWords.clear();
       _readingBookmarks.clear();
+      _selectedWord = null;
+      _selectedWordTranslation = null;
+      _selectedWordEntry = null;
+      _selectedText = null;
+      _selectedAnalysis = null;
+      _selectedBreakdowns = null;
+      _aiTextAnalysis = null;
+      _aiTranslation = null;
+      _aiSummary = null;
+      _aiPractice = null;
+      _aiWordAnalysis = null;
       _isReading = false;
-      notifyListeners();
     }
+    notifyListeners();
   }
 
   // ============================================================

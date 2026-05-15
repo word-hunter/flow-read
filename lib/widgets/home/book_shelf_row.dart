@@ -43,6 +43,7 @@ class BookShelfRow extends StatelessWidget {
             coverBytes: book.coverBytes,
             progressPercent: book.progressPercent,
             onTap: book.onTap,
+            onRemove: book.onRemove,
           );
         },
       ),
@@ -55,11 +56,13 @@ class BookShelfData {
   final Uint8List? coverBytes;
   final int progressPercent;
   final VoidCallback? onTap;
+  final VoidCallback? onRemove;
 
   const BookShelfData({
     required this.title,
     this.coverBytes,
     required this.progressPercent,
     this.onTap,
+    this.onRemove,
   });
 }

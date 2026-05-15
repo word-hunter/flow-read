@@ -173,14 +173,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           settings.colors.learningColor,
           settings.setLearningColor,
         ),
-        const SizedBox(height: 14),
-        _buildColorRow(
-          context,
-          settings,
-          '已掌握',
-          settings.colors.knownColor,
-          settings.setKnownColor,
-        ),
       ],
     );
   }

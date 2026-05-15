@@ -8,7 +8,7 @@ class FeaturedBookCard extends StatelessWidget {
   final int progressPercent;
   final DateTime? lastReadAt;
   final VoidCallback onContinueReading;
-  final VoidCallback? onMore;
+  final VoidCallback? onRemove;
 
   const FeaturedBookCard({
     super.key,
@@ -18,7 +18,7 @@ class FeaturedBookCard extends StatelessWidget {
     required this.progressPercent,
     this.lastReadAt,
     required this.onContinueReading,
-    this.onMore,
+    this.onRemove,
   });
 
   @override
@@ -179,11 +179,16 @@ class FeaturedBookCard extends StatelessWidget {
               label: const Text('继续阅读'),
             ),
             const SizedBox(width: 8),
-            if (onMore != null)
-              IconButton.outlined(
-                onPressed: onMore,
-                icon: const Icon(Icons.more_horiz),
+            if (onRemove != null)
+              Tooltip(
+                message: '移除书籍',
+                child: IconButton.outlined(
+                  onPressed: onRemove,
+                  icon: const Icon(Icons.delete_outline),
+                  color: theme.colorScheme.error,
+                ),
               ),
+            if (onRemove != null) const SizedBox(width: 8),
           ],
         ),
       ],

@@ -241,6 +241,7 @@ class _HighlightBuilder {
   final VocabularyColorSettings? colorSettings;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
+  late final Set<String> learningSet;
 
   _HighlightBuilder(
     this.result,
@@ -256,9 +257,13 @@ class _HighlightBuilder {
       vocabWords[v.word.toLowerCase()] = v;
     }
     knownSet = result.knownWords;
+    learningSet = result.learningWords;
   }
 
-  Color _colorForVocab(Vocabulary vocab) {
+  Color _colorForVocab(String lower, Vocabulary vocab) {
+    if (learningSet.contains(lower)) {
+      return colorSettings?.learningColor ?? AppColors.vocabLearning;
+    }
     // 0.45 = learning, 0.2 = unknown
     if (vocab.familiarity >= 0.4 && vocab.familiarity <= 0.5) {
       return colorSettings?.learningColor ?? AppColors.vocabLearning;
@@ -266,8 +271,8 @@ class _HighlightBuilder {
     return colorSettings?.unknownColor ?? AppColors.familiarityLow;
   }
 
-  Color _colorForKnown() {
-    return colorSettings?.knownColor ?? theme.colorScheme.onSurface;
+  Color _colorForLearning() {
+    return colorSettings?.learningColor ?? AppColors.vocabLearning;
   }
 
   InlineSpan build() {
@@ -289,11 +294,12 @@ class _HighlightBuilder {
       }
 
       final isVocab = vocabWords.containsKey(lower);
-      final isKnown = !isVocab && knownSet.contains(lower);
+      final isKnown = knownSet.contains(lower);
+      final isLearning = !isVocab && learningSet.contains(lower);
 
       if (isVocab) {
         final vocab = vocabWords[lower]!;
-        final color = _colorForVocab(vocab);
+        final color = _colorForVocab(lower, vocab);
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
@@ -311,30 +317,26 @@ class _HighlightBuilder {
             ),
           ),
         );
-      } else if (isKnown) {
-        final knownColor = _colorForKnown();
+      } else if (isLearning) {
+        final learningColor = _colorForLearning();
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
-            child: GestureDetector(
-              onTap: () => onWordTapped(word, '...$word...'),
-              child: Text(
-                word,
-                style: theme.textTheme.bodyLarge!.copyWith(
-                  height: lineHeight,
-                  letterSpacing: 0.3,
-                  fontFamily: fontFamily,
-                  fontSize: fontSize,
-                  color: knownColor,
-                  decoration: TextDecoration.underline,
-                  decorationColor: knownColor.withValues(alpha: 0.15),
-                  decorationStyle: TextDecorationStyle.dotted,
-                ),
+            child: buildWordTapable(
+              word: word,
+              color: learningColor,
+              textStyle: theme.textTheme.bodyLarge!.copyWith(
+                height: lineHeight,
+                letterSpacing: 0.3,
+                fontFamily: fontFamily,
+                fontSize: fontSize,
               ),
+              onWordTapped: onWordTapped,
+              contextText: '...$word...',
             ),
           ),
         );
-      } else if (lower.length < AppConstants.minWordLength) {
+      } else if (isKnown || lower.length < AppConstants.minWordLength) {
         spans.add(TextSpan(text: word));
       } else {
         final unknownColor =
@@ -381,6 +383,7 @@ class _StyledBlockBuilder {
   final VocabularyColorSettings? colorSettings;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
+  late final Set<String> learningSet;
 
   _StyledBlockBuilder(
     this.block,
@@ -397,17 +400,21 @@ class _StyledBlockBuilder {
       vocabWords[v.word.toLowerCase()] = v;
     }
     knownSet = result.knownWords;
+    learningSet = result.learningWords;
   }
 
-  Color _colorForVocab(Vocabulary vocab) {
+  Color _colorForVocab(String lower, Vocabulary vocab) {
+    if (learningSet.contains(lower)) {
+      return colorSettings?.learningColor ?? AppColors.vocabLearning;
+    }
     if (vocab.familiarity >= 0.4 && vocab.familiarity <= 0.5) {
       return colorSettings?.learningColor ?? AppColors.vocabLearning;
     }
     return colorSettings?.unknownColor ?? AppColors.familiarityLow;
   }
 
-  Color _colorForKnown() {
-    return colorSettings?.knownColor ?? theme.colorScheme.onSurface;
+  Color _colorForLearning() {
+    return colorSettings?.learningColor ?? AppColors.vocabLearning;
   }
 
   InlineSpan build() {
@@ -441,11 +448,12 @@ class _StyledBlockBuilder {
 
       final wordStyle = _styleAt(styleRanges, match.start);
       final isVocab = vocabWords.containsKey(lower);
-      final isKnown = !isVocab && knownSet.contains(lower);
+      final isKnown = knownSet.contains(lower);
+      final isLearning = !isVocab && learningSet.contains(lower);
 
       if (isVocab) {
         final vocab = vocabWords[lower]!;
-        final color = _colorForVocab(vocab);
+        final color = _colorForVocab(lower, vocab);
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
@@ -463,8 +471,8 @@ class _StyledBlockBuilder {
             ),
           ),
         );
-      } else if (isKnown) {
-        final knownColor = _colorForKnown();
+      } else if (isLearning) {
+        final learningColor = _colorForLearning();
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
@@ -473,16 +481,16 @@ class _StyledBlockBuilder {
               child: Text(
                 word,
                 style: _textStyleFor(wordStyle).copyWith(
-                  color: knownColor,
+                  fontWeight: FontWeight.w600,
+                  color: learningColor,
                   decoration: TextDecoration.underline,
-                  decorationColor: knownColor.withValues(alpha: 0.15),
-                  decorationStyle: TextDecorationStyle.dotted,
+                  decorationColor: learningColor.withValues(alpha: 0.5),
                 ),
               ),
             ),
           ),
         );
-      } else if (lower.length < AppConstants.minWordLength) {
+      } else if (isKnown || lower.length < AppConstants.minWordLength) {
         spans.add(TextSpan(text: word, style: _textStyleFor(wordStyle)));
       } else {
         final unknownColor =
