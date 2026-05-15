@@ -78,6 +78,64 @@ void main() {
     expect(image.alt, 'Map');
     expect(image.bytes, Uint8List.fromList([1, 2, 3, 4]));
   });
+
+  test(
+    'EPUB parser avoids reusing the book title as every section title',
+    () async {
+      final epubBytes = _buildEpub({
+        'OEBPS/Text/chapter1.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Fixture Book</title></head>
+          <body>
+            <p>CONTENTS</p>
+            <p>Diving Under</p>
+            <p>The Sycamore Tree</p>
+          </body>
+        </html>
+      ''',
+      });
+
+      final book = await EpubService.parseBytes(epubBytes);
+
+      expect(book.chapters.single.title, 'CONTENTS');
+    },
+  );
+
+  test('EPUB parser prefers body titles over generic HTML titles', () async {
+    final epubBytes = _buildEpub({
+      'OEBPS/Text/chapter1.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Chapter 1</title></head>
+          <body>
+            <p>Diving Under</p>
+            <p>The first paragraph starts here.</p>
+          </body>
+        </html>
+      ''',
+    });
+
+    final book = await EpubService.parseBytes(epubBytes);
+
+    expect(book.chapters.single.title, 'Diving Under');
+  });
+
+  test('EPUB parser names image-only spine items as cover', () async {
+    final epubBytes = _buildEpub({
+      'OEBPS/Text/chapter1.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Fixture Book</title></head>
+          <body>
+            <img src="../Images/cover.png" />
+          </body>
+        </html>
+      ''',
+      'OEBPS/Images/cover.png': String.fromCharCodes([5, 6, 7, 8]),
+    });
+
+    final book = await EpubService.parseBytes(epubBytes);
+
+    expect(book.chapters.single.title, '封面');
+  });
 }
 
 Uint8List _buildEpub(Map<String, String> extraFiles) {

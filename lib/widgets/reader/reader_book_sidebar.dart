@@ -21,8 +21,8 @@ class ReaderBookSidebar extends StatelessWidget {
         .firstOrNull;
     final coverBytes = meta != null ? provider.getCoverBytes(meta.id) : null;
     final progressPercent = (provider.readingProgress * 100).toInt();
-    final chapterNum = provider.currentChapter + 1;
-    final totalChapters = provider.chapterCount;
+    final locationNum = provider.currentChapter + 1;
+    final totalLocations = provider.chapterCount;
     final bookmarkCount = provider.readingBookmarks.length;
     final highlightCount = provider.bookmarkedWords.length;
 
@@ -41,10 +41,10 @@ class ReaderBookSidebar extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           _buildProgress(theme, progressPercent),
-          if (totalChapters > 0) ...[
+          if (totalLocations > 0) ...[
             const SizedBox(height: 4),
             Text(
-              'Chapter $chapterNum of $totalChapters',
+              '位置 $locationNum / $totalLocations',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

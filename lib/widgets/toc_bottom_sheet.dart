@@ -65,7 +65,7 @@ class TocBottomSheet extends StatelessWidget {
                     ),
                     const Spacer(),
                     Text(
-                      '${book.chapters.length} 章',
+                      '${book.chapters.length} 项',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

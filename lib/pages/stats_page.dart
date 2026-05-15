@@ -30,7 +30,7 @@ class _StatsPageState extends State<StatsPage> {
     final total = knownCount + learningCount + newCount;
 
     final donutSegments = <DonutSegment>[];
-    if (knownCount > 0)
+    if (knownCount > 0) {
       donutSegments.add(
         DonutSegment(
           label: 'Mastered',
@@ -38,7 +38,8 @@ class _StatsPageState extends State<StatsPage> {
           color: const Color(0xFF2979FF),
         ),
       );
-    if (learningCount > 0)
+    }
+    if (learningCount > 0) {
       donutSegments.add(
         DonutSegment(
           label: 'Learning',
@@ -46,7 +47,8 @@ class _StatsPageState extends State<StatsPage> {
           color: const Color(0xFF66BB6A),
         ),
       );
-    if (newCount > 0)
+    }
+    if (newCount > 0) {
       donutSegments.add(
         DonutSegment(
           label: 'New',
@@ -54,6 +56,7 @@ class _StatsPageState extends State<StatsPage> {
           color: const Color(0xFFFFCA28),
         ),
       );
+    }
 
     if (donutSegments.isEmpty) {
       donutSegments.addAll([
@@ -326,7 +329,7 @@ class _StatsPageState extends State<StatsPage> {
         ).build(context, theme),
         _StatItem(
           icon: Icons.menu_book_outlined,
-          label: 'Chapters',
+          label: '目录项',
           value: '${provider.chapterCount}',
           color: const Color(0xFFE67E22),
         ).build(context, theme),

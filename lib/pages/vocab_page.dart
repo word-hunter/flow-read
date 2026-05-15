@@ -150,8 +150,9 @@ class _VocabPageState extends State<VocabPage> {
   }
 
   Widget _buildBody(ReadingProvider provider, ThemeData theme) {
-    if (provider.selectedWord != null)
+    if (provider.selectedWord != null) {
       return _buildWordDetail(context, provider, theme);
+    }
 
     final allVocab = provider.getAllVocabulary();
     final filtered = _searchQuery.isEmpty
@@ -484,7 +485,7 @@ class _VocabItem extends StatelessWidget {
                     ),
                   const SizedBox(width: 6),
                   Text(
-                    'Ch.${vocab.firstChapter + 1}',
+                    '位置 ${vocab.firstChapter + 1}',
                     style: TextStyle(
                       fontSize: 11,
                       color: theme.colorScheme.onSurfaceVariant,

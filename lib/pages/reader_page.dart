@@ -543,6 +543,24 @@ class _ReaderPageState extends State<ReaderPage> {
     );
   }
 
+  Widget _chapterStepButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onPressed,
+  }) {
+    return IconButton(
+      icon: Icon(icon, size: 30),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 30, height: 38),
+      visualDensity: VisualDensity.compact,
+      style: IconButton.styleFrom(
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
   Widget _buildNavBar(
     ReadingProvider provider,
     ThemeData theme,
@@ -558,8 +576,11 @@ class _ReaderPageState extends State<ReaderPage> {
         : const Color(0xFFEEEEEE);
     final showSearch = _layoutWidth >= 520;
     final showChapterStep = _layoutWidth >= 680 && provider.chapterCount > 1;
-    final chapterLabel = provider.hasBook
-        ? 'Chapter ${provider.currentChapter + 1}'
+    final contentTitle = chapterTitle.trim().isNotEmpty
+        ? chapterTitle.trim()
+        : '当前位置';
+    final locationLabel = provider.hasBook
+        ? '位置 ${provider.currentChapter + 1} / ${provider.chapterCount}'
         : 'Reader';
     final canGoPreviousChapter =
         provider.hasBook && provider.currentChapter > 0;
@@ -589,44 +610,47 @@ class _ReaderPageState extends State<ReaderPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (showChapterStep)
-                  _compactIconButton(
+                  _chapterStepButton(
                     icon: Icons.chevron_left,
-                    tooltip: '上一章',
+                    tooltip: '上一个目录项',
                     onPressed: canGoPreviousChapter
                         ? () =>
                               provider.goToChapter(provider.currentChapter - 1)
                         : null,
                   ),
                 Flexible(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        chapterLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface,
-                          height: 1.05,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          contentTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                            height: 1.05,
+                          ),
                         ),
-                      ),
-                      Text(
-                        chapterTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          height: 1.05,
+                        Text(
+                          locationLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            height: 1.05,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 if (showChapterStep)
-                  _compactIconButton(
+                  _chapterStepButton(
                     icon: Icons.chevron_right,
-                    tooltip: '下一章',
+                    tooltip: '下一个目录项',
                     onPressed: canGoNextChapter
                         ? () =>
                               provider.goToChapter(provider.currentChapter + 1)
@@ -713,16 +737,16 @@ class _ReaderPageState extends State<ReaderPage> {
                 PopupMenuItem(
                   value: 'prevChapter',
                   enabled: canGoPreviousChapter,
-                  child: const Text('上一章'),
+                  child: const Text('上一个目录项'),
                 ),
                 PopupMenuItem(
                   value: 'nextChapter',
                   enabled: canGoNextChapter,
-                  child: const Text('下一章'),
+                  child: const Text('下一个目录项'),
                 ),
                 const PopupMenuDivider(),
               ],
-              const PopupMenuItem(value: 'summary', child: Text('AI 总结本章')),
+              const PopupMenuItem(value: 'summary', child: Text('AI 总结当前内容')),
               const PopupMenuItem(value: 'practice', child: Text('生成练习题')),
               const PopupMenuItem(value: 'bookmarks', child: Text('历史书签')),
             ],

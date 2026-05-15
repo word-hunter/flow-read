@@ -230,7 +230,9 @@ class _NarrowReaderState extends State<_NarrowReader> {
         : null;
     final blocks = chapter?.blocks ?? const [];
     final useBlocks = blocks.isNotEmpty;
-    final paragraphs = useBlocks ? <String>[] : splitIntoParagraphs(result.passageText);
+    final paragraphs = useBlocks
+        ? <String>[]
+        : splitIntoParagraphs(result.passageText);
     final itemCount = useBlocks ? blocks.length + 1 : paragraphs.length + 1;
     final progressPercent = (provider.readingProgress * 100).toInt();
     final chapterTitle = chapter?.title ?? result.title;
@@ -293,21 +295,23 @@ class _NarrowReaderState extends State<_NarrowReader> {
                     final itemIndex = index - 1;
 
                     if (useBlocks) {
-                      if (itemIndex >= blocks.length) return const SizedBox.shrink();
+                      if (itemIndex >= blocks.length) {
+                        return const SizedBox.shrink();
+                      }
                       return buildBlockWidget(
                         blocks[itemIndex],
                         result,
                         theme,
                         onWordTapped: _onWordTapped,
-                        onParagraphLongPress: (text) => _onParagraphLongPress(
-                          itemIndex, text, Offset.zero,
-                        ),
+                        onParagraphLongPress: (text) =>
+                            _onParagraphLongPress(itemIndex, text, Offset.zero),
                         colorSettings: colorSettings,
                       );
                     }
 
-                    if (itemIndex >= paragraphs.length)
+                    if (itemIndex >= paragraphs.length) {
                       return const SizedBox.shrink();
+                    }
 
                     final isSelected = _selectedParagraphIndex == itemIndex;
                     return GestureDetector(
@@ -546,6 +550,7 @@ class _WideReaderState extends State<_WideReader> {
         ),
       ],
     ).then((value) {
+      if (!mounted) return;
       setState(() => _selectedParagraphIndex = null);
       switch (value) {
         case 'analyze':
@@ -619,7 +624,9 @@ class _WideReaderState extends State<_WideReader> {
         : null;
     final wideBlocks = chapter?.blocks ?? const [];
     final wideUseBlocks = wideBlocks.isNotEmpty;
-    final paragraphs = wideUseBlocks ? <String>[] : splitIntoParagraphs(result.passageText);
+    final paragraphs = wideUseBlocks
+        ? <String>[]
+        : splitIntoParagraphs(result.passageText);
     final progressPercent = (provider.readingProgress * 100).toInt();
     final chapterTitle = chapter?.title ?? result.title;
     final colorSettings = settings.colors;
@@ -676,7 +683,11 @@ class _WideReaderState extends State<_WideReader> {
     String chapterTitle,
     int progressPercent,
   ) {
-    final chapterNum = provider.currentChapter + 1;
+    final contentTitle = chapterTitle.trim().isNotEmpty
+        ? chapterTitle.trim()
+        : '当前位置';
+    final locationLabel =
+        '位置 ${provider.currentChapter + 1} / ${provider.chapterCount}';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -705,14 +716,18 @@ class _WideReaderState extends State<_WideReader> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Chapter $chapterNum',
+                contentTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onSurface,
                 ),
               ),
               Text(
-                chapterTitle,
+                locationLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -771,9 +786,8 @@ class _WideReaderState extends State<_WideReader> {
             result,
             theme,
             onWordTapped: _onWordTapped,
-            onParagraphLongPress: (text) => _onParagraphLongPress(
-              index, text, Offset.zero,
-            ),
+            onParagraphLongPress: (text) =>
+                _onParagraphLongPress(index, text, Offset.zero),
             fontSize: 18,
             colorSettings: colorSettings,
           );
@@ -935,7 +949,7 @@ class _WideReaderState extends State<_WideReader> {
             onPressed: provider.currentChapter < provider.chapterCount - 1
                 ? () => provider.goToChapter(provider.currentChapter + 1)
                 : null,
-            icon: const Text('下一章'),
+            icon: const Text('下一项'),
             label: const Icon(Icons.chevron_right, size: 18),
           ),
         ],

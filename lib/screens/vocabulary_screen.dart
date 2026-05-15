@@ -381,7 +381,7 @@ class _VocabItem extends StatelessWidget {
                       ),
                     const SizedBox(width: 6),
                     Text(
-                      'Ch.${vocab.firstChapter + 1}',
+                      '位置 ${vocab.firstChapter + 1}',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant.withValues(
                           alpha: 0.6,

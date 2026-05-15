@@ -205,23 +205,84 @@ class EpubService {
     dom.Document document,
     int index,
     String bookTitle,
+    List<ContentBlock> blocks,
+    String plainText,
   ) {
-    final h1 = document.querySelector('h1');
-    if (h1 != null && h1.text.trim().isNotEmpty) {
-      return h1.text.trim();
+    final headingTitle = _firstBlockTitle(blocks, headingOnly: true);
+    if (headingTitle != null) return headingTitle;
+
+    final hasText = blocks.any(
+      (block) => block is TextBlock && block.plainText.trim().isNotEmpty,
+    );
+    if (!hasText && blocks.any((block) => block is ImageBlock)) {
+      return '封面';
     }
 
-    final h2 = document.querySelector('h2');
-    if (h2 != null && h2.text.trim().isNotEmpty) {
-      return h2.text.trim();
+    final bodyTitle = _firstBlockTitle(blocks, headingOnly: false);
+    if (bodyTitle != null) return bodyTitle;
+
+    final titleTag = _normalizePlainText(
+      document.querySelector('title')?.text ?? '',
+    );
+    if (titleTag.isNotEmpty &&
+        !_sameNormalizedText(titleTag, bookTitle) &&
+        !_looksLikeFileTitle(titleTag)) {
+      return titleTag;
     }
 
-    final titleTag = document.querySelector('title');
-    if (titleTag != null && titleTag.text.trim().isNotEmpty) {
-      return titleTag.text.trim();
-    }
+    final normalizedText = _normalizePlainText(plainText);
+    if (_looksLikeTitleLine(normalizedText)) return normalizedText;
 
-    return 'Chapter ${index + 1}';
+    return 'Section ${index + 1}';
+  }
+
+  static String? _firstBlockTitle(
+    List<ContentBlock> blocks, {
+    required bool headingOnly,
+  }) {
+    for (final block in blocks.take(4)) {
+      if (block is! TextBlock) continue;
+      if (headingOnly && block.type != BlockType.heading) continue;
+
+      final text = _normalizePlainText(block.plainText);
+      if (text.isEmpty) continue;
+      if (headingOnly) return text;
+      return _looksLikeTitleLine(text) ? text : null;
+    }
+    return null;
+  }
+
+  static bool _looksLikeTitleLine(String text) {
+    final normalized = _normalizePlainText(text);
+    if (normalized.isEmpty || normalized.length > 80) return false;
+
+    final lower = normalized.toLowerCase();
+    if (RegExp(
+      r'^(contents|cover|preface|foreword|prologue|epilogue|acknowledg(e)?ments|introduction|part|book|chapter)\b',
+    ).hasMatch(lower)) {
+      return true;
+    }
+    if (RegExp(r'^(目录|封面|前言|序言|序|引子|楔子|后记|版权)').hasMatch(normalized)) {
+      return true;
+    }
+    if (RegExp(r'[.!?。！？]$').hasMatch(normalized)) return false;
+
+    final wordCount = normalized.split(RegExp(r'\s+')).length;
+    return wordCount <= 8;
+  }
+
+  static bool _sameNormalizedText(String a, String b) {
+    return _normalizePlainText(a).toLowerCase() ==
+        _normalizePlainText(b).toLowerCase();
+  }
+
+  static bool _looksLikeFileTitle(String title) {
+    final lower = title.toLowerCase();
+    return lower.endsWith('.xhtml') ||
+        lower.endsWith('.html') ||
+        RegExp(
+          r'^(text/)?(chapter|part|section|page|body|nav)\d*$',
+        ).hasMatch(lower);
   }
 
   static final _metadataPattern = RegExp(
@@ -286,7 +347,7 @@ class EpubService {
     if (body == null) {
       return [
         Chapter(
-          title: _extractTitle(document, index, bookTitle),
+          title: _extractTitle(document, index, bookTitle, blocks, fullText),
           plainText: fullText,
           rawHtml: rawHtml,
           blocks: blocks,
@@ -301,7 +362,7 @@ class EpubService {
     if (elements.length < 3) {
       return [
         Chapter(
-          title: _extractTitle(document, index, bookTitle),
+          title: _extractTitle(document, index, bookTitle, blocks, fullText),
           plainText: fullText,
           rawHtml: rawHtml,
           blocks: blocks,
@@ -321,7 +382,7 @@ class EpubService {
     if (lastMetaIndex == -1 || lastMetaIndex >= elements.length - 1) {
       return [
         Chapter(
-          title: _extractTitle(document, index, bookTitle),
+          title: _extractTitle(document, index, bookTitle, blocks, fullText),
           plainText: fullText,
           rawHtml: rawHtml,
           blocks: blocks,
@@ -344,7 +405,7 @@ class EpubService {
     if (metaText.isEmpty || contentText.isEmpty) {
       return [
         Chapter(
-          title: _extractTitle(document, index, bookTitle),
+          title: _extractTitle(document, index, bookTitle, blocks, fullText),
           plainText: fullText,
           rawHtml: rawHtml,
           blocks: blocks,
@@ -352,7 +413,6 @@ class EpubService {
       ];
     }
 
-    final chapterTitle = _extractTitle(document, index, bookTitle);
     // Split blocks too: metadata blocks vs content blocks
     final metaBlockCount = lastMetaIndex + 1;
     final metaBlocks = blocks.length > metaBlockCount
@@ -361,6 +421,13 @@ class EpubService {
     final contentBlocks = blocks.length > metaBlockCount
         ? blocks.sublist(metaBlockCount)
         : <ContentBlock>[];
+    final chapterTitle = _extractTitle(
+      document,
+      index,
+      bookTitle,
+      contentBlocks,
+      contentText,
+    );
 
     return [
       Chapter(

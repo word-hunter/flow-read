@@ -406,21 +406,21 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
               icon: _showAIAnalysis
                   ? const Icon(
                       Icons.psychology,
-                      size: 18,
+                      size: 20,
                       color: AppColors.vocabLearning,
                     )
-                  : const Icon(Icons.psychology, size: 18),
+                  : const Icon(Icons.psychology, size: 20),
               label: Text(
                 _showAIAnalysis ? '收起 AI 详解' : 'AI 详解此词',
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
-                  vertical: 8,
-                  horizontal: 12,
+                  vertical: 11,
+                  horizontal: 14,
                 ),
                 side: BorderSide(
                   color: AppColors.vocabLearning.withValues(alpha: 0.4),
@@ -428,7 +428,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                minimumSize: Size.zero,
+                minimumSize: const Size.fromHeight(44),
               ),
             ),
           ),
@@ -475,7 +475,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
           isBookmarked
               ? Container(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 12,
+                    vertical: 16,
                     horizontal: 16,
                   ),
                   decoration: BoxDecoration(
@@ -489,7 +489,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
                     children: [
                       Icon(
                         Icons.bookmark,
-                        size: 18,
+                        size: 20,
                         color: theme.colorScheme.primary,
                       ),
                       const SizedBox(width: 8),
@@ -515,8 +515,15 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
                             setState(() {});
                           }
                         : null,
-                    icon: const Icon(Icons.bookmark_border, size: 18),
+                    icon: const Icon(Icons.bookmark_border, size: 22),
                     label: const Text('加入生词本'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(58),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 18,
+                      ),
+                    ),
                   ),
                 ),
         ],
@@ -535,22 +542,22 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: Icon(icon, size: 16, color: color),
+        icon: Icon(icon, size: 20, color: color),
         label: Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 13,
             color: color,
             fontWeight: FontWeight.w600,
           ),
         ),
         style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
           side: BorderSide(color: color.withValues(alpha: 0.4)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          minimumSize: Size.zero,
+          minimumSize: const Size(0, 44),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ),

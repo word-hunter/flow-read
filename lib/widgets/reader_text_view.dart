@@ -566,14 +566,14 @@ Widget buildChapterNav(
       children: [
         IconButton(
           icon: const Icon(Icons.chevron_left),
-          tooltip: 'Previous chapter',
+          tooltip: '上一个目录项',
           onPressed: provider.currentChapter > 0
               ? () => provider.goToChapter(provider.currentChapter - 1)
               : null,
         ),
         Expanded(
           child: Text(
-            'Ch ${provider.currentChapter + 1} of ${provider.chapterCount}',
+            '位置 ${provider.currentChapter + 1} / ${provider.chapterCount}',
             textAlign: TextAlign.center,
             style: theme.textTheme.labelMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
@@ -582,7 +582,7 @@ Widget buildChapterNav(
         ),
         IconButton(
           icon: const Icon(Icons.chevron_right),
-          tooltip: 'Next chapter',
+          tooltip: '下一个目录项',
           onPressed: provider.currentChapter < provider.chapterCount - 1
               ? () => provider.goToChapter(provider.currentChapter + 1)
               : null,
