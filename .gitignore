@@ -67,3 +67,4 @@ android/.gradle/
 .claude/settings.local.json
 .deepseek
 .opencode
+private
