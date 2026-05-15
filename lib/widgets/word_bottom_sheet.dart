@@ -4,6 +4,7 @@ import '../models/user_vocabulary.dart';
 import '../models/word_level.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
+import 'imported_word_examples.dart';
 
 class WordBottomSheet extends StatefulWidget {
   final String word;
@@ -198,8 +199,11 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
     }
 
     final entry = provider.selectedWordEntry;
+    final importedExamples = provider.importedExamplesFor(widget.word);
     final hasContent =
-        entry != null || provider.selectedWordTranslation != null;
+        entry != null ||
+        provider.selectedWordTranslation != null ||
+        importedExamples.isNotEmpty;
 
     if (!hasContent) {
       return Column(
@@ -313,6 +317,11 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
               ),
             ),
           ),
+        ],
+        if (importedExamples.isNotEmpty) ...[
+          if (entry != null || provider.selectedWordTranslation != null)
+            const SizedBox(height: 8),
+          ImportedWordExamples(examples: importedExamples),
         ],
       ],
     );

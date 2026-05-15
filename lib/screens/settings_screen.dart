@@ -22,6 +22,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _controllerProviderId;
   bool _obscureKey = true;
   bool _testingConnection = false;
+  bool _importingWordHunter = false;
   String? _connectionResult;
 
   static const _backupIntervals = <int>[15, 30, 60, 360, 1440];
@@ -379,6 +380,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: backup.isSyncing || _importingWordHunter
+                ? null
+                : _importWordHunterBackup,
+            icon: _importingWordHunter
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.school_outlined),
+            label: Text(_importingWordHunter ? '导入中...' : '导入 Word Hunter 备份'),
+          ),
+        ),
         if (settings.lastBackupAt != null || backup.lastError != null) ...[
           const SizedBox(height: 10),
           Text(
@@ -561,12 +579,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _importWordHunterBackup() async {
+    final result = await FilePicker.pickFiles(
+      dialogTitle: '选择 Word Hunter 备份',
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+      allowMultiple: false,
+    );
+    final path = result?.files.single.path;
+    if (path == null || !mounted) return;
+
+    final confirmed = await _confirmWordHunterImport();
+    if (!confirmed || !mounted) return;
+
+    final backup = context.read<BackupService>();
+    final readingProvider = context.read<ReadingProvider>();
+
+    setState(() => _importingWordHunter = true);
+    try {
+      final importResult = await backup.importWordHunterBackupFile(path);
+      await readingProvider.init();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Word Hunter 已导入：${importResult.knownCount} 个熟词、'
+            '${importResult.learningCount} 个学习中、'
+            '${importResult.exampleCount} 条例句',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Word Hunter 导入失败：$e')));
+    } finally {
+      if (mounted) {
+        setState(() => _importingWordHunter = false);
+      }
+    }
+  }
+
   Future<bool> _confirmImport() async {
     return await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('导入备份'),
             content: const Text('导入后将替换当前书架、词汇、书签、RSS 和阅读数据。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('导入'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<bool> _confirmWordHunterImport() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('导入 Word Hunter 备份'),
+            content: const Text(
+              '将合并熟词、学习中单词和例句，不会清空当前 FlowRead 数据；同一个单词以熟词状态优先。',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),

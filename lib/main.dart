@@ -31,6 +31,7 @@ import 'services/reading_config_service.dart';
 import 'services/reading_time_service.dart';
 import 'services/settings_service.dart';
 import 'services/user_vocabulary_service.dart';
+import 'services/word_context_service.dart';
 import 'services/word_level_service.dart';
 import 'services/wordnet_repository.dart';
 import 'theme/app_theme.dart';
@@ -61,6 +62,7 @@ Future<void> _bootstrapStorage() async {
     Hive.openBox<WordLevelInfo>('word_levels'),
     Hive.openBox<String>('dictionary_cache'),
     Hive.openBox<RssFeedSubscription>('rss_subscriptions'),
+    Hive.openBox<String>('word_contexts'),
   ]);
 }
 
@@ -257,6 +259,10 @@ class FlowReadApp extends StatelessWidget {
             final wordLevelService = WordLevelService();
             wordLevelService.init();
             provider.setWordLevelService(wordLevelService);
+
+            final wordContextService = WordContextService();
+            wordContextService.init();
+            provider.setWordContextService(wordContextService);
 
             final settings = context.read<SettingsService>();
             provider.setSettings(settings);

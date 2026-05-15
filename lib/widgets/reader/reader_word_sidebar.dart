@@ -4,6 +4,7 @@ import '../../models/user_vocabulary.dart';
 import '../../models/word_level.dart';
 import '../../providers/reading_provider.dart';
 import '../../theme/app_colors.dart';
+import '../imported_word_examples.dart';
 
 class ReaderWordSidebar extends StatefulWidget {
   final VoidCallback? onClose;
@@ -241,8 +242,13 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
     }
 
     final entry = provider.selectedWordEntry;
+    final importedExamples = provider.importedExamplesFor(
+      provider.selectedWord ?? '',
+    );
     final hasContent =
-        entry != null || provider.selectedWordTranslation != null;
+        entry != null ||
+        provider.selectedWordTranslation != null ||
+        importedExamples.isNotEmpty;
 
     if (!hasContent) {
       return Column(
@@ -356,6 +362,11 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
               ),
             ),
           ),
+        ],
+        if (importedExamples.isNotEmpty) ...[
+          if (entry != null || provider.selectedWordTranslation != null)
+            const SizedBox(height: 8),
+          ImportedWordExamples(examples: importedExamples),
         ],
       ],
     );
