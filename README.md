@@ -34,6 +34,27 @@ flutter pub get
 flutter run
 ```
 
+## 发布
+
+构建版本保存在 `pubspec.yaml` 的 `version: MAJOR.MINOR.PATCH+BUILD`，应用内展示版本由 `lib/services/app_version.dart` 提供，发布校验会确保两者一致。`CHANGELOG.md` 记录每个发布版本的用户可见变更。
+
+常用命令：
+
+```bash
+dart run tool/release.dart current
+dart run tool/release.dart bump patch
+dart run tool/release.dart check
+dart run tool/release.dart notes
+```
+
+发布步骤：
+
+1. 在 `CHANGELOG.md` 的 `Unreleased` 区块补充本次变更。
+2. 只有在准备发布并明确要更新版本时，执行 `dart run tool/release.dart bump patch`，按需要将 `patch` 替换为 `minor` 或 `major`。
+3. 提交 `pubspec.yaml`、`lib/services/app_version.dart` 和 `CHANGELOG.md`。
+4. 创建并推送标签，例如 `git tag v0.0.1-alpha && git push origin v0.0.1-alpha`。
+5. GitHub Actions 会构建 macOS release 包，并用对应 changelog 区块创建 GitHub Release。
+
 ## 项目结构
 
 ```

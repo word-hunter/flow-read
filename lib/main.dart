@@ -35,6 +35,7 @@ import 'services/word_context_service.dart';
 import 'services/word_level_service.dart';
 import 'services/wordnet_repository.dart';
 import 'theme/app_theme.dart';
+import 'widgets/release_notes_gate.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -293,7 +294,7 @@ class FlowReadApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: settings.themeMode,
-          home: const HomeScreen(),
+          home: const ReleaseNotesGate(child: HomeScreen()),
           routes: {
             '/dashboard': (_) => const DashboardScreen(),
             '/syntax': (_) => const SyntaxScreen(),
