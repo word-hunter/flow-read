@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/analysis_result.dart';
+import '../models/content_block.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/ai_summary_view.dart';
@@ -208,6 +209,9 @@ class _ReaderPageState extends State<ReaderPage> {
     }
 
     final paragraphs = splitIntoParagraphs(result.passageText);
+    final blocks = provider.hasBook && provider.chapterCount > 0
+        ? provider.book!.chapters[provider.currentChapter].blocks
+        : const <ContentBlock>[];
     final theme = Theme.of(context);
     final progressPercent = (_displayProgress * 100).toInt();
     final chapterTitle = provider.hasBook && provider.chapterCount > 0
@@ -236,6 +240,7 @@ class _ReaderPageState extends State<ReaderPage> {
                           Expanded(
                             child: _buildReadingContent(
                               paragraphs,
+                              blocks,
                               result,
                               theme,
                             ),
@@ -253,7 +258,7 @@ class _ReaderPageState extends State<ReaderPage> {
                           ),
                         ],
                       )
-                    : _buildReadingContent(paragraphs, result, theme),
+                    : _buildReadingContent(paragraphs, blocks, result, theme),
               ),
               _buildBottomBar(
                 context,
@@ -289,6 +294,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Widget _buildReadingContent(
     List<String> paragraphs,
+    List<ContentBlock> blocks,
     AnalysisResult result,
     ThemeData theme,
   ) {
@@ -327,6 +333,8 @@ class _ReaderPageState extends State<ReaderPage> {
           final topPadding = showTitleBlock ? 14.0 : 10.0;
           final horizontalPadding = _isWideScreen ? 32.0 : 18.0;
           final maxTextWidth = _isWideScreen ? 920.0 : double.infinity;
+          final useBlocks = blocks.isNotEmpty;
+          final contentCount = useBlocks ? blocks.length : paragraphs.length;
 
           return Center(
             child: ConstrainedBox(
@@ -339,20 +347,30 @@ class _ReaderPageState extends State<ReaderPage> {
                   horizontalPadding,
                   24,
                 ),
-                itemCount: paragraphs.length + (showTitleBlock ? 1 : 0),
+                itemCount: contentCount + (showTitleBlock ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (showTitleBlock && index == 0) {
                     return _buildTitleBlock(result, theme);
                   }
-                  final paraIndex = showTitleBlock ? index - 1 : index;
-                  if (paraIndex >= paragraphs.length) {
+                  final contentIndex = showTitleBlock ? index - 1 : index;
+                  if (contentIndex >= contentCount) {
                     return const SizedBox.shrink();
                   }
+
+                  if (useBlocks) {
+                    return _buildContentBlock(
+                      blocks[contentIndex],
+                      result,
+                      theme,
+                      isFirstBlock: contentIndex == 0 && provider.hasBook,
+                    );
+                  }
+
                   return _buildParagraph(
-                    paragraphs[paraIndex],
+                    paragraphs[contentIndex],
                     result,
                     theme,
-                    isFirstParagraph: paraIndex == 0 && provider.hasBook,
+                    isFirstParagraph: contentIndex == 0 && provider.hasBook,
                   );
                 },
               ),
@@ -360,6 +378,40 @@ class _ReaderPageState extends State<ReaderPage> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildContentBlock(
+    ContentBlock block,
+    AnalysisResult result,
+    ThemeData theme, {
+    bool isFirstBlock = false,
+  }) {
+    final provider = context.read<ReadingProvider>();
+
+    if (isFirstBlock &&
+        block is TextBlock &&
+        block.type == BlockType.paragraph &&
+        block.plainText.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: _buildDropCapParagraph(
+          block.plainText,
+          result,
+          theme,
+          _buildBaseTextStyle(theme, provider),
+        ),
+      );
+    }
+
+    return buildBlockWidget(
+      block,
+      result,
+      theme,
+      onWordTapped: _onWordTapped,
+      fontSize: provider.fontSize,
+      lineHeight: provider.lineHeight,
+      fontFamily: provider.fontFamily,
     );
   }
 

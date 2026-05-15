@@ -128,7 +128,7 @@ Widget buildBlockWidget(
   AnalysisResult result,
   ThemeData theme, {
   required WordTapCallback onWordTapped,
-  required void Function(String) onParagraphLongPress,
+  void Function(String)? onParagraphLongPress,
   double fontSize = 16.0,
   double lineHeight = 2.0,
   String fontFamily = 'Serif',
@@ -138,11 +138,11 @@ Widget buildBlockWidget(
     case TextBlock():
       final effectiveFontSize = switch (block.type) {
         BlockType.heading => switch (block.headingLevel) {
-            1 => fontSize * 1.5,
-            2 => fontSize * 1.3,
-            3 => fontSize * 1.15,
-            _ => fontSize * 1.1,
-          },
+          1 => fontSize * 1.5,
+          2 => fontSize * 1.3,
+          3 => fontSize * 1.15,
+          _ => fontSize * 1.1,
+        },
         _ => fontSize,
       };
 
@@ -157,19 +157,23 @@ Widget buildBlockWidget(
         colorSettings: colorSettings,
       );
 
-      Widget textWidget = GestureDetector(
-        onLongPress: () => onParagraphLongPress(block.plainText),
-        child: Text.rich(
-          span as TextSpan,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            height: lineHeight,
-            letterSpacing: 0.3,
-            fontFamily: fontFamily,
-            fontSize: effectiveFontSize,
-            fontWeight: block.type == BlockType.heading ? FontWeight.bold : null,
-          ),
+      final richText = Text.rich(
+        span as TextSpan,
+        style: theme.textTheme.bodyLarge?.copyWith(
+          height: lineHeight,
+          letterSpacing: 0.3,
+          fontFamily: fontFamily,
+          fontSize: effectiveFontSize,
+          fontWeight: block.type == BlockType.heading ? FontWeight.bold : null,
         ),
       );
+
+      Widget textWidget = onParagraphLongPress == null
+          ? richText
+          : GestureDetector(
+              onLongPress: () => onParagraphLongPress(block.plainText),
+              child: richText,
+            );
 
       final padding = switch (block.type) {
         BlockType.heading => const EdgeInsets.only(top: 16, bottom: 8),
@@ -432,10 +436,7 @@ class _StyledBlockBuilder {
       if (match.start > lastIndex) {
         final segment = fullText.substring(lastIndex, match.start);
         final segStyle = _styleAt(styleRanges, lastIndex);
-        spans.add(TextSpan(
-          text: segment,
-          style: _textStyleFor(segStyle),
-        ));
+        spans.add(TextSpan(text: segment, style: _textStyleFor(segStyle)));
       }
 
       final wordStyle = _styleAt(styleRanges, match.start);
@@ -509,10 +510,12 @@ class _StyledBlockBuilder {
 
     if (lastIndex < fullText.length) {
       final segStyle = _styleAt(styleRanges, lastIndex);
-      spans.add(TextSpan(
-        text: fullText.substring(lastIndex),
-        style: _textStyleFor(segStyle),
-      ));
+      spans.add(
+        TextSpan(
+          text: fullText.substring(lastIndex),
+          style: _textStyleFor(segStyle),
+        ),
+      );
     }
     if (spans.isEmpty) {
       spans.add(TextSpan(text: fullText));

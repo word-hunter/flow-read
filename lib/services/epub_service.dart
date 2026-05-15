@@ -48,14 +48,19 @@ class EpubService {
     final title = _findDcElement(package, 'title') ?? 'Unknown Title';
     final author = _findDcElement(package, 'creator') ?? 'Unknown Author';
 
-    final manifest = <String, ({String href, String mediaType, String? properties})>{};
+    final manifest =
+        <String, ({String href, String mediaType, String? properties})>{};
     for (final item in package.findAllElements('item')) {
       final id = item.getAttribute('id');
       final href = item.getAttribute('href');
       final mediaType = item.getAttribute('media-type') ?? '';
       final properties = item.getAttribute('properties');
       if (id != null && href != null) {
-        manifest[id] = (href: href, mediaType: mediaType, properties: properties);
+        manifest[id] = (
+          href: href,
+          mediaType: mediaType,
+          properties: properties,
+        );
       }
     }
 
@@ -87,15 +92,21 @@ class EpubService {
         final html = _readFile(archive, chapterHref);
         if (html == null) continue;
 
-        final document = html_parser.parse(html);
-        final plainText = _extractText(document);
+        final contentDoc = html_parser.parse(html);
+        final body = contentDoc.body;
+        if (body == null) continue;
 
-        if (plainText.trim().isNotEmpty) {
-          final contentDoc = html_parser.parse(html);
-          _removeUnwantedElements(contentDoc.body!);
-          final blocks = _parseContentBlocks(contentDoc, archive, chapterDir);
+        _removeUnwantedElements(body);
+        final blocks = _parseContentBlocks(contentDoc, archive, chapterDir);
+        final plainText = _plainTextFromBlocks(blocks);
+
+        if (plainText.trim().isNotEmpty || blocks.any((b) => b is ImageBlock)) {
           final split = _trySplitMetadata(
-            document, plainText, html, chapters.length, title,
+            contentDoc,
+            plainText,
+            html,
+            chapters.length,
+            title,
             blocks: blocks,
           );
           chapters.addAll(split);
@@ -157,8 +168,9 @@ class EpubService {
   static String? _readFile(Archive archive, String path) {
     final normalized = path.startsWith('/') ? path.substring(1) : path;
     for (final file in archive) {
-      final filePath =
-          file.name.startsWith('/') ? file.name.substring(1) : file.name;
+      final filePath = file.name.startsWith('/')
+          ? file.name.substring(1)
+          : file.name;
       if (filePath.toLowerCase() == normalized.toLowerCase()) {
         return utf8.decode(file.content as List<int>, allowMalformed: true);
       }
@@ -169,8 +181,9 @@ class EpubService {
   static Uint8List? _readFileBytes(Archive archive, String path) {
     final normalized = path.startsWith('/') ? path.substring(1) : path;
     for (final file in archive) {
-      final filePath =
-          file.name.startsWith('/') ? file.name.substring(1) : file.name;
+      final filePath = file.name.startsWith('/')
+          ? file.name.substring(1)
+          : file.name;
       if (filePath.toLowerCase() == normalized.toLowerCase()) {
         return Uint8List.fromList(file.content as List<int>);
       }
@@ -178,18 +191,9 @@ class EpubService {
     return null;
   }
 
-  static String _extractText(dom.Document document) {
-    final body = document.body;
-    if (body == null) return '';
-
-    _removeUnwantedElements(body);
-
-    return body.text.replaceAll(RegExp(r'\s+'), ' ').trim();
-  }
-
   static void _removeUnwantedElements(dom.Element element) {
     element
-        .querySelectorAll('script, style, nav, .nav')
+        .querySelectorAll('script, style, nav, .nav, [hidden]')
         .forEach((e) => e.remove());
 
     for (final child in element.children) {
@@ -225,8 +229,49 @@ class EpubService {
   );
 
   static const _blockTags = {
-    'p', 'div', 'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'ul', 'ol', 'li', 'blockquote', 'table', 'figure', 'hr', 'pre',
+    'address',
+    'article',
+    'aside',
+    'blockquote',
+    'body',
+    'caption',
+    'center',
+    'dd',
+    'details',
+    'dialog',
+    'dir',
+    'div',
+    'dl',
+    'dt',
+    'fieldset',
+    'figcaption',
+    'figure',
+    'footer',
+    'form',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'header',
+    'hgroup',
+    'hr',
+    'li',
+    'main',
+    'nav',
+    'ol',
+    'p',
+    'pre',
+    'section',
+    'table',
+    'tbody',
+    'td',
+    'tfoot',
+    'th',
+    'thead',
+    'tr',
+    'ul',
   };
 
   static List<Chapter> _trySplitMetadata(
@@ -318,8 +363,18 @@ class EpubService {
         : <ContentBlock>[];
 
     return [
-      Chapter(title: '版权信息', plainText: metaText, rawHtml: '', blocks: metaBlocks),
-      Chapter(title: chapterTitle, plainText: contentText, rawHtml: rawHtml, blocks: contentBlocks),
+      Chapter(
+        title: '版权信息',
+        plainText: metaText,
+        rawHtml: '',
+        blocks: metaBlocks,
+      ),
+      Chapter(
+        title: chapterTitle,
+        plainText: contentText,
+        rawHtml: rawHtml,
+        blocks: contentBlocks,
+      ),
     ];
   }
 
@@ -332,13 +387,54 @@ class EpubService {
     if (body == null) return [];
 
     final result = <ContentBlock>[];
-    for (final element in body.children) {
-      _parseElement(element, result, archive, baseDir, 0);
-    }
+    _parseNodesAsBlocks(body.nodes, result, archive, baseDir, 0);
     return result;
   }
 
-  static void _parseElement(
+  static void _parseNodesAsBlocks(
+    Iterable<dom.Node> nodes,
+    List<ContentBlock> result,
+    Archive archive,
+    String baseDir,
+    int indent,
+  ) {
+    final inlineRun = <dom.Node>[];
+
+    void flushInlineRun() {
+      if (inlineRun.isEmpty) return;
+      _appendInlineNodesAsBlocks(
+        inlineRun,
+        result,
+        archive,
+        baseDir,
+        BlockType.paragraph,
+        indent: indent,
+      );
+      inlineRun.clear();
+    }
+
+    for (final node in nodes) {
+      if (node is dom.Text) {
+        if (node.text.trim().isNotEmpty) {
+          inlineRun.add(node);
+        }
+        continue;
+      }
+
+      if (node is! dom.Element) continue;
+
+      if (_isBlockElement(node) || _isImageElement(node)) {
+        flushInlineRun();
+        _parseBlockElement(node, result, archive, baseDir, indent);
+      } else {
+        inlineRun.add(node);
+      }
+    }
+
+    flushInlineRun();
+  }
+
+  static void _parseBlockElement(
     dom.Element element,
     List<ContentBlock> result,
     Archive archive,
@@ -347,27 +443,23 @@ class EpubService {
   ) {
     final tag = element.localName?.toLowerCase() ?? '';
 
-    if (tag == 'img') {
-      final src = element.attributes['src'];
-      if (src != null) {
-        final resolvedPath = _resolveHref(baseDir, src);
-        final bytes = _readFileBytes(archive, resolvedPath);
-        result.add(ImageBlock(src: src, alt: element.attributes['alt'], bytes: bytes));
-      }
+    if (_isImageElement(element)) {
+      _addImageBlock(element, result, archive, baseDir);
       return;
     }
 
     if (tag.startsWith('h') && tag.length == 2) {
       final level = int.tryParse(tag[1]);
       if (level != null && level >= 1 && level <= 6) {
-        final spans = _parseInlineContent(element, InlineStyle.normal);
-        if (spans.any((s) => s.text.trim().isNotEmpty)) {
-          result.add(TextBlock(
-            type: BlockType.heading,
-            headingLevel: level,
-            spans: spans,
-          ));
-        }
+        _appendInlineNodesAsBlocks(
+          element.nodes,
+          result,
+          archive,
+          baseDir,
+          BlockType.heading,
+          headingLevel: level,
+          indent: indent,
+        );
         return;
       }
     }
@@ -375,154 +467,428 @@ class EpubService {
     if (tag == 'ul' || tag == 'ol') {
       for (final li in element.children) {
         if (li.localName?.toLowerCase() == 'li') {
-          final spans = _parseInlineContent(li, InlineStyle.normal);
-          if (spans.any((s) => s.text.trim().isNotEmpty)) {
-            result.add(TextBlock(
-              type: BlockType.listItem,
-              spans: spans,
-              indent: indent + 1,
-            ));
-          }
+          _parseListItem(li, result, archive, baseDir, indent + 1);
         }
       }
       return;
     }
 
     if (tag == 'blockquote') {
-      final spans = _parseInlineContent(element, InlineStyle.normal);
-      if (spans.any((s) => s.text.trim().isNotEmpty)) {
-        result.add(TextBlock(
-          type: BlockType.blockquote,
-          spans: spans,
-          indent: indent + 1,
-        ));
+      _parseBlockquote(element, result, archive, baseDir, indent + 1);
+      return;
+    }
+
+    if (tag == 'table') {
+      _parseTable(element, result, archive, baseDir, indent);
+      return;
+    }
+
+    if (tag == 'hr') {
+      return;
+    }
+
+    if (tag == 'pre') {
+      final text = element.text.trimRight();
+      if (text.trim().isNotEmpty) {
+        result.add(
+          TextBlock(type: BlockType.paragraph, spans: [StyledText(text)]),
+        );
       }
       return;
     }
 
-    // Check for inline images inside this element
-    final imgs = element.querySelectorAll('img');
-    if (imgs.isNotEmpty) {
-      // Parse text before/between/after images by processing child nodes
-      _parseElementWithImages(element, result, archive, baseDir, indent);
-      return;
-    }
-
-    if (tag == 'p') {
-      final spans = _parseInlineContent(element, InlineStyle.normal);
-      if (spans.any((s) => s.text.trim().isNotEmpty)) {
-        result.add(TextBlock(type: BlockType.paragraph, spans: spans));
-      }
-      return;
-    }
-
-    if (tag == 'div' || tag == 'section' || tag == 'article') {
-      final hasBlockChildren = element.children.any((child) {
-        final childTag = child.localName?.toLowerCase() ?? '';
-        return _blockTags.contains(childTag);
-      });
-      if (hasBlockChildren) {
-        for (final child in element.children) {
-          _parseElement(child, result, archive, baseDir, indent);
-        }
-      } else {
-        final spans = _parseInlineContent(element, InlineStyle.normal);
-        if (spans.any((s) => s.text.trim().isNotEmpty)) {
-          result.add(TextBlock(type: BlockType.paragraph, spans: spans));
-        }
-      }
-      return;
-    }
-
-    // For other block-level elements, try to recurse into children
-    if (element.children.isNotEmpty) {
-      for (final child in element.children) {
-        _parseElement(child, result, archive, baseDir, indent);
-      }
+    if (tag == 'p' || !_hasDirectBlockChild(element)) {
+      _appendInlineNodesAsBlocks(
+        element.nodes,
+        result,
+        archive,
+        baseDir,
+        BlockType.paragraph,
+        indent: indent,
+      );
     } else {
-      final spans = _parseInlineContent(element, InlineStyle.normal);
-      if (spans.any((s) => s.text.trim().isNotEmpty)) {
-        result.add(TextBlock(type: BlockType.paragraph, spans: spans));
-      }
+      _parseNodesAsBlocks(element.nodes, result, archive, baseDir, indent);
     }
   }
 
-  static void _parseElementWithImages(
+  static void _parseBlockquote(
     dom.Element element,
     List<ContentBlock> result,
     Archive archive,
     String baseDir,
     int indent,
   ) {
-    var currentSpans = <StyledText>[];
+    final inlineRun = <dom.Node>[];
 
-    for (final node in element.nodes) {
-      if (node is dom.Element && node.localName?.toLowerCase() == 'img') {
-        if (currentSpans.any((s) => s.text.trim().isNotEmpty)) {
-          result.add(TextBlock(type: BlockType.paragraph, spans: currentSpans));
-          currentSpans = [];
-        }
-        final src = node.attributes['src'];
-        if (src != null) {
-          final resolvedPath = _resolveHref(baseDir, src);
-          final bytes = _readFileBytes(archive, resolvedPath);
-          result.add(ImageBlock(src: src, alt: node.attributes['alt'], bytes: bytes));
-        }
-      } else if (node is dom.Element) {
-        currentSpans.addAll(_parseInlineContent(node, InlineStyle.normal));
-      } else if (node is dom.Text) {
-        final text = node.text;
-        if (text.isNotEmpty) {
-          currentSpans.add(StyledText(text));
-        }
-      }
+    void flushQuoteLine() {
+      if (inlineRun.isEmpty) return;
+      _appendInlineNodesAsBlocks(
+        inlineRun,
+        result,
+        archive,
+        baseDir,
+        BlockType.blockquote,
+        indent: indent,
+      );
+      inlineRun.clear();
     }
-
-    if (currentSpans.any((s) => s.text.trim().isNotEmpty)) {
-      result.add(TextBlock(type: BlockType.paragraph, spans: currentSpans));
-    }
-  }
-
-  static List<StyledText> _parseInlineContent(
-    dom.Element element,
-    InlineStyle parentStyle,
-  ) {
-    final result = <StyledText>[];
 
     for (final node in element.nodes) {
       if (node is dom.Text) {
-        final text = node.text;
-        if (text.isNotEmpty) {
-          result.add(StyledText(text, parentStyle));
+        if (node.text.trim().isNotEmpty) {
+          inlineRun.add(node);
         }
-      } else if (node is dom.Element) {
-        final tag = node.localName?.toLowerCase() ?? '';
-        InlineStyle childStyle = parentStyle;
+        continue;
+      }
 
-        if (tag == 'b' || tag == 'strong') {
-          childStyle = parentStyle.merge(const InlineStyle(bold: true));
-        } else if (tag == 'i' || tag == 'em' || tag == 'cite') {
-          childStyle = parentStyle.merge(const InlineStyle(italic: true));
-        } else if (tag == 'br') {
-          result.add(StyledText('\n', parentStyle));
-          continue;
-        }
+      if (node is! dom.Element) continue;
+      final tag = node.localName?.toLowerCase() ?? '';
 
-        result.addAll(_parseInlineContent(node, childStyle));
+      if ((tag == 'p' || tag == 'div') && !_hasDirectBlockChild(node)) {
+        flushQuoteLine();
+        _appendInlineNodesAsBlocks(
+          node.nodes,
+          result,
+          archive,
+          baseDir,
+          BlockType.blockquote,
+          indent: indent,
+        );
+      } else if (_isBlockElement(node) || _isImageElement(node)) {
+        flushQuoteLine();
+        _parseBlockElement(node, result, archive, baseDir, indent);
+      } else {
+        inlineRun.add(node);
       }
     }
 
+    flushQuoteLine();
+  }
+
+  static void _parseListItem(
+    dom.Element element,
+    List<ContentBlock> result,
+    Archive archive,
+    String baseDir,
+    int indent,
+  ) {
+    final inlineRun = <dom.Node>[];
+    var emittedOwnLine = false;
+
+    void flushOwnLine() {
+      if (inlineRun.isEmpty) return;
+      final before = result.length;
+      _appendInlineNodesAsBlocks(
+        inlineRun,
+        result,
+        archive,
+        baseDir,
+        BlockType.listItem,
+        indent: indent,
+      );
+      emittedOwnLine = emittedOwnLine || result.length > before;
+      inlineRun.clear();
+    }
+
+    for (final node in element.nodes) {
+      if (node is dom.Text) {
+        if (node.text.trim().isNotEmpty) {
+          inlineRun.add(node);
+        }
+        continue;
+      }
+
+      if (node is! dom.Element) continue;
+      final tag = node.localName?.toLowerCase() ?? '';
+
+      if (tag == 'ul' || tag == 'ol') {
+        flushOwnLine();
+        _parseBlockElement(node, result, archive, baseDir, indent);
+      } else if (_isBlockElement(node) || _isImageElement(node)) {
+        if (!emittedOwnLine && _canRepresentAsListItem(node)) {
+          flushOwnLine();
+          final before = result.length;
+          _appendInlineNodesAsBlocks(
+            node.nodes,
+            result,
+            archive,
+            baseDir,
+            BlockType.listItem,
+            indent: indent,
+          );
+          emittedOwnLine = emittedOwnLine || result.length > before;
+        } else {
+          flushOwnLine();
+          _parseBlockElement(node, result, archive, baseDir, indent);
+        }
+      } else {
+        inlineRun.add(node);
+      }
+    }
+
+    flushOwnLine();
+  }
+
+  static void _parseTable(
+    dom.Element table,
+    List<ContentBlock> result,
+    Archive archive,
+    String baseDir,
+    int indent,
+  ) {
+    final caption = table.querySelector('caption');
+    if (caption != null) {
+      _appendInlineNodesAsBlocks(
+        caption.nodes,
+        result,
+        archive,
+        baseDir,
+        BlockType.paragraph,
+        indent: indent,
+      );
+    }
+
+    final rows = table.querySelectorAll('tr');
+    for (final row in rows) {
+      final cells = row
+          .querySelectorAll('th, td')
+          .map((cell) => _normalizePlainText(cell.text))
+          .where((text) => text.isNotEmpty)
+          .toList();
+      if (cells.isEmpty) continue;
+      result.add(
+        TextBlock(
+          type: BlockType.paragraph,
+          spans: [StyledText(cells.join(' | '))],
+          indent: indent,
+        ),
+      );
+    }
+  }
+
+  static void _appendInlineNodesAsBlocks(
+    Iterable<dom.Node> nodes,
+    List<ContentBlock> result,
+    Archive archive,
+    String baseDir,
+    BlockType blockType, {
+    int headingLevel = 0,
+    int indent = 0,
+  }) {
+    var spans = <StyledText>[];
+
+    void flushTextBlock() {
+      final normalized = _normalizeSpans(spans);
+      if (normalized.any((span) => span.text.trim().isNotEmpty)) {
+        result.add(
+          TextBlock(
+            type: blockType,
+            headingLevel: headingLevel,
+            spans: normalized,
+            indent: indent,
+          ),
+        );
+      }
+      spans = [];
+    }
+
+    void visit(dom.Node node, InlineStyle style) {
+      if (node is dom.Text) {
+        if (node.text.isNotEmpty) {
+          _appendStyledSpan(spans, StyledText(node.text, style));
+        }
+        return;
+      }
+
+      if (node is! dom.Element) return;
+
+      final tag = node.localName?.toLowerCase() ?? '';
+      if (_isImageElement(node)) {
+        flushTextBlock();
+        _addImageBlock(node, result, archive, baseDir);
+        return;
+      }
+
+      if (_isBlockElement(node) && tag != 'br') {
+        flushTextBlock();
+        _parseBlockElement(node, result, archive, baseDir, indent);
+        return;
+      }
+
+      if (tag == 'br') {
+        _appendStyledSpan(spans, StyledText('\n', style));
+        return;
+      }
+
+      var childStyle = style;
+      if (tag == 'b' || tag == 'strong') {
+        childStyle = style.merge(const InlineStyle(bold: true));
+      } else if (tag == 'i' || tag == 'em' || tag == 'cite') {
+        childStyle = style.merge(const InlineStyle(italic: true));
+      }
+
+      for (final child in node.nodes) {
+        visit(child, childStyle);
+      }
+    }
+
+    for (final node in nodes) {
+      visit(node, InlineStyle.normal);
+    }
+    flushTextBlock();
+  }
+
+  static bool _isBlockElement(dom.Element element) {
+    final tag = element.localName?.toLowerCase() ?? '';
+    return _blockTags.contains(tag);
+  }
+
+  static bool _hasDirectBlockChild(dom.Element element) {
+    return element.children.any((child) {
+      if (_isImageElement(child)) return true;
+      final tag = child.localName?.toLowerCase() ?? '';
+      return _blockTags.contains(tag);
+    });
+  }
+
+  static bool _canRepresentAsListItem(dom.Element element) {
+    if (_isImageElement(element)) return false;
+    final tag = element.localName?.toLowerCase() ?? '';
+    return (tag == 'p' || tag == 'div' || tag == 'span') &&
+        !_hasDirectBlockChild(element);
+  }
+
+  static bool _isImageElement(dom.Element element) {
+    final tag = element.localName?.toLowerCase() ?? '';
+    if (tag == 'img') return true;
+    if (tag == 'image') {
+      return _imageSource(element) != null;
+    }
+    return false;
+  }
+
+  static void _addImageBlock(
+    dom.Element element,
+    List<ContentBlock> result,
+    Archive archive,
+    String baseDir,
+  ) {
+    final src = _imageSource(element);
+    if (src == null || src.trim().isEmpty) return;
+
+    final resolvedPath = _resolveHref(baseDir, src);
+    final bytes = _readFileBytes(archive, resolvedPath);
+    result.add(
+      ImageBlock(src: src, alt: element.attributes['alt'], bytes: bytes),
+    );
+  }
+
+  static String? _imageSource(dom.Element element) {
+    final src =
+        element.attributes['src'] ??
+        element.attributes['data-src'] ??
+        element.attributes['href'] ??
+        element.attributes['xlink:href'];
+    if (src != null && src.trim().isNotEmpty) {
+      return _stripHrefFragment(src.trim());
+    }
+
+    final srcset = element.attributes['srcset'];
+    if (srcset == null || srcset.trim().isEmpty) return null;
+    final first = srcset.split(',').first.trim();
+    if (first.isEmpty) return null;
+    return _stripHrefFragment(first.split(RegExp(r'\s+')).first);
+  }
+
+  static String _stripHrefFragment(String href) {
+    final hashIndex = href.indexOf('#');
+    return hashIndex == -1 ? href : href.substring(0, hashIndex);
+  }
+
+  static List<StyledText> _normalizeSpans(List<StyledText> spans) {
+    final result = <StyledText>[];
+    for (final span in spans) {
+      var text = span.text
+          .replaceAll('\u00A0', ' ')
+          .replaceAll(RegExp(r'\s+'), ' ');
+
+      if (text.isEmpty) continue;
+      if (result.isEmpty) {
+        text = text.trimLeft();
+      } else if (result.last.text.endsWith(' ') && text.startsWith(' ')) {
+        text = text.trimLeft();
+      }
+      if (text.isEmpty) continue;
+      _appendStyledSpan(result, StyledText(text, span.style));
+    }
+
+    if (result.isEmpty) return result;
+    final last = result.removeLast();
+    final trimmed = last.text.trimRight();
+    if (trimmed.isNotEmpty) {
+      _appendStyledSpan(result, StyledText(trimmed, last.style));
+    }
     return result;
   }
 
+  static void _appendStyledSpan(List<StyledText> spans, StyledText span) {
+    if (span.text.isEmpty) return;
+    if (spans.isNotEmpty && _sameStyle(spans.last.style, span.style)) {
+      final last = spans.removeLast();
+      spans.add(StyledText('${last.text}${span.text}', last.style));
+    } else {
+      spans.add(span);
+    }
+  }
+
+  static bool _sameStyle(InlineStyle a, InlineStyle b) {
+    return a.bold == b.bold && a.italic == b.italic;
+  }
+
+  static String _plainTextFromBlocks(List<ContentBlock> blocks) {
+    return blocks
+        .map((block) {
+          switch (block) {
+            case TextBlock():
+              return _normalizePlainText(block.plainText);
+            case ImageBlock():
+              return _normalizePlainText(block.alt ?? '');
+          }
+        })
+        .where((text) => text.isNotEmpty)
+        .join('\n\n');
+  }
+
+  static String _normalizePlainText(String text) {
+    return text
+        .replaceAll('\u00A0', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  static String _decodeHref(String href) {
+    try {
+      return Uri.decodeFull(href);
+    } catch (_) {
+      return href;
+    }
+  }
+
   static String _resolveHref(String baseDir, String href) {
-    if (href.startsWith('/')) return href.substring(1);
+    final cleanHref = _decodeHref(_stripHrefFragment(href));
+    if (cleanHref.startsWith('data:')) return cleanHref;
+    if (cleanHref.startsWith('/')) return cleanHref.substring(1);
+
+    final uri = Uri.tryParse(cleanHref);
+    if (uri != null && uri.hasScheme) {
+      return cleanHref;
+    }
 
     final parts = <String>[];
     final baseParts = baseDir.split('/').where((p) => p.isNotEmpty).toList();
     parts.addAll(baseParts);
 
-    for (final segment in href.split('/')) {
+    for (final segment in cleanHref.split('/')) {
       if (segment == '..') {
         if (parts.isNotEmpty) parts.removeLast();
       } else if (segment != '.' && segment.isNotEmpty) {

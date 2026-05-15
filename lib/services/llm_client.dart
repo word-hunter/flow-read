@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:http/http.dart' as http;
 
+import 'ai_provider_config.dart';
 import 'settings_service.dart';
 
 enum AIClientErrorType {
@@ -26,27 +27,30 @@ class AIClientException implements Exception {
 }
 
 class LLMClient {
-  static const _baseUrl = 'https://api.deepseek.com/v1';
-  static const _model = 'deepseek-chat';
-
   final SettingsService _settings;
+  final http.Client _httpClient;
 
-  LLMClient(this._settings);
+  LLMClient(this._settings, {http.Client? httpClient})
+    : _httpClient = httpClient ?? http.Client();
 
-  String? get _apiKey => _settings.apiKey;
-
-  Future<bool> testConnection(String apiKey) async {
+  Future<bool> testConnection({
+    String? apiKey,
+    AIProviderConfig? config,
+  }) async {
     try {
-      final uri = Uri.parse('$_baseUrl/chat/completions');
-      final response = await http
+      final resolved = (config ?? _settings.aiProviderConfig).copyWith(
+        apiKey: apiKey,
+      );
+      final uri = _chatCompletionsUri(resolved);
+      final response = await _httpClient
           .post(
             uri,
             headers: {
-              'Authorization': 'Bearer $apiKey',
+              'Authorization': 'Bearer ${resolved.apiKey}',
               'Content-Type': 'application/json',
             },
             body: jsonEncode({
-              'model': _model,
+              'model': resolved.model,
               'messages': [
                 {'role': 'user', 'content': 'hello'},
               ],
@@ -65,16 +69,16 @@ class LLMClient {
     required String userPrompt,
     bool jsonMode = false,
   }) async {
-    final key = _apiKey;
-    if (key == null || key.isEmpty) {
-      throw AIClientException(
-        'API key 未配置，请在设置中配置 DeepSeek API Key',
-        AIClientErrorType.unauthorized,
-      );
-    }
+    final config = _settings.aiProviderConfig;
+    _ensureApiKey(config);
 
-    final body = _buildBody(systemPrompt, userPrompt, jsonMode: jsonMode);
-    return _retryRequest(() => _doChat(body));
+    final body = _buildBody(
+      config,
+      systemPrompt,
+      userPrompt,
+      jsonMode: jsonMode,
+    );
+    return _retryRequest(() => _doChat(body, config));
   }
 
   Stream<String> streamChat({
@@ -82,24 +86,20 @@ class LLMClient {
     required String userPrompt,
     bool jsonMode = false,
   }) async* {
-    final key = _apiKey;
-    if (key == null || key.isEmpty) {
-      throw AIClientException(
-        'API key 未配置，请在设置中配置 DeepSeek API Key',
-        AIClientErrorType.unauthorized,
-      );
-    }
+    final config = _settings.aiProviderConfig;
+    _ensureApiKey(config);
 
     final body = _buildBody(
+      config,
       systemPrompt,
       userPrompt,
       jsonMode: jsonMode,
       stream: true,
     );
-    final uri = Uri.parse('$_baseUrl/chat/completions');
+    final uri = _chatCompletionsUri(config);
     final bytes = utf8.encode(jsonEncode(body));
     final request = http.StreamedRequest('POST', uri);
-    request.headers['Authorization'] = 'Bearer $key';
+    request.headers['Authorization'] = 'Bearer ${config.apiKey}';
     request.headers['Content-Type'] = 'application/json';
     request.contentLength = bytes.length;
     request.sink.add(bytes);
@@ -107,7 +107,9 @@ class LLMClient {
 
     http.StreamedResponse response;
     try {
-      response = await request.send().timeout(const Duration(seconds: 180));
+      response = await _httpClient
+          .send(request)
+          .timeout(const Duration(seconds: 180));
     } on TimeoutException {
       throw AIClientException('请求超时', AIClientErrorType.timeout);
     } on http.ClientException {
@@ -146,14 +148,28 @@ class LLMClient {
     }
   }
 
+  Uri _chatCompletionsUri(AIProviderConfig config) {
+    return Uri.parse('${config.normalizedBaseUrl}/chat/completions');
+  }
+
+  void _ensureApiKey(AIProviderConfig config) {
+    if (config.apiKey.trim().isEmpty) {
+      throw AIClientException(
+        'API key 未配置，请在设置中配置 ${config.definition.label} API Key',
+        AIClientErrorType.unauthorized,
+      );
+    }
+  }
+
   Map<String, dynamic> _buildBody(
+    AIProviderConfig config,
     String systemPrompt,
     String userPrompt, {
     bool jsonMode = false,
     bool stream = false,
   }) {
     final body = <String, dynamic>{
-      'model': _model,
+      'model': config.model,
       'messages': [
         {'role': 'system', 'content': systemPrompt},
         {'role': 'user', 'content': userPrompt},
@@ -169,15 +185,17 @@ class LLMClient {
     return body;
   }
 
-  Future<String> _doChat(Map<String, dynamic> body) async {
-    final key = _apiKey!;
-    final uri = Uri.parse('$_baseUrl/chat/completions');
+  Future<String> _doChat(
+    Map<String, dynamic> body,
+    AIProviderConfig config,
+  ) async {
+    final uri = _chatCompletionsUri(config);
 
-    final response = await http
+    final response = await _httpClient
         .post(
           uri,
           headers: {
-            'Authorization': 'Bearer $key',
+            'Authorization': 'Bearer ${config.apiKey}',
             'Content-Type': 'application/json',
           },
           body: jsonEncode(body),

@@ -236,6 +236,10 @@ class ReadingProvider extends ChangeNotifier {
 
   Future<void> init() async {
     await _bookService.init();
+    await _bookmarkService?.init();
+    await _readingConfig?.init();
+    await _readingTime?.init();
+    await _userVocab?.init();
     notifyListeners();
   }
 
@@ -593,8 +597,11 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   void removeReadingBookmark(int index) {
-    if (_activeBookId == null || index < 0 || index >= _readingBookmarks.length)
+    if (_activeBookId == null ||
+        index < 0 ||
+        index >= _readingBookmarks.length) {
       return;
+    }
     _readingBookmarks.removeAt(index);
     _bookmarkService?.saveReadingBookmarks(_activeBookId!, _readingBookmarks);
     notifyListeners();
