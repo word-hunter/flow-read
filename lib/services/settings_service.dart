@@ -69,6 +69,12 @@ class VocabularyColorSettings {
 }
 
 class SettingsService extends ChangeNotifier {
+  static const experimentalFeatureRss = 'rss';
+  static const supportedExperimentalFeatureIds = <String>{
+    experimentalFeatureRss,
+  };
+  static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
+
   late Box _box;
 
   VocabularyColorSettings _colors = VocabularyColorSettings();
@@ -84,6 +90,8 @@ class SettingsService extends ChangeNotifier {
   int _backupIntervalMinutes = 60;
   DateTime? _lastBackupAt;
   String? _lastBackupPath;
+  String _lastSeenReleaseNotesVersion = '';
+  Set<String> _enabledExperimentalFeatures = {};
 
   VocabularyColorSettings get colors => _colors;
   String get aiProviderId => _aiProviderId;
@@ -114,6 +122,11 @@ class SettingsService extends ChangeNotifier {
   int get backupIntervalMinutes => _backupIntervalMinutes;
   DateTime? get lastBackupAt => _lastBackupAt;
   String? get lastBackupPath => _lastBackupPath;
+  String get lastSeenReleaseNotesVersion => _lastSeenReleaseNotesVersion;
+  Set<String> get enabledExperimentalFeatures =>
+      Set.unmodifiable(_enabledExperimentalFeatures);
+  bool get rssFeatureEnabled =>
+      isExperimentalFeatureEnabled(experimentalFeatureRss);
 
   Future<void> init() async {
     _box = Hive.box('settings');
@@ -164,6 +177,11 @@ class SettingsService extends ChangeNotifier {
         ? null
         : DateTime.tryParse(lastBackupAtValue);
     _lastBackupPath = _box.get('lastBackupPath') as String?;
+    _lastSeenReleaseNotesVersion =
+        _box.get('lastSeenReleaseNotesVersion', defaultValue: '') as String;
+    _enabledExperimentalFeatures = _readStringSet(
+      _enabledExperimentalFeaturesKey,
+    );
   }
 
   Map<String, String> _readStringMap(String key) {
@@ -182,8 +200,39 @@ class SettingsService extends ChangeNotifier {
     return {};
   }
 
+  Set<String> _readStringSet(String key) {
+    final raw = _box.get(key);
+    Object? decoded = raw;
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        decoded = jsonDecode(raw);
+      } catch (_) {
+        return {};
+      }
+    }
+    if (decoded is Iterable) {
+      return decoded
+          .map((value) => value.toString())
+          .where(supportedExperimentalFeatureIds.contains)
+          .toSet();
+    }
+    if (decoded is Map) {
+      return decoded.entries
+          .where((entry) => entry.value == true)
+          .map((entry) => entry.key.toString())
+          .where(supportedExperimentalFeatureIds.contains)
+          .toSet();
+    }
+    return {};
+  }
+
   Future<void> _writeStringMap(String key, Map<String, String> value) async {
     await _box.put(key, jsonEncode(value));
+  }
+
+  Future<void> _writeStringSet(String key, Set<String> value) async {
+    final sorted = value.toList()..sort();
+    await _box.put(key, jsonEncode(sorted));
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
@@ -277,6 +326,49 @@ class SettingsService extends ChangeNotifier {
     await _box.put('lastBackupAt', at.toIso8601String());
     await _box.put('lastBackupPath', path);
     notifyListeners();
+  }
+
+  bool shouldShowReleaseNotes(String version) {
+    return _lastSeenReleaseNotesVersion != version;
+  }
+
+  Future<void> markReleaseNotesSeen(String version) async {
+    _lastSeenReleaseNotesVersion = version;
+    await _box.put('lastSeenReleaseNotesVersion', version);
+    notifyListeners();
+  }
+
+  bool isExperimentalFeatureEnabled(String featureId) {
+    return _enabledExperimentalFeatures.contains(featureId);
+  }
+
+  Future<void> setExperimentalFeatureEnabled(
+    String featureId,
+    bool enabled,
+  ) async {
+    if (!supportedExperimentalFeatureIds.contains(featureId)) {
+      throw ArgumentError.value(
+        featureId,
+        'featureId',
+        'Unsupported experimental feature',
+      );
+    }
+    final next = {..._enabledExperimentalFeatures};
+    if (enabled) {
+      next.add(featureId);
+    } else {
+      next.remove(featureId);
+    }
+    _enabledExperimentalFeatures = next;
+    await _writeStringSet(
+      _enabledExperimentalFeaturesKey,
+      _enabledExperimentalFeatures,
+    );
+    notifyListeners();
+  }
+
+  Future<void> setRssFeatureEnabled(bool enabled) {
+    return setExperimentalFeatureEnabled(experimentalFeatureRss, enabled);
   }
 
   Future<void> incrementAIUsage({

@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 
 import '../providers/reading_provider.dart';
 import '../providers/rss_provider.dart';
+import '../services/app_version.dart';
 import '../services/backup_service.dart';
+import '../services/changelog_service.dart';
 import '../services/llm_client.dart';
 import '../services/settings_service.dart';
+import '../widgets/release_notes_dialog.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -79,9 +82,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 16),
           _buildSection(
             theme: theme,
+            icon: Icons.science_outlined,
+            title: '测试功能',
+            child: _buildExperimentalFeaturesSection(theme, settings),
+          ),
+          const SizedBox(height: 16),
+          _buildSection(
+            theme: theme,
             icon: Icons.backup_outlined,
             title: '备份',
             child: _buildBackupSection(theme, settings, backup),
+          ),
+          const SizedBox(height: 16),
+          _buildSection(
+            theme: theme,
+            icon: Icons.info_outline,
+            title: '关于',
+            child: _buildAboutSection(),
           ),
         ],
       ),
@@ -286,6 +303,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildExperimentalFeaturesSection(
+    ThemeData theme,
+    SettingsService settings,
+  ) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.tune_outlined),
+      title: const Text('开启测试中的功能'),
+      subtitle: Text(settings.rssFeatureEnabled ? 'RSS 入口已开启' : '暂无开启项'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: _showExperimentalFeaturesPanel,
+    );
+  }
+
   Widget _buildBackupSection(
     ThemeData theme,
     SettingsService settings,
@@ -413,6 +444,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildAboutSection() {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.menu_book_outlined),
+      title: const Text('Flow Read'),
+      subtitle: const Text('版本 ${FlowReadVersion.display}'),
+      trailing: Tooltip(
+        message: '查看更新内容',
+        child: IconButton(
+          icon: const Icon(Icons.new_releases_outlined),
+          onPressed: _showCurrentReleaseNotes,
+        ),
+      ),
+    );
+  }
+
   Widget _buildColorRow(
     BuildContext context,
     SettingsService settings,
@@ -522,6 +569,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showExperimentalFeaturesPanel() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return Consumer<SettingsService>(
+          builder: (context, settings, _) {
+            final theme = Theme.of(context);
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.science_outlined,
+                          size: 20,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '测试中的功能',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      secondary: const Icon(Icons.rss_feed_outlined),
+                      title: const Text('RSS 入口'),
+                      subtitle: const Text('在首页显示 RSS 订阅与最新内容入口'),
+                      value: settings.rssFeatureEnabled,
+                      onChanged: (value) =>
+                          settings.setRssFeatureEnabled(value),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -663,6 +761,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ) ??
         false;
+  }
+
+  Future<void> _showCurrentReleaseNotes() async {
+    final notes = await ChangelogService.loadCurrentReleaseNotes();
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (_) => ReleaseNotesDialog(notes: notes),
+    );
   }
 
   static String _formatInterval(int minutes) {

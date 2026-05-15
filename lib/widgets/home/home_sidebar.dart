@@ -9,6 +9,7 @@ class HomeSidebar extends StatelessWidget {
   final VoidCallback onSettingsTap;
   final VoidCallback onThemeToggle;
   final bool isDarkMode;
+  final bool showRss;
 
   const HomeSidebar({
     super.key,
@@ -18,21 +19,34 @@ class HomeSidebar extends StatelessWidget {
     required this.onSettingsTap,
     required this.onThemeToggle,
     required this.isDarkMode,
+    required this.showRss,
   });
 
   static const _navItems = [
     (
+      tabIndex: 0,
       icon: Icons.menu_book_outlined,
       selectedIcon: Icons.menu_book,
       label: '书架',
     ),
-    (icon: Icons.rss_feed_outlined, selectedIcon: Icons.rss_feed, label: 'RSS'),
     (
+      tabIndex: 1,
+      icon: Icons.rss_feed_outlined,
+      selectedIcon: Icons.rss_feed,
+      label: 'RSS',
+    ),
+    (
+      tabIndex: 2,
       icon: Icons.text_fields_outlined,
       selectedIcon: Icons.text_fields,
       label: '词汇',
     ),
-    (icon: Icons.person_outlined, selectedIcon: Icons.person, label: '我的'),
+    (
+      tabIndex: 3,
+      icon: Icons.person_outlined,
+      selectedIcon: Icons.person,
+      label: '我的',
+    ),
   ];
 
   @override
@@ -89,16 +103,20 @@ class HomeSidebar extends StatelessWidget {
   }
 
   Widget _buildNavItems(ThemeData theme) {
+    final navItems = _navItems
+        .where((item) => showRss || item.tabIndex != 1)
+        .toList(growable: false);
+
     return Column(
-      children: List.generate(_navItems.length, (index) {
-        final item = _navItems[index];
-        final isSelected = currentTab == index;
+      children: List.generate(navItems.length, (index) {
+        final item = navItems[index];
+        final isSelected = currentTab == item.tabIndex;
         return _buildNavItem(
           theme: theme,
           icon: isSelected ? item.selectedIcon : item.icon,
           label: item.label,
           isSelected: isSelected,
-          onTap: () => onTabChanged(index),
+          onTap: () => onTabChanged(item.tabIndex),
         );
       }),
     );
