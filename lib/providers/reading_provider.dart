@@ -773,10 +773,16 @@ class ReadingProvider extends ChangeNotifier {
     String before,
     String after,
   ) async {
-    if (_aiService == null) return;
+    if (_aiService == null) {
+      _errorMessage = 'AI 服务未初始化';
+      notifyListeners();
+      return;
+    }
+    _selectedText = text;
     _isAnalyzingText = true;
     _aiTextAnalysis = null;
     _aiTranslation = null;
+    _errorMessage = null;
     notifyListeners();
     try {
       _aiTextAnalysis = await _aiService!.analyzeText(
@@ -793,9 +799,15 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   Future<void> translateSelectedTextAI(String text) async {
-    if (_aiService == null) return;
+    if (_aiService == null) {
+      _errorMessage = 'AI 服务未初始化';
+      notifyListeners();
+      return;
+    }
+    _selectedText = text;
     _isTranslatingText = true;
     _aiTranslation = null;
+    _errorMessage = null;
     notifyListeners();
     try {
       _aiTranslation = await _aiService!.translateText(text);

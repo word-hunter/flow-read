@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/ai_text_analysis.dart';
 import '../models/analysis_result.dart';
 import '../models/sentence_breakdown.dart';
 import '../providers/reading_provider.dart';
@@ -148,6 +149,12 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
   // ======== 分析 Tab ========
 
   Widget _buildAnalysisTab(ThemeData theme, ScrollController scrollController) {
+    final provider = context.watch<ReadingProvider>();
+    final aiAnalysis = provider.aiTextAnalysis;
+    final isAnalyzing = provider.isAnalyzingText;
+    final error = provider.errorMessage;
+    final analysisError =
+        error != null && (error.startsWith('AI 解析失败') || error == 'AI 服务未初始化');
     final breakdowns = widget.breakdowns;
     final hasBreakdowns = breakdowns != null && breakdowns.isNotEmpty;
 
@@ -160,13 +167,26 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
           _buildSelectedTextCard(theme),
           const SizedBox(height: 16),
 
-          if (hasBreakdowns) ...[
+          if (isAnalyzing)
+            _buildLoadingState(theme, '正在解析...')
+          else if (aiAnalysis != null && !aiAnalysis.isEmpty)
+            _buildAIAnalysisResult(theme, aiAnalysis)
+          else if (analysisError)
+            _buildErrorState(theme, error)
+          else if (aiAnalysis != null && aiAnalysis.isEmpty)
+            _buildEmptyState(
+              theme,
+              icon: Icons.auto_awesome_outlined,
+              title: 'AI 暂无结果',
+              subtitle: '模型没有返回可展示的解析内容。',
+            )
+          else if (hasBreakdowns) ...[
             // 分析器标签
             _buildAnalyzerBadge(theme),
             const SizedBox(height: 12),
 
             // 逐句卡片
-            ...breakdowns!.asMap().entries.map((entry) {
+            ...breakdowns.asMap().entries.map((entry) {
               final idx = entry.key;
               final bd = entry.value;
               return Padding(
@@ -207,7 +227,7 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
   // ======== 分析器标签 ========
 
   Widget _buildAnalyzerBadge(ThemeData theme) {
-    final isAI = false; // widget.analyzerName contains 'AI' or similar
+    final isAI = widget.analyzerName.toLowerCase().contains('ai');
     return Row(
       children: [
         Container(
@@ -242,6 +262,239 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAIAnalysisResult(ThemeData theme, AITextAnalysis analysis) {
+    final sections = <Widget>[];
+
+    void addSection(Widget section) {
+      if (sections.isNotEmpty) {
+        sections.add(const SizedBox(height: 12));
+      }
+      sections.add(section);
+    }
+
+    addSection(_buildAnalyzerBadge(theme));
+
+    final translation = analysis.translation.trim();
+    if (translation.isNotEmpty) {
+      addSection(
+        _buildAISection(
+          theme,
+          icon: Icons.translate,
+          title: '译文',
+          child: Text(
+            translation,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              height: 1.7,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (analysis.grammarPoints.isNotEmpty) {
+      addSection(_buildGrammarSection(theme, analysis.grammarPoints));
+    }
+
+    if (analysis.vocabularyNotes.isNotEmpty) {
+      addSection(_buildVocabularySection(theme, analysis.vocabularyNotes));
+    }
+
+    final readingTip = analysis.readingTip.trim();
+    if (readingTip.isNotEmpty) {
+      addSection(
+        _buildAISection(
+          theme,
+          icon: Icons.lightbulb_outline,
+          title: '阅读提示',
+          child: Text(
+            readingTip,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              height: 1.6,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: sections,
+    );
+  }
+
+  Widget _buildAISection(
+    ThemeData theme, {
+    required IconData icon,
+    required String title,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.25,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGrammarSection(
+    ThemeData theme,
+    List<GrammarPoint> grammarPoints,
+  ) {
+    return _buildAISection(
+      theme,
+      icon: Icons.account_tree_outlined,
+      title: '语法要点',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: grammarPoints.map((point) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        point.source,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontFamily: 'Serif',
+                          height: 1.5,
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildDifficultyPill(theme, point.difficulty),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  point.explanation,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    height: 1.5,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildVocabularySection(
+    ThemeData theme,
+    List<VocabularyNote> vocabularyNotes,
+  ) {
+    return _buildAISection(
+      theme,
+      icon: Icons.menu_book_outlined,
+      title: '词汇说明',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: vocabularyNotes.map((note) {
+          final pos = note.pos.trim();
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        note.word,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    if (pos.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        pos,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.tertiary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  note.contextMeaning,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    height: 1.5,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildDifficultyPill(ThemeData theme, String difficulty) {
+    final label = switch (difficulty.toLowerCase()) {
+      'easy' => '基础',
+      'medium' => '中等',
+      'hard' => '较难',
+      _ => difficulty,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onTertiaryContainer,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 
@@ -476,6 +729,9 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
     final provider = context.watch<ReadingProvider>();
     final translation = provider.aiTranslation;
     final isTranslating = provider.isTranslatingText;
+    final error = provider.errorMessage;
+    final translationError =
+        error != null && (error.startsWith('翻译失败') || error == 'AI 服务未初始化');
 
     return SingleChildScrollView(
       controller: scrollController,
@@ -489,8 +745,8 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
             _buildLoadingState(theme, '正在翻译...')
           else if (translation != null && translation.isNotEmpty)
             _buildTranslationResult(theme, translation)
-          else if (provider.errorMessage != null)
-            _buildErrorState(theme, provider.errorMessage!)
+          else if (translationError)
+            _buildErrorState(theme, error)
           else
             _buildEmptyTranslation(theme),
         ],
@@ -625,6 +881,9 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
   // ======== 选中文本卡片 ========
 
   Widget _buildSelectedTextCard(ThemeData theme) {
+    final selectedText = widget.selectedText.trim();
+    final hasSelectedText = selectedText.isNotEmpty;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -647,11 +906,13 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
           ),
           const SizedBox(height: 8),
           Text(
-            widget.selectedText,
+            hasSelectedText ? widget.selectedText : '未获取到选中文本，请重新选择后再试。',
             style: theme.textTheme.bodyMedium?.copyWith(
               height: 1.7,
               fontFamily: 'Serif',
-              color: theme.colorScheme.onSurface,
+              color: hasSelectedText
+                  ? theme.colorScheme.onSurface
+                  : theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],

@@ -97,49 +97,55 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _onTranslateSelected(String text) {
-    if (text.trim().isEmpty) return;
+    final selectedText = text.trim();
+    if (selectedText.isEmpty) return;
     final provider = context.read<ReadingProvider>();
-    provider.translateSelectedTextAI(text);
+    final analyzerName =
+        '${context.read<SettingsService>().aiProvider.label} AI';
+    provider.translateSelectedTextAI(selectedText);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const SelectedTextSheet(
-        selectedText: '',
+      builder: (_) => SelectedTextSheet(
+        selectedText: selectedText,
         analysis: null,
         tab: SelectedTextTab.translate,
-        analyzerName: 'DeepSeek AI',
+        analyzerName: analyzerName,
       ),
     );
   }
 
   void _onAnalyzeSelected(String text) {
-    if (text.trim().isEmpty) return;
+    final selectedText = text.trim();
+    if (selectedText.isEmpty) return;
     final provider = context.read<ReadingProvider>();
+    final analyzerName =
+        '${context.read<SettingsService>().aiProvider.label} AI';
     // Get surrounding context
     final result = provider.result;
     String before = '';
     String after = '';
     if (result != null) {
       final fullText = result.passageText;
-      final idx = fullText.indexOf(text);
+      final idx = fullText.indexOf(selectedText);
       if (idx >= 0) {
         final start = (idx - 200).clamp(0, idx);
         before = fullText.substring(start, idx);
-        final end = (idx + text.length + 200).clamp(0, fullText.length);
-        after = fullText.substring(idx + text.length, end);
+        final end = (idx + selectedText.length + 200).clamp(0, fullText.length);
+        after = fullText.substring(idx + selectedText.length, end);
       }
     }
-    provider.analyzeSelectedTextAI(text, before, after);
+    provider.analyzeSelectedTextAI(selectedText, before, after);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const SelectedTextSheet(
-        selectedText: '',
+      builder: (_) => SelectedTextSheet(
+        selectedText: selectedText,
         analysis: null,
         tab: SelectedTextTab.analysis,
-        analyzerName: 'DeepSeek AI',
+        analyzerName: analyzerName,
       ),
     );
   }
