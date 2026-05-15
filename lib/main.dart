@@ -18,6 +18,7 @@ import 'screens/spaced_review_screen.dart';
 import 'screens/syntax_screen.dart';
 import 'services/ai_cache_service.dart';
 import 'services/ai_service.dart';
+import 'services/backup_service.dart';
 import 'services/book_service.dart';
 import 'services/bookmark_service.dart';
 import 'services/collins_repository.dart';
@@ -69,6 +70,13 @@ class FlowReadApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) {
             final svc = SettingsService();
+            svc.init();
+            return svc;
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (context) {
+            final svc = BackupService(context.read<SettingsService>());
             svc.init();
             return svc;
           },
