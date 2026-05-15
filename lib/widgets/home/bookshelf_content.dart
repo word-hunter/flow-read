@@ -2,9 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import '../../models/book_metadata.dart';
 import '../../providers/reading_provider.dart';
 import 'featured_book_card.dart';
 import 'book_shelf_row.dart';
+
+enum _BookSortMode { recent, title, author, progress }
 
 class BookshelfContent extends StatefulWidget {
   const BookshelfContent({super.key});
@@ -16,6 +19,7 @@ class BookshelfContent extends StatefulWidget {
 class _BookshelfContentState extends State<BookshelfContent> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  _BookSortMode _sortMode = _BookSortMode.recent;
   Timer? _debounce;
 
   @override
@@ -38,15 +42,17 @@ class _BookshelfContentState extends State<BookshelfContent> {
     final theme = Theme.of(context);
     final allBooks = provider.allBooks;
 
-    final filteredBooks = _searchQuery.isEmpty
-        ? allBooks
-        : allBooks
-              .where(
-                (b) =>
-                    b.title.toLowerCase().contains(_searchQuery) ||
-                    b.author.toLowerCase().contains(_searchQuery),
-              )
-              .toList();
+    final filteredBooks = _sortedBooks(
+      _searchQuery.isEmpty
+          ? allBooks
+          : allBooks
+                .where(
+                  (b) =>
+                      b.title.toLowerCase().contains(_searchQuery) ||
+                      b.author.toLowerCase().contains(_searchQuery),
+                )
+                .toList(),
+    );
 
     if (allBooks.isEmpty) {
       return _buildEmptyState(context, provider, theme);
@@ -56,7 +62,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(theme),
+          _buildHeader(theme, provider),
           const SizedBox(height: 24),
           if (filteredBooks.isNotEmpty) ...[
             FeaturedBookCard(
@@ -71,8 +77,6 @@ class _BookshelfContentState extends State<BookshelfContent> {
             ),
           ],
           const SizedBox(height: 32),
-          _buildSectionHeader(theme, '最近阅读'),
-          const SizedBox(height: 12),
           BookShelfRow(
             books: filteredBooks
                 .map(
@@ -84,15 +88,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
                   ),
                 )
                 .toList(),
-            onAddBook: () => _importEpub(provider),
-          ),
-          const SizedBox(height: 32),
-          _buildSectionHeader(theme, '想读书籍'),
-          const SizedBox(height: 12),
-          BookShelfRow(
-            books: const [],
-            onAddBook: () => _importEpub(provider),
-            emptyText: '暂无想读书籍',
+            emptyText: _searchQuery.isEmpty ? '暂无书籍' : '没有匹配的书籍',
           ),
           const SizedBox(height: 32),
         ],
@@ -100,7 +96,39 @@ class _BookshelfContentState extends State<BookshelfContent> {
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  List<BookMetadata> _sortedBooks(List<BookMetadata> books) {
+    final sorted = [...books];
+    int byRecent(BookMetadata a, BookMetadata b) {
+      final aTime = a.lastReadAt?.millisecondsSinceEpoch ?? 0;
+      final bTime = b.lastReadAt?.millisecondsSinceEpoch ?? 0;
+      return bTime.compareTo(aTime);
+    }
+
+    int byTitle(BookMetadata a, BookMetadata b) {
+      final result = a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      return result == 0 ? byRecent(a, b) : result;
+    }
+
+    int byAuthor(BookMetadata a, BookMetadata b) {
+      final result = a.author.toLowerCase().compareTo(b.author.toLowerCase());
+      return result == 0 ? byTitle(a, b) : result;
+    }
+
+    int byProgress(BookMetadata a, BookMetadata b) {
+      final result = b.globalProgress.compareTo(a.globalProgress);
+      return result == 0 ? byRecent(a, b) : result;
+    }
+
+    sorted.sort(switch (_sortMode) {
+      _BookSortMode.recent => byRecent,
+      _BookSortMode.title => byTitle,
+      _BookSortMode.author => byAuthor,
+      _BookSortMode.progress => byProgress,
+    });
+    return sorted;
+  }
+
+  Widget _buildHeader(ThemeData theme, ReadingProvider provider) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       child: Row(
@@ -142,33 +170,79 @@ class _BookshelfContentState extends State<BookshelfContent> {
             ),
           ),
           const SizedBox(width: 12),
-          OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.grid_view, size: 18),
-            label: const Text('分类'),
+          _buildSortMenu(theme),
+          const SizedBox(width: 12),
+          FilledButton.icon(
+            onPressed: provider.isLoading ? null : () => _importEpub(provider),
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(provider.isLoading ? '导入中' : '添加书籍'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(ThemeData theme, String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+  Widget _buildSortMenu(ThemeData theme) {
+    return PopupMenuButton<_BookSortMode>(
+      tooltip: '排序',
+      initialValue: _sortMode,
+      onSelected: (value) => setState(() => _sortMode = value),
+      itemBuilder: (context) => [
+        _sortMenuItem(_BookSortMode.recent, '最近阅读', Icons.schedule),
+        _sortMenuItem(_BookSortMode.title, '书名 A-Z', Icons.sort_by_alpha),
+        _sortMenuItem(_BookSortMode.author, '作者 A-Z', Icons.person_outline),
+        _sortMenuItem(_BookSortMode.progress, '阅读进度', Icons.trending_up),
+      ],
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colorScheme.outline),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sort, size: 18, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(_sortLabel(_sortMode), style: theme.textTheme.labelLarge),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_drop_down, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<_BookSortMode> _sortMenuItem(
+    _BookSortMode value,
+    String label,
+    IconData icon,
+  ) {
+    return PopupMenuItem(
+      value: value,
       child: Row(
         children: [
-          Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const Spacer(),
-          TextButton(onPressed: () {}, child: const Text('查看全部 >')),
+          Icon(icon, size: 18),
+          const SizedBox(width: 10),
+          Expanded(child: Text(label)),
+          if (_sortMode == value) const Icon(Icons.check, size: 18),
         ],
       ),
     );
+  }
+
+  String _sortLabel(_BookSortMode mode) {
+    return switch (mode) {
+      _BookSortMode.recent => '最近阅读',
+      _BookSortMode.title => '书名',
+      _BookSortMode.author => '作者',
+      _BookSortMode.progress => '进度',
+    };
   }
 
   Widget _buildEmptyState(
