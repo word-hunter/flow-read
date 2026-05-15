@@ -13,9 +13,11 @@ import '../models/analysis_result.dart';
 import '../models/book.dart';
 import '../models/book_metadata.dart';
 import '../models/bookmarked_word.dart';
+import '../models/reading_search_result.dart';
 import '../models/reading_bookmark.dart';
 import '../models/sentence_breakdown.dart';
 import '../models/user_vocabulary.dart';
+import '../models/word_context_example.dart';
 import '../models/word_analysis.dart';
 import '../services/ai_cache_service.dart';
 import '../services/ai_service.dart';
@@ -24,10 +26,12 @@ import '../services/book_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/epub_service.dart';
 import '../services/reading_config_service.dart';
+import '../services/reading_search_service.dart';
 import '../services/reading_time_service.dart';
 import '../services/sentence_analyzer.dart';
 import '../services/settings_service.dart';
 import '../services/user_vocabulary_service.dart';
+import '../services/word_context_service.dart';
 import '../services/word_level_service.dart';
 import '../services/word_repository.dart';
 import '../services/wordnet_repository.dart';
@@ -47,6 +51,7 @@ class ReadingProvider extends ChangeNotifier {
   AIService? _aiService;
   AICacheService? _aiCache;
   WordLevelService? _wordLevelService;
+  WordContextService? _wordContextService;
 
   // ============================================================
   // Core reading state
@@ -88,6 +93,17 @@ class ReadingProvider extends ChangeNotifier {
   String? _selectedText;
   AnalysisResult? _selectedAnalysis;
   List<SentenceBreakdown>? _selectedBreakdowns;
+
+  // ============================================================
+  // Full-book search state
+  // ============================================================
+  static const int collapsedSearchLimit = 100;
+  int _searchGeneration = 0;
+  String _searchQuery = '';
+  final List<ReadingSearchResult> _searchResults = [];
+  bool _isSearching = false;
+  bool _searchStoppedAtLimit = false;
+  ReadingSearchResult? _activeSearchResult;
 
   // ============================================================
   // AI state
@@ -181,6 +197,14 @@ class ReadingProvider extends ChangeNotifier {
   List<SentenceBreakdown>? get selectedBreakdowns => _selectedBreakdowns;
   SentenceAnalyzer get sentenceAnalyzer => _sentenceAnalyzer;
 
+  // -- Full-book search --
+  String get searchQuery => _searchQuery;
+  List<ReadingSearchResult> get searchResults =>
+      List.unmodifiable(_searchResults);
+  bool get isSearching => _isSearching;
+  bool get searchStoppedAtLimit => _searchStoppedAtLimit;
+  ReadingSearchResult? get activeSearchResult => _activeSearchResult;
+
   // -- Reading config (delegated to ReadingConfigService) --
   double get fontSize => _readingConfig?.fontSize ?? 16.0;
   String get fontFamily => _readingConfig?.fontFamily ?? 'Serif';
@@ -209,6 +233,7 @@ class ReadingProvider extends ChangeNotifier {
   bool isWordLearning(String word) => _userVocab?.isLearning(word) ?? false;
   UserVocabularyService? get userVocabulary => _userVocab;
   WordLevelService? get wordLevelService => _wordLevelService;
+  WordContextService? get wordContextService => _wordContextService;
 
   // ============================================================
   // Dependency injection
@@ -229,6 +254,8 @@ class ReadingProvider extends ChangeNotifier {
   void setAICache(AICacheService cache) => _aiCache = cache;
   void setWordLevelService(WordLevelService service) =>
       _wordLevelService = service;
+  void setWordContextService(WordContextService service) =>
+      _wordContextService = service;
 
   // ============================================================
   // Initialisation
@@ -240,7 +267,12 @@ class ReadingProvider extends ChangeNotifier {
     await _readingConfig?.init();
     await _readingTime?.init();
     await _userVocab?.init();
+    await _wordContextService?.init();
     notifyListeners();
+  }
+
+  List<WordContextExample> importedExamplesFor(String word) {
+    return _wordContextService?.examplesFor(word) ?? const [];
   }
 
   // ============================================================
@@ -289,6 +321,7 @@ class ReadingProvider extends ChangeNotifier {
       _allVocab.clear();
       _bookmarkedWords.clear();
       _readingBookmarks.clear();
+      _resetSearchState();
 
       _importStage = '正在统计生词、分析句式...';
       notifyListeners();
@@ -320,6 +353,7 @@ class ReadingProvider extends ChangeNotifier {
       _currentChapter = meta.currentChapter.clamp(0, book.chapters.length - 1);
       _readingProgress = meta.chapterProgress;
       _allVocab.clear();
+      _resetSearchState();
 
       _loadBookmarks(bookId);
 
@@ -361,6 +395,7 @@ class ReadingProvider extends ChangeNotifier {
       _aiPractice = null;
       _aiWordAnalysis = null;
       _isReading = false;
+      _resetSearchState();
     }
     notifyListeners();
   }
@@ -514,6 +549,80 @@ class ReadingProvider extends ChangeNotifier {
     _selectedText = null;
     _selectedAnalysis = null;
     _selectedBreakdowns = null;
+  }
+
+  // ============================================================
+  // Full-book search
+  // ============================================================
+
+  Future<void> searchInBook(String query, {bool includeAll = false}) async {
+    final book = _book;
+    final trimmedQuery = query.trim();
+    final generation = ++_searchGeneration;
+
+    _searchQuery = trimmedQuery;
+    _searchResults.clear();
+    _searchStoppedAtLimit = false;
+    _activeSearchResult = null;
+
+    if (book == null || trimmedQuery.isEmpty) {
+      _isSearching = false;
+      notifyListeners();
+      return;
+    }
+
+    _isSearching = true;
+    notifyListeners();
+
+    final limit = includeAll ? null : collapsedSearchLimit;
+    await for (final progress in ReadingSearchService.search(
+      book,
+      trimmedQuery,
+      limit: limit,
+    )) {
+      if (generation != _searchGeneration) return;
+
+      if (progress.stoppedAtLimit) {
+        _isSearching = false;
+        _searchStoppedAtLimit = true;
+        notifyListeners();
+        return;
+      }
+
+      final result = progress.result;
+      if (result == null) continue;
+      _searchResults.add(result);
+      notifyListeners();
+    }
+
+    if (generation != _searchGeneration) return;
+    _isSearching = false;
+    _searchStoppedAtLimit = false;
+    notifyListeners();
+  }
+
+  Future<void> searchAllInBook() {
+    return searchInBook(_searchQuery, includeAll: true);
+  }
+
+  Future<void> goToSearchResult(ReadingSearchResult result) async {
+    if (_book == null) return;
+    if (result.chapterIndex < 0 ||
+        result.chapterIndex >= _book!.chapters.length) {
+      return;
+    }
+
+    _activeSearchResult = result;
+    if (result.chapterIndex != _currentChapter) {
+      await goToChapter(result.chapterIndex);
+      return;
+    }
+    notifyListeners();
+  }
+
+  void clearSearch() {
+    _resetSearchState();
+    notifyListeners();
   }
 
   // ============================================================
@@ -829,6 +938,15 @@ class ReadingProvider extends ChangeNotifier {
       _currentChapter,
       _readingProgress,
     );
+  }
+
+  void _resetSearchState() {
+    _searchGeneration += 1;
+    _searchQuery = '';
+    _searchResults.clear();
+    _isSearching = false;
+    _searchStoppedAtLimit = false;
+    _activeSearchResult = null;
   }
 
   String _generateBookId(String fileName) {

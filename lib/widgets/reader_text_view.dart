@@ -45,19 +45,97 @@ Widget buildWordTapable({
   required TextStyle textStyle,
   required WordTapCallback onWordTapped,
   required String contextText,
+  required ThemeData theme,
+  String? searchQuery,
 }) {
+  final isSearchMatch = _containsSearchMatch(word, searchQuery);
   return GestureDetector(
     onTap: () => onWordTapped(word, contextText),
     child: Text(
       word,
       style: textStyle.copyWith(
         fontWeight: FontWeight.w600,
-        color: color,
+        color: isSearchMatch ? searchHighlightForegroundFor(theme) : color,
+        backgroundColor: isSearchMatch
+            ? searchHighlightBackgroundFor(theme)
+            : textStyle.backgroundColor,
         decoration: TextDecoration.underline,
         decorationColor: color.withValues(alpha: 0.5),
       ),
     ),
   );
+}
+
+List<InlineSpan> _buildSearchHighlightedSpans(
+  String text,
+  ThemeData theme, {
+  TextStyle? style,
+  String? searchQuery,
+}) {
+  final query = searchQuery?.trim();
+  if (query == null || query.isEmpty) {
+    return [TextSpan(text: text, style: style)];
+  }
+
+  final lowerText = text.toLowerCase();
+  final lowerQuery = query.toLowerCase();
+  final spans = <InlineSpan>[];
+  var lastIndex = 0;
+
+  while (lastIndex < text.length) {
+    final matchStart = lowerText.indexOf(lowerQuery, lastIndex);
+    if (matchStart < 0) break;
+    final matchEnd = matchStart + query.length;
+
+    if (matchStart > lastIndex) {
+      spans.add(
+        TextSpan(text: text.substring(lastIndex, matchStart), style: style),
+      );
+    }
+    spans.add(
+      TextSpan(
+        text: text.substring(matchStart, matchEnd),
+        style: _withSearchHighlight(style, theme),
+      ),
+    );
+    lastIndex = matchEnd;
+  }
+
+  if (lastIndex < text.length) {
+    spans.add(TextSpan(text: text.substring(lastIndex), style: style));
+  }
+  if (spans.isEmpty) {
+    spans.add(TextSpan(text: text, style: style));
+  }
+  return spans;
+}
+
+TextStyle _withSearchHighlight(TextStyle? style, ThemeData theme) {
+  final effectiveStyle = style ?? const TextStyle();
+  return effectiveStyle.copyWith(
+    backgroundColor: searchHighlightBackgroundFor(theme),
+    color: searchHighlightForegroundFor(theme),
+  );
+}
+
+bool _containsSearchMatch(String text, String? searchQuery) {
+  final query = searchQuery?.trim();
+  if (query == null || query.isEmpty) return false;
+  return text.toLowerCase().contains(query.toLowerCase());
+}
+
+Color searchHighlightBackgroundFor(ThemeData theme) {
+  if (theme.brightness == Brightness.dark) {
+    return const Color(0xFF18D6C3);
+  }
+  return const Color(0xFFFFD84D);
+}
+
+Color searchHighlightForegroundFor(ThemeData theme) {
+  if (theme.brightness == Brightness.dark) {
+    return const Color(0xFF05211F);
+  }
+  return const Color(0xFF261900);
 }
 
 InlineSpan buildHighlightedText(
@@ -68,6 +146,7 @@ InlineSpan buildHighlightedText(
   double lineHeight = 2.0,
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
+  String? searchQuery,
 }) {
   return _HighlightBuilder(
     result,
@@ -77,6 +156,7 @@ InlineSpan buildHighlightedText(
     lineHeight,
     fontFamily,
     colorSettings,
+    searchQuery,
   ).build();
 }
 
@@ -89,6 +169,7 @@ InlineSpan buildHighlightedParagraph(
   double lineHeight = 2.0,
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
+  String? searchQuery,
 }) {
   return _HighlightBuilder(
     result,
@@ -98,6 +179,7 @@ InlineSpan buildHighlightedParagraph(
     lineHeight,
     fontFamily,
     colorSettings,
+    searchQuery,
   ).buildParagraph(paragraph);
 }
 
@@ -110,6 +192,7 @@ InlineSpan buildStyledBlock(
   double lineHeight = 2.0,
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
+  String? searchQuery,
 }) {
   return _StyledBlockBuilder(
     block,
@@ -120,6 +203,7 @@ InlineSpan buildStyledBlock(
     lineHeight,
     fontFamily,
     colorSettings,
+    searchQuery,
   ).build();
 }
 
@@ -133,6 +217,7 @@ Widget buildBlockWidget(
   double lineHeight = 2.0,
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
+  String? searchQuery,
 }) {
   switch (block) {
     case TextBlock():
@@ -155,6 +240,7 @@ Widget buildBlockWidget(
         lineHeight: lineHeight,
         fontFamily: fontFamily,
         colorSettings: colorSettings,
+        searchQuery: searchQuery,
       );
 
       final richText = Text.rich(
@@ -239,6 +325,7 @@ class _HighlightBuilder {
   final double lineHeight;
   final String fontFamily;
   final VocabularyColorSettings? colorSettings;
+  final String? searchQuery;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
   late final Set<String> learningSet;
@@ -251,6 +338,7 @@ class _HighlightBuilder {
     this.lineHeight,
     this.fontFamily,
     this.colorSettings,
+    this.searchQuery,
   ) {
     vocabWords = {};
     for (final v in result.vocabulary) {
@@ -290,7 +378,13 @@ class _HighlightBuilder {
       final lower = word.toLowerCase();
 
       if (match.start > lastIndex) {
-        spans.add(TextSpan(text: paragraph.substring(lastIndex, match.start)));
+        spans.addAll(
+          _buildSearchHighlightedSpans(
+            paragraph.substring(lastIndex, match.start),
+            theme,
+            searchQuery: searchQuery,
+          ),
+        );
       }
 
       final isVocab = vocabWords.containsKey(lower);
@@ -312,6 +406,8 @@ class _HighlightBuilder {
                 fontFamily: fontFamily,
                 fontSize: fontSize,
               ),
+              theme: theme,
+              searchQuery: searchQuery,
               onWordTapped: onWordTapped,
               contextText: vocab.context,
             ),
@@ -331,13 +427,17 @@ class _HighlightBuilder {
                 fontFamily: fontFamily,
                 fontSize: fontSize,
               ),
+              theme: theme,
+              searchQuery: searchQuery,
               onWordTapped: onWordTapped,
               contextText: '...$word...',
             ),
           ),
         );
       } else if (isKnown || lower.length < AppConstants.minWordLength) {
-        spans.add(TextSpan(text: word));
+        spans.addAll(
+          _buildSearchHighlightedSpans(word, theme, searchQuery: searchQuery),
+        );
       } else {
         final unknownColor =
             colorSettings?.unknownColor ?? AppColors.familiarityLow;
@@ -353,6 +453,8 @@ class _HighlightBuilder {
                 fontFamily: fontFamily,
                 fontSize: fontSize,
               ),
+              theme: theme,
+              searchQuery: searchQuery,
               onWordTapped: onWordTapped,
               contextText: '...$word...',
             ),
@@ -363,7 +465,13 @@ class _HighlightBuilder {
     }
 
     if (lastIndex < paragraph.length) {
-      spans.add(TextSpan(text: paragraph.substring(lastIndex)));
+      spans.addAll(
+        _buildSearchHighlightedSpans(
+          paragraph.substring(lastIndex),
+          theme,
+          searchQuery: searchQuery,
+        ),
+      );
     }
     if (spans.isEmpty) {
       spans.add(TextSpan(text: paragraph));
@@ -381,6 +489,7 @@ class _StyledBlockBuilder {
   final double lineHeight;
   final String fontFamily;
   final VocabularyColorSettings? colorSettings;
+  final String? searchQuery;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
   late final Set<String> learningSet;
@@ -394,6 +503,7 @@ class _StyledBlockBuilder {
     this.lineHeight,
     this.fontFamily,
     this.colorSettings,
+    this.searchQuery,
   ) {
     vocabWords = {};
     for (final v in result.vocabulary) {
@@ -443,7 +553,14 @@ class _StyledBlockBuilder {
       if (match.start > lastIndex) {
         final segment = fullText.substring(lastIndex, match.start);
         final segStyle = _styleAt(styleRanges, lastIndex);
-        spans.add(TextSpan(text: segment, style: _textStyleFor(segStyle)));
+        spans.addAll(
+          _buildSearchHighlightedSpans(
+            segment,
+            theme,
+            style: _textStyleFor(segStyle),
+            searchQuery: searchQuery,
+          ),
+        );
       }
 
       final wordStyle = _styleAt(styleRanges, match.start);
@@ -463,7 +580,12 @@ class _StyledBlockBuilder {
                 word,
                 style: _textStyleFor(wordStyle).copyWith(
                   fontWeight: FontWeight.w600,
-                  color: color,
+                  color: _containsSearchMatch(word, searchQuery)
+                      ? searchHighlightForegroundFor(theme)
+                      : color,
+                  backgroundColor: _containsSearchMatch(word, searchQuery)
+                      ? searchHighlightBackgroundFor(theme)
+                      : null,
                   decoration: TextDecoration.underline,
                   decorationColor: color.withValues(alpha: 0.5),
                 ),
@@ -482,7 +604,12 @@ class _StyledBlockBuilder {
                 word,
                 style: _textStyleFor(wordStyle).copyWith(
                   fontWeight: FontWeight.w600,
-                  color: learningColor,
+                  color: _containsSearchMatch(word, searchQuery)
+                      ? searchHighlightForegroundFor(theme)
+                      : learningColor,
+                  backgroundColor: _containsSearchMatch(word, searchQuery)
+                      ? searchHighlightBackgroundFor(theme)
+                      : null,
                   decoration: TextDecoration.underline,
                   decorationColor: learningColor.withValues(alpha: 0.5),
                 ),
@@ -491,7 +618,14 @@ class _StyledBlockBuilder {
           ),
         );
       } else if (isKnown || lower.length < AppConstants.minWordLength) {
-        spans.add(TextSpan(text: word, style: _textStyleFor(wordStyle)));
+        spans.addAll(
+          _buildSearchHighlightedSpans(
+            word,
+            theme,
+            style: _textStyleFor(wordStyle),
+            searchQuery: searchQuery,
+          ),
+        );
       } else {
         final unknownColor =
             colorSettings?.unknownColor ?? AppColors.familiarityLow;
@@ -504,7 +638,12 @@ class _StyledBlockBuilder {
                 word,
                 style: _textStyleFor(wordStyle).copyWith(
                   fontWeight: FontWeight.w600,
-                  color: unknownColor,
+                  color: _containsSearchMatch(word, searchQuery)
+                      ? searchHighlightForegroundFor(theme)
+                      : unknownColor,
+                  backgroundColor: _containsSearchMatch(word, searchQuery)
+                      ? searchHighlightBackgroundFor(theme)
+                      : null,
                   decoration: TextDecoration.underline,
                   decorationColor: unknownColor.withValues(alpha: 0.5),
                 ),
@@ -518,10 +657,12 @@ class _StyledBlockBuilder {
 
     if (lastIndex < fullText.length) {
       final segStyle = _styleAt(styleRanges, lastIndex);
-      spans.add(
-        TextSpan(
-          text: fullText.substring(lastIndex),
+      spans.addAll(
+        _buildSearchHighlightedSpans(
+          fullText.substring(lastIndex),
+          theme,
           style: _textStyleFor(segStyle),
+          searchQuery: searchQuery,
         ),
       );
     }

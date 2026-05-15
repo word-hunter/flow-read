@@ -5,6 +5,7 @@ import '../models/aggregated_vocabulary.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
+import '../widgets/imported_word_examples.dart';
 
 class VocabPage extends StatefulWidget {
   const VocabPage({super.key});
@@ -228,6 +229,7 @@ class _VocabPageState extends State<VocabPage> {
     final entry = provider.selectedWordEntry;
     final translation = provider.selectedWordTranslation;
     final word = provider.selectedWord!;
+    final importedExamples = provider.importedExamplesFor(word);
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -357,6 +359,10 @@ class _VocabPageState extends State<VocabPage> {
                   ),
                 ),
               ),
+            ],
+            if (importedExamples.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ImportedWordExamples(examples: importedExamples),
             ],
             if (provider.isLoadingWord)
               const Center(
