@@ -52,6 +52,9 @@ void main() {
     await Hive.box<String>('reading_config').put('fontSize', '18.0');
     await Hive.box<int>('reading_time').put('_global_', 120);
     await Hive.box<String>('dictionary_cache').put('flow', '{"word":"flow"}');
+    await Hive.box<String>(
+      'word_contexts',
+    ).put('flow', '[{"word":"flow","text":"A steady flow of ideas."}]');
     await Hive.box<RssFeedSubscription>('rss_subscriptions').add(
       RssFeedSubscription(
         url: 'https://example.com/rss.xml',
@@ -96,6 +99,7 @@ void main() {
     await Hive.box<String>('reading_config').clear();
     await Hive.box<int>('reading_time').clear();
     await Hive.box<String>('dictionary_cache').clear();
+    await Hive.box<String>('word_contexts').clear();
     await Hive.box<RssFeedSubscription>('rss_subscriptions').clear();
 
     await backup.importBackupPayload(payload);
@@ -106,6 +110,10 @@ void main() {
     expect(Hive.box<String>('reading_config').get('fontSize'), '18.0');
     expect(Hive.box<int>('reading_time').get('_global_'), 120);
     expect(Hive.box<String>('dictionary_cache').get('flow'), '{"word":"flow"}');
+    expect(
+      Hive.box<String>('word_contexts').get('flow'),
+      '[{"word":"flow","text":"A steady flow of ideas."}]',
+    );
     expect(
       Hive.box<RssFeedSubscription>('rss_subscriptions').values.single.title,
       'Example',
@@ -127,6 +135,100 @@ void main() {
         jsonDecode(await file.readAsString()) as Map<String, dynamic>;
     expect(payload['app'], BackupService.appId);
     expect(payload['schemaVersion'], BackupService.schemaVersion);
+  });
+
+  test(
+    'imports Word Hunter backup as vocabulary status and examples',
+    () async {
+      await Hive.box<String>('user_vocabulary').put('agenda', 'known');
+      await Hive.box<String>('word_contexts').put(
+        'agenda',
+        jsonEncode([
+          {'word': 'agenda', 'text': 'Existing example.'},
+        ]),
+      );
+
+      final result = await backup.importWordHunterPayload({
+        'known': {'Flow': 'o', 'the': 'o'},
+        'learning': ['migrate'],
+        'context': {
+          'Agenda': [
+            {
+              'word': 'Agenda',
+              'text': 'Let us see what is on the agenda today.',
+              'title': 'Sapiens',
+              'url': 'file:///book',
+              'timestamp': 1696336821349,
+            },
+          ],
+          'Partition': [
+            {'text': 'function partition(nums, l, r) {', 'title': 'LeetCode'},
+          ],
+        },
+      });
+
+      expect(result.knownCount, 2);
+      expect(result.learningCount, 2);
+      expect(result.exampleCount, 2);
+      expect(Hive.box<String>('user_vocabulary').get('flow'), 'known');
+      expect(Hive.box<String>('user_vocabulary').get('the'), 'known');
+      expect(Hive.box<String>('user_vocabulary').get('agenda'), 'known');
+      expect(Hive.box<String>('user_vocabulary').get('migrate'), 'learning');
+      expect(Hive.box<String>('user_vocabulary').get('partition'), 'learning');
+
+      final agendaExamples =
+          jsonDecode(Hive.box<String>('word_contexts').get('agenda')!)
+              as List<dynamic>;
+      expect(agendaExamples, hasLength(2));
+      expect(
+        agendaExamples.last['text'],
+        'Let us see what is on the agenda today.',
+      );
+      expect(agendaExamples.last['title'], 'Sapiens');
+
+      final partitionExamples =
+          jsonDecode(Hive.box<String>('word_contexts').get('partition')!)
+              as List<dynamic>;
+      expect(
+        partitionExamples.single['text'],
+        'function partition(nums, l, r) {',
+      );
+    },
+  );
+
+  test('imports Word Hunter backup from file without double parsing', () async {
+    final file = File('${tempDir.path}/word_hunter.json');
+    await file.writeAsString(
+      jsonEncode({
+        'known': {'already': 'o', 'mastered': 'o'},
+        'context': {
+          'learning': [
+            {
+              'word': 'learning',
+              'text': 'Learning appears in an imported sentence.',
+              'title': 'Imported',
+            },
+          ],
+        },
+      }),
+    );
+
+    final result = await backup.importWordHunterBackupFile(file.path);
+
+    expect(result.knownCount, 2);
+    expect(result.learningCount, 1);
+    expect(result.exampleCount, 1);
+    expect(Hive.box<String>('user_vocabulary').get('already'), 'known');
+    expect(Hive.box<String>('user_vocabulary').get('mastered'), 'known');
+    expect(Hive.box<String>('user_vocabulary').get('learning'), 'learning');
+
+    final examples =
+        jsonDecode(Hive.box<String>('word_contexts').get('learning')!)
+            as List<dynamic>;
+    expect(
+      examples.single['text'],
+      'Learning appears in an imported sentence.',
+    );
   });
 }
 
@@ -162,4 +264,5 @@ Future<void> _openBoxes() async {
   await Hive.openBox<WordLevelInfo>('word_levels');
   await Hive.openBox<String>('dictionary_cache');
   await Hive.openBox<RssFeedSubscription>('rss_subscriptions');
+  await Hive.openBox<String>('word_contexts');
 }

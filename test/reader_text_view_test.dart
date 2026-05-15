@@ -83,10 +83,71 @@ void main() {
     expect(_colorFor(widgetTexts, 'learning'), learningColor);
     expect(_colorFor(widgetTexts, 'mystery'), unknownColor);
   });
+
+  testWidgets('search query highlights matching plain text spans', (
+    tester,
+  ) async {
+    final theme = ThemeData();
+
+    final span = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      theme,
+      onWordTapped: (_, _) {},
+      colorSettings: colorSettings,
+      searchQuery: 'known',
+    );
+
+    expect(_hasHighlightedTextSpan(span, 'known'), isTrue);
+  });
+
+  testWidgets('search highlight uses theme-specific contrast colors', (
+    tester,
+  ) async {
+    final lightTheme = ThemeData();
+    final darkTheme = ThemeData.dark();
+
+    final lightSpan = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      lightTheme,
+      onWordTapped: (_, _) {},
+      colorSettings: colorSettings,
+      searchQuery: 'known',
+    );
+    final darkSpan = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      darkTheme,
+      onWordTapped: (_, _) {},
+      colorSettings: colorSettings,
+      searchQuery: 'mystery',
+    );
+
+    expect(
+      _textSpanStyleFor(lightSpan, 'known')?.backgroundColor,
+      searchHighlightBackgroundFor(lightTheme),
+    );
+    expect(
+      _textSpanStyleFor(lightSpan, 'known')?.color,
+      searchHighlightForegroundFor(lightTheme),
+    );
+
+    final darkWidgetText = _widgetTexts(
+      darkSpan,
+    ).firstWhere((item) => item.text == 'mystery');
+    expect(
+      darkWidgetText.backgroundColor,
+      searchHighlightBackgroundFor(darkTheme),
+    );
+    expect(darkWidgetText.color, searchHighlightForegroundFor(darkTheme));
+  });
 }
 
-List<({String text, Color? color})> _widgetTexts(InlineSpan span) {
-  final result = <({String text, Color? color})>[];
+List<({String text, Color? color, Color? backgroundColor})> _widgetTexts(
+  InlineSpan span,
+) {
+  final result = <({String text, Color? color, Color? backgroundColor})>[];
 
   void visit(InlineSpan item) {
     if (item is TextSpan) {
@@ -103,11 +164,14 @@ List<({String text, Color? color})> _widgetTexts(InlineSpan span) {
   return result;
 }
 
-({String text, Color? color})? _textFromWidget(Widget widget) {
+({String text, Color? color, Color? backgroundColor})? _textFromWidget(
+  Widget widget,
+) {
   if (widget is Text) {
     return (
       text: widget.data ?? widget.textSpan?.toPlainText() ?? '',
       color: widget.style?.color,
+      backgroundColor: widget.style?.backgroundColor,
     );
   }
   if (widget is GestureDetector && widget.child != null) {
@@ -116,6 +180,40 @@ List<({String text, Color? color})> _widgetTexts(InlineSpan span) {
   return null;
 }
 
-Color? _colorFor(List<({String text, Color? color})> items, String text) {
+Color? _colorFor(
+  List<({String text, Color? color, Color? backgroundColor})> items,
+  String text,
+) {
   return items.firstWhere((item) => item.text == text).color;
+}
+
+bool _hasHighlightedTextSpan(InlineSpan span, String text) {
+  var found = false;
+
+  void visit(InlineSpan item) {
+    if (item is! TextSpan) return;
+    if (item.text == text && item.style?.backgroundColor != null) {
+      found = true;
+    }
+    item.children?.forEach(visit);
+  }
+
+  visit(span);
+  return found;
+}
+
+TextStyle? _textSpanStyleFor(InlineSpan span, String text) {
+  TextStyle? style;
+
+  void visit(InlineSpan item) {
+    if (item is! TextSpan) return;
+    if (item.text == text) {
+      style = item.style;
+      return;
+    }
+    item.children?.forEach(visit);
+  }
+
+  visit(span);
+  return style;
 }
