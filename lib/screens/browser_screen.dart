@@ -112,11 +112,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   }
 
   void _translateSelected() {
-    final selectedText = _selectedText.trim();
-    if (selectedText.isEmpty) return;
-    final provider = context.read<ReadingProvider>();
-    provider.translateSelectedTextAI(selectedText);
-    _showSelectedTextSheet(selectedText, SelectedTextTab.translate);
+    _analyzeSelected();
   }
 
   void _analyzeSelected() {
@@ -134,10 +130,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
         : pageText.substring(index + selectedText.length, afterEnd);
     final provider = context.read<ReadingProvider>();
     provider.analyzeSelectedTextAI(selectedText, before, after);
-    _showSelectedTextSheet(selectedText, SelectedTextTab.analysis);
+    _showSelectedTextSheet(selectedText);
   }
 
-  void _showSelectedTextSheet(String selectedText, SelectedTextTab tab) {
+  void _showSelectedTextSheet(String selectedText) {
     final analyzerName =
         '${context.read<SettingsService>().aiProvider.label} AI';
     showModalBottomSheet(
@@ -147,7 +143,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
       builder: (_) => SelectedTextSheet(
         selectedText: selectedText,
         analysis: null,
-        tab: tab,
         analyzerName: analyzerName,
       ),
     );

@@ -184,24 +184,12 @@ class _NarrowReaderState extends State<_NarrowReader> {
         analysis: provider.selectedAnalysis,
         breakdowns: provider.selectedBreakdowns,
         analyzerName: provider.sentenceAnalyzer.analyzerName,
-        tab: SelectedTextTab.analysis,
       ),
     );
   }
 
   void _translateSelectedText(String text) {
-    context.read<ReadingProvider>().analyzeSelectedText(text);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => SelectedTextSheet(
-        selectedText: text,
-        analysis: null,
-        breakdowns: null,
-        tab: SelectedTextTab.translate,
-      ),
-    );
+    _analyzeSelectedText(text);
   }
 
   void _showCopiedSnackBar() {
@@ -592,24 +580,12 @@ class _WideReaderState extends State<_WideReader> {
         analysis: provider.selectedAnalysis,
         breakdowns: provider.selectedBreakdowns,
         analyzerName: provider.sentenceAnalyzer.analyzerName,
-        tab: SelectedTextTab.analysis,
       ),
     );
   }
 
   void _translateSelectedText(String text) {
-    context.read<ReadingProvider>().analyzeSelectedText(text);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => SelectedTextSheet(
-        selectedText: text,
-        analysis: null,
-        breakdowns: null,
-        tab: SelectedTextTab.translate,
-      ),
-    );
+    _analyzeSelectedText(text);
   }
 
   @override

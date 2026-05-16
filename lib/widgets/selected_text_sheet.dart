@@ -6,20 +6,16 @@ import '../models/sentence_breakdown.dart';
 import '../providers/reading_provider.dart';
 import '../utils/syntax_helpers.dart';
 
-enum SelectedTextTab { analysis, translate }
-
 class SelectedTextSheet extends StatefulWidget {
   final String selectedText;
   final AnalysisResult? analysis; // 兼容旧的分析结果
   final List<SentenceBreakdown>? breakdowns; // 新的逐句分析
-  final SelectedTextTab tab;
   final String analyzerName;
 
   const SelectedTextSheet({
     super.key,
     required this.selectedText,
     required this.analysis,
-    required this.tab,
     this.breakdowns,
     this.analyzerName = '规则引擎',
   });
@@ -28,26 +24,7 @@ class SelectedTextSheet extends StatefulWidget {
   State<SelectedTextSheet> createState() => _SelectedTextSheetState();
 }
 
-class _SelectedTextSheetState extends State<SelectedTextSheet>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(
-      length: 2,
-      vsync: this,
-      initialIndex: widget.tab == SelectedTextTab.analysis ? 0 : 1,
-    );
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
+class _SelectedTextSheetState extends State<SelectedTextSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -66,16 +43,8 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
           child: Column(
             children: [
               _buildHeader(theme),
-              _buildTabBar(theme),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildAnalysisTab(theme, scrollController),
-                    _buildTranslateTab(theme, scrollController),
-                  ],
-                ),
-              ),
+              _buildSheetTitle(theme),
+              Expanded(child: _buildAnalysisTab(theme, scrollController)),
             ],
           ),
         );
@@ -115,32 +84,26 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
     );
   }
 
-  // ======== Tab Bar ========
+  // ======== Title ========
 
-  Widget _buildTabBar(ThemeData theme) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: Colors.transparent,
-        labelColor: theme.colorScheme.onPrimaryContainer,
-        unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-        labelStyle: theme.textTheme.labelLarge?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: theme.textTheme.labelLarge,
-        tabs: const [
-          Tab(text: '结构分析'),
-          Tab(text: '翻译'),
+  Widget _buildSheetTitle(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Row(
+        children: [
+          Icon(
+            Icons.account_tree_outlined,
+            size: 18,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '结构分析',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
         ],
       ),
     );
@@ -720,40 +683,6 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
     );
   }
 
-  // ======== 翻译 Tab ========
-
-  Widget _buildTranslateTab(
-    ThemeData theme,
-    ScrollController scrollController,
-  ) {
-    final provider = context.watch<ReadingProvider>();
-    final translation = provider.aiTranslation;
-    final isTranslating = provider.isTranslatingText;
-    final error = provider.errorMessage;
-    final translationError =
-        error != null && (error.startsWith('翻译失败') || error == 'AI 服务未初始化');
-
-    return SingleChildScrollView(
-      controller: scrollController,
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSelectedTextCard(theme),
-          const SizedBox(height: 20),
-          if (isTranslating)
-            _buildLoadingState(theme, '正在翻译...')
-          else if (translation != null && translation.isNotEmpty)
-            _buildTranslationResult(theme, translation)
-          else if (translationError)
-            _buildErrorState(theme, error)
-          else
-            _buildEmptyTranslation(theme),
-        ],
-      ),
-    );
-  }
-
   Widget _buildLoadingState(ThemeData theme, String message) {
     return Container(
       width: double.infinity,
@@ -784,46 +713,6 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
     );
   }
 
-  Widget _buildTranslationResult(ThemeData theme, String translation) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.15),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.translate, size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                'AI 翻译',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            translation,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              height: 1.7,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildErrorState(ThemeData theme, String error) {
     return Container(
       width: double.infinity,
@@ -842,36 +731,6 @@ class _SelectedTextSheetState extends State<SelectedTextSheet>
               color: theme.colorScheme.error,
             ),
             textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyTranslation(ThemeData theme) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.translate,
-            size: 36,
-            color: theme.colorScheme.tertiary.withValues(alpha: 0.4),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '选中文本后点击翻译',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
           ),
         ],
       ),

@@ -35,7 +35,6 @@ void main() {
               child: SelectedTextSheet(
                 selectedText: 'The quick fox jumps over the lazy dog.',
                 analysis: null,
-                tab: SelectedTextTab.analysis,
                 analyzerName: 'DeepSeek AI',
               ),
             ),
@@ -45,6 +44,7 @@ void main() {
     );
 
     expect(find.text('The quick fox jumps over the lazy dog.'), findsOneWidget);
+    expect(find.text('翻译'), findsNothing);
     expect(find.text('译文'), findsOneWidget);
     expect(find.text('敏捷的狐狸跳过了懒狗。'), findsOneWidget);
     expect(find.text('语法要点'), findsOneWidget);

@@ -155,23 +155,7 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _onTranslateSelected(String text) {
-    final selectedText = text.trim();
-    if (selectedText.isEmpty) return;
-    final provider = context.read<ReadingProvider>();
-    final analyzerName =
-        '${context.read<SettingsService>().aiProvider.label} AI';
-    provider.translateSelectedTextAI(selectedText);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => SelectedTextSheet(
-        selectedText: selectedText,
-        analysis: null,
-        tab: SelectedTextTab.translate,
-        analyzerName: analyzerName,
-      ),
-    );
+    _onAnalyzeSelected(text);
   }
 
   void _onAnalyzeSelected(String text) {
@@ -202,7 +186,6 @@ class _ReaderPageState extends State<ReaderPage> {
       builder: (_) => SelectedTextSheet(
         selectedText: selectedText,
         analysis: null,
-        tab: SelectedTextTab.analysis,
         analyzerName: analyzerName,
       ),
     );
