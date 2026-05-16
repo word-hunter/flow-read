@@ -306,6 +306,7 @@ class _NarrowReaderState extends State<_NarrowReader> {
                         onParagraphLongPress: (text) =>
                             _onParagraphLongPress(itemIndex, text, Offset.zero),
                         colorSettings: colorSettings,
+                        wordLevelService: provider.wordLevelService,
                       );
                     }
 
@@ -340,6 +341,7 @@ class _NarrowReaderState extends State<_NarrowReader> {
                               theme,
                               onWordTapped: _onWordTapped,
                               colorSettings: colorSettings,
+                              wordLevelService: provider.wordLevelService,
                             ),
                             style: theme.textTheme.bodyLarge?.copyWith(
                               height: 2.0,
@@ -790,6 +792,7 @@ class _WideReaderState extends State<_WideReader> {
                 _onParagraphLongPress(index, text, Offset.zero),
             fontSize: 18,
             colorSettings: colorSettings,
+            wordLevelService: context.read<ReadingProvider>().wordLevelService,
           );
         },
       );
@@ -818,6 +821,9 @@ class _WideReaderState extends State<_WideReader> {
               theme,
               onWordTapped: _onWordTapped,
               colorSettings: colorSettings,
+              wordLevelService: context
+                  .read<ReadingProvider>()
+                  .wordLevelService,
             ),
             style: theme.textTheme.bodyLarge?.copyWith(
               height: 2.0,
@@ -885,6 +891,9 @@ class _WideReaderState extends State<_WideReader> {
               theme,
               onWordTapped: _onWordTapped,
               colorSettings: colorSettings,
+              wordLevelService: context
+                  .read<ReadingProvider>()
+                  .wordLevelService,
             ),
             style: theme.textTheme.bodyLarge?.copyWith(
               height: 2.0,

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/rss_models.dart';
 import '../../providers/reading_provider.dart';
 import '../../services/analysis_service.dart';
+import '../../services/settings_service.dart';
 import '../reader_text_view.dart';
 import '../word_bottom_sheet.dart';
 
@@ -17,6 +18,7 @@ class RssArticleList extends StatefulWidget {
   final ValueChanged<String> onSearchChanged;
   final Future<void> Function(String id) onMarkRead;
   final Future<void> Function(String id) onMarkUnread;
+  final ValueChanged<RssArticle> onOpenOriginal;
 
   const RssArticleList({
     super.key,
@@ -29,6 +31,7 @@ class RssArticleList extends StatefulWidget {
     required this.onSearchChanged,
     required this.onMarkRead,
     required this.onMarkUnread,
+    required this.onOpenOriginal,
   });
 
   @override
@@ -363,6 +366,18 @@ class _RssArticleListState extends State<RssArticleList> {
                     ),
                   ],
                   const Spacer(),
+                  if (article.link?.trim().isNotEmpty == true)
+                    IconButton(
+                      icon: const Icon(Icons.open_in_new, size: 18),
+                      tooltip: '查看原文',
+                      onPressed: () => widget.onOpenOriginal(article),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
                   GestureDetector(
                     onTap: () {
                       if (article.isRead) {
@@ -403,6 +418,7 @@ class _RssArticleListState extends State<RssArticleList> {
     if (text == null || text.isEmpty) return const SizedBox.shrink();
 
     final readingProvider = context.watch<ReadingProvider>();
+    final settings = context.watch<SettingsService>();
     final result = AnalysisService.analyzeChapter(
       article.title,
       text,
@@ -419,6 +435,8 @@ class _RssArticleListState extends State<RssArticleList> {
             fontSize: 14,
             lineHeight: 1.7,
             fontFamily: 'Serif',
+            colorSettings: settings.colors,
+            wordLevelService: readingProvider.wordLevelService,
           )
           as TextSpan,
       style: theme.textTheme.bodyMedium?.copyWith(height: 1.7),

@@ -228,9 +228,12 @@ class ReadingProvider extends ChangeNotifier {
   WordAnalysis? get aiWordAnalysis => _aiWordAnalysis;
   bool get isAnalyzingWord => _isAnalyzingWord;
 
-  UserWordStatus? getWordStatus(String word) => _userVocab?.getStatus(word);
-  bool isWordKnown(String word) => _userVocab?.isKnown(word) ?? false;
-  bool isWordLearning(String word) => _userVocab?.isLearning(word) ?? false;
+  UserWordStatus? getWordStatus(String word) =>
+      _userVocab?.getStatus(_canonicalWord(word));
+  bool isWordKnown(String word) =>
+      _userVocab?.isKnown(_canonicalWord(word)) ?? false;
+  bool isWordLearning(String word) =>
+      _userVocab?.isLearning(_canonicalWord(word)) ?? false;
   UserVocabularyService? get userVocabulary => _userVocab;
   WordLevelService? get wordLevelService => _wordLevelService;
   WordContextService? get wordContextService => _wordContextService;
@@ -484,19 +487,19 @@ class ReadingProvider extends ChangeNotifier {
   // ============================================================
 
   Future<void> markWordKnown(String word) async {
-    await _userVocab?.setKnown(word);
+    await _userVocab?.setKnown(_canonicalWord(word));
     await _analyzeCurrentChapter();
     notifyListeners();
   }
 
   Future<void> markWordLearning(String word) async {
-    await _userVocab?.setLearning(word);
+    await _userVocab?.setLearning(_canonicalWord(word));
     await _analyzeCurrentChapter();
     notifyListeners();
   }
 
   Future<void> markWordUnknown(String word) async {
-    await _userVocab?.setUnknown(word);
+    await _userVocab?.setUnknown(_canonicalWord(word));
     await _analyzeCurrentChapter();
     notifyListeners();
   }
@@ -964,5 +967,11 @@ class ReadingProvider extends ChangeNotifier {
   String _generateBookId(String fileName) {
     final ts = DateTime.now().millisecondsSinceEpoch;
     return '${fileName}_${ts}_${Random().nextInt(9999)}';
+  }
+
+  String _canonicalWord(String word) {
+    final lower = word.toLowerCase().trim();
+    if (lower.isEmpty) return lower;
+    return _wordLevelService?.canonicalForm(lower) ?? lower;
   }
 }

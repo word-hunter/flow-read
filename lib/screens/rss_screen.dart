@@ -6,6 +6,7 @@ import '../providers/rss_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/rss/rss_article_list.dart';
 import '../widgets/rss/rss_feed_sidebar.dart';
+import 'browser_screen.dart';
 
 class RssScreen extends StatelessWidget {
   const RssScreen({super.key});
@@ -236,9 +237,27 @@ class RssScreen extends StatelessWidget {
             onSearchChanged: provider.updateArticleQuery,
             onMarkRead: provider.markAsRead,
             onMarkUnread: provider.markAsUnread,
+            onOpenOriginal: (article) =>
+                _openOriginalArticle(context, provider, article),
           ),
         ),
       ],
+    );
+  }
+
+  void _openOriginalArticle(
+    BuildContext context,
+    RssProvider provider,
+    RssArticle article,
+  ) {
+    final link = article.link?.trim();
+    if (link == null || link.isEmpty) return;
+    provider.markAsRead(article.id);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            BrowserScreen(initialUrl: link, initialTitle: article.title),
+      ),
     );
   }
 

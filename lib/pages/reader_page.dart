@@ -611,6 +611,7 @@ class _ReaderPageState extends State<ReaderPage> {
       fontFamily: provider.fontFamily,
       colorSettings: colorSettings,
       searchQuery: searchQuery,
+      wordLevelService: provider.wordLevelService,
     );
   }
 
@@ -684,6 +685,7 @@ class _ReaderPageState extends State<ReaderPage> {
           fontFamily: provider.fontFamily,
           colorSettings: colorSettings,
           searchQuery: searchQuery,
+          wordLevelService: provider.wordLevelService,
         ),
         style: baseStyle,
       ),
@@ -727,6 +729,7 @@ class _ReaderPageState extends State<ReaderPage> {
               lineHeight: provider.lineHeight,
               fontFamily: provider.fontFamily,
               colorSettings: colorSettings,
+              wordLevelService: provider.wordLevelService,
             ),
             style: baseStyle,
           ),
