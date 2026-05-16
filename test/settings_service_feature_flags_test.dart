@@ -23,22 +23,28 @@ void main() {
   });
 
   test(
-    'RSS experimental feature is disabled by default and persists',
+    'RSS and browser experimental features are disabled by default and persist',
     () async {
       final settings = SettingsService();
       await settings.init();
 
       expect(settings.rssFeatureEnabled, isFalse);
+      expect(settings.browserFeatureEnabled, isFalse);
 
       await settings.setRssFeatureEnabled(true);
+      await settings.setBrowserFeatureEnabled(true);
       expect(settings.rssFeatureEnabled, isTrue);
+      expect(settings.browserFeatureEnabled, isTrue);
 
       final reloaded = SettingsService();
       await reloaded.init();
       expect(reloaded.rssFeatureEnabled, isTrue);
+      expect(reloaded.browserFeatureEnabled, isTrue);
 
       await reloaded.setRssFeatureEnabled(false);
+      await reloaded.setBrowserFeatureEnabled(false);
       expect(reloaded.rssFeatureEnabled, isFalse);
+      expect(reloaded.browserFeatureEnabled, isFalse);
     },
   );
 }

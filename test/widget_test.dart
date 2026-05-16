@@ -48,12 +48,15 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('RSS 入口'), findsOneWidget);
+    expect(find.text('浏览器入口'), findsOneWidget);
     await tester.tap(find.widgetWithText(SwitchListTile, 'RSS 入口'));
+    await tester.tap(find.widgetWithText(SwitchListTile, '浏览器入口'));
     await tester.runAsync(() async {
       await Future<void>.delayed(const Duration(milliseconds: 50));
     });
     await tester.pump(const Duration(milliseconds: 300));
     expect(settings.rssFeatureEnabled, isTrue);
+    expect(settings.browserFeatureEnabled, isTrue);
     Navigator.of(tester.element(find.text('RSS 入口'))).pop();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
