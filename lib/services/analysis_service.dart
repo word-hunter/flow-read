@@ -40,8 +40,12 @@ class AnalysisService {
     final words = _extractWords(text);
 
     final vocabulary = _analyzeVocabulary(words, userVocab, wordLevelService);
-    final knownWords = _extractKnownWords(words, userVocab);
-    final learningWords = _extractLearningWords(words, userVocab);
+    final knownWords = _extractKnownWords(words, userVocab, wordLevelService);
+    final learningWords = _extractLearningWords(
+      words,
+      userVocab,
+      wordLevelService,
+    );
     final syntaxPatterns = _analyzeSyntax(sentences);
     final comprehension = _buildComprehension(
       sentences,
@@ -84,18 +88,11 @@ class AnalysisService {
     UserVocabularyService? userVocab,
     WordLevelService? wordLevelService,
   ]) {
-    final wordMap = <String, int>{};
-    for (final w in words) {
-      final lower = w.toLowerCase();
-      if (lower.length < AppConstants.minWordLength) continue;
-      wordMap[lower] = (wordMap[lower] ?? 0) + 1;
-    }
-
     final result = <Vocabulary>[];
     final seen = <String>{};
 
     for (final word in words) {
-      final lower = word.toLowerCase();
+      final lower = _canonicalWord(word, wordLevelService);
       if (lower.length < 3 || seen.contains(lower)) continue;
 
       if (isCommonWord(lower) && lower.length <= 6) continue;
@@ -104,7 +101,7 @@ class AnalysisService {
 
       seen.add(lower);
 
-      final context = _extractContext(words, word);
+      final context = _extractContext(words, word, wordLevelService);
       final meaning = _generateSimpleMeaning(lower);
       double familiarity = userVocab != null && userVocab.isLearning(lower)
           ? 0.45
@@ -142,11 +139,12 @@ class AnalysisService {
   static Set<String> _extractKnownWords(
     List<String> words, [
     UserVocabularyService? userVocab,
+    WordLevelService? wordLevelService,
   ]) {
     if (userVocab == null) return {};
     final seen = <String>{};
     for (final w in words) {
-      final lower = w.toLowerCase();
+      final lower = _canonicalWord(w, wordLevelService);
       if (lower.length < AppConstants.minWordLength) continue;
       if (seen.contains(lower)) continue;
       if (userVocab.isKnown(lower)) {
@@ -159,11 +157,12 @@ class AnalysisService {
   static Set<String> _extractLearningWords(
     List<String> words, [
     UserVocabularyService? userVocab,
+    WordLevelService? wordLevelService,
   ]) {
     if (userVocab == null) return {};
     final seen = <String>{};
     for (final w in words) {
-      final lower = w.toLowerCase();
+      final lower = _canonicalWord(w, wordLevelService);
       if (lower.length < AppConstants.minWordLength) continue;
       if (seen.contains(lower)) continue;
       if (userVocab.isLearning(lower)) {
@@ -173,9 +172,14 @@ class AnalysisService {
     return seen;
   }
 
-  static String _extractContext(List<String> allWords, String targetWord) {
+  static String _extractContext(
+    List<String> allWords,
+    String targetWord, [
+    WordLevelService? wordLevelService,
+  ]) {
+    final targetCanonical = _canonicalWord(targetWord, wordLevelService);
     final idx = allWords.indexWhere(
-      (w) => w.toLowerCase() == targetWord.toLowerCase(),
+      (w) => _canonicalWord(w, wordLevelService) == targetCanonical,
     );
     if (idx == -1) return targetWord;
 
@@ -184,6 +188,15 @@ class AnalysisService {
     final context = allWords.sublist(start, end).join(' ');
 
     return '...$context...';
+  }
+
+  static String _canonicalWord(
+    String word, [
+    WordLevelService? wordLevelService,
+  ]) {
+    final lower = word.toLowerCase().trim();
+    if (lower.isEmpty) return lower;
+    return wordLevelService?.canonicalForm(lower) ?? lower;
   }
 
   static String _generateSimpleMeaning(String word) {

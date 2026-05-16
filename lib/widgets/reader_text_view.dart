@@ -3,6 +3,7 @@ import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
+import '../services/word_level_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
 
@@ -147,6 +148,7 @@ InlineSpan buildHighlightedText(
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
+  WordLevelService? wordLevelService,
 }) {
   return _HighlightBuilder(
     result,
@@ -157,6 +159,7 @@ InlineSpan buildHighlightedText(
     fontFamily,
     colorSettings,
     searchQuery,
+    wordLevelService,
   ).build();
 }
 
@@ -170,6 +173,7 @@ InlineSpan buildHighlightedParagraph(
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
+  WordLevelService? wordLevelService,
 }) {
   return _HighlightBuilder(
     result,
@@ -180,6 +184,7 @@ InlineSpan buildHighlightedParagraph(
     fontFamily,
     colorSettings,
     searchQuery,
+    wordLevelService,
   ).buildParagraph(paragraph);
 }
 
@@ -193,6 +198,7 @@ InlineSpan buildStyledBlock(
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
+  WordLevelService? wordLevelService,
 }) {
   return _StyledBlockBuilder(
     block,
@@ -204,6 +210,7 @@ InlineSpan buildStyledBlock(
     fontFamily,
     colorSettings,
     searchQuery,
+    wordLevelService,
   ).build();
 }
 
@@ -218,6 +225,7 @@ Widget buildBlockWidget(
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
+  WordLevelService? wordLevelService,
 }) {
   switch (block) {
     case TextBlock():
@@ -241,6 +249,7 @@ Widget buildBlockWidget(
         fontFamily: fontFamily,
         colorSettings: colorSettings,
         searchQuery: searchQuery,
+        wordLevelService: wordLevelService,
       );
 
       final richText = Text.rich(
@@ -326,6 +335,7 @@ class _HighlightBuilder {
   final String fontFamily;
   final VocabularyColorSettings? colorSettings;
   final String? searchQuery;
+  final WordLevelService? wordLevelService;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
   late final Set<String> learningSet;
@@ -339,6 +349,7 @@ class _HighlightBuilder {
     this.fontFamily,
     this.colorSettings,
     this.searchQuery,
+    this.wordLevelService,
   ) {
     vocabWords = {};
     for (final v in result.vocabulary) {
@@ -363,6 +374,12 @@ class _HighlightBuilder {
     return colorSettings?.learningColor ?? AppColors.vocabLearning;
   }
 
+  String _keyFor(String word) {
+    final lower = word.toLowerCase().trim();
+    if (lower.isEmpty) return lower;
+    return wordLevelService?.canonicalForm(lower) ?? lower;
+  }
+
   InlineSpan build() {
     return buildParagraph(result.passageText);
   }
@@ -376,6 +393,7 @@ class _HighlightBuilder {
     for (final match in matches) {
       final word = match.group(0)!;
       final lower = word.toLowerCase();
+      final key = _keyFor(lower);
 
       if (match.start > lastIndex) {
         spans.addAll(
@@ -387,13 +405,13 @@ class _HighlightBuilder {
         );
       }
 
-      final isVocab = vocabWords.containsKey(lower);
-      final isKnown = knownSet.contains(lower);
-      final isLearning = !isVocab && learningSet.contains(lower);
+      final isVocab = vocabWords.containsKey(key);
+      final isKnown = knownSet.contains(key);
+      final isLearning = !isVocab && learningSet.contains(key);
 
       if (isVocab) {
-        final vocab = vocabWords[lower]!;
-        final color = _colorForVocab(lower, vocab);
+        final vocab = vocabWords[key]!;
+        final color = _colorForVocab(key, vocab);
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
@@ -434,7 +452,7 @@ class _HighlightBuilder {
             ),
           ),
         );
-      } else if (isKnown || lower.length < AppConstants.minWordLength) {
+      } else if (isKnown || key.length < AppConstants.minWordLength) {
         spans.addAll(
           _buildSearchHighlightedSpans(word, theme, searchQuery: searchQuery),
         );
@@ -490,6 +508,7 @@ class _StyledBlockBuilder {
   final String fontFamily;
   final VocabularyColorSettings? colorSettings;
   final String? searchQuery;
+  final WordLevelService? wordLevelService;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
   late final Set<String> learningSet;
@@ -504,6 +523,7 @@ class _StyledBlockBuilder {
     this.fontFamily,
     this.colorSettings,
     this.searchQuery,
+    this.wordLevelService,
   ) {
     vocabWords = {};
     for (final v in result.vocabulary) {
@@ -525,6 +545,12 @@ class _StyledBlockBuilder {
 
   Color _colorForLearning() {
     return colorSettings?.learningColor ?? AppColors.vocabLearning;
+  }
+
+  String _keyFor(String word) {
+    final lower = word.toLowerCase().trim();
+    if (lower.isEmpty) return lower;
+    return wordLevelService?.canonicalForm(lower) ?? lower;
   }
 
   InlineSpan build() {
@@ -549,6 +575,7 @@ class _StyledBlockBuilder {
     for (final match in matches) {
       final word = match.group(0)!;
       final lower = word.toLowerCase();
+      final key = _keyFor(lower);
 
       if (match.start > lastIndex) {
         final segment = fullText.substring(lastIndex, match.start);
@@ -564,13 +591,13 @@ class _StyledBlockBuilder {
       }
 
       final wordStyle = _styleAt(styleRanges, match.start);
-      final isVocab = vocabWords.containsKey(lower);
-      final isKnown = knownSet.contains(lower);
-      final isLearning = !isVocab && learningSet.contains(lower);
+      final isVocab = vocabWords.containsKey(key);
+      final isKnown = knownSet.contains(key);
+      final isLearning = !isVocab && learningSet.contains(key);
 
       if (isVocab) {
-        final vocab = vocabWords[lower]!;
-        final color = _colorForVocab(lower, vocab);
+        final vocab = vocabWords[key]!;
+        final color = _colorForVocab(key, vocab);
         spans.add(
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
@@ -617,7 +644,7 @@ class _StyledBlockBuilder {
             ),
           ),
         );
-      } else if (isKnown || lower.length < AppConstants.minWordLength) {
+      } else if (isKnown || key.length < AppConstants.minWordLength) {
         spans.addAll(
           _buildSearchHighlightedSpans(
             word,

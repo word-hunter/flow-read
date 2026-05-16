@@ -8,6 +8,7 @@ class WordLevelService {
   Box<WordLevelInfo>? _box;
   Box? _metaBox;
   final Map<String, LevelKey> _levelMap = {};
+  final Map<String, String> _originMap = {};
 
   Future<void> init() async {
     _box = Hive.box<WordLevelInfo>(_boxName);
@@ -20,31 +21,63 @@ class WordLevelService {
     for (final info in _box!.values) {
       _levelMap[info.word] = info.level;
       _levelMap[info.originForm] = info.level;
+      _originMap[info.word] = info.originForm;
+      _originMap[info.originForm] = info.originForm;
     }
   }
 
-  LevelKey getLevel(String word) {
+  String canonicalForm(String word) {
     final lower = word.toLowerCase().trim();
-    return _levelMap[lower] ?? LevelKey.other;
+    if (lower.isEmpty) return lower;
+    return _originMap[lower] ?? _canonicalContraction(lower) ?? lower;
+  }
+
+  LevelKey getLevel(String word) {
+    return _levelMap[canonicalForm(word)] ??
+        _levelMap[word.toLowerCase().trim()] ??
+        LevelKey.other;
   }
 
   String? getOriginForm(String word) {
     final lower = word.toLowerCase().trim();
-    final box = _box;
-    if (box == null) return null;
-    for (final info in box.values) {
-      if (info.word == lower && info.originForm != lower) {
-        return info.originForm;
+    final origin = _originMap[lower];
+    if (origin == null || origin == lower) return null;
+    return origin;
+  }
+
+  bool hasWord(String word) {
+    final lower = word.toLowerCase().trim();
+    return _levelMap.containsKey(lower) ||
+        _levelMap.containsKey(canonicalForm(lower));
+  }
+
+  int get wordCount => _levelMap.length;
+
+  String? _canonicalContraction(String word) {
+    const irregular = {
+      "can't": 'can',
+      'cannot': 'can',
+      "won't": 'will',
+      "shan't": 'shall',
+      "ain't": 'be',
+    };
+    final irregularBase = irregular[word];
+    if (irregularBase != null) return irregularBase;
+
+    if (word.endsWith("n't") && word.length > 3) {
+      final base = word.substring(0, word.length - 3);
+      return _originMap[base] ?? base;
+    }
+
+    const suffixes = ["'re", "'ve", "'ll", "'d", "'m", "'s"];
+    for (final suffix in suffixes) {
+      if (word.endsWith(suffix) && word.length > suffix.length) {
+        final base = word.substring(0, word.length - suffix.length);
+        return _originMap[base] ?? base;
       }
     }
     return null;
   }
-
-  bool hasWord(String word) {
-    return _levelMap.containsKey(word.toLowerCase().trim());
-  }
-
-  int get wordCount => _levelMap.length;
 
   Future<void> _importBuiltinDict() async {
     final box = _box;
@@ -76,8 +109,11 @@ class WordLevelService {
             levelIndex: level.index,
           ),
         );
+        final canonical = originForm.isNotEmpty ? originForm : word;
         _levelMap[word] = level;
-        _levelMap[originForm.isNotEmpty ? originForm : word] = level;
+        _levelMap[canonical] = level;
+        _originMap[word] = canonical;
+        _originMap[canonical] = canonical;
       }
 
       await box.addAll(batch);
