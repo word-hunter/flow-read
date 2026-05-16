@@ -307,11 +307,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ThemeData theme,
     SettingsService settings,
   ) {
+    final enabledFeatures = [
+      if (settings.rssFeatureEnabled) 'RSS',
+      if (settings.browserFeatureEnabled) '浏览器',
+    ];
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.tune_outlined),
       title: const Text('开启测试中的功能'),
-      subtitle: Text(settings.rssFeatureEnabled ? 'RSS 入口已开启' : '暂无开启项'),
+      subtitle: Text(
+        enabledFeatures.isEmpty ? '暂无开启项' : '${enabledFeatures.join('、')}入口已开启',
+      ),
       trailing: const Icon(Icons.chevron_right),
       onTap: _showExperimentalFeaturesPanel,
     );
@@ -612,6 +618,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       value: settings.rssFeatureEnabled,
                       onChanged: (value) =>
                           settings.setRssFeatureEnabled(value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      secondary: const Icon(Icons.language_outlined),
+                      title: const Text('浏览器入口'),
+                      subtitle: const Text('在首页显示网页阅读、单词标记与 AI 助手入口'),
+                      value: settings.browserFeatureEnabled,
+                      onChanged: (value) =>
+                          settings.setBrowserFeatureEnabled(value),
                     ),
                   ],
                 ),

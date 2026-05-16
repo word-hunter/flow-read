@@ -10,6 +10,7 @@ class HomeSidebar extends StatelessWidget {
   final VoidCallback onThemeToggle;
   final bool isDarkMode;
   final bool showRss;
+  final bool showBrowser;
 
   const HomeSidebar({
     super.key,
@@ -20,6 +21,7 @@ class HomeSidebar extends StatelessWidget {
     required this.onThemeToggle,
     required this.isDarkMode,
     required this.showRss,
+    required this.showBrowser,
   });
 
   static const _navItems = [
@@ -37,12 +39,18 @@ class HomeSidebar extends StatelessWidget {
     ),
     (
       tabIndex: 2,
+      icon: Icons.language_outlined,
+      selectedIcon: Icons.language,
+      label: '浏览器',
+    ),
+    (
+      tabIndex: 3,
       icon: Icons.text_fields_outlined,
       selectedIcon: Icons.text_fields,
       label: '词汇',
     ),
     (
-      tabIndex: 3,
+      tabIndex: 4,
       icon: Icons.person_outlined,
       selectedIcon: Icons.person,
       label: '我的',
@@ -61,10 +69,18 @@ class HomeSidebar extends StatelessWidget {
           const SizedBox(height: 24),
           _buildLogo(theme),
           const SizedBox(height: 32),
-          _buildNavItems(theme),
-          const Spacer(),
-          ReadingStatsRing(totalSeconds: readingTimeSeconds),
-          const Spacer(),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                children: [
+                  _buildNavItems(theme),
+                  const SizedBox(height: 28),
+                  ReadingStatsRing(totalSeconds: readingTimeSeconds),
+                ],
+              ),
+            ),
+          ),
           _buildBottomActions(theme),
           const SizedBox(height: 16),
         ],
@@ -104,7 +120,11 @@ class HomeSidebar extends StatelessWidget {
 
   Widget _buildNavItems(ThemeData theme) {
     final navItems = _navItems
-        .where((item) => showRss || item.tabIndex != 1)
+        .where(
+          (item) =>
+              (showRss || item.tabIndex != 1) &&
+              (showBrowser || item.tabIndex != 2),
+        )
         .toList(growable: false);
 
     return Column(

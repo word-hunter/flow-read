@@ -70,8 +70,10 @@ class VocabularyColorSettings {
 
 class SettingsService extends ChangeNotifier {
   static const experimentalFeatureRss = 'rss';
+  static const experimentalFeatureBrowser = 'browser';
   static const supportedExperimentalFeatureIds = <String>{
     experimentalFeatureRss,
+    experimentalFeatureBrowser,
   };
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
 
@@ -127,6 +129,8 @@ class SettingsService extends ChangeNotifier {
       Set.unmodifiable(_enabledExperimentalFeatures);
   bool get rssFeatureEnabled =>
       isExperimentalFeatureEnabled(experimentalFeatureRss);
+  bool get browserFeatureEnabled =>
+      isExperimentalFeatureEnabled(experimentalFeatureBrowser);
 
   Future<void> init() async {
     _box = Hive.box('settings');
@@ -369,6 +373,10 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setRssFeatureEnabled(bool enabled) {
     return setExperimentalFeatureEnabled(experimentalFeatureRss, enabled);
+  }
+
+  Future<void> setBrowserFeatureEnabled(bool enabled) {
+    return setExperimentalFeatureEnabled(experimentalFeatureBrowser, enabled);
   }
 
   Future<void> incrementAIUsage({
