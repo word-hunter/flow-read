@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/reading_provider.dart';
 import '../providers/rss_provider.dart';
 import '../services/app_version.dart';
+import '../services/backup_folder_access.dart';
 import '../services/backup_service.dart';
 import '../services/changelog_service.dart';
 import '../services/llm_client.dart';
@@ -27,6 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _testingConnection = false;
   bool _importingWordHunter = false;
   String? _connectionResult;
+  final BackupFolderAccess _backupFolderAccess = const BackupFolderAccess();
 
   static const _backupIntervals = <int>[15, 30, 60, 360, 1440];
 
@@ -639,13 +641,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _chooseBackupFolder() async {
-    final path = await FilePicker.getDirectoryPath(dialogTitle: '选择备份文件夹');
-    if (path == null || !mounted) return;
-    await context.read<SettingsService>().setBackupFolderPath(path);
+    final settings = context.read<SettingsService>();
+    final selection = await _backupFolderAccess.chooseDirectory(
+      dialogTitle: '选择备份文件夹',
+      initialDirectory: settings.backupFolderPath.trim().isEmpty
+          ? null
+          : settings.backupFolderPath,
+    );
+    if (selection == null || !mounted) return;
+    await settings.setBackupFolderPath(
+      selection.path,
+      bookmark: selection.bookmark,
+    );
   }
 
   Future<void> _exportBackup(BackupService backup) async {
     try {
+      final refreshed = await _refreshBackupFolderAccessIfNeeded();
+      if (!refreshed || !mounted) return;
       final path = await backup.exportNow();
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -657,6 +670,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('备份失败：$e')));
     }
+  }
+
+  Future<bool> _refreshBackupFolderAccessIfNeeded() async {
+    final settings = context.read<SettingsService>();
+    if (!_backupFolderAccess.requiresPersistentAccess ||
+        settings.backupFolderBookmark.isNotEmpty) {
+      return true;
+    }
+
+    final selection = await _backupFolderAccess.chooseDirectory(
+      dialogTitle: '重新授权备份文件夹',
+      initialDirectory: settings.backupFolderPath.trim().isEmpty
+          ? null
+          : settings.backupFolderPath,
+    );
+    if (selection == null || !mounted) return false;
+    await settings.setBackupFolderPath(
+      selection.path,
+      bookmark: selection.bookmark,
+    );
+    return true;
   }
 
   Future<void> _importBackup() async {

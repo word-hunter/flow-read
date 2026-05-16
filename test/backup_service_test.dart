@@ -65,7 +65,10 @@ void main() {
     await settings.setAIProvider('openai');
     await settings.setAIModel('reader-model');
     await settings.setApiKey('secret-key');
-    await settings.setBackupFolderPath('/private/backups');
+    await settings.setBackupFolderPath(
+      '/private/backups',
+      bookmark: 'bookmark',
+    );
     await Hive.box('settings').put('rss_read_articles', jsonEncode(['a1']));
 
     final payload = backup.createBackupPayload(
@@ -81,6 +84,7 @@ void main() {
     expect(settingKeys, isNot(contains('apiKey')));
     expect(settingKeys, isNot(contains('aiApiKeys')));
     expect(settingKeys, isNot(contains('backupFolderPath')));
+    expect(settingKeys, isNot(contains('backupFolderBookmark')));
     expect(settingKeys, contains('aiProviderId'));
 
     await settings.setIncludeSecretsInBackup(true);
@@ -121,6 +125,7 @@ void main() {
     expect(settings.aiProviderId, 'openai');
     expect(settings.apiKeyFor('openai'), 'secret-key');
     expect(settings.backupFolderPath, '/private/backups');
+    expect(settings.backupFolderBookmark, 'bookmark');
   });
 
   test('exportNow writes a backup file into the selected folder', () async {

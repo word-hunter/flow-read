@@ -2,6 +2,9 @@ import Cocoa
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
+  private var backupFolderChannel: FlutterMethodChannel?
+  private var backupFolderAccessHandler: BackupFolderAccessHandler?
+
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
@@ -9,7 +12,130 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    registerBackupFolderAccessChannel(flutterViewController: flutterViewController)
 
     super.awakeFromNib()
+  }
+
+  private func registerBackupFolderAccessChannel(flutterViewController: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: "flow_read/backup_folder_access",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    let handler = BackupFolderAccessHandler(window: self)
+    channel.setMethodCallHandler(handler.handle)
+    backupFolderChannel = channel
+    backupFolderAccessHandler = handler
+  }
+}
+
+private final class BackupFolderAccessHandler {
+  private weak var window: NSWindow?
+  private var activeUrls: [String: URL] = [:]
+
+  init(window: NSWindow) {
+    self.window = window
+  }
+
+  func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    switch call.method {
+    case "chooseBackupFolder":
+      chooseBackupFolder(arguments: call.arguments, result: result)
+    case "startAccessingBackupFolder":
+      startAccessingBackupFolder(arguments: call.arguments, result: result)
+    case "stopAccessingBackupFolder":
+      stopAccessingBackupFolder(arguments: call.arguments)
+      result(nil)
+    default:
+      result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private func chooseBackupFolder(arguments: Any?, result: @escaping FlutterResult) {
+    let args = arguments as? [String: Any]
+    let dialog = NSOpenPanel()
+    dialog.title = args?["dialogTitle"] as? String ?? "选择备份文件夹"
+    dialog.showsHiddenFiles = false
+    dialog.allowsMultipleSelection = false
+    dialog.canChooseDirectories = true
+    dialog.canChooseFiles = false
+    dialog.canCreateDirectories = true
+
+    if let initialDirectory = args?["initialDirectory"] as? String, !initialDirectory.isEmpty {
+      dialog.directoryURL = URL(fileURLWithPath: initialDirectory)
+    }
+
+    guard let window else {
+      result(nil)
+      return
+    }
+
+    dialog.beginSheetModal(for: window) { response in
+      guard response == .OK, let url = dialog.url else {
+        result(nil)
+        return
+      }
+
+      do {
+        let bookmark = try url.bookmarkData(
+          options: [.withSecurityScope],
+          includingResourceValuesForKeys: nil,
+          relativeTo: nil)
+        result([
+          "path": url.path,
+          "bookmark": bookmark.base64EncodedString()
+        ])
+      } catch {
+        result(FlutterError(
+          code: "BOOKMARK_CREATE_FAILED",
+          message: "无法保存备份文件夹访问权限",
+          details: error.localizedDescription))
+      }
+    }
+  }
+
+  private func startAccessingBackupFolder(arguments: Any?, result: @escaping FlutterResult) {
+    guard
+      let args = arguments as? [String: Any],
+      let bookmark = args["bookmark"] as? String,
+      let data = Data(base64Encoded: bookmark)
+    else {
+      let path = (arguments as? [String: Any])?["path"] as? String ?? ""
+      result(["path": path, "started": false])
+      return
+    }
+
+    var isStale = false
+    do {
+      let url = try URL(
+        resolvingBookmarkData: data,
+        options: [.withSecurityScope],
+        relativeTo: nil,
+        bookmarkDataIsStale: &isStale)
+      let started = url.startAccessingSecurityScopedResource()
+      if started {
+        activeUrls[url.path] = url
+      }
+      result([
+        "path": url.path,
+        "started": started,
+        "stale": isStale
+      ])
+    } catch {
+      result(FlutterError(
+        code: "BOOKMARK_RESOLVE_FAILED",
+        message: "无法恢复备份文件夹访问权限",
+        details: error.localizedDescription))
+    }
+  }
+
+  private func stopAccessingBackupFolder(arguments: Any?) {
+    guard
+      let args = arguments as? [String: Any],
+      let path = args["path"] as? String,
+      let url = activeUrls.removeValue(forKey: path)
+    else {
+      return
+    }
+    url.stopAccessingSecurityScopedResource()
   }
 }

@@ -89,6 +89,7 @@ class SettingsService extends ChangeNotifier {
   bool _backupEnabled = false;
   bool _includeSecretsInBackup = false;
   String _backupFolderPath = '';
+  String _backupFolderBookmark = '';
   int _backupIntervalMinutes = 60;
   DateTime? _lastBackupAt;
   String? _lastBackupPath;
@@ -121,6 +122,7 @@ class SettingsService extends ChangeNotifier {
   bool get backupEnabled => _backupEnabled;
   bool get includeSecretsInBackup => _includeSecretsInBackup;
   String get backupFolderPath => _backupFolderPath;
+  String get backupFolderBookmark => _backupFolderBookmark;
   int get backupIntervalMinutes => _backupIntervalMinutes;
   DateTime? get lastBackupAt => _lastBackupAt;
   String? get lastBackupPath => _lastBackupPath;
@@ -174,6 +176,8 @@ class SettingsService extends ChangeNotifier {
         _box.get('includeSecretsInBackup', defaultValue: false) as bool;
     _backupFolderPath =
         _box.get('backupFolderPath', defaultValue: '') as String;
+    _backupFolderBookmark =
+        _box.get('backupFolderBookmark', defaultValue: '') as String;
     _backupIntervalMinutes =
         _box.get('backupIntervalMinutes', defaultValue: 60) as int;
     final lastBackupAtValue = _box.get('lastBackupAt') as String?;
@@ -312,9 +316,15 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setBackupFolderPath(String path) async {
+  Future<void> setBackupFolderPath(String path, {String? bookmark}) async {
     _backupFolderPath = path;
+    _backupFolderBookmark = bookmark ?? '';
     await _box.put('backupFolderPath', path);
+    if (_backupFolderBookmark.isEmpty) {
+      await _box.delete('backupFolderBookmark');
+    } else {
+      await _box.put('backupFolderBookmark', _backupFolderBookmark);
+    }
     notifyListeners();
   }
 

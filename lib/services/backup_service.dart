@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 
 import '../models/book_metadata.dart';
 import '../models/rss_models.dart';
 import '../models/word_context_example.dart';
+import 'backup_folder_access.dart';
 import 'settings_service.dart';
 
 class BackupException implements Exception {
@@ -51,6 +53,7 @@ class BackupService extends ChangeNotifier {
   static const _localSettingKeys = <String>{
     'backupEnabled',
     'backupFolderPath',
+    'backupFolderBookmark',
     'backupIntervalMinutes',
     'includeSecretsInBackup',
     'lastBackupAt',
@@ -59,12 +62,14 @@ class BackupService extends ChangeNotifier {
   static const _secretSettingKeys = <String>{'apiKey', 'aiApiKeys'};
 
   final SettingsService settings;
+  final BackupFolderAccess _folderAccess;
 
   Timer? _timer;
   bool _isSyncing = false;
   String? _lastError;
 
-  BackupService(this.settings);
+  BackupService(this.settings, {BackupFolderAccess? folderAccess})
+    : _folderAccess = folderAccess ?? const BackupFolderAccess();
 
   bool get isSyncing => _isSyncing;
   String? get lastError => _lastError;
@@ -88,18 +93,29 @@ class BackupService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final createdAt = DateTime.now();
-      final payload = createBackupPayload(createdAt: createdAt);
-      final encoded = await compute(_encodeBackupPayload, payload);
-      final fileName = 'flow_read_backup_${_formatTimestamp(createdAt)}.json';
-      final file = File('$targetFolder${Platform.pathSeparator}$fileName');
-      await file.parent.create(recursive: true);
-      await file.writeAsString(encoded, flush: true);
-      await settings.setLastBackup(createdAt, file.path);
-      return file.path;
+      final folderAccess = await _folderAccess.startAccessing(
+        path: targetFolder,
+        bookmark: settings.backupFolderBookmark,
+      );
+      try {
+        final createdAt = DateTime.now();
+        final payload = createBackupPayload(createdAt: createdAt);
+        final encoded = await compute(_encodeBackupPayload, payload);
+        final fileName = 'flow_read_backup_${_formatTimestamp(createdAt)}.json';
+        final file = File(
+          '${folderAccess.path}${Platform.pathSeparator}$fileName',
+        );
+        await file.parent.create(recursive: true);
+        await file.writeAsString(encoded, flush: true);
+        await settings.setLastBackup(createdAt, file.path);
+        return file.path;
+      } finally {
+        await folderAccess.stopAccessing();
+      }
     } catch (e) {
-      _lastError = e.toString();
-      rethrow;
+      final message = _describeExportError(e);
+      _lastError = message;
+      throw BackupException(message);
     } finally {
       _isSyncing = false;
       notifyListeners();
@@ -551,6 +567,26 @@ class BackupService extends ChangeNotifier {
   String _formatTimestamp(DateTime value) {
     final iso = value.toIso8601String().split('.').first;
     return iso.replaceAll(':', '-');
+  }
+
+  String _describeExportError(Object error) {
+    if (error is BackupException) return error.message;
+    if (error is FileSystemException && _isPermissionError(error)) {
+      return '无法写入备份文件夹。请重新选择备份文件夹，授予 macOS 访问权限后再备份。';
+    }
+    if (error is PlatformException && error.code.contains('BOOKMARK')) {
+      return '无法保存备份文件夹访问权限。请重新选择备份文件夹后再备份。';
+    }
+    return error.toString();
+  }
+
+  bool _isPermissionError(FileSystemException error) {
+    final osCode = error.osError?.errorCode;
+    final message = error.message.toLowerCase();
+    return osCode == 1 ||
+        osCode == 13 ||
+        message.contains('operation not permitted') ||
+        message.contains('permission denied');
   }
 
   @override
