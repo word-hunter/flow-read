@@ -10,7 +10,9 @@ import '../services/backup_service.dart';
 import '../services/changelog_service.dart';
 import '../services/llm_client.dart';
 import '../services/settings_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/release_notes_dialog.dart';
+import '../widgets/theme_transition.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -156,6 +158,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        DropdownButtonFormField<AppThemeId>(
+          initialValue: settings.appThemeId,
+          decoration: const InputDecoration(
+            labelText: '主题',
+            prefixIcon: Icon(Icons.style_outlined, size: 20),
+            border: OutlineInputBorder(),
+          ),
+          items: AppThemeId.values
+              .map(
+                (themeId) => DropdownMenuItem(
+                  value: themeId,
+                  child: Row(
+                    children: [
+                      Icon(themeId.icon, size: 18),
+                      const SizedBox(width: 8),
+                      Text(themeId.label),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value == null) return;
+            _switchTheme(() => settings.setAppThemeId(value));
+          },
+        ),
+        const SizedBox(height: 12),
         SegmentedButton<ThemeMode>(
           segments: const [
             ButtonSegment(
@@ -175,7 +204,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ],
           selected: {settings.themeMode},
-          onSelectionChanged: (value) => settings.setThemeMode(value.first),
+          onSelectionChanged: (value) {
+            _switchTheme(() => settings.setThemeMode(value.first));
+          },
         ),
         const SizedBox(height: 18),
         _buildColorRow(
@@ -195,6 +226,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _switchTheme(ThemeMutation mutation) {
+    return runThemeTransition(context, mutation);
   }
 
   Widget _buildAISection(ThemeData theme, SettingsService settings) {

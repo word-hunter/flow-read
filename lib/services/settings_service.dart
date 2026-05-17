@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
 import 'ai_provider_config.dart';
+import '../theme/app_theme.dart';
 
 class AIUsageStats {
   int chapterSummaryCount;
@@ -85,6 +86,7 @@ class SettingsService extends ChangeNotifier {
   Map<String, String> _aiBaseUrls = {};
   Map<String, String> _aiModels = {};
   AIUsageStats _aiUsage = AIUsageStats();
+  AppThemeId _appThemeId = AppThemeId.classic;
   ThemeMode _themeMode = ThemeMode.system;
   bool _backupEnabled = false;
   bool _includeSecretsInBackup = false;
@@ -118,6 +120,7 @@ class SettingsService extends ChangeNotifier {
   }
 
   AIUsageStats get aiUsage => _aiUsage;
+  AppThemeId get appThemeId => _appThemeId;
   ThemeMode get themeMode => _themeMode;
   bool get backupEnabled => _backupEnabled;
   bool get includeSecretsInBackup => _includeSecretsInBackup;
@@ -171,6 +174,11 @@ class SettingsService extends ChangeNotifier {
     final themeModeIndex = _box.get('themeMode', defaultValue: 0) as int;
     _themeMode =
         ThemeMode.values[themeModeIndex.clamp(0, ThemeMode.values.length - 1)];
+    final appThemeIdValue = _box.get(
+      'appThemeId',
+      defaultValue: AppThemeId.classic.name,
+    );
+    _appThemeId = AppTheme.themeIdFromName(appThemeIdValue.toString());
     _backupEnabled = _box.get('backupEnabled', defaultValue: false) as bool;
     _includeSecretsInBackup =
         _box.get('includeSecretsInBackup', defaultValue: false) as bool;
@@ -243,17 +251,25 @@ class SettingsService extends ChangeNotifier {
     await _box.put(key, jsonEncode(sorted));
   }
 
+  Future<void> setAppThemeId(AppThemeId themeId) async {
+    if (_appThemeId == themeId) return;
+    _appThemeId = themeId;
+    await _box.put('appThemeId', themeId.name);
+    notifyListeners();
+  }
+
   Future<void> setThemeMode(ThemeMode mode) async {
+    if (_themeMode == mode) return;
     _themeMode = mode;
     await _box.put('themeMode', mode.index);
     notifyListeners();
   }
 
-  void toggleThemeMode() {
+  Future<void> toggleThemeMode() {
     final next = _themeMode == ThemeMode.dark
         ? ThemeMode.light
         : ThemeMode.dark;
-    setThemeMode(next);
+    return setThemeMode(next);
   }
 
   Future<void> setUnknownColor(Color color) async {

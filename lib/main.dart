@@ -36,6 +36,7 @@ import 'services/word_level_service.dart';
 import 'services/wordnet_repository.dart';
 import 'theme/app_theme.dart';
 import 'widgets/release_notes_gate.dart';
+import 'widgets/theme_transition.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -151,8 +152,27 @@ class StartupScreen extends StatelessWidget {
                             size: 36,
                             color: colorScheme.error,
                           )
-                        : const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                        : Stack(
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.center,
+                            children: [
+                              Image.asset(
+                                _logoAsset,
+                                filterQuality: FilterQuality.high,
+                              ),
+                              Positioned(
+                                right: -2,
+                                bottom: -2,
+                                child: SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                   ),
                   const SizedBox(height: 24),
@@ -290,21 +310,28 @@ class FlowReadApp extends StatelessWidget {
         ),
       ],
       child: Consumer<SettingsService>(
-        builder: (context, settings, _) => MaterialApp(
-          title: 'Flow Read',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: settings.themeMode,
-          home: const ReleaseNotesGate(child: HomeScreen()),
-          routes: {
-            '/dashboard': (_) => const DashboardScreen(),
-            '/syntax': (_) => const SyntaxScreen(),
-            '/practice': (_) => const PracticeScreen(),
-            '/review': (_) => const ReviewScreen(),
-            '/spaced_review': (_) => const SpacedReviewScreen(),
-          },
-        ),
+        builder: (context, settings, _) {
+          final themeId = settings.appThemeId;
+          return ThemeTransitionHost(
+            child: MaterialApp(
+              title: 'Flow Read',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightThemeFor(themeId),
+              darkTheme: AppTheme.darkThemeFor(themeId),
+              themeMode: settings.themeMode,
+              themeAnimationDuration: const Duration(milliseconds: 220),
+              themeAnimationCurve: Curves.easeOutCubic,
+              home: const ReleaseNotesGate(child: HomeScreen()),
+              routes: {
+                '/dashboard': (_) => const DashboardScreen(),
+                '/syntax': (_) => const SyntaxScreen(),
+                '/practice': (_) => const PracticeScreen(),
+                '/review': (_) => const ReviewScreen(),
+                '/spaced_review': (_) => const SpacedReviewScreen(),
+              },
+            ),
+          );
+        },
       ),
     );
   }

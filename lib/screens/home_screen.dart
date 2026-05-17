@@ -5,6 +5,7 @@ import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
 import '../widgets/home/home_sidebar.dart';
 import '../widgets/home/bookshelf_content.dart';
+import '../widgets/theme_transition.dart';
 import 'browser_screen.dart';
 import 'bookshelf_screen.dart';
 import 'rss_screen.dart';
@@ -199,7 +200,8 @@ class _WideHomeLayout extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (_) => const SettingsScreen()),
             ),
-            onThemeToggle: () => settings.toggleThemeMode(),
+            onThemeToggle: () =>
+                runThemeTransition(context, settings.toggleThemeMode),
             isDarkMode: theme.brightness == Brightness.dark,
             showRss: showRss,
             showBrowser: showBrowser,

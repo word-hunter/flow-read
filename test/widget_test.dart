@@ -40,6 +40,8 @@ void main() {
     );
 
     expect(find.text('外观'), findsOneWidget);
+    expect(find.text('主题'), findsOneWidget);
+    expect(find.text('经典'), findsOneWidget);
     expect(find.text('AI'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -700));
     await tester.pump(const Duration(milliseconds: 300));

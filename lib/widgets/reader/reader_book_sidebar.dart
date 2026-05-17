@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/reading_provider.dart';
 import '../../services/settings_service.dart';
+import '../theme_transition.dart';
 import '../toc_bottom_sheet.dart';
 
 class ReaderBookSidebar extends StatelessWidget {
@@ -263,7 +264,8 @@ class ReaderBookSidebar extends StatelessWidget {
               size: 20,
             ),
             color: theme.colorScheme.onSurfaceVariant,
-            onPressed: () => settings.toggleThemeMode(),
+            onPressed: () =>
+                runThemeTransition(context, settings.toggleThemeMode),
             tooltip: '切换主题',
           ),
           IconButton(
