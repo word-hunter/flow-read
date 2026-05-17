@@ -116,6 +116,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
   }
 
   void _analyzeSelected() {
+    final settings = context.read<SettingsService>();
+    if (!settings.aiFeaturesEnabled) return;
     final selectedText = _selectedText.trim();
     if (selectedText.isEmpty) return;
     final pageText = _page?.plainText ?? '';
@@ -149,10 +151,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
   }
 
   Future<void> _summarizePage() async {
+    final settings = context.read<SettingsService>();
+    if (!settings.aiFeaturesEnabled) return;
     final page = _page;
     if (page == null || page.plainText.trim().isEmpty) return;
     await _runAssistant(() {
-      final settings = context.read<SettingsService>();
       return ReadingAssistantAgent(LLMClient(settings)).summarize(
         ReadingAssistantContext(
           surface: ReadingAssistantSurface.browser,
@@ -165,13 +168,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
   }
 
   Future<void> _askQuestion() async {
+    final settings = context.read<SettingsService>();
+    if (!settings.aiFeaturesEnabled) return;
     final page = _page;
     final question = _questionController.text.trim();
     if (page == null || page.plainText.trim().isEmpty || question.isEmpty) {
       return;
     }
     await _runAssistant(() {
-      final settings = context.read<SettingsService>();
       return ReadingAssistantAgent(LLMClient(settings)).answer(
         context: ReadingAssistantContext(
           surface: ReadingAssistantSurface.browser,
@@ -209,6 +213,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final settings = context.watch<SettingsService>();
 
     return Scaffold(
       body: SafeArea(
@@ -217,7 +222,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             final isWide = constraints.maxWidth >= AppConstants.wideBreakpoint;
             return Column(
               children: [
-                _buildToolbar(theme),
+                _buildToolbar(theme, settings),
                 Divider(height: 1, color: theme.colorScheme.outlineVariant),
                 Expanded(
                   child: isWide
@@ -231,7 +236,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                               ),
                               SizedBox(
                                 width: 340,
-                                child: _buildAssistantPanel(theme),
+                                child: _buildAssistantPanel(theme, settings),
                               ),
                             ],
                           ],
@@ -242,7 +247,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                             if (_assistantOpen)
                               SizedBox(
                                 height: 320,
-                                child: _buildAssistantPanel(theme),
+                                child: _buildAssistantPanel(theme, settings),
                               ),
                           ],
                         ),
@@ -255,7 +260,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
-  Widget _buildToolbar(ThemeData theme) {
+  Widget _buildToolbar(ThemeData theme, SettingsService settings) {
     final canRefresh = _page != null && !_isLoading;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -314,8 +319,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
             icon: Icon(
               _assistantOpen ? Icons.auto_awesome : Icons.auto_awesome_outlined,
             ),
-            tooltip: 'AI 助手',
-            onPressed: () => setState(() => _assistantOpen = !_assistantOpen),
+            tooltip: settings.aiFeaturesEnabled
+                ? 'AI 助手'
+                : settings.aiFeatureDisabledReason,
+            onPressed: settings.aiFeaturesEnabled
+                ? () => setState(() => _assistantOpen = !_assistantOpen)
+                : null,
           ),
         ],
       ),
@@ -359,8 +368,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
           anchors: selectableRegionState.contextMenuAnchors,
           buttonItems: [
             ...defaultItems,
-            ContextMenuButtonItem(onPressed: _translateSelected, label: '翻译'),
-            ContextMenuButtonItem(onPressed: _analyzeSelected, label: 'AI 解析'),
+            ContextMenuButtonItem(
+              onPressed: settings.aiFeaturesEnabled ? _translateSelected : null,
+              label: '翻译',
+            ),
+            ContextMenuButtonItem(
+              onPressed: settings.aiFeaturesEnabled ? _analyzeSelected : null,
+              label: 'AI 解析',
+            ),
           ],
         );
       },
@@ -458,7 +473,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
-  Widget _buildAssistantPanel(ThemeData theme) {
+  Widget _buildAssistantPanel(ThemeData theme, SettingsService settings) {
+    final aiFeaturesEnabled = settings.aiFeaturesEnabled;
     return Container(
       color: theme.colorScheme.surface,
       padding: const EdgeInsets.all(16),
@@ -491,7 +507,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: _page == null || _assistantBusy
+              onPressed: _page == null || _assistantBusy || !aiFeaturesEnabled
                   ? null
                   : _summarizePage,
               icon: _assistantBusy
@@ -520,7 +536,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
           Align(
             alignment: Alignment.centerRight,
             child: OutlinedButton.icon(
-              onPressed: _assistantBusy ? null : _askQuestion,
+              onPressed: _assistantBusy || !aiFeaturesEnabled
+                  ? null
+                  : _askQuestion,
               icon: const Icon(Icons.send_outlined, size: 18),
               label: const Text('提问'),
             ),
@@ -545,7 +563,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
                       child: Text(
-                        _assistantError ?? _assistantOutput ?? '等待提问或总结',
+                        _assistantError ??
+                            _assistantOutput ??
+                            (aiFeaturesEnabled
+                                ? '等待提问或总结'
+                                : settings.aiFeatureDisabledReason),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           height: 1.55,
                           color: _assistantError == null

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/ai_summary.dart';
 import '../providers/reading_provider.dart';
+import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
 
 class AISummaryView extends StatefulWidget {
@@ -15,6 +16,7 @@ class _AISummaryViewState extends State<AISummaryView> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ReadingProvider>();
+    final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
 
     return DraggableScrollableSheet(
@@ -31,7 +33,7 @@ class _AISummaryViewState extends State<AISummaryView> {
           child: Column(
             children: [
               _buildHeader(theme, provider),
-              _buildLanguageToggle(theme, provider),
+              _buildLanguageToggle(theme, provider, settings.aiFeaturesEnabled),
               Divider(
                 color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
               ),
@@ -39,12 +41,13 @@ class _AISummaryViewState extends State<AISummaryView> {
                 child: provider.isGeneratingSummary
                     ? _buildLoadingView(theme)
                     : provider.aiSummary == null || provider.aiSummary!.isEmpty
-                    ? _buildEmptyView(theme, provider)
+                    ? _buildEmptyView(theme, provider, settings)
                     : _buildSummaryContent(
                         scrollController,
                         provider.aiSummary!,
                         theme,
                         provider,
+                        settings.aiFeaturesEnabled,
                       ),
               ),
             ],
@@ -84,7 +87,11 @@ class _AISummaryViewState extends State<AISummaryView> {
     );
   }
 
-  Widget _buildLanguageToggle(ThemeData theme, ReadingProvider provider) {
+  Widget _buildLanguageToggle(
+    ThemeData theme,
+    ReadingProvider provider,
+    bool aiFeaturesEnabled,
+  ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
       child: Row(
@@ -105,10 +112,12 @@ class _AISummaryViewState extends State<AISummaryView> {
               ButtonSegment(value: 'en', label: Text('EN')),
             ],
             selected: {provider.summaryLanguage},
-            onSelectionChanged: (value) {
-              provider.toggleSummaryLanguage();
-              provider.generateSummary();
-            },
+            onSelectionChanged: aiFeaturesEnabled
+                ? (value) {
+                    provider.toggleSummaryLanguage();
+                    provider.generateSummary();
+                  }
+                : null,
             style: ButtonStyle(
               visualDensity: VisualDensity.compact,
               textStyle: WidgetStatePropertyAll(theme.textTheme.labelSmall),
@@ -137,7 +146,12 @@ class _AISummaryViewState extends State<AISummaryView> {
     );
   }
 
-  Widget _buildEmptyView(ThemeData theme, ReadingProvider provider) {
+  Widget _buildEmptyView(
+    ThemeData theme,
+    ReadingProvider provider,
+    SettingsService settings,
+  ) {
+    final aiFeaturesEnabled = settings.aiFeaturesEnabled;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -149,14 +163,16 @@ class _AISummaryViewState extends State<AISummaryView> {
           ),
           const SizedBox(height: 12),
           Text(
-            '暂无总结',
+            aiFeaturesEnabled ? '暂无总结' : settings.aiFeatureDisabledReason,
             style: theme.textTheme.titleSmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: () => provider.generateSummary(),
+            onPressed: aiFeaturesEnabled
+                ? () => provider.generateSummary()
+                : null,
             icon: const Icon(Icons.auto_awesome, size: 18),
             label: const Text('生成 AI 总结'),
           ),
@@ -170,6 +186,7 @@ class _AISummaryViewState extends State<AISummaryView> {
     AISummary summary,
     ThemeData theme,
     ReadingProvider provider,
+    bool aiFeaturesEnabled,
   ) {
     return SingleChildScrollView(
       controller: scrollController,
@@ -217,10 +234,12 @@ class _AISummaryViewState extends State<AISummaryView> {
           ],
           Center(
             child: FilledButton.icon(
-              onPressed: () {
-                provider.generatePractice();
-                Navigator.pop(context);
-              },
+              onPressed: aiFeaturesEnabled
+                  ? () {
+                      provider.generatePractice();
+                      Navigator.pop(context);
+                    }
+                  : null,
               icon: const Icon(Icons.quiz, size: 18),
               label: const Text('生成练习题'),
             ),

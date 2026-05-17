@@ -4,6 +4,7 @@ import '../models/ai_practice_questions.dart';
 import '../models/review_question.dart';
 import '../providers/reading_provider.dart';
 import '../services/review_service.dart';
+import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
 
@@ -482,6 +483,7 @@ class _AIReviewState extends State<_AIReview> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final settings = context.watch<SettingsService>();
 
     return Scaffold(
       appBar: AppBar(
@@ -507,9 +509,11 @@ class _AIReviewState extends State<_AIReview> {
         ),
         actions: [
           TextButton.icon(
-            onPressed: () {
-              context.read<ReadingProvider>().generatePractice();
-            },
+            onPressed: settings.aiFeaturesEnabled
+                ? () {
+                    context.read<ReadingProvider>().generatePractice();
+                  }
+                : null,
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('重新生成'),
           ),

@@ -47,4 +47,30 @@ void main() {
       expect(reloaded.browserFeatureEnabled, isFalse);
     },
   );
+
+  test(
+    'AI features are enabled only for the selected provider with a key',
+    () async {
+      final settings = SettingsService();
+      await settings.init();
+
+      expect(settings.aiFeaturesEnabled, isFalse);
+
+      await settings.setApiKey('   ');
+      expect(settings.aiFeaturesEnabled, isFalse);
+
+      await settings.setApiKey('deepseek-key');
+      expect(settings.aiFeaturesEnabled, isTrue);
+
+      await settings.setAIProvider('openai');
+      expect(settings.aiFeaturesEnabled, isFalse);
+      expect(settings.aiFeatureDisabledReason, contains('OpenAI API Key'));
+
+      await settings.setApiKey('openai-key');
+      expect(settings.aiFeaturesEnabled, isTrue);
+
+      await settings.setAIProvider('deepseek');
+      expect(settings.aiFeaturesEnabled, isTrue);
+    },
+  );
 }

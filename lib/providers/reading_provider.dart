@@ -250,6 +250,10 @@ class ReadingProvider extends ChangeNotifier {
   bool get isGeneratingPractice => _isGeneratingPractice;
   WordAnalysis? get aiWordAnalysis => _aiWordAnalysis;
   bool get isAnalyzingWord => _isAnalyzingWord;
+  bool get aiFeaturesEnabled =>
+      _aiService != null && (_settings?.aiFeaturesEnabled ?? false);
+  String get aiFeatureDisabledReason =>
+      _settings?.aiFeatureDisabledReason ?? 'AI 服务未初始化';
 
   UserWordStatus? getWordStatus(String word) =>
       _userVocab?.getStatus(_canonicalWord(word));
@@ -818,11 +822,7 @@ class ReadingProvider extends ChangeNotifier {
     String before,
     String after,
   ) async {
-    if (_aiService == null) {
-      _errorMessage = 'AI 服务未初始化';
-      notifyListeners();
-      return;
-    }
+    if (!_ensureAIReady()) return;
     _selectedText = text;
     _isAnalyzingText = true;
     _aiTextAnalysis = null;
@@ -844,11 +844,7 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   Future<void> translateSelectedTextAI(String text) async {
-    if (_aiService == null) {
-      _errorMessage = 'AI 服务未初始化';
-      notifyListeners();
-      return;
-    }
+    if (!_ensureAIReady()) return;
     _selectedText = text;
     _isTranslatingText = true;
     _aiTranslation = null;
@@ -864,7 +860,7 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   Future<void> generateSummary() async {
-    if (_aiService == null || _result == null) return;
+    if (_result == null || !_ensureAIReady()) return;
     _isGeneratingSummary = true;
     _aiSummary = null;
     notifyListeners();
@@ -910,7 +906,7 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   Future<void> generatePractice() async {
-    if (_aiService == null || _result == null) return;
+    if (_result == null || !_ensureAIReady()) return;
     _isGeneratingPractice = true;
     _aiPractice = null;
     notifyListeners();
@@ -948,7 +944,7 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   Future<void> analyzeWordAI(String word, String sentence) async {
-    if (_aiService == null || _result == null) return;
+    if (_result == null || !_ensureAIReady()) return;
     _isAnalyzingWord = true;
     _aiWordAnalysis = null;
     notifyListeners();
@@ -977,6 +973,20 @@ class ReadingProvider extends ChangeNotifier {
 
   Future<void> clearAICache() async {
     await _aiCache?.clearAllCache();
+  }
+
+  bool _ensureAIReady() {
+    if (_aiService == null) {
+      _errorMessage = 'AI 服务未初始化';
+      notifyListeners();
+      return false;
+    }
+    if (!aiFeaturesEnabled) {
+      _errorMessage = aiFeatureDisabledReason;
+      notifyListeners();
+      return false;
+    }
+    return true;
   }
 
   // ============================================================

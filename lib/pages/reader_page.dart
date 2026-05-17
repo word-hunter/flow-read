@@ -142,11 +142,12 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _onAnalyzeSelected(String text) {
+    final settings = context.read<SettingsService>();
+    if (!settings.aiFeaturesEnabled) return;
     final selectedText = text.trim();
     if (selectedText.isEmpty) return;
     final provider = context.read<ReadingProvider>();
-    final analyzerName =
-        '${context.read<SettingsService>().aiProvider.label} AI';
+    final analyzerName = '${settings.aiProvider.label} AI';
     // Get surrounding context
     final result = provider.result;
     String before = '';
@@ -374,6 +375,7 @@ class _ReaderPageState extends State<ReaderPage> {
                 chapterTitle,
                 progressPercent: progressPercent,
                 showSidebarToggle: isWide,
+                aiFeaturesEnabled: settings.aiFeaturesEnabled,
               ),
               _buildReadingProgressLine(theme, _displayProgress),
               Expanded(
@@ -388,6 +390,7 @@ class _ReaderPageState extends State<ReaderPage> {
                               result,
                               theme,
                               colorSettings,
+                              settings.aiFeaturesEnabled,
                             ),
                           ),
                           AnimatedSize(
@@ -409,6 +412,7 @@ class _ReaderPageState extends State<ReaderPage> {
                         result,
                         theme,
                         colorSettings,
+                        settings.aiFeaturesEnabled,
                       ),
               ),
             ],
@@ -451,6 +455,7 @@ class _ReaderPageState extends State<ReaderPage> {
     AnalysisResult result,
     ThemeData theme,
     VocabularyColorSettings colorSettings,
+    bool aiFeaturesEnabled,
   ) {
     return SelectionArea(
       onSelectionChanged: (selection) {
@@ -462,15 +467,19 @@ class _ReaderPageState extends State<ReaderPage> {
         final defaultItems = selectableRegionState.contextMenuButtonItems;
         final customItems = <ContextMenuButtonItem>[
           ContextMenuButtonItem(
-            onPressed: () {
-              _onTranslateSelected(_selectedText);
-            },
+            onPressed: aiFeaturesEnabled
+                ? () {
+                    _onTranslateSelected(_selectedText);
+                  }
+                : null,
             label: '翻译',
           ),
           ContextMenuButtonItem(
-            onPressed: () {
-              _onAnalyzeSelected(_selectedText);
-            },
+            onPressed: aiFeaturesEnabled
+                ? () {
+                    _onAnalyzeSelected(_selectedText);
+                  }
+                : null,
             label: 'AI 解析',
           ),
         ];
@@ -761,6 +770,7 @@ class _ReaderPageState extends State<ReaderPage> {
     String chapterTitle, {
     required int progressPercent,
     bool showSidebarToggle = false,
+    required bool aiFeaturesEnabled,
   }) {
     final isDark =
         provider.readingTheme == 'dark' ||
@@ -937,8 +947,16 @@ class _ReaderPageState extends State<ReaderPage> {
                 ),
                 const PopupMenuDivider(),
               ],
-              const PopupMenuItem(value: 'summary', child: Text('AI 总结当前内容')),
-              const PopupMenuItem(value: 'practice', child: Text('生成练习题')),
+              PopupMenuItem(
+                value: 'summary',
+                enabled: aiFeaturesEnabled,
+                child: const Text('AI 总结当前内容'),
+              ),
+              PopupMenuItem(
+                value: 'practice',
+                enabled: aiFeaturesEnabled,
+                child: const Text('生成练习题'),
+              ),
               const PopupMenuItem(value: 'bookmarks', child: Text('历史书签')),
             ],
             child: const SizedBox.square(

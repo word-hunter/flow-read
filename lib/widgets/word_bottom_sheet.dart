@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/user_vocabulary.dart';
 import '../models/word_level.dart';
 import '../providers/reading_provider.dart';
+import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
 import 'imported_word_examples.dart';
 
@@ -22,6 +23,7 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ReadingProvider>();
+    final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
     final isBookmarked = provider.isBookmarked(widget.word) || _bookmarkAdded;
     final status = provider.getWordStatus(widget.word);
@@ -51,7 +53,13 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
                   child: _buildContent(provider, theme),
                 ),
               ),
-              _buildBottomActions(provider, theme, status, isBookmarked),
+              _buildBottomActions(
+                provider,
+                settings,
+                theme,
+                status,
+                isBookmarked,
+              ),
             ],
           ),
         );
@@ -329,10 +337,12 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
 
   Widget _buildBottomActions(
     ReadingProvider provider,
+    SettingsService settings,
     ThemeData theme,
     UserWordStatus? status,
     bool isBookmarked,
   ) {
+    final canToggleAIAnalysis = _showAIAnalysis || settings.aiFeaturesEnabled;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
       decoration: BoxDecoration(
@@ -349,7 +359,7 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: provider.isAnalyzingWord
+              onPressed: provider.isAnalyzingWord || !canToggleAIAnalysis
                   ? null
                   : () {
                       setState(() => _showAIAnalysis = !_showAIAnalysis);

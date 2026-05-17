@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/user_vocabulary.dart';
 import '../../models/word_level.dart';
 import '../../providers/reading_provider.dart';
+import '../../services/settings_service.dart';
 import '../../theme/app_colors.dart';
 import '../imported_word_examples.dart';
 
@@ -22,6 +23,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ReadingProvider>();
+    final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
     final word = provider.selectedWord;
 
@@ -48,7 +50,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
                 ? _buildEmptyState(theme)
                 : SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-                    child: _buildLearningPanel(provider, theme, word),
+                    child: _buildLearningPanel(provider, settings, theme, word),
                   ),
           ),
         ],
@@ -119,6 +121,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
 
   Widget _buildLearningPanel(
     ReadingProvider provider,
+    SettingsService settings,
     ThemeData theme,
     String word,
   ) {
@@ -136,7 +139,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
         const SizedBox(height: 22),
         _buildLearningStatusSection(provider, theme, word, status),
         const SizedBox(height: 22),
-        _buildOperationsSection(provider, theme, word, isBookmarked),
+        _buildOperationsSection(provider, settings, theme, word, isBookmarked),
       ],
     );
   }
@@ -532,10 +535,12 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
 
   Widget _buildOperationsSection(
     ReadingProvider provider,
+    SettingsService settings,
     ThemeData theme,
     String word,
     bool isBookmarked,
   ) {
+    final canToggleAIAnalysis = _showAIAnalysis || settings.aiFeaturesEnabled;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -570,7 +575,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: provider.isAnalyzingWord
+            onPressed: provider.isAnalyzingWord || !canToggleAIAnalysis
                 ? null
                 : () {
                     setState(() => _showAIAnalysis = !_showAIAnalysis);

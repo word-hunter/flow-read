@@ -117,7 +117,10 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
     final isAnalyzing = provider.isAnalyzingText;
     final error = provider.errorMessage;
     final analysisError =
-        error != null && (error.startsWith('AI 解析失败') || error == 'AI 服务未初始化');
+        error != null &&
+        (error.startsWith('AI 解析失败') ||
+            error == 'AI 服务未初始化' ||
+            error.startsWith('请先在设置中配置 '));
     final breakdowns = widget.breakdowns;
     final hasBreakdowns = breakdowns != null && breakdowns.isNotEmpty;
 

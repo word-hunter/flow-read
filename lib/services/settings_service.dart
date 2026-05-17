@@ -104,6 +104,8 @@ class SettingsService extends ChangeNotifier {
   List<AIProviderDefinition> get aiProviders => AIProviders.all;
   String get apiKey => apiKeyFor(_aiProviderId);
   String apiKeyFor(String providerId) => _aiApiKeys[providerId] ?? '';
+  bool get aiFeaturesEnabled => apiKey.trim().isNotEmpty;
+  String get aiFeatureDisabledReason => '请先在设置中配置 ${aiProvider.label} API Key';
   String aiBaseUrlFor(String providerId) =>
       _aiBaseUrls[providerId] ?? AIProviders.byId(providerId).defaultBaseUrl;
   String aiModelFor(String providerId) =>

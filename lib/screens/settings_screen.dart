@@ -905,7 +905,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildTestConnectionButton(SettingsService settings) {
     return FilledButton.icon(
-      onPressed: _testingConnection || settings.apiKey.isEmpty
+      onPressed: _testingConnection || !settings.aiFeaturesEnabled
           ? null
           : () => _testConnection(settings),
       icon: _testingConnection
