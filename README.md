@@ -45,6 +45,19 @@ dart run tool/release.dart current
 dart run tool/release.dart bump patch
 dart run tool/release.dart check
 dart run tool/release.dart notes
+dart run tool/release.dart package-local
+```
+
+本地打包测试：
+
+```bash
+dart run tool/release.dart package-local
+```
+
+该命令只使用当前版本号，不会更新 `pubspec.yaml`、`lib/services/app_version.dart` 或 `CHANGELOG.md`。默认流程会依次执行依赖安装、测试、macOS release 构建、签名权限检查、zip 打包和解压校验，产物位于 `dist/flow_read-macos-<版本>-release-local.zip`。如果只想快速验证打包流程，可以执行：
+
+```bash
+dart run tool/release.dart package-local --skip-tests
 ```
 
 发布步骤：

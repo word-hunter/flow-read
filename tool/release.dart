@@ -3,8 +3,15 @@ import 'dart:io';
 const _pubspecPath = 'pubspec.yaml';
 const _changelogPath = 'CHANGELOG.md';
 const _appVersionPath = 'lib/services/app_version.dart';
+const _defaultDistDir = 'dist';
+const _appBundleName = 'flow_read.app';
+const _requiredReleaseEntitlements = [
+  'com.apple.security.network.client',
+  'com.apple.security.files.user-selected.read-write',
+  'com.apple.security.files.bookmarks.app-scope',
+];
 
-void main(List<String> args) {
+Future<void> main(List<String> args) async {
   if (args.isEmpty || args.first == '--help' || args.first == '-h') {
     _printUsage();
     return;
@@ -20,6 +27,8 @@ void main(List<String> args) {
         _notes(args.skip(1).toList());
       case 'bump':
         _bump(args.skip(1).toList());
+      case 'package-local':
+        await _packageLocal(args.skip(1).toList());
       default:
         throw UsageException('Unknown command: ${args.first}');
     }
@@ -34,6 +43,81 @@ void main(List<String> args) {
   }
 }
 
+Future<void> _packageLocal(List<String> args) async {
+  final options = _Options(args);
+  final configuration = options.value('configuration') ?? 'release';
+  if (!{'debug', 'release'}.contains(configuration)) {
+    throw UsageException(
+      'Invalid configuration: $configuration. Use debug or release.',
+    );
+  }
+
+  final outputDir = options.value('output-dir') ?? _defaultDistDir;
+  final skipPubGet = options.has('skip-pub-get');
+  final skipTests = options.has('skip-tests');
+  final skipArchiveCheck = options.has('skip-archive-check');
+  final version = _readVersion();
+
+  _validateReleaseMetadata(version);
+
+  stdout.writeln(
+    'Packaging ${version.releaseName} (${version.full}) for local testing.',
+  );
+  stdout.writeln('Version files will not be changed.');
+
+  if (!skipPubGet) {
+    await _runCommand('flutter', ['pub', 'get']);
+  }
+  if (!skipTests) {
+    await _runCommand('flutter', ['test']);
+  }
+
+  await _runCommand('flutter', ['build', 'macos', '--$configuration']);
+
+  final appPath = _macosAppPath(configuration);
+  if (!Directory(appPath).existsSync()) {
+    throw ReleaseException('Build did not produce $appPath.');
+  }
+
+  final entitlements = await _runCommandCapture('codesign', [
+    '-d',
+    '--entitlements',
+    ':-',
+    appPath,
+  ]);
+  _verifyEntitlements(entitlements);
+
+  Directory(outputDir).createSync(recursive: true);
+  final zipPath = _joinPath(
+    outputDir,
+    'flow_read-macos-${version.releaseName}-$configuration-local.zip',
+  );
+  final zipFile = File(zipPath);
+  if (zipFile.existsSync()) {
+    zipFile.deleteSync();
+  }
+
+  await _runCommand('ditto', [
+    '-c',
+    '-k',
+    '--sequesterRsrc',
+    '--keepParent',
+    appPath,
+    zipPath,
+  ]);
+
+  if (!zipFile.existsSync() || zipFile.lengthSync() == 0) {
+    throw ReleaseException('Package was not created: $zipPath.');
+  }
+
+  if (!skipArchiveCheck) {
+    await _verifyArchive(zipPath);
+  }
+
+  stdout.writeln('');
+  stdout.writeln('Local package ready: $zipPath');
+}
+
 void _current() {
   stdout.writeln(_readVersion().currentLabel);
 }
@@ -44,6 +128,18 @@ void _check(List<String> args) {
   final expected = options.value('version');
   final tag = options.value('tag');
 
+  _validateReleaseMetadata(version, expected: expected, tag: tag);
+
+  stdout.writeln(
+    'Release metadata is valid for ${version.releaseName} (${version.full}).',
+  );
+}
+
+void _validateReleaseMetadata(
+  AppVersion version, {
+  String? expected,
+  String? tag,
+}) {
   if (expected != null && !_matchesReleaseName(expected, version)) {
     throw ReleaseException(
       'Expected version $expected, but release metadata contains ${version.releaseName}.',
@@ -63,10 +159,6 @@ void _check(List<String> args) {
     );
   }
   _checkAppVersionFile(version);
-
-  stdout.writeln(
-    'Release metadata is valid for ${version.releaseName} (${version.full}).',
-  );
 }
 
 void _notes(List<String> args) {
@@ -253,6 +345,120 @@ String _readAppVersionChannel() {
   return match?.group(1) ?? AppVersion.stableChannel;
 }
 
+String _macosAppPath(String configuration) {
+  final productDir = switch (configuration) {
+    'debug' => 'Debug',
+    'release' => 'Release',
+    _ => throw UsageException('Invalid configuration: $configuration.'),
+  };
+  return _joinPath(
+    _joinPath('build/macos/Build/Products', productDir),
+    _appBundleName,
+  );
+}
+
+void _verifyEntitlements(String output) {
+  final missing = _requiredReleaseEntitlements
+      .where((entitlement) => !output.contains(entitlement))
+      .toList();
+  if (missing.isNotEmpty) {
+    throw ReleaseException(
+      'Signed app is missing required entitlements: ${missing.join(', ')}.',
+    );
+  }
+}
+
+Future<void> _verifyArchive(String zipPath) async {
+  final tempDir = Directory.systemTemp.createTempSync(
+    'flow_read_package_check_',
+  );
+  try {
+    await _runCommand('ditto', ['-x', '-k', zipPath, tempDir.path]);
+    final extractedApp = Directory(_joinPath(tempDir.path, _appBundleName));
+    if (!extractedApp.existsSync()) {
+      throw ReleaseException(
+        'Archive check failed: $_appBundleName was not found after extraction.',
+      );
+    }
+  } finally {
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
+  }
+}
+
+Future<void> _runCommand(String executable, List<String> arguments) async {
+  stdout.writeln('');
+  stdout.writeln('> ${_formatCommand(executable, arguments)}');
+  try {
+    final process = await Process.start(
+      executable,
+      arguments,
+      mode: ProcessStartMode.inheritStdio,
+    );
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      throw ReleaseException(
+        'Command failed with exit code $exitCode: '
+        '${_formatCommand(executable, arguments)}',
+      );
+    }
+  } on ProcessException catch (error) {
+    throw ReleaseException(
+      'Failed to run ${_formatCommand(executable, arguments)}: '
+      '${error.message}',
+    );
+  }
+}
+
+Future<String> _runCommandCapture(
+  String executable,
+  List<String> arguments,
+) async {
+  stdout.writeln('');
+  stdout.writeln('> ${_formatCommand(executable, arguments)}');
+  try {
+    final result = await Process.run(executable, arguments);
+    final output = '${result.stdout}${result.stderr}';
+    stdout.write(output);
+    if (result.exitCode != 0) {
+      throw ReleaseException(
+        'Command failed with exit code ${result.exitCode}: '
+        '${_formatCommand(executable, arguments)}',
+      );
+    }
+    return output;
+  } on ProcessException catch (error) {
+    throw ReleaseException(
+      'Failed to run ${_formatCommand(executable, arguments)}: '
+      '${error.message}',
+    );
+  }
+}
+
+String _formatCommand(String executable, List<String> arguments) {
+  return [executable, ...arguments].map(_shellQuote).join(' ');
+}
+
+String _shellQuote(String value) {
+  if (value.isEmpty) {
+    return "''";
+  }
+  if (!RegExp(r'''[\s'"\\$`!]''').hasMatch(value)) {
+    return value;
+  }
+  return "'${value.replaceAll("'", r"'\''")}'";
+}
+
+String _joinPath(String parent, String child) {
+  if (parent.isEmpty) {
+    return child;
+  }
+  return parent.endsWith(Platform.pathSeparator)
+      ? '$parent$child'
+      : '$parent${Platform.pathSeparator}$child';
+}
+
 bool _matchesReleaseName(String value, AppVersion version) {
   final normalized = _normalizeReleaseName(value);
   return normalized == version.releaseName || normalized == version.name;
@@ -284,6 +490,7 @@ Usage:
   dart run tool/release.dart check [--tag v1.2.3 | --version 1.2.3]
   dart run tool/release.dart notes [--version 1.2.3]
   dart run tool/release.dart bump <major|minor|patch> [--build 12] [--channel alpha] [--date YYYY-MM-DD]
+  dart run tool/release.dart package-local [--configuration release|debug] [--output-dir dist] [--skip-pub-get] [--skip-tests] [--skip-archive-check]
 ''');
 }
 
@@ -343,6 +550,10 @@ class _Options {
       throw UsageException('Missing value for $flag.');
     }
     return args[index + 1];
+  }
+
+  bool has(String name) {
+    return args.contains('--$name');
   }
 }
 
