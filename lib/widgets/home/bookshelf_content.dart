@@ -7,7 +7,7 @@ import '../../providers/reading_provider.dart';
 import 'featured_book_card.dart';
 import 'book_shelf_row.dart';
 
-enum _BookSortMode { recent, title, author, progress }
+enum _BookSortMode { recent, title, author, progress, difficulty }
 
 class BookshelfContent extends StatefulWidget {
   const BookshelfContent({super.key});
@@ -41,6 +41,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
     final provider = context.watch<ReadingProvider>();
     final theme = Theme.of(context);
     final allBooks = provider.allBooks;
+    _queueDifficultyRatings(provider, allBooks);
 
     final filteredBooks = _sortedBooks(
       _searchQuery.isEmpty
@@ -52,6 +53,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
                       b.author.toLowerCase().contains(_searchQuery),
                 )
                 .toList(),
+      provider,
     );
 
     if (allBooks.isEmpty) {
@@ -68,6 +70,10 @@ class _BookshelfContentState extends State<BookshelfContent> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(theme, provider),
+          if (provider.isLoadingBookDifficulties) ...[
+            const SizedBox(height: 14),
+            _buildDifficultyLoadingBanner(theme, provider),
+          ],
           const SizedBox(height: 28),
           if (featuredBook != null) ...[
             _buildSectionHeader(theme, title: '继续阅读'),
@@ -86,6 +92,10 @@ class _BookshelfContentState extends State<BookshelfContent> {
               latestExcerpt: provider.latestReadingExcerptForBook(
                 featuredBook.id,
               ),
+              difficulty: provider.difficultyForBook(featuredBook.id),
+              isDifficultyLoading: provider.isBookDifficultyLoading(
+                featuredBook.id,
+              ),
               lastReadAt: featuredBook.lastReadAt,
               onContinueReading: () => _openBook(provider, featuredBook.id),
               onRename: () => _renameBook(provider, featuredBook),
@@ -96,7 +106,9 @@ class _BookshelfContentState extends State<BookshelfContent> {
           _buildSectionHeader(
             theme,
             title: '全部书籍',
-            trailing: '${filteredBooks.length} 本',
+            trailing:
+                '${filteredBooks.length} 本'
+                '${provider.isLoadingBookDifficulties ? ' · 计算中' : ''}',
           ),
           const SizedBox(height: 12),
           BookShelfRow(
@@ -107,6 +119,8 @@ class _BookshelfContentState extends State<BookshelfContent> {
                     author: b.author,
                     coverBytes: provider.getCoverBytes(b.id),
                     progressPercent: (b.globalProgress * 100).toInt(),
+                    difficulty: provider.difficultyForBook(b.id),
+                    isDifficultyLoading: provider.isBookDifficultyLoading(b.id),
                     onTap: () => _openBook(provider, b.id),
                     onRename: () => _renameBook(provider, b),
                     onRemove: () => _confirmRemoveBook(provider, b),
@@ -121,7 +135,21 @@ class _BookshelfContentState extends State<BookshelfContent> {
     );
   }
 
-  List<BookMetadata> _sortedBooks(List<BookMetadata> books) {
+  void _queueDifficultyRatings(
+    ReadingProvider provider,
+    List<BookMetadata> books,
+  ) {
+    if (books.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(context.read<ReadingProvider>().ensureBookDifficulties(books));
+    });
+  }
+
+  List<BookMetadata> _sortedBooks(
+    List<BookMetadata> books,
+    ReadingProvider provider,
+  ) {
     final sorted = [...books];
     int byTitle(BookMetadata a, BookMetadata b) {
       final result = a.title.toLowerCase().compareTo(b.title.toLowerCase());
@@ -138,11 +166,26 @@ class _BookshelfContentState extends State<BookshelfContent> {
       return result == 0 ? _compareByRecent(a, b) : result;
     }
 
+    int byDifficulty(BookMetadata a, BookMetadata b) {
+      final aRating = provider.difficultyForBook(a.id);
+      final bRating = provider.difficultyForBook(b.id);
+      if (aRating == null && bRating == null) return _compareByRecent(a, b);
+      if (aRating == null) return 1;
+      if (bRating == null) return -1;
+
+      final levelResult = aRating.level.index.compareTo(bRating.level.index);
+      if (levelResult != 0) return levelResult;
+
+      final scoreResult = aRating.score.compareTo(bRating.score);
+      return scoreResult == 0 ? _compareByRecent(a, b) : scoreResult;
+    }
+
     sorted.sort(switch (_sortMode) {
       _BookSortMode.recent => _compareByRecent,
       _BookSortMode.title => byTitle,
       _BookSortMode.author => byAuthor,
       _BookSortMode.progress => byProgress,
+      _BookSortMode.difficulty => byDifficulty,
     });
     return sorted;
   }
@@ -158,7 +201,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final sortMenu = _buildSortMenu(theme);
+          final sortMenu = _buildSortMenu(theme, provider);
           final addButton = FilledButton.icon(
             onPressed: provider.isLoading ? null : () => _importEpub(provider),
             icon: const Icon(Icons.add, size: 18),
@@ -208,6 +251,49 @@ class _BookshelfContentState extends State<BookshelfContent> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildDifficultyLoadingBanner(
+    ThemeData theme,
+    ReadingProvider provider,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.42),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: theme.colorScheme.secondary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '正在异步计算 ${provider.loadingBookDifficultyCount} 本书的难易度，完成后会显示评级和生词量依据。',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -271,16 +357,17 @@ class _BookshelfContentState extends State<BookshelfContent> {
     );
   }
 
-  Widget _buildSortMenu(ThemeData theme) {
+  Widget _buildSortMenu(ThemeData theme, ReadingProvider provider) {
     return PopupMenuButton<_BookSortMode>(
       tooltip: '排序',
       initialValue: _sortMode,
-      onSelected: (value) => setState(() => _sortMode = value),
+      onSelected: (value) => _onSortSelected(provider, value),
       itemBuilder: (context) => [
         _sortMenuItem(_BookSortMode.recent, '最近阅读', Icons.schedule),
         _sortMenuItem(_BookSortMode.title, '书名 A-Z', Icons.sort_by_alpha),
         _sortMenuItem(_BookSortMode.author, '作者 A-Z', Icons.person_outline),
         _sortMenuItem(_BookSortMode.progress, '阅读进度', Icons.trending_up),
+        _sortMenuItem(_BookSortMode.difficulty, '难易度', Icons.speed_outlined),
       ],
       child: Container(
         height: 40,
@@ -301,6 +388,13 @@ class _BookshelfContentState extends State<BookshelfContent> {
         ),
       ),
     );
+  }
+
+  void _onSortSelected(ReadingProvider provider, _BookSortMode value) {
+    setState(() => _sortMode = value);
+    if (value == _BookSortMode.difficulty) {
+      unawaited(provider.ensureBookDifficulties(provider.allBooks));
+    }
   }
 
   PopupMenuItem<_BookSortMode> _sortMenuItem(
@@ -327,6 +421,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
       _BookSortMode.title => '书名',
       _BookSortMode.author => '作者',
       _BookSortMode.progress => '进度',
+      _BookSortMode.difficulty => '难易度',
     };
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/book_difficulty.dart';
 import '../providers/reading_provider.dart';
 import '../widgets/reading_desk/donut_chart_painter.dart';
 
@@ -21,6 +22,7 @@ class _StatsPageState extends State<StatsPage> {
     final theme = Theme.of(context);
     final userVocab = provider.userVocabulary;
     final allVocab = provider.getAllVocabulary();
+    final bookDifficulty = provider.currentBookDifficulty;
 
     final knownCount = userVocab?.knownWords.length ?? 0;
     final learningCount = userVocab?.learningWords.length ?? 0;
@@ -101,6 +103,7 @@ class _StatsPageState extends State<StatsPage> {
                 total,
                 donutSegments,
                 centerPercent,
+                bookDifficulty,
                 provider,
                 theme,
               ),
@@ -176,6 +179,7 @@ class _StatsPageState extends State<StatsPage> {
     int total,
     List<DonutSegment> segments,
     int centerPercent,
+    BookDifficultyRating? bookDifficulty,
     ReadingProvider provider,
     ThemeData theme,
   ) {
@@ -183,6 +187,10 @@ class _StatsPageState extends State<StatsPage> {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
+          if (bookDifficulty != null) ...[
+            _buildBookDifficultyCard(bookDifficulty, theme),
+            const SizedBox(height: 16),
+          ],
           _buildDonutChart(
             knownCount,
             learningCount,
@@ -194,6 +202,120 @@ class _StatsPageState extends State<StatsPage> {
           ),
           const SizedBox(height: 16),
           _buildStatGrid(knownCount, provider, theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookDifficultyCard(
+    BookDifficultyRating rating,
+    ThemeData theme,
+  ) {
+    final color = _difficultyColor(rating.level);
+    final weightedText = rating.weightedNewWordCount % 1 == 0
+        ? rating.weightedNewWordCount.toStringAsFixed(0)
+        : rating.weightedNewWordCount.toStringAsFixed(1);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.speed_outlined, color: color, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '书籍难度',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      rating.levelText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '${rating.score}',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: rating.score / 100,
+              minHeight: 8,
+              backgroundColor: color.withValues(alpha: 0.14),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            rating.level.description,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _DifficultyChip(
+                icon: Icons.auto_stories_outlined,
+                label: '可学习词 ${rating.studyWordCount}',
+              ),
+              _DifficultyChip(
+                icon: Icons.help_outline,
+                label: '未掌握 ${rating.newWordCount}',
+              ),
+              _DifficultyChip(
+                icon: Icons.school_outlined,
+                label: '学习中 ${rating.learningWordCount}',
+              ),
+              _DifficultyChip(
+                icon: Icons.done_outline,
+                label: '用户已掌握 ${rating.userKnownWordCount}',
+              ),
+              _DifficultyChip(
+                icon: Icons.monitor_weight_outlined,
+                label:
+                    '负荷 $weightedText · ${rating.newWordToKnownRatioPercent}%',
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -336,6 +458,21 @@ class _StatsPageState extends State<StatsPage> {
       ],
     );
   }
+
+  Color _difficultyColor(BookDifficultyLevel level) {
+    switch (level) {
+      case BookDifficultyLevel.l1:
+        return const Color(0xFF2E7D32);
+      case BookDifficultyLevel.l2:
+        return const Color(0xFF00897B);
+      case BookDifficultyLevel.l3:
+        return const Color(0xFFF9A825);
+      case BookDifficultyLevel.l4:
+        return const Color(0xFFE67E22);
+      case BookDifficultyLevel.l5:
+        return const Color(0xFFC62828);
+    }
+  }
 }
 
 class _LegendItem {
@@ -396,6 +533,42 @@ class _StatItem {
             style: TextStyle(
               fontSize: 11,
               color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DifficultyChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _DifficultyChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

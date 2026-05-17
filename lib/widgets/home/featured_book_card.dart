@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../models/book_difficulty.dart';
 import 'book_cover_view.dart';
 
 enum FeaturedBookAction { rename, remove }
@@ -17,6 +18,8 @@ class FeaturedBookCard extends StatelessWidget {
   final int readingTimeSeconds;
   final int noteCount;
   final String? latestExcerpt;
+  final BookDifficultyRating? difficulty;
+  final bool isDifficultyLoading;
   final DateTime? lastReadAt;
   final VoidCallback onContinueReading;
   final VoidCallback? onRename;
@@ -33,6 +36,8 @@ class FeaturedBookCard extends StatelessWidget {
     required this.readingTimeSeconds,
     required this.noteCount,
     this.latestExcerpt,
+    this.difficulty,
+    this.isDifficultyLoading = false,
     this.lastReadAt,
     required this.onContinueReading,
     this.onRename,
@@ -124,6 +129,13 @@ class FeaturedBookCard extends StatelessWidget {
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
+        if (difficulty != null || isDifficultyLoading) ...[
+          const SizedBox(height: 12),
+          _FeaturedDifficultySummary(
+            rating: difficulty,
+            isLoading: isDifficultyLoading,
+          ),
+        ],
         const SizedBox(height: 20),
         Row(
           children: [
@@ -358,6 +370,73 @@ class FeaturedBookCard extends StatelessWidget {
 
   String _dateText(DateTime value) {
     return '${value.year}.${value.month.toString().padLeft(2, '0')}.${value.day.toString().padLeft(2, '0')}';
+  }
+}
+
+class _FeaturedDifficultySummary extends StatelessWidget {
+  final BookDifficultyRating? rating;
+  final bool isLoading;
+
+  const _FeaturedDifficultySummary({
+    required this.rating,
+    required this.isLoading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = rating == null
+        ? theme.colorScheme.onSurfaceVariant
+        : _difficultyColor(rating!.level);
+    final showLoading = isLoading && rating == null;
+    final title = showLoading ? '难度计算中' : rating?.levelText ?? '暂无评级';
+    final tooltip = showLoading
+        ? '正在异步计算难易度\n完成后会根据当前生词量和已掌握词汇给出评级。'
+        : rating?.tooltipText ?? '暂无足够内容生成难度说明。';
+
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 300),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.22)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.speed_outlined, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _difficultyColor(BookDifficultyLevel level) {
+    switch (level) {
+      case BookDifficultyLevel.l1:
+        return const Color(0xFF2E7D32);
+      case BookDifficultyLevel.l2:
+        return const Color(0xFF00897B);
+      case BookDifficultyLevel.l3:
+        return const Color(0xFFF9A825);
+      case BookDifficultyLevel.l4:
+        return const Color(0xFFE67E22);
+      case BookDifficultyLevel.l5:
+        return const Color(0xFFC62828);
+    }
   }
 }
 

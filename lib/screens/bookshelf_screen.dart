@@ -1,11 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_constants.dart';
 
 const _logoAsset = 'assets/brand/flow_read_logo.png';
+
+void _queueDifficultyRatings(BuildContext context, List<BookMetadata> books) {
+  if (books.isEmpty) return;
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!context.mounted) return;
+    unawaited(context.read<ReadingProvider>().ensureBookDifficulties(books));
+  });
+}
 
 class BookshelfScreen extends StatelessWidget {
   const BookshelfScreen({super.key});
@@ -31,6 +42,7 @@ class _NarrowBookshelf extends StatelessWidget {
     final provider = context.watch<ReadingProvider>();
     final theme = Theme.of(context);
     final books = provider.allBooks;
+    _queueDifficultyRatings(context, books);
 
     return Scaffold(
       appBar: AppBar(
@@ -48,7 +60,13 @@ class _NarrowBookshelf extends StatelessWidget {
         ],
       ),
       body: books.isNotEmpty
-          ? _buildBookList(context, books, provider, theme, isNarrow: true)
+          ? _buildBookListWithDifficultyStatus(
+              context,
+              books,
+              provider,
+              theme,
+              isNarrow: true,
+            )
           : _buildEmptyState(context, provider, theme),
       floatingActionButton: books.isNotEmpty
           ? FloatingActionButton.extended(
@@ -78,6 +96,7 @@ class _WideBookshelfState extends State<_WideBookshelf> {
     final provider = context.watch<ReadingProvider>();
     final theme = Theme.of(context);
     final books = provider.allBooks;
+    _queueDifficultyRatings(context, books);
 
     return Scaffold(
       appBar: AppBar(
@@ -101,7 +120,7 @@ class _WideBookshelfState extends State<_WideBookshelf> {
         ],
       ),
       body: books.isNotEmpty
-          ? _buildBookList(
+          ? _buildBookListWithDifficultyStatus(
               context,
               books,
               provider,
@@ -121,6 +140,75 @@ class _WideBookshelfState extends State<_WideBookshelf> {
           : null,
     );
   }
+}
+
+Widget _buildBookListWithDifficultyStatus(
+  BuildContext context,
+  List<BookMetadata> books,
+  ReadingProvider provider,
+  ThemeData theme, {
+  required bool isNarrow,
+  bool isGrid = false,
+}) {
+  return Column(
+    children: [
+      if (provider.isLoadingBookDifficulties)
+        _buildDifficultyLoadingBanner(theme, provider),
+      Expanded(
+        child: _buildBookList(
+          context,
+          books,
+          provider,
+          theme,
+          isNarrow: isNarrow,
+          isGrid: isGrid,
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _buildDifficultyLoadingBanner(
+  ThemeData theme,
+  ReadingProvider provider,
+) {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: theme.colorScheme.secondary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '正在异步计算 ${provider.loadingBookDifficultyCount} 本书的难易度，完成后会显示评级和生词量依据。',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 Widget _buildBookList(
@@ -351,6 +439,14 @@ Widget _buildBookDetails(
           color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
+      if (provider.difficultyForBook(meta.id) != null ||
+          provider.isBookDifficultyLoading(meta.id)) ...[
+        const SizedBox(height: 12),
+        _BookDifficultySummary(
+          rating: provider.difficultyForBook(meta.id),
+          isLoading: provider.isBookDifficultyLoading(meta.id),
+        ),
+      ],
       const SizedBox(height: 20),
       Row(
         children: [
@@ -390,6 +486,70 @@ Widget _buildBookDetails(
       ),
     ],
   );
+}
+
+class _BookDifficultySummary extends StatelessWidget {
+  final BookDifficultyRating? rating;
+  final bool isLoading;
+
+  const _BookDifficultySummary({required this.rating, required this.isLoading});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = rating == null
+        ? theme.colorScheme.onSurfaceVariant
+        : _difficultyColor(rating!.level);
+    final showLoading = isLoading && rating == null;
+    final title = showLoading ? '难度计算中' : rating?.levelText ?? '暂无评级';
+    final tooltip = showLoading
+        ? '正在异步计算难易度\n完成后会根据当前生词量和已掌握词汇给出评级。'
+        : rating?.tooltipText ?? '暂无足够内容生成难度说明。';
+
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 300),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.22)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.speed_outlined, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _difficultyColor(BookDifficultyLevel level) {
+    switch (level) {
+      case BookDifficultyLevel.l1:
+        return const Color(0xFF2E7D32);
+      case BookDifficultyLevel.l2:
+        return const Color(0xFF00897B);
+      case BookDifficultyLevel.l3:
+        return const Color(0xFFF9A825);
+      case BookDifficultyLevel.l4:
+        return const Color(0xFFE67E22);
+      case BookDifficultyLevel.l5:
+        return const Color(0xFFC62828);
+    }
+  }
 }
 
 void _openBook(

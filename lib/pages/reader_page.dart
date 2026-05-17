@@ -784,8 +784,13 @@ class _ReaderPageState extends State<ReaderPage> {
     final contentTitle = chapterTitle.trim().isNotEmpty
         ? chapterTitle.trim()
         : '当前位置';
+    final difficultyLabel = provider.currentBookDifficulty?.level.shortLabel;
     final locationLabel = provider.hasBook
-        ? '位置 ${provider.currentChapter + 1} / ${provider.chapterCount} · $progressPercent%'
+        ? [
+            '位置 ${provider.currentChapter + 1} / ${provider.chapterCount}',
+            '$progressPercent%',
+            ?difficultyLabel,
+          ].join(' · ')
         : 'Reader';
     final canGoPreviousChapter =
         provider.hasBook && provider.currentChapter > 0;

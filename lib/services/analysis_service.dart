@@ -1,4 +1,6 @@
 import '../models/analysis_result.dart';
+import '../models/book.dart';
+import '../models/book_difficulty.dart';
 import '../models/word_level.dart';
 import '../theme/app_constants.dart';
 import 'common_words.dart';
@@ -83,6 +85,85 @@ class AnalysisService {
     return _wordSplitter.allMatches(text).map((m) => m.group(0)!).toList();
   }
 
+  static Set<String> collectStudyWords(
+    String text, [
+    WordLevelService? wordLevelService,
+  ]) {
+    final result = <String>{};
+    for (final word in _extractWords(text)) {
+      final lower = _canonicalWord(word, wordLevelService);
+      if (!_isStudyWord(lower)) continue;
+      result.add(lower);
+    }
+    return result;
+  }
+
+  static BookDifficultyRating analyzeBookDifficulty(
+    Book book, [
+    UserVocabularyService? userVocab,
+    WordLevelService? wordLevelService,
+  ]) {
+    return rateBookDifficulty(
+      collectBookStudyWords(book, wordLevelService),
+      userVocab,
+    );
+  }
+
+  static Set<String> collectBookStudyWords(
+    Book book, [
+    WordLevelService? wordLevelService,
+  ]) {
+    final studyWords = <String>{};
+    for (final chapter in book.chapters) {
+      studyWords.addAll(collectStudyWords(chapter.plainText, wordLevelService));
+    }
+    return studyWords;
+  }
+
+  static BookDifficultyRating rateBookDifficulty(
+    Set<String> studyWords, [
+    UserVocabularyService? userVocab,
+  ]) {
+    var masteredWordCount = 0;
+    var learningWordCount = 0;
+    var newWordCount = 0;
+    for (final word in studyWords) {
+      if (userVocab?.isKnown(word) ?? false) {
+        masteredWordCount += 1;
+      } else if (userVocab?.isLearning(word) ?? false) {
+        learningWordCount += 1;
+      } else {
+        newWordCount += 1;
+      }
+    }
+
+    final userKnownWordCount = userVocab?.knownWords.length ?? 0;
+    final weightedNewWordCount = newWordCount + learningWordCount * 0.5;
+    final newWordToKnownRatio = userKnownWordCount <= 0
+        ? (weightedNewWordCount > 0 ? 1.0 : 0.0)
+        : weightedNewWordCount / userKnownWordCount;
+    final level = BookDifficultyLevel.resolve(
+      weightedNewWordCount: weightedNewWordCount,
+      newWordToKnownRatio: newWordToKnownRatio,
+    );
+    final score = (newWordToKnownRatio / 0.25 * 100)
+        .round()
+        .clamp(0, 100)
+        .toInt();
+
+    return BookDifficultyRating(
+      studyWordCount: studyWords.length,
+      masteredWordCount: masteredWordCount,
+      userKnownWordCount: userKnownWordCount,
+      learningWordCount: learningWordCount,
+      newWordCount: newWordCount,
+      weightedNewWordCount: weightedNewWordCount,
+      newWordToKnownRatio: newWordToKnownRatio,
+      score: score,
+      level: level,
+    );
+  }
+
   static List<Vocabulary> _analyzeVocabulary(
     List<String> words, [
     UserVocabularyService? userVocab,
@@ -93,9 +174,7 @@ class AnalysisService {
 
     for (final word in words) {
       final lower = _canonicalWord(word, wordLevelService);
-      if (lower.length < 3 || seen.contains(lower)) continue;
-
-      if (isCommonWord(lower) && lower.length <= 6) continue;
+      if (!_isStudyWord(lower) || seen.contains(lower)) continue;
 
       if (userVocab != null && userVocab.isKnown(lower)) continue;
 
@@ -197,6 +276,12 @@ class AnalysisService {
     final lower = word.toLowerCase().trim();
     if (lower.isEmpty) return lower;
     return wordLevelService?.canonicalForm(lower) ?? lower;
+  }
+
+  static bool _isStudyWord(String word) {
+    if (word.length < AppConstants.minWordLength) return false;
+    if (isCommonWord(word) && word.length <= 6) return false;
+    return true;
   }
 
   static String _generateSimpleMeaning(String word) {

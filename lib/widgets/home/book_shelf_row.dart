@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../models/book_difficulty.dart';
 import 'book_shelf_item.dart';
 
 class BookShelfRow extends StatelessWidget {
@@ -43,6 +44,8 @@ class BookShelfRow extends StatelessWidget {
             author: book.author,
             coverBytes: book.coverBytes,
             progressPercent: book.progressPercent,
+            difficulty: book.difficulty,
+            isDifficultyLoading: book.isDifficultyLoading,
             onTap: book.onTap,
             onRename: book.onRename,
             onRemove: book.onRemove,
@@ -58,6 +61,8 @@ class BookShelfData {
   final String author;
   final Uint8List? coverBytes;
   final int progressPercent;
+  final BookDifficultyRating? difficulty;
+  final bool isDifficultyLoading;
   final VoidCallback? onTap;
   final VoidCallback? onRename;
   final VoidCallback? onRemove;
@@ -67,6 +72,8 @@ class BookShelfData {
     required this.author,
     this.coverBytes,
     required this.progressPercent,
+    this.difficulty,
+    this.isDifficultyLoading = false,
     this.onTap,
     this.onRename,
     this.onRemove,
