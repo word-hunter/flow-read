@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/reading_provider.dart';
@@ -30,8 +33,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _testingConnection = false;
   bool _importingWordHunter = false;
   String? _connectionResult;
+  _SettingsSection _selectedSection = _SettingsSection.appearance;
   final BackupFolderAccess _backupFolderAccess = const BackupFolderAccess();
 
+  static const _desktopBreakpoint = 760.0;
   static const _backupIntervals = <int>[15, 30, 60, 360, 1440];
 
   static const _colorOptions = [
@@ -63,48 +68,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _syncAIControllers(settings);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('设置', style: TextStyle(fontWeight: FontWeight.w600)),
-        centerTitle: false,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          _buildSection(
-            theme: theme,
-            icon: Icons.palette_outlined,
-            title: '外观',
-            child: _buildAppearanceSection(theme, settings),
+      body: SafeArea(
+        child: ColoredBox(
+          color: theme.colorScheme.surface,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth >= _desktopBreakpoint) {
+                return Row(
+                  children: [
+                    _buildSidebar(theme),
+                    VerticalDivider(
+                      width: 1,
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.7,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildSectionContent(theme, settings, backup),
+                    ),
+                  ],
+                );
+              }
+              return _buildCompactLayout(theme, settings, backup);
+            },
           ),
-          const SizedBox(height: 16),
-          _buildSection(
-            theme: theme,
-            icon: Icons.auto_awesome,
-            title: 'AI',
-            child: _buildAISection(theme, settings),
-          ),
-          const SizedBox(height: 16),
-          _buildSection(
-            theme: theme,
-            icon: Icons.science_outlined,
-            title: '测试功能',
-            child: _buildExperimentalFeaturesSection(theme, settings),
-          ),
-          const SizedBox(height: 16),
-          _buildSection(
-            theme: theme,
-            icon: Icons.backup_outlined,
-            title: '备份',
-            child: _buildBackupSection(theme, settings, backup),
-          ),
-          const SizedBox(height: 16),
-          _buildSection(
-            theme: theme,
-            icon: Icons.info_outline,
-            title: '关于',
-            child: _buildAboutSection(),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -117,114 +105,263 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _modelController.text = settings.aiModelFor(settings.aiProviderId);
   }
 
-  Widget _buildSection({
-    required ThemeData theme,
-    required IconData icon,
-    required String title,
-    required Widget child,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+  Widget _buildSidebar(ThemeData theme) {
+    return SizedBox(
+      width: 240,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLowest,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              child: Row(
+                children: [
+                  if (Navigator.canPop(context)) ...[
+                    Tooltip(
+                      message: '返回',
+                      child: IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  Image.asset(
+                    'assets/brand/flow_read_logo.png',
+                    width: 26,
+                    height: 26,
+                    filterQuality: FilterQuality.high,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'flow_read',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 0, 16, 16),
+                children: [
+                  for (final section in _SettingsSection.values)
+                    _SettingsSidebarItem(
+                      section: section,
+                      selected: _selectedSection == section,
+                      onTap: () => setState(() => _selectedSection = section),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    );
+  }
+
+  Widget _buildCompactLayout(
+    ThemeData theme,
+    SettingsService settings,
+    BackupService backup,
+  ) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+          child: Row(
             children: [
-              Icon(icon, size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
+              if (Navigator.canPop(context))
+                Tooltip(
+                  message: '返回',
+                  child: IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                ),
+              Image.asset(
+                'assets/brand/flow_read_logo.png',
+                width: 26,
+                height: 26,
+                filterQuality: FilterQuality.high,
+              ),
+              const SizedBox(width: 10),
               Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                '设置',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          child,
-        ],
+        ),
+        SizedBox(
+          height: 56,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemBuilder: (context, index) {
+              final section = _SettingsSection.values[index];
+              final selected = _selectedSection == section;
+              return ChoiceChip(
+                avatar: Icon(section.icon, size: 18),
+                label: Text(section.title),
+                selected: selected,
+                onSelected: (_) => setState(() => _selectedSection = section),
+              );
+            },
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemCount: _SettingsSection.values.length,
+          ),
+        ),
+        Expanded(child: _buildSectionContent(theme, settings, backup)),
+      ],
+    );
+  }
+
+  Widget _buildSectionContent(
+    ThemeData theme,
+    SettingsService settings,
+    BackupService backup,
+  ) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1120),
+        child: ListView(
+          key: ValueKey('settings-section-${_selectedSection.name}'),
+          padding: const EdgeInsets.fromLTRB(32, 28, 36, 36),
+          children: [
+            _SectionHeading(section: _selectedSection),
+            const SizedBox(height: 22),
+            switch (_selectedSection) {
+              _SettingsSection.appearance => _buildAppearanceSection(
+                theme,
+                settings,
+              ),
+              _SettingsSection.ai => _buildAISection(theme, settings),
+              _SettingsSection.backup => _buildBackupSection(
+                theme,
+                settings,
+                backup,
+              ),
+              _SettingsSection.experiments => _buildExperimentalFeaturesSection(
+                theme,
+                settings,
+              ),
+              _SettingsSection.about => _buildAboutSection(theme, settings),
+            },
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildAppearanceSection(ThemeData theme, SettingsService settings) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        DropdownButtonFormField<AppThemeId>(
-          initialValue: settings.appThemeId,
-          decoration: const InputDecoration(
-            labelText: '主题',
-            prefixIcon: Icon(Icons.style_outlined, size: 20),
-            border: OutlineInputBorder(),
-          ),
-          items: AppThemeId.values
-              .map(
-                (themeId) => DropdownMenuItem(
-                  value: themeId,
-                  child: Row(
-                    children: [
-                      Icon(themeId.icon, size: 18),
-                      const SizedBox(width: 8),
-                      Text(themeId.label),
-                    ],
-                  ),
+        _SettingsCard(
+          icon: Icons.style_outlined,
+          title: '主题',
+          child: _buildResponsiveGrid(
+            children: [
+              DropdownButtonFormField<AppThemeId>(
+                initialValue: settings.appThemeId,
+                decoration: const InputDecoration(
+                  labelText: '主题',
+                  prefixIcon: Icon(Icons.style_outlined, size: 20),
+                  border: OutlineInputBorder(),
                 ),
-              )
-              .toList(),
-          onChanged: (value) {
-            if (value == null) return;
-            _switchTheme(() => settings.setAppThemeId(value));
-          },
+                items: AppThemeId.values
+                    .map(
+                      (themeId) => DropdownMenuItem(
+                        value: themeId,
+                        child: Row(
+                          children: [
+                            Icon(themeId.icon, size: 18),
+                            const SizedBox(width: 8),
+                            Text(themeId.label),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  _switchTheme(() => settings.setAppThemeId(value));
+                },
+              ),
+              _buildThemeModeControl(settings),
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
-        SegmentedButton<ThemeMode>(
-          segments: const [
-            ButtonSegment(
-              value: ThemeMode.system,
-              icon: Icon(Icons.devices_outlined),
-              label: Text('系统'),
-            ),
-            ButtonSegment(
-              value: ThemeMode.light,
-              icon: Icon(Icons.light_mode_outlined),
-              label: Text('浅色'),
-            ),
-            ButtonSegment(
-              value: ThemeMode.dark,
-              icon: Icon(Icons.dark_mode_outlined),
-              label: Text('深色'),
-            ),
-          ],
-          selected: {settings.themeMode},
-          onSelectionChanged: (value) {
-            _switchTheme(() => settings.setThemeMode(value.first));
-          },
-        ),
-        const SizedBox(height: 18),
-        _buildColorRow(
-          context,
-          settings,
-          '生词',
-          settings.colors.unknownColor,
-          settings.setUnknownColor,
-        ),
-        const SizedBox(height: 14),
-        _buildColorRow(
-          context,
-          settings,
-          '学习中',
-          settings.colors.learningColor,
-          settings.setLearningColor,
+        const SizedBox(height: 16),
+        _SettingsCard(
+          icon: Icons.format_color_fill_outlined,
+          title: '词汇标记',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildColorRow(
+                context,
+                '生词颜色',
+                settings.colors.unknownColor,
+                settings.setUnknownColor,
+              ),
+              const SizedBox(height: 18),
+              _buildColorRow(
+                context,
+                '学习中颜色',
+                settings.colors.learningColor,
+                settings.setLearningColor,
+              ),
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildThemeModeControl(SettingsService settings) {
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: '颜色模式',
+        prefixIcon: Icon(Icons.contrast_outlined, size: 20),
+        border: OutlineInputBorder(),
+      ),
+      child: SegmentedButton<ThemeMode>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(
+            value: ThemeMode.system,
+            icon: Icon(Icons.devices_outlined),
+            label: Text('系统'),
+          ),
+          ButtonSegment(
+            value: ThemeMode.light,
+            icon: Icon(Icons.light_mode_outlined),
+            label: Text('浅色'),
+          ),
+          ButtonSegment(
+            value: ThemeMode.dark,
+            icon: Icon(Icons.dark_mode_outlined),
+            label: Text('深色'),
+          ),
+        ],
+        selected: {settings.themeMode},
+        onSelectionChanged: (value) {
+          _switchTheme(() => settings.setThemeMode(value.first));
+        },
+      ),
     );
   }
 
@@ -234,108 +371,135 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildAISection(ThemeData theme, SettingsService settings) {
     final provider = settings.aiProvider;
+    final successColor = theme.colorScheme.tertiary;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        DropdownButtonFormField<String>(
-          initialValue: settings.aiProviderId,
-          decoration: const InputDecoration(
-            labelText: '服务商',
-            prefixIcon: Icon(Icons.hub_outlined, size: 20),
-            border: OutlineInputBorder(),
-          ),
-          items: settings.aiProviders
-              .map(
-                (item) =>
-                    DropdownMenuItem(value: item.id, child: Text(item.label)),
-              )
-              .toList(),
-          onChanged: (value) {
-            if (value == null) return;
-            _connectionResult = null;
-            settings.setAIProvider(value);
-          },
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _baseUrlController,
-          enabled: provider.baseUrlEditable,
-          decoration: const InputDecoration(
-            labelText: 'Base URL',
-            prefixIcon: Icon(Icons.link_outlined, size: 20),
-            border: OutlineInputBorder(),
-          ),
-          onChanged: (value) {
-            settings.setAIBaseUrl(value);
-            _connectionResult = null;
-          },
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _modelController,
-          enabled: provider.modelEditable,
-          decoration: const InputDecoration(
-            labelText: '模型',
-            prefixIcon: Icon(Icons.memory_outlined, size: 20),
-            border: OutlineInputBorder(),
-          ),
-          onChanged: (value) {
-            settings.setAIModel(value);
-            _connectionResult = null;
-          },
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _apiKeyController,
-          obscureText: _obscureKey,
-          decoration: InputDecoration(
-            labelText: 'API Key',
-            hintText: 'sk-...',
-            prefixIcon: const Icon(Icons.key, size: 20),
-            suffixIcon: Tooltip(
-              message: _obscureKey ? '显示' : '隐藏',
-              child: IconButton(
-                icon: Icon(
-                  _obscureKey ? Icons.visibility : Icons.visibility_off,
-                  size: 20,
+        _SettingsCard(
+          icon: Icons.auto_awesome,
+          title: '模型配置',
+          child: _buildResponsiveGrid(
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: settings.aiProviderId,
+                decoration: const InputDecoration(
+                  labelText: '服务商',
+                  prefixIcon: Icon(Icons.hub_outlined, size: 20),
+                  border: OutlineInputBorder(),
                 ),
-                onPressed: () => setState(() => _obscureKey = !_obscureKey),
+                items: settings.aiProviders
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item.id,
+                        child: Text(item.label),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  _connectionResult = null;
+                  settings.setAIProvider(value);
+                },
               ),
-            ),
-            border: const OutlineInputBorder(),
-          ),
-          onChanged: (value) {
-            settings.setApiKey(value);
-            _connectionResult = null;
-          },
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _buildTestConnectionButton(settings)),
-            const SizedBox(width: 12),
-            Tooltip(
-              message: '清除 AI 缓存',
-              child: IconButton.outlined(
-                onPressed: _showClearCacheDialog,
-                icon: const Icon(Icons.delete_sweep_outlined),
-                color: theme.colorScheme.error,
+              TextField(
+                controller: _modelController,
+                enabled: provider.modelEditable,
+                decoration: const InputDecoration(
+                  labelText: '模型',
+                  prefixIcon: Icon(Icons.memory_outlined, size: 20),
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  settings.setAIModel(value);
+                  _connectionResult = null;
+                },
               ),
-            ),
-          ],
-        ),
-        if (_connectionResult != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            _connectionResult!,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: _connectionResult!.contains('成功')
-                  ? Colors.green
-                  : theme.colorScheme.error,
-            ),
+              TextField(
+                controller: _baseUrlController,
+                enabled: provider.baseUrlEditable,
+                decoration: const InputDecoration(
+                  labelText: 'Base URL',
+                  prefixIcon: Icon(Icons.link_outlined, size: 20),
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  settings.setAIBaseUrl(value);
+                  _connectionResult = null;
+                },
+              ),
+              TextField(
+                controller: _apiKeyController,
+                obscureText: _obscureKey,
+                decoration: InputDecoration(
+                  labelText: 'API Key',
+                  hintText: 'sk-...',
+                  prefixIcon: const Icon(Icons.key, size: 20),
+                  suffixIcon: Tooltip(
+                    message: _obscureKey ? '显示' : '隐藏',
+                    child: IconButton(
+                      icon: Icon(
+                        _obscureKey
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        size: 20,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureKey = !_obscureKey),
+                    ),
+                  ),
+                  border: const OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  settings.setApiKey(value);
+                  _connectionResult = null;
+                },
+              ),
+            ],
           ),
-        ],
+        ),
+        const SizedBox(height: 16),
+        _SettingsCard(
+          icon: Icons.wifi_tethering_outlined,
+          title: '连接',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _buildTestConnectionButton(settings),
+                  OutlinedButton.icon(
+                    onPressed: () => _clearAIConfig(settings),
+                    icon: const Icon(Icons.cleaning_services_outlined),
+                    label: const Text('清除配置'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: theme.colorScheme.error,
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _showClearCacheDialog,
+                    icon: const Icon(Icons.delete_sweep_outlined),
+                    label: const Text('清除 AI 缓存'),
+                  ),
+                ],
+              ),
+              if (_connectionResult != null) ...[
+                const SizedBox(height: 12),
+                _StatusLine(
+                  icon: _connectionResult!.contains('成功')
+                      ? Icons.check_circle_outline
+                      : Icons.error_outline,
+                  text: _connectionResult!,
+                  color: _connectionResult!.contains('成功')
+                      ? successColor
+                      : theme.colorScheme.error,
+                ),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -344,19 +508,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ThemeData theme,
     SettingsService settings,
   ) {
-    final enabledFeatures = [
-      if (settings.rssFeatureEnabled) 'RSS',
-      if (settings.browserFeatureEnabled) '浏览器',
-    ];
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.tune_outlined),
-      title: const Text('开启测试中的功能'),
-      subtitle: Text(
-        enabledFeatures.isEmpty ? '暂无开启项' : '${enabledFeatures.join('、')}入口已开启',
-      ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: _showExperimentalFeaturesPanel,
+    final testingEnabled = settings.enabledExperimentalFeatures.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SettingsCard(
+          icon: Icons.science_outlined,
+          title: '开启测试功能',
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.tune_outlined),
+            title: const Text('开启测试功能'),
+            subtitle: Text(testingEnabled ? '测试项列表已启用' : '关闭后隐藏测试入口'),
+            value: testingEnabled,
+            onChanged: (value) => _setAllExperimentalFeatures(settings, value),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _SettingsCard(
+          icon: Icons.list_alt_outlined,
+          title: '测试项列表',
+          child: Column(
+            children: [
+              _buildExperimentalFeatureTile(
+                icon: Icons.rss_feed_outlined,
+                title: 'RSS 入口',
+                subtitle: '在首页显示 RSS 订阅与最新内容入口',
+                value: settings.rssFeatureEnabled,
+                enabled: testingEnabled,
+                onChanged: (value) => settings.setRssFeatureEnabled(value),
+              ),
+              const Divider(height: 1),
+              _buildExperimentalFeatureTile(
+                icon: Icons.language_outlined,
+                title: '浏览器入口',
+                subtitle: '在首页显示网页阅读、单词标记与 AI 助手入口',
+                value: settings.browserFeatureEnabled,
+                enabled: testingEnabled,
+                onChanged: (value) => settings.setBrowserFeatureEnabled(value),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -368,115 +563,176 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final hasFolder = settings.backupFolderPath.trim().isNotEmpty;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('定时同步'),
-          secondary: const Icon(Icons.sync_outlined),
-          value: settings.backupEnabled,
-          onChanged: (value) => settings.setBackupEnabled(value),
+        _buildResponsiveGrid(
+          children: [
+            _SettingsCard(
+              icon: Icons.sync_outlined,
+              title: '自动同步',
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.sync_outlined),
+                    title: const Text('自动同步'),
+                    subtitle: const Text('开启后按设定间隔同步本地数据'),
+                    value: settings.backupEnabled,
+                    onChanged: (value) => settings.setBackupEnabled(value),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<int>(
+                    initialValue:
+                        _backupIntervals.contains(
+                          settings.backupIntervalMinutes,
+                        )
+                        ? settings.backupIntervalMinutes
+                        : 60,
+                    decoration: const InputDecoration(
+                      labelText: '同步间隔',
+                      prefixIcon: Icon(Icons.schedule_outlined, size: 20),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _backupIntervals
+                        .map(
+                          (minutes) => DropdownMenuItem(
+                            value: minutes,
+                            child: Text(_formatInterval(minutes)),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        settings.setBackupIntervalMinutes(value);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            _SettingsCard(
+              icon: Icons.inventory_2_outlined,
+              title: '备份内容',
+              child: Column(
+                children: [
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.check_circle_outline),
+                    title: const Text('应用数据'),
+                    subtitle: const Text('书架、词汇、书签、RSS 和阅读进度'),
+                    value: true,
+                    onChanged: null,
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.key_outlined),
+                    title: const Text('API Key'),
+                    subtitle: const Text('关闭时备份不会保存你的 API Key'),
+                    value: settings.includeSecretsInBackup,
+                    onChanged: (value) {
+                      settings.setIncludeSecretsInBackup(value ?? false);
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('包含 API Key'),
-          secondary: const Icon(Icons.key_outlined),
-          value: settings.includeSecretsInBackup,
-          onChanged: (value) => settings.setIncludeSecretsInBackup(value),
-        ),
-        const SizedBox(height: 8),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.folder_outlined),
-          title: const Text('备份文件夹'),
-          subtitle: Text(
-            hasFolder ? settings.backupFolderPath : '未选择',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        const SizedBox(height: 16),
+        _SettingsCard(
+          icon: Icons.folder_outlined,
+          title: '备份路径',
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  hasFolder ? settings.backupFolderPath : '未选择备份路径',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: hasFolder
+                        ? theme.colorScheme.onSurface
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              OutlinedButton.icon(
+                onPressed: _chooseBackupFolder,
+                icon: const Icon(Icons.drive_folder_upload_outlined),
+                label: Text(hasFolder ? '更改位置' : '选择位置'),
+              ),
+            ],
           ),
-          trailing: Tooltip(
-            message: '选择文件夹',
-            child: IconButton(
-              icon: const Icon(Icons.drive_folder_upload_outlined),
-              onPressed: _chooseBackupFolder,
+        ),
+        const SizedBox(height: 16),
+        _SettingsCard(
+          icon: Icons.flash_on_outlined,
+          title: '手动操作',
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              onPressed: !hasFolder || backup.isSyncing
+                  ? null
+                  : () => _exportBackup(backup),
+              icon: backup.isSyncing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.cloud_upload_outlined),
+              label: Text(backup.isSyncing ? '同步中...' : '立即备份'),
             ),
           ),
-          onTap: _chooseBackupFolder,
         ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<int>(
-          initialValue:
-              _backupIntervals.contains(settings.backupIntervalMinutes)
-              ? settings.backupIntervalMinutes
-              : 60,
-          decoration: const InputDecoration(
-            labelText: '同步间隔',
-            prefixIcon: Icon(Icons.schedule_outlined, size: 20),
-            border: OutlineInputBorder(),
-          ),
-          items: _backupIntervals
-              .map(
-                (minutes) => DropdownMenuItem(
-                  value: minutes,
-                  child: Text(_formatInterval(minutes)),
-                ),
-              )
-              .toList(),
-          onChanged: (value) {
-            if (value != null) settings.setBackupIntervalMinutes(value);
-          },
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: !hasFolder || backup.isSyncing
+        const SizedBox(height: 16),
+        _SettingsCard(
+          icon: Icons.download_outlined,
+          title: '导入与恢复',
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              OutlinedButton.icon(
+                onPressed: backup.isSyncing ? null : () => _importBackup(),
+                icon: const Icon(Icons.upload_file_outlined),
+                label: const Text('导入备份'),
+              ),
+              OutlinedButton.icon(
+                onPressed: backup.isSyncing || _importingWordHunter
                     ? null
-                    : () => _exportBackup(backup),
-                icon: backup.isSyncing
+                    : _importWordHunterBackup,
+                icon: _importingWordHunter
                     ? const SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.backup_outlined),
-                label: Text(backup.isSyncing ? '同步中...' : '立即备份'),
+                    : const Icon(Icons.school_outlined),
+                label: Text(
+                  _importingWordHunter ? '导入中...' : '导入 Word Hunter 备份',
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: backup.isSyncing ? null : () => _importBackup(),
-                icon: const Icon(Icons.upload_file_outlined),
-                label: const Text('导入备份'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: backup.isSyncing || _importingWordHunter
-                ? null
-                : _importWordHunterBackup,
-            icon: _importingWordHunter
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.school_outlined),
-            label: Text(_importingWordHunter ? '导入中...' : '导入 Word Hunter 备份'),
+            ],
           ),
         ),
         if (settings.lastBackupAt != null || backup.lastError != null) ...[
-          const SizedBox(height: 10),
-          Text(
-            backup.lastError ??
-                '上次同步 ${_formatDateTime(settings.lastBackupAt!)}',
-            style: theme.textTheme.bodySmall?.copyWith(
+          const SizedBox(height: 16),
+          _SettingsCard(
+            icon: backup.lastError == null
+                ? Icons.history_outlined
+                : Icons.error_outline,
+            title: backup.lastError == null ? '同步记录' : '同步失败',
+            child: _StatusLine(
+              icon: backup.lastError == null
+                  ? Icons.access_time_outlined
+                  : Icons.error_outline,
+              text:
+                  backup.lastError ??
+                  '上次同步：${_formatDateTime(settings.lastBackupAt!)}',
               color: backup.lastError == null
                   ? theme.colorScheme.onSurfaceVariant
                   : theme.colorScheme.error,
@@ -487,41 +743,128 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildAboutSection() {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Image.asset(
-        'assets/brand/flow_read_logo.png',
-        width: 32,
-        height: 32,
-        filterQuality: FilterQuality.high,
-      ),
-      title: const Text('Flow Read'),
-      subtitle: const Text('版本 ${FlowReadVersion.display}'),
-      trailing: Tooltip(
-        message: '查看更新内容',
-        child: IconButton(
-          icon: const Icon(Icons.new_releases_outlined),
-          onPressed: _showCurrentReleaseNotes,
+  Widget _buildAboutSection(ThemeData theme, SettingsService settings) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SettingsCard(
+          icon: Icons.info_outline,
+          title: '版本',
+          child: Row(
+            children: [
+              Image.asset(
+                'assets/brand/flow_read_logo.png',
+                width: 42,
+                height: 42,
+                filterQuality: FilterQuality.high,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Flow Read',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '版本 ${FlowReadVersion.display}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: 16),
+        _SettingsCard(
+          icon: Icons.settings_applications_outlined,
+          title: '操作',
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _showCurrentReleaseNotes,
+                icon: const Icon(Icons.new_releases_outlined),
+                label: const Text('检查更新'),
+              ),
+              // OutlinedButton.icon(
+              //   onPressed: _openConfigDirectory,
+              //   icon: const Icon(Icons.folder_open_outlined),
+              //   label: const Text('打开配置目录'),
+              // ),
+              // OutlinedButton.icon(
+              //   onPressed: settings.backupFolderPath.trim().isEmpty
+              //       ? null
+              //       : () => _openBackupDirectory(settings),
+              //   icon: const Icon(Icons.backup_outlined),
+              //   label: const Text('打开备份目录'),
+              // ),
+            ],
+          ),
+        ),
+      ],
     );
+  }
+
+  Widget _buildResponsiveGrid({required List<Widget> children}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 680 || children.length == 1) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: _separateWithSpacing(
+              children,
+              const SizedBox(height: 12),
+            ),
+          );
+        }
+
+        final itemWidth = (constraints.maxWidth - 14) / 2;
+        return Wrap(
+          spacing: 14,
+          runSpacing: 14,
+          children: [
+            for (final child in children)
+              SizedBox(width: itemWidth, child: child),
+          ],
+        );
+      },
+    );
+  }
+
+  List<Widget> _separateWithSpacing(List<Widget> children, Widget spacing) {
+    return [
+      for (var i = 0; i < children.length; i++) ...[
+        if (i != 0) spacing,
+        children[i],
+      ],
+    ];
   }
 
   Widget _buildColorRow(
     BuildContext context,
-    SettingsService settings,
     String label,
     Color currentColor,
     ValueChanged<Color> onColorChanged,
   ) {
     final theme = Theme.of(context);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 64,
-          child: Text(label, style: theme.textTheme.bodyMedium),
+          width: 96,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 7),
+            child: Text(label, style: theme.textTheme.bodyMedium),
+          ),
         ),
         Expanded(
           child: Wrap(
@@ -561,7 +904,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildTestConnectionButton(SettingsService settings) {
-    return OutlinedButton.icon(
+    return FilledButton.icon(
       onPressed: _testingConnection || settings.apiKey.isEmpty
           ? null
           : () => _testConnection(settings),
@@ -573,6 +916,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
             )
           : const Icon(Icons.wifi_find, size: 18),
       label: Text(_testingConnection ? '测试中...' : '测试连接'),
+    );
+  }
+
+  Widget _buildExperimentalFeatureTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required bool enabled,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      secondary: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      value: value,
+      onChanged: enabled ? onChanged : null,
     );
   }
 
@@ -592,8 +953,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  Future<void> _clearAIConfig(SettingsService settings) async {
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('清除配置'),
+            content: Text(
+              '将清除 ${settings.aiProvider.label} 的 API Key，并把 Base URL 和模型恢复为默认值。',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('清除配置'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+
+    final provider = settings.aiProvider;
+    await settings.setApiKey('');
+    await settings.setAIBaseUrl(provider.defaultBaseUrl);
+    await settings.setAIModel(provider.defaultModel);
+    if (!mounted) return;
+
+    _controllerProviderId = null;
+    _syncAIControllers(settings);
+    setState(() => _connectionResult = null);
+    _showSnackBar('AI 配置已清除');
+  }
+
   void _showClearCacheDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('清除 AI 缓存'),
@@ -608,9 +1005,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.pop(dialogContext);
               await context.read<ReadingProvider>().clearAICache();
               if (mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('AI 缓存已清除')));
+                _showSnackBar('AI 缓存已清除');
               }
             },
             child: const Text('确认清除'),
@@ -620,64 +1015,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showExperimentalFeaturesPanel() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return Consumer<SettingsService>(
-          builder: (context, settings, _) {
-            final theme = Theme.of(context);
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.science_outlined,
-                          size: 20,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '测试中的功能',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      secondary: const Icon(Icons.rss_feed_outlined),
-                      title: const Text('RSS 入口'),
-                      subtitle: const Text('在首页显示 RSS 订阅与最新内容入口'),
-                      value: settings.rssFeatureEnabled,
-                      onChanged: (value) =>
-                          settings.setRssFeatureEnabled(value),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      secondary: const Icon(Icons.language_outlined),
-                      title: const Text('浏览器入口'),
-                      subtitle: const Text('在首页显示网页阅读、单词标记与 AI 助手入口'),
-                      value: settings.browserFeatureEnabled,
-                      onChanged: (value) =>
-                          settings.setBrowserFeatureEnabled(value),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+  Future<void> _setAllExperimentalFeatures(
+    SettingsService settings,
+    bool enabled,
+  ) async {
+    await settings.setRssFeatureEnabled(enabled);
+    await settings.setBrowserFeatureEnabled(enabled);
   }
 
   Future<void> _chooseBackupFolder() async {
@@ -701,14 +1044,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!refreshed || !mounted) return;
       final path = await backup.exportNow();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('备份已生成：$path')));
+      _showSnackBar('备份已生成：$path');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('备份失败：$e')));
+      _showSnackBar('备份失败：$e');
     }
   }
 
@@ -755,14 +1094,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await readingProvider.init();
       await rssProvider.init();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('备份已导入')));
+      _showSnackBar('备份已导入');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('导入失败：$e')));
+      _showSnackBar('导入失败：$e');
     }
   }
 
@@ -787,20 +1122,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final importResult = await backup.importWordHunterBackupFile(path);
       await readingProvider.init();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Word Hunter 已导入：${importResult.knownCount} 个熟词、'
-            '${importResult.learningCount} 个学习中、'
-            '${importResult.exampleCount} 条例句',
-          ),
-        ),
+      _showSnackBar(
+        'Word Hunter 已导入：${importResult.knownCount} 个熟词、'
+        '${importResult.learningCount} 个学习中、'
+        '${importResult.exampleCount} 条例句',
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Word Hunter 导入失败：$e')));
+      _showSnackBar('Word Hunter 导入失败：$e');
     } finally {
       if (mounted) {
         setState(() => _importingWordHunter = false);
@@ -852,6 +1181,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         false;
   }
 
+  // TODO: 增加自动更新
   Future<void> _showCurrentReleaseNotes() async {
     final notes = await ChangelogService.loadCurrentReleaseNotes();
     if (!mounted) return;
@@ -860,6 +1190,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (_) => ReleaseNotesDialog(notes: notes),
     );
+  }
+
+  Future<void> _openConfigDirectory() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      await dir.create(recursive: true);
+      await _openDirectory(dir.path);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('无法打开配置目录：$e');
+    }
+  }
+
+  Future<void> _openBackupDirectory(SettingsService settings) async {
+    final path = settings.backupFolderPath.trim();
+    if (path.isEmpty) {
+      _showSnackBar('请先选择备份路径');
+      return;
+    }
+
+    try {
+      final dir = Directory(path);
+      await dir.create(recursive: true);
+      await _openDirectory(dir.path);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('无法打开备份目录：$e');
+    }
+  }
+
+  Future<void> _openDirectory(String path) async {
+    late final String executable;
+    late final List<String> arguments;
+
+    if (Platform.isMacOS) {
+      executable = 'open';
+      arguments = [path];
+    } else if (Platform.isWindows) {
+      executable = 'explorer';
+      arguments = [path];
+    } else {
+      executable = 'xdg-open';
+      arguments = [path];
+    }
+
+    final result = await Process.run(executable, arguments);
+    if (result.exitCode != 0) {
+      final error = result.stderr.toString().trim();
+      throw Exception(error.isEmpty ? '系统无法打开目录' : error);
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   static String _formatInterval(int minutes) {
@@ -872,6 +1259,253 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String two(int n) => n.toString().padLeft(2, '0');
     return '${value.year}-${two(value.month)}-${two(value.day)} '
         '${two(value.hour)}:${two(value.minute)}';
+  }
+}
+
+enum _SettingsSection { appearance, ai, backup, experiments, about }
+
+extension _SettingsSectionMeta on _SettingsSection {
+  String get title {
+    switch (this) {
+      case _SettingsSection.appearance:
+        return '外观';
+      case _SettingsSection.ai:
+        return 'AI 设置';
+      case _SettingsSection.backup:
+        return '备份与同步';
+      case _SettingsSection.experiments:
+        return '测试功能';
+      case _SettingsSection.about:
+        return '关于';
+    }
+  }
+
+  String get subtitle {
+    switch (this) {
+      case _SettingsSection.appearance:
+        return '调整主题、颜色模式与词汇标记色。';
+      case _SettingsSection.ai:
+        return '配置 AI 服务商、模型、密钥与连接状态。';
+      case _SettingsSection.backup:
+        return '管理本地数据备份、自动同步与恢复。';
+      case _SettingsSection.experiments:
+        return '管理仍在测试中的入口和功能项。';
+      case _SettingsSection.about:
+        return '查看版本信息并打开本地目录。';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case _SettingsSection.appearance:
+        return Icons.palette_outlined;
+      case _SettingsSection.ai:
+        return Icons.auto_awesome;
+      case _SettingsSection.backup:
+        return Icons.cloud_sync_outlined;
+      case _SettingsSection.experiments:
+        return Icons.science_outlined;
+      case _SettingsSection.about:
+        return Icons.info_outline;
+    }
+  }
+}
+
+class _SettingsSidebarItem extends StatelessWidget {
+  const _SettingsSidebarItem({
+    required this.section,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _SettingsSection section;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: selected
+            ? colorScheme.primaryContainer.withValues(alpha: 0.5)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  width: 4,
+                  height: selected ? 36 : 0,
+                  decoration: BoxDecoration(
+                    color: selected ? colorScheme.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Icon(
+                  section.icon,
+                  size: 22,
+                  color: selected
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    section.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected
+                          ? colorScheme.primary
+                          : colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.section});
+
+  final _SettingsSection section;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(section.icon, color: theme.colorScheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                section.title,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          section.subtitle,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsCard extends StatelessWidget {
+  const _SettingsCard({
+    required this.icon,
+    required this.title,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.65),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 21, color: colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusLine extends StatelessWidget {
+  const _StatusLine({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.bodySmall?.copyWith(color: color),
+          ),
+        ),
+      ],
+    );
   }
 }
 
