@@ -37,6 +37,28 @@ void main() {
 
     expect(find.textContaining('第二章顶部标记00'), findsOneWidget);
   });
+
+  testWidgets('shows the full reader more menu', (tester) async {
+    final provider = _FakeReadingProvider();
+    final settings = SettingsService();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('更多'));
+    await tester.pumpAndSettle();
+
+    final previousItem = find.text('上一个目录项');
+    expect(previousItem, findsOneWidget);
+    expect(tester.getSize(previousItem).width, greaterThan(70));
+  });
 }
 
 class _FakeReadingProvider extends ReadingProvider {

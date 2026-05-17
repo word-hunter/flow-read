@@ -891,9 +891,7 @@ class _ReaderPageState extends State<ReaderPage> {
             onPressed: _onBookmarkTap,
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_horiz, size: 20),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+            position: PopupMenuPosition.under,
             tooltip: '更多',
             onSelected: (value) {
               switch (value) {
@@ -953,6 +951,10 @@ class _ReaderPageState extends State<ReaderPage> {
               const PopupMenuItem(value: 'practice', child: Text('生成练习题')),
               const PopupMenuItem(value: 'bookmarks', child: Text('历史书签')),
             ],
+            child: const SizedBox.square(
+              dimension: 34,
+              child: Icon(Icons.more_horiz, size: 20),
+            ),
           ),
         ],
       ),
