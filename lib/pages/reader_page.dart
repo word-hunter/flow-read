@@ -32,7 +32,6 @@ class _ReaderPageState extends State<ReaderPage> {
   ReadingProvider? _readingProvider;
   String? _lastReaderLocationKey;
   bool _scrollResetQueued = false;
-  double _viewportHeight = 0;
   String _selectedText = '';
   bool _sidebarOpen = false;
   bool _searchSheetOpen = false;
@@ -124,24 +123,8 @@ class _ReaderPageState extends State<ReaderPage> {
     setState(() {});
   }
 
-  void _scrollPage(bool forward) {
-    if (!_scrollController.hasClients) return;
-    final viewport = _viewportHeight > 0 ? _viewportHeight : 600;
-    final offset = _scrollController.offset;
-    var target = forward ? offset + viewport * 0.85 : offset - viewport * 0.85;
-    target = target.clamp(
-      _scrollController.position.minScrollExtent,
-      _scrollController.position.maxScrollExtent,
-    );
-    _scrollController.animateTo(
-      target,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
   void _onWordTapped(String word, String contextText) {
-    context.read<ReadingProvider>().lookupWord(word);
+    context.read<ReadingProvider>().lookupWord(word, contextText: contextText);
     if (_isWideScreen) {
       setState(() => _sidebarOpen = true);
     } else {
@@ -371,7 +354,7 @@ class _ReaderPageState extends State<ReaderPage> {
         ? provider.book!.chapters[provider.currentChapter].blocks
         : const <ContentBlock>[];
     final theme = Theme.of(context);
-    final progressPercent = (_displayProgress * 100).toInt();
+    final progressPercent = (_displayProgress * 100).round();
     final chapterTitle = provider.hasBook && provider.chapterCount > 0
         ? provider.book!.chapters[provider.currentChapter].title
         : result.title;
@@ -389,8 +372,10 @@ class _ReaderPageState extends State<ReaderPage> {
                 provider,
                 theme,
                 chapterTitle,
+                progressPercent: progressPercent,
                 showSidebarToggle: isWide,
               ),
+              _buildReadingProgressLine(theme, _displayProgress),
               Expanded(
                 child: isWide
                     ? Row(
@@ -426,13 +411,6 @@ class _ReaderPageState extends State<ReaderPage> {
                         colorSettings,
                       ),
               ),
-              _buildBottomBar(
-                context,
-                _displayProgress,
-                theme,
-                chapterTitle,
-                progressPercent,
-              ),
             ],
           ),
         );
@@ -455,6 +433,15 @@ class _ReaderPageState extends State<ReaderPage> {
         ],
       ),
       child: ClipRRect(borderRadius: BorderRadius.circular(24), child: child),
+    );
+  }
+
+  Widget _buildReadingProgressLine(ThemeData theme, double progress) {
+    return LinearProgressIndicator(
+      value: progress,
+      minHeight: 2,
+      backgroundColor: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+      valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
     );
   }
 
@@ -494,26 +481,36 @@ class _ReaderPageState extends State<ReaderPage> {
       },
       child: LayoutBuilder(
         builder: (context, constraints) {
-          _viewportHeight = constraints.maxHeight;
           final provider = context.read<ReadingProvider>();
           final showTitleBlock = !provider.hasBook;
           final topPadding = showTitleBlock ? 14.0 : 10.0;
-          final horizontalPadding = _isWideScreen ? 32.0 : 18.0;
-          final maxTextWidth = _isWideScreen ? 920.0 : double.infinity;
+          final wide = _isWideScreen;
+          final compactWide = wide && constraints.maxWidth < 760;
+          final leftPadding = wide ? (compactWide ? 48.0 : 80.0) : 18.0;
+          final rightPadding = wide
+              ? (_sidebarOpen ? (compactWide ? 24.0 : 40.0) : leftPadding)
+              : 18.0;
+          final maxTextWidth = wide ? 720.0 : double.infinity;
+          final maxFrameWidth = wide
+              ? maxTextWidth + leftPadding + rightPadding
+              : double.infinity;
           final useBlocks = blocks.isNotEmpty;
           final contentCount = useBlocks ? blocks.length : paragraphs.length;
           _visibleContentCount = contentCount;
 
-          return Center(
+          return Align(
+            alignment: wide && _sidebarOpen
+                ? Alignment.topLeft
+                : Alignment.topCenter,
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxTextWidth),
+              constraints: BoxConstraints(maxWidth: maxFrameWidth),
               child: ListView.builder(
                 controller: _scrollController,
                 padding: EdgeInsets.fromLTRB(
-                  horizontalPadding,
+                  leftPadding,
                   topPadding,
-                  horizontalPadding,
-                  24,
+                  rightPadding,
+                  40,
                 ),
                 itemCount: contentCount + (showTitleBlock ? 1 : 0),
                 itemBuilder: (context, index) {
@@ -762,6 +759,7 @@ class _ReaderPageState extends State<ReaderPage> {
     ReadingProvider provider,
     ThemeData theme,
     String chapterTitle, {
+    required int progressPercent,
     bool showSidebarToggle = false,
   }) {
     final isDark =
@@ -777,7 +775,7 @@ class _ReaderPageState extends State<ReaderPage> {
         ? chapterTitle.trim()
         : '当前位置';
     final locationLabel = provider.hasBook
-        ? '位置 ${provider.currentChapter + 1} / ${provider.chapterCount}'
+        ? '位置 ${provider.currentChapter + 1} / ${provider.chapterCount} · $progressPercent%'
         : 'Reader';
     final canGoPreviousChapter =
         provider.hasBook && provider.currentChapter > 0;
@@ -856,14 +854,6 @@ class _ReaderPageState extends State<ReaderPage> {
               ],
             ),
           ),
-          Text(
-            '${(_displayProgress * 100).toInt()}%',
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          const SizedBox(width: 6),
           if (showSidebarToggle)
             _compactIconButton(
               icon: _sidebarOpen
@@ -955,93 +945,6 @@ class _ReaderPageState extends State<ReaderPage> {
               dimension: 34,
               child: Icon(Icons.more_horiz, size: 20),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomBar(
-    BuildContext context,
-    double progress,
-    ThemeData theme,
-    String chapterTitle,
-    int progressPercent,
-  ) {
-    final provider = context.read<ReadingProvider>();
-    final isDark =
-        provider.readingTheme == 'dark' ||
-        (theme.brightness == Brightness.dark &&
-            provider.readingTheme == 'light');
-    final bgColor = _readerBackgroundColor(provider);
-    final borderColor = isDark
-        ? const Color(0xFF3A3A3A)
-        : const Color(0xFFEEEEEE);
-    final textColor = isDark
-        ? const Color(0xFFB0B0B0)
-        : theme.colorScheme.onSurfaceVariant;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
-      decoration: BoxDecoration(
-        color: bgColor,
-        border: Border(top: BorderSide(color: borderColor)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.keyboard_arrow_up, size: 28),
-                tooltip: '上一页',
-                onPressed: () => _scrollPage(false),
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            chapterTitle,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: textColor,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        Text(
-                          '$progressPercent%',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 4,
-                        backgroundColor:
-                            theme.colorScheme.surfaceContainerHighest,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.keyboard_arrow_down, size: 28),
-                tooltip: '下一页',
-                onPressed: () => _scrollPage(true),
-              ),
-            ],
           ),
         ],
       ),

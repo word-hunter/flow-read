@@ -25,22 +25,22 @@ class _ReadingDeskScreenState extends State<ReadingDeskScreen> {
     NavigationDestination(
       icon: Icon(Icons.menu_book_outlined),
       selectedIcon: Icon(Icons.menu_book),
-      label: 'Reader',
+      label: '阅读',
     ),
     NavigationDestination(
       icon: Icon(Icons.translate_outlined),
       selectedIcon: Icon(Icons.translate),
-      label: 'Vocab',
+      label: '词汇',
     ),
     NavigationDestination(
       icon: Icon(Icons.fitness_center_outlined),
       selectedIcon: Icon(Icons.fitness_center),
-      label: 'Training',
+      label: '训练',
     ),
     NavigationDestination(
       icon: Icon(Icons.bar_chart_outlined),
       selectedIcon: Icon(Icons.bar_chart),
-      label: 'Stats',
+      label: '统计',
     ),
   ];
 
@@ -55,11 +55,35 @@ class _ReadingDeskScreenState extends State<ReadingDeskScreen> {
           child: IndexedStack(index: _currentIndex, children: _pages),
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        height: 64,
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) => setState(() => _currentIndex = index),
-        destinations: _navDestinations,
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarTheme.of(context).copyWith(
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            final selected = states.contains(WidgetState.selected);
+            return IconThemeData(
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
+            );
+          }),
+        ),
+        child: NavigationBar(
+          height: 64,
+          backgroundColor: theme.scaffoldBackgroundColor,
+          indicatorColor: theme.colorScheme.primary.withValues(alpha: 0.14),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            final selected = states.contains(WidgetState.selected);
+            return theme.textTheme.labelMedium?.copyWith(
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            );
+          }),
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (index) =>
+              setState(() => _currentIndex = index),
+          destinations: _navDestinations,
+        ),
       ),
     );
   }

@@ -84,6 +84,7 @@ class ReadingProvider extends ChangeNotifier {
   // ============================================================
   String? _selectedWord;
   String? _selectedWordTranslation;
+  String? _selectedWordContext;
   DictionaryEntry? _selectedWordEntry;
   bool _isLoadingWord = false;
 
@@ -204,6 +205,7 @@ class ReadingProvider extends ChangeNotifier {
   // -- Word lookup --
   String? get selectedWord => _selectedWord;
   String? get selectedWordTranslation => _selectedWordTranslation;
+  String? get selectedWordContext => _selectedWordContext;
   DictionaryEntry? get selectedWordEntry => _selectedWordEntry;
   bool get isLoadingWord => _isLoadingWord;
 
@@ -409,6 +411,7 @@ class ReadingProvider extends ChangeNotifier {
       _readingBookmarks.clear();
       _selectedWord = null;
       _selectedWordTranslation = null;
+      _selectedWordContext = null;
       _selectedWordEntry = null;
       _selectedText = null;
       _selectedAnalysis = null;
@@ -536,17 +539,21 @@ class ReadingProvider extends ChangeNotifier {
   // Word lookup
   // ============================================================
 
-  Future<void> lookupWord(String word) async {
+  Future<void> lookupWord(String word, {String? contextText}) async {
     _selectedWord = word;
     _selectedWordTranslation = null;
+    _selectedWordContext = _normalizeLookupContext(contextText);
     _selectedWordEntry = null;
     _isLoadingWord = true;
     notifyListeners();
 
     final entry = await _wordRepo.lookup(word);
     _selectedWordEntry = entry;
-    if (entry != null && entry.meanings.isNotEmpty) {
-      _selectedWordTranslation = entry.meanings.first.definitions.first;
+    final firstDefinition = entry?.meanings
+        .expand((meaning) => meaning.definitions)
+        .firstOrNull;
+    if (firstDefinition != null) {
+      _selectedWordTranslation = firstDefinition;
     }
     _isLoadingWord = false;
     notifyListeners();
@@ -555,9 +562,16 @@ class ReadingProvider extends ChangeNotifier {
   void clearWordLookup() {
     _selectedWord = null;
     _selectedWordTranslation = null;
+    _selectedWordContext = null;
     _selectedWordEntry = null;
     _isLoadingWord = false;
     notifyListeners();
+  }
+
+  String? _normalizeLookupContext(String? contextText) {
+    final trimmed = contextText?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed;
   }
 
   // ============================================================
@@ -679,8 +693,8 @@ class ReadingProvider extends ChangeNotifier {
     final lower = word.toLowerCase().trim();
     if (_bookmarkedWords.any((b) => b.word.toLowerCase() == lower)) return;
 
-    String context = '';
-    if (_result != null) {
+    String context = _selectedWordContext ?? '';
+    if (context.isEmpty && _result != null) {
       for (final v in _result!.vocabulary) {
         if (v.word.toLowerCase() == lower) {
           context = v.context;

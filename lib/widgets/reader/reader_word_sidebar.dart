@@ -29,11 +29,9 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
       _previousWord = word;
       _showAIAnalysis = false;
     }
-    final isBookmarked = word != null && provider.isBookmarked(word);
-    final status = word != null ? provider.getWordStatus(word) : null;
 
     return Container(
-      width: 340,
+      width: 360,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
@@ -45,45 +43,14 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
       child: Column(
         children: [
           _buildHeader(theme),
-          if (word != null) ...[
-            _buildWordHeader(provider, theme, word),
-            Divider(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
-              height: 1,
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                child: _buildContent(provider, theme),
-              ),
-            ),
-            _buildBottomActions(provider, theme, status, isBookmarked),
-          ] else
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.touch_app,
-                      size: 40,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '点击文中生词查看释义',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          Expanded(
+            child: word == null
+                ? _buildEmptyState(theme)
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+                    child: _buildLearningPanel(provider, theme, word),
+                  ),
+          ),
         ],
       ),
     );
@@ -91,7 +58,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
 
   Widget _buildHeader(ThemeData theme) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+      padding: const EdgeInsets.fromLTRB(18, 12, 10, 8),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
@@ -108,9 +75,9 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
           ),
           const SizedBox(width: 8),
           Text(
-            '单词释义',
+            '词典',
             style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
             ),
           ),
@@ -128,7 +95,66 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
     );
   }
 
-  Widget _buildWordHeader(
+  Widget _buildEmptyState(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.touch_app,
+            size: 40,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '点击文中生词查看释义',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLearningPanel(
+    ReadingProvider provider,
+    ThemeData theme,
+    String word,
+  ) {
+    final status = provider.getWordStatus(word);
+    final isBookmarked = provider.isBookmarked(word);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildWordSection(provider, theme, word),
+        const SizedBox(height: 22),
+        _buildDefinitionSection(provider, theme, word),
+        const SizedBox(height: 22),
+        _buildContextSection(provider, theme, word),
+        const SizedBox(height: 22),
+        _buildLearningStatusSection(provider, theme, word, status),
+        const SizedBox(height: 22),
+        _buildOperationsSection(provider, theme, word, isBookmarked),
+      ],
+    );
+  }
+
+  Widget _buildSectionLabel(ThemeData theme, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        label,
+        style: theme.textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWordSection(
     ReadingProvider provider,
     ThemeData theme,
     String word,
@@ -138,76 +164,83 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
     if (levelService != null && levelService.hasWord(word)) {
       level = levelService.getLevel(word);
     }
+    final sourceName = provider.selectedWordEntry?.sourceName;
+    final phonetic = provider.selectedWordEntry?.phonetic;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
-        children: [
-          Icon(Icons.translate, size: 20, color: theme.colorScheme.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  word,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Serif',
-                    color: theme.colorScheme.onSurface,
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionLabel(theme, '单词'),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                word,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Serif',
+                  color: theme.colorScheme.onSurface,
+                  height: 1.05,
                 ),
-                if (level != null ||
-                    provider.selectedWordEntry?.sourceName != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      children: [
-                        if (level != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _levelColor(level).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '${level.shortLabel} ${level.label}',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: _levelColor(level),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
-                        if (level != null &&
-                            provider.selectedWordEntry?.sourceName != null)
-                          const SizedBox(width: 8),
-                        if (provider.selectedWordEntry?.sourceName != null)
-                          Text(
-                            'via ${provider.selectedWordEntry!.sourceName}',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant
-                                  .withValues(alpha: 0.5),
-                              fontSize: 10,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-              ],
+              ),
+            ),
+            if (provider.isLoadingWord)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+          ],
+        ),
+        if (phonetic != null && phonetic.trim().isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            phonetic,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
             ),
           ),
-          if (provider.isLoadingWord)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
         ],
+        if (level != null || sourceName != null) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (level != null)
+                _buildMetaChip(
+                  theme,
+                  '${level.shortLabel} ${level.label}',
+                  _levelColor(level),
+                ),
+              if (sourceName != null)
+                _buildMetaChip(
+                  theme,
+                  sourceName,
+                  theme.colorScheme.onSurfaceVariant,
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMetaChip(ThemeData theme, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -231,348 +264,362 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
     }
   }
 
-  Widget _buildContent(ReadingProvider provider, ThemeData theme) {
+  Widget _buildDefinitionSection(
+    ReadingProvider provider,
+    ThemeData theme,
+    String word,
+  ) {
     if (provider.isLoadingWord) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: CircularProgressIndicator(),
-        ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionLabel(theme, '释义'),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
+        ],
       );
     }
 
     final entry = provider.selectedWordEntry;
-    final importedExamples = provider.importedExamplesFor(
-      provider.selectedWord ?? '',
-    );
+    final primaryDefinition = provider.selectedWordTranslation?.trim();
+    final importedExamples = provider.importedExamplesFor(word);
     final hasContent =
         entry != null ||
-        provider.selectedWordTranslation != null ||
+        (primaryDefinition != null && primaryDefinition.isNotEmpty) ||
         importedExamples.isNotEmpty;
-
-    if (!hasContent) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '未找到释义',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '请检查拼写或网络连接。',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
-      );
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (provider.selectedWordTranslation != null) ...[
+        _buildSectionLabel(theme, '释义'),
+        if (!hasContent)
           Text(
-            '释义',
-            style: theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.primary,
+            '未找到释义，请检查拼写或网络连接。',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              provider.selectedWordTranslation!,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
-            ),
-          ),
-        ],
-        if (entry != null) ...[
-          if (provider.selectedWordTranslation != null)
-            const SizedBox(height: 16),
-          if (entry.phonetic != null) ...[
-            Text(
-              entry.phonetic!,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          ...entry.meanings.map(
-            (meaning) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (meaning.partOfSpeech.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        meaning.partOfSpeech,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSecondaryContainer,
-                          fontWeight: FontWeight.w600,
+          )
+        else ...[
+          if (primaryDefinition != null && primaryDefinition.isNotEmpty)
+            _buildDefinitionCard(theme, primaryDefinition),
+          if (entry != null) ...[
+            if (primaryDefinition != null && primaryDefinition.isNotEmpty)
+              const SizedBox(height: 12),
+            ...entry.meanings.map((meaning) {
+              final definitions = meaning.definitions
+                  .where((definition) => definition.trim() != primaryDefinition)
+                  .toList();
+              if (definitions.isEmpty && meaning.partOfSpeech.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (meaning.partOfSpeech.isNotEmpty)
+                      _buildPartOfSpeechChip(theme, meaning.partOfSpeech),
+                    if (definitions.isNotEmpty) const SizedBox(height: 6),
+                    ...definitions.take(4).map((definition) {
+                      final isExample = definition.startsWith('Example:');
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 5),
+                        child: Text(
+                          definition,
+                          style:
+                              (isExample
+                                      ? theme.textTheme.bodySmall
+                                      : theme.textTheme.bodyMedium)
+                                  ?.copyWith(
+                                    color: isExample
+                                        ? theme.colorScheme.tertiary
+                                        : theme.colorScheme.onSurface,
+                                    fontStyle: isExample
+                                        ? FontStyle.italic
+                                        : null,
+                                    height: 1.35,
+                                  ),
                         ),
-                      ),
-                    ),
-                  const SizedBox(height: 4),
-                  ...meaning.definitions.asMap().entries.map((e) {
-                    final isExample = e.value.startsWith('Example:');
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 4, left: 4),
-                      child: Text(
-                        '${e.key + 1}. ${e.value}',
-                        style:
-                            (isExample
-                                    ? theme.textTheme.bodySmall
-                                    : theme.textTheme.bodyMedium)
-                                ?.copyWith(
-                                  color: isExample
-                                      ? theme.colorScheme.tertiary
-                                      : theme.colorScheme.onSurface,
-                                  fontStyle: isExample
-                                      ? FontStyle.italic
-                                      : null,
-                                ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ),
-        ],
-        if (importedExamples.isNotEmpty) ...[
-          if (entry != null || provider.selectedWordTranslation != null)
-            const SizedBox(height: 8),
-          ImportedWordExamples(examples: importedExamples),
+                      );
+                    }),
+                  ],
+                ),
+              );
+            }),
+          ],
+          if (importedExamples.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            ImportedWordExamples(examples: importedExamples),
+          ],
         ],
       ],
     );
   }
 
-  Widget _buildBottomActions(
-    ReadingProvider provider,
-    ThemeData theme,
-    UserWordStatus? status,
-    bool isBookmarked,
-  ) {
-    final word = provider.selectedWord;
-    if (word == null) return const SizedBox.shrink();
-
+  Widget _buildDefinitionCard(ThemeData theme, String definition) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          top: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
-          ),
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.12),
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: provider.isAnalyzingWord
-                  ? null
-                  : () {
-                      setState(() => _showAIAnalysis = !_showAIAnalysis);
-                      if (_showAIAnalysis) {
-                        provider.analyzeWordAI(
-                          word,
-                          provider
-                                  .selectedWordEntry
-                                  ?.meanings
-                                  .firstOrNull
-                                  ?.definitions
-                                  .firstOrNull ??
-                              word,
-                        );
-                      }
-                    },
-              icon: _showAIAnalysis
-                  ? const Icon(
-                      Icons.psychology,
-                      size: 20,
-                      color: AppColors.vocabLearning,
-                    )
-                  : const Icon(Icons.psychology, size: 20),
-              label: Text(
-                _showAIAnalysis ? '收起 AI 详解' : 'AI 详解此词',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 11,
-                  horizontal: 14,
-                ),
-                side: BorderSide(
-                  color: AppColors.vocabLearning.withValues(alpha: 0.4),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                minimumSize: const Size.fromHeight(44),
-              ),
-            ),
-          ),
-          if (_showAIAnalysis) ...[
-            const SizedBox(height: 8),
-            _buildAIAnalysisContent(provider, theme),
-          ],
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              if (status != UserWordStatus.known)
-                Expanded(
-                  child: _actionButton(
-                    theme: theme,
-                    label: 'Known',
-                    icon: Icons.check_circle_outline,
-                    color: AppColors.familiarityHigh,
-                    onPressed: () => provider.markWordKnown(word),
-                  ),
-                ),
-              if (status != UserWordStatus.learning)
-                Expanded(
-                  child: _actionButton(
-                    theme: theme,
-                    label: 'Learning',
-                    icon: Icons.school_outlined,
-                    color: AppColors.vocabLearning,
-                    onPressed: () => provider.markWordLearning(word),
-                  ),
-                ),
-              if (status != null)
-                Expanded(
-                  child: _actionButton(
-                    theme: theme,
-                    label: 'Unknown',
-                    icon: Icons.help_outline,
-                    color: AppColors.familiarityLow,
-                    onPressed: () => provider.markWordUnknown(word),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          isBookmarked
-              ? Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer.withValues(
-                      alpha: 0.3,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.bookmark,
-                        size: 20,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '已加入生词本',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: provider.selectedWordTranslation != null
-                        ? () {
-                            provider.addBookmark(
-                              word,
-                              provider.selectedWordTranslation!,
-                            );
-                            setState(() {});
-                          }
-                        : null,
-                    icon: const Icon(Icons.bookmark_border, size: 22),
-                    label: const Text('加入生词本'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(58),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 16,
-                        horizontal: 18,
-                      ),
-                    ),
-                  ),
-                ),
-        ],
+      child: Text(
+        definition,
+        style: theme.textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: theme.colorScheme.onPrimaryContainer,
+          height: 1.45,
+        ),
       ),
     );
   }
 
-  Widget _actionButton({
+  Widget _buildPartOfSpeechChip(ThemeData theme, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSecondaryContainer,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContextSection(
+    ReadingProvider provider,
+    ThemeData theme,
+    String word,
+  ) {
+    final contextText = provider.selectedWordContext?.trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionLabel(theme, '原文语境'),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.35,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+            ),
+          ),
+          child: contextText == null || contextText.isEmpty
+              ? Text(
+                  '暂无原文语境',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                )
+              : Text.rich(
+                  _highlightContext(theme, contextText, word),
+                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+                ),
+        ),
+      ],
+    );
+  }
+
+  TextSpan _highlightContext(ThemeData theme, String contextText, String word) {
+    final lowerContext = contextText.toLowerCase();
+    final lowerWord = word.toLowerCase();
+    final index = lowerContext.indexOf(lowerWord);
+    if (index < 0) {
+      return TextSpan(
+        text: contextText,
+        style: TextStyle(color: theme.colorScheme.onSurface),
+      );
+    }
+
+    return TextSpan(
+      style: TextStyle(color: theme.colorScheme.onSurface),
+      children: [
+        TextSpan(text: contextText.substring(0, index)),
+        TextSpan(
+          text: contextText.substring(index, index + word.length),
+          style: TextStyle(
+            color: theme.colorScheme.primary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        TextSpan(text: contextText.substring(index + word.length)),
+      ],
+    );
+  }
+
+  Widget _buildLearningStatusSection(
+    ReadingProvider provider,
+    ThemeData theme,
+    String word,
+    UserWordStatus? status,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionLabel(theme, '学习状态'),
+        Row(
+          children: [
+            Expanded(
+              child: _statusButton(
+                theme: theme,
+                label: '已掌握',
+                icon: Icons.check_circle_outline,
+                color: AppColors.familiarityHigh,
+                selected: status == UserWordStatus.known,
+                onPressed: () => provider.markWordKnown(word),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _statusButton(
+                theme: theme,
+                label: '学习中',
+                icon: Icons.school_outlined,
+                color: AppColors.vocabLearning,
+                selected: status == UserWordStatus.learning,
+                onPressed: () => provider.markWordLearning(word),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _statusButton({
     required ThemeData theme,
     required String label,
     required IconData icon,
     required Color color,
+    required bool selected,
     required VoidCallback onPressed,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 20, color: color),
-        label: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: color,
-            fontWeight: FontWeight.w600,
-          ),
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        backgroundColor: selected ? color.withValues(alpha: 0.10) : null,
+        side: BorderSide(
+          color: color.withValues(alpha: selected ? 0.65 : 0.35),
         ),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
-          side: BorderSide(color: color.withValues(alpha: 0.4)),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          minimumSize: const Size(0, 44),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        minimumSize: const Size(0, 44),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: theme.textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
+  }
+
+  Widget _buildOperationsSection(
+    ReadingProvider provider,
+    ThemeData theme,
+    String word,
+    bool isBookmarked,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionLabel(theme, '操作'),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: provider.selectedWordTranslation == null || isBookmarked
+                ? null
+                : () {
+                    provider.addBookmark(
+                      word,
+                      provider.selectedWordTranslation!,
+                    );
+                    setState(() {});
+                  },
+            icon: Icon(
+              isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+              size: 20,
+            ),
+            label: Text(isBookmarked ? '已加入生词本' : '加入生词本'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: provider.isAnalyzingWord
+                ? null
+                : () {
+                    setState(() => _showAIAnalysis = !_showAIAnalysis);
+                    if (_showAIAnalysis) {
+                      provider.analyzeWordAI(
+                        word,
+                        _analysisContext(provider, word),
+                      );
+                    }
+                  },
+            icon: Icon(
+              Icons.psychology,
+              size: 20,
+              color: AppColors.vocabLearning,
+            ),
+            label: Text(_showAIAnalysis ? '收起 AI 详解' : 'AI 详解这个词'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.vocabLearning,
+              side: BorderSide(
+                color: AppColors.vocabLearning.withValues(alpha: 0.35),
+              ),
+              minimumSize: const Size.fromHeight(48),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              textStyle: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        if (_showAIAnalysis) ...[
+          const SizedBox(height: 12),
+          _buildAIAnalysisContent(provider, theme),
+        ],
+      ],
+    );
+  }
+
+  String _analysisContext(ReadingProvider provider, String word) {
+    final contextText = provider.selectedWordContext?.trim();
+    if (contextText != null && contextText.isNotEmpty) return contextText;
+    final firstMeaning = provider.selectedWordEntry?.meanings.firstOrNull;
+    final definition = firstMeaning?.definitions.firstOrNull;
+    if (definition != null && definition.trim().isNotEmpty) {
+      return definition.trim();
+    }
+    return provider.selectedWordTranslation ?? word;
   }
 
   Widget _buildAIAnalysisContent(ReadingProvider provider, ThemeData theme) {
@@ -600,7 +647,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.vocabLearning.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: AppColors.vocabLearning.withValues(alpha: 0.15),
         ),

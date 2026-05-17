@@ -3,7 +3,9 @@ import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/pages/reader_page.dart';
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/screens/reading_desk_screen.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/services/word_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +28,9 @@ void main() {
     );
 
     expect(find.textContaining('第一章顶部标记00'), findsOneWidget);
+    expect(find.text('位置 1 / 2 · 0%'), findsOneWidget);
+    expect(find.byTooltip('上一页'), findsNothing);
+    expect(find.byTooltip('下一页'), findsNothing);
 
     await tester.drag(find.byType(ListView), const Offset(0, -1200));
     await tester.pumpAndSettle();
@@ -58,6 +63,70 @@ void main() {
     final previousItem = find.text('上一个目录项');
     expect(previousItem, findsOneWidget);
     expect(tester.getSize(previousItem).width, greaterThan(70));
+  });
+
+  testWidgets('reading desk navigation is localized and theme-aware', (
+    tester,
+  ) async {
+    final provider = _FakeReadingProvider();
+    final settings = SettingsService();
+    final colorScheme = ColorScheme.fromSeed(seedColor: Colors.green);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: MaterialApp(
+          theme: ThemeData(colorScheme: colorScheme),
+          home: const ReadingDeskScreen(),
+        ),
+      ),
+    );
+
+    expect(find.text('阅读'), findsOneWidget);
+    expect(find.text('词汇'), findsOneWidget);
+    expect(find.text('训练'), findsOneWidget);
+    expect(find.text('统计'), findsOneWidget);
+    expect(find.text('Reader'), findsNothing);
+    expect(find.text('Vocab'), findsNothing);
+    expect(find.text('Training'), findsNothing);
+    expect(find.text('Stats'), findsNothing);
+
+    final nav = tester.widget<NavigationBar>(find.byType(NavigationBar));
+    expect(nav.indicatorColor, colorScheme.primary.withValues(alpha: 0.14));
+    final navTheme = tester.widget<NavigationBarTheme>(
+      find.byType(NavigationBarTheme),
+    );
+    expect(
+      navTheme.data.iconTheme?.resolve({WidgetState.selected})?.color,
+      colorScheme.primary,
+    );
+    expect(
+      nav.labelTextStyle?.resolve({WidgetState.selected})?.color,
+      colorScheme.primary,
+    );
+  });
+
+  test('lookupWord keeps source context for the learning panel', () async {
+    final provider = ReadingProvider()
+      ..setWordRepository(const _FakeWordRepository());
+
+    await provider.lookupWord(
+      'avoidance',
+      contextText: 'strategic avoidance and social discomfort',
+    );
+
+    expect(provider.selectedWord, 'avoidance');
+    expect(
+      provider.selectedWordContext,
+      'strategic avoidance and social discomfort',
+    );
+    expect(provider.selectedWordTranslation, 'deliberately avoiding');
+
+    provider.clearWordLookup();
+    expect(provider.selectedWordContext, isNull);
   });
 }
 
@@ -163,6 +232,22 @@ class _FakeReadingProvider extends ReadingProvider {
         inference: 0,
         explanation: '',
       ),
+    );
+  }
+}
+
+class _FakeWordRepository implements WordRepository {
+  const _FakeWordRepository();
+
+  @override
+  Future<DictionaryEntry?> lookup(String word) async {
+    return DictionaryEntry(
+      word: word,
+      phonetic: "/əˈvɔɪdəns/",
+      meanings: const [
+        Meaning(partOfSpeech: 'n.', definitions: ['deliberately avoiding']),
+      ],
+      sourceName: 'Fixture',
     );
   }
 }
