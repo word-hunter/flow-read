@@ -1,5 +1,9 @@
 # Flow Read
 
+<p align="center">
+  <img src="assets/brand/flow_read_logo.png" alt="Flow Read logo" width="160">
+</p>
+
 英文阅读 + 词汇学习一体化的 Flutter 桌面/移动端应用。
 
 ## 功能
