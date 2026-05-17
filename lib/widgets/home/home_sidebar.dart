@@ -74,8 +74,11 @@ class HomeSidebar extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 16),
               child: Column(
                 children: [
+                  _buildSectionLabel(theme, '导航'),
                   _buildNavItems(theme),
                   const SizedBox(height: 28),
+                  _buildSectionLabel(theme, '阅读目标'),
+                  const SizedBox(height: 10),
                   ReadingStatsRing(totalSeconds: readingTimeSeconds),
                 ],
               ),
@@ -139,6 +142,22 @@ class HomeSidebar extends StatelessWidget {
           onTap: () => onTabChanged(item.tabIndex),
         );
       }),
+    );
+  }
+
+  Widget _buildSectionLabel(ThemeData theme, String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 0, 28, 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          label,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
     );
   }
 

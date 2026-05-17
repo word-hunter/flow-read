@@ -58,34 +58,57 @@ class _BookshelfContentState extends State<BookshelfContent> {
       return _buildEmptyState(context, provider, theme);
     }
 
+    final featuredCandidates = [...filteredBooks]..sort(_compareByRecent);
+    final featuredBook = featuredCandidates.isEmpty
+        ? null
+        : featuredCandidates.first;
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(theme, provider),
-          const SizedBox(height: 24),
-          if (filteredBooks.isNotEmpty) ...[
+          const SizedBox(height: 28),
+          if (featuredBook != null) ...[
+            _buildSectionHeader(theme, title: '继续阅读'),
+            const SizedBox(height: 12),
             FeaturedBookCard(
-              title: filteredBooks.first.title,
-              author: filteredBooks.first.author,
-              coverBytes: provider.getCoverBytes(filteredBooks.first.id),
-              progressPercent: (filteredBooks.first.globalProgress * 100)
-                  .toInt(),
-              lastReadAt: filteredBooks.first.lastReadAt,
-              onContinueReading: () =>
-                  _openBook(provider, filteredBooks.first.id),
-              onRemove: () => _confirmRemoveBook(provider, filteredBooks.first),
+              title: featuredBook.title,
+              author: featuredBook.author,
+              coverBytes: provider.getCoverBytes(featuredBook.id),
+              progressPercent: (featuredBook.globalProgress * 100).toInt(),
+              currentChapter: featuredBook.currentChapter,
+              totalChapters: featuredBook.totalChapters,
+              readingTimeSeconds: provider.readingTimeSecondsForBook(
+                featuredBook.id,
+              ),
+              noteCount: provider.noteCountForBook(featuredBook.id),
+              latestExcerpt: provider.latestReadingExcerptForBook(
+                featuredBook.id,
+              ),
+              lastReadAt: featuredBook.lastReadAt,
+              onContinueReading: () => _openBook(provider, featuredBook.id),
+              onRename: () => _renameBook(provider, featuredBook),
+              onRemove: () => _confirmRemoveBook(provider, featuredBook),
             ),
+            const SizedBox(height: 34),
           ],
-          const SizedBox(height: 32),
+          _buildSectionHeader(
+            theme,
+            title: '全部书籍',
+            trailing: '${filteredBooks.length} 本',
+          ),
+          const SizedBox(height: 12),
           BookShelfRow(
             books: filteredBooks
                 .map(
                   (b) => BookShelfData(
                     title: b.title,
+                    author: b.author,
                     coverBytes: provider.getCoverBytes(b.id),
                     progressPercent: (b.globalProgress * 100).toInt(),
                     onTap: () => _openBook(provider, b.id),
+                    onRename: () => _renameBook(provider, b),
                     onRemove: () => _confirmRemoveBook(provider, b),
                   ),
                 )
@@ -100,15 +123,9 @@ class _BookshelfContentState extends State<BookshelfContent> {
 
   List<BookMetadata> _sortedBooks(List<BookMetadata> books) {
     final sorted = [...books];
-    int byRecent(BookMetadata a, BookMetadata b) {
-      final aTime = a.lastReadAt?.millisecondsSinceEpoch ?? 0;
-      final bTime = b.lastReadAt?.millisecondsSinceEpoch ?? 0;
-      return bTime.compareTo(aTime);
-    }
-
     int byTitle(BookMetadata a, BookMetadata b) {
       final result = a.title.toLowerCase().compareTo(b.title.toLowerCase());
-      return result == 0 ? byRecent(a, b) : result;
+      return result == 0 ? _compareByRecent(a, b) : result;
     }
 
     int byAuthor(BookMetadata a, BookMetadata b) {
@@ -118,11 +135,11 @@ class _BookshelfContentState extends State<BookshelfContent> {
 
     int byProgress(BookMetadata a, BookMetadata b) {
       final result = b.globalProgress.compareTo(a.globalProgress);
-      return result == 0 ? byRecent(a, b) : result;
+      return result == 0 ? _compareByRecent(a, b) : result;
     }
 
     sorted.sort(switch (_sortMode) {
-      _BookSortMode.recent => byRecent,
+      _BookSortMode.recent => _compareByRecent,
       _BookSortMode.title => byTitle,
       _BookSortMode.author => byAuthor,
       _BookSortMode.progress => byProgress,
@@ -130,51 +147,19 @@ class _BookshelfContentState extends State<BookshelfContent> {
     return sorted;
   }
 
+  int _compareByRecent(BookMetadata a, BookMetadata b) {
+    final aTime = a.lastReadAt?.millisecondsSinceEpoch ?? 0;
+    final bTime = b.lastReadAt?.millisecondsSinceEpoch ?? 0;
+    return bTime.compareTo(aTime);
+  }
+
   Widget _buildHeader(ThemeData theme, ReadingProvider provider) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-      child: Row(
-        children: [
-          Text(
-            '我的书架',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const Spacer(),
-          SizedBox(
-            width: 240,
-            height: 40,
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: '搜索书籍或作者',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide(
-                    color: theme.colorScheme.outlineVariant,
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide(
-                    color: theme.colorScheme.outlineVariant,
-                  ),
-                ),
-                filled: true,
-                fillColor: theme.colorScheme.surface,
-              ),
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
-          const SizedBox(width: 12),
-          _buildSortMenu(theme),
-          const SizedBox(width: 12),
-          FilledButton.icon(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final sortMenu = _buildSortMenu(theme);
+          final addButton = FilledButton.icon(
             onPressed: provider.isLoading ? null : () => _importEpub(provider),
             icon: const Icon(Icons.add, size: 18),
             label: Text(provider.isLoading ? '导入中' : '添加书籍'),
@@ -182,7 +167,105 @@ class _BookshelfContentState extends State<BookshelfContent> {
               minimumSize: const Size(0, 40),
               padding: const EdgeInsets.symmetric(horizontal: 16),
             ),
+          );
+          final title = Text(
+            '我的书架',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          );
+
+          if (constraints.maxWidth < 860) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                title,
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(child: _buildSearchField(theme)),
+                    const SizedBox(width: 12),
+                    sortMenu,
+                    const SizedBox(width: 12),
+                    addButton,
+                  ],
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              title,
+              const Spacer(),
+              _buildSearchField(theme, width: 320),
+              const SizedBox(width: 12),
+              sortMenu,
+              const SizedBox(width: 12),
+              addButton,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSearchField(ThemeData theme, {double? width}) {
+    final field = SizedBox(
+      height: 40,
+      child: TextField(
+        controller: _searchController,
+        onChanged: _onSearchChanged,
+        decoration: InputDecoration(
+          hintText: '搜索书籍或作者',
+          prefixIcon: const Icon(Icons.search, size: 20),
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
           ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+          ),
+          filled: true,
+          fillColor: theme.colorScheme.surface,
+        ),
+        style: theme.textTheme.bodyMedium,
+      ),
+    );
+
+    if (width == null) return field;
+    return SizedBox(width: width, child: field);
+  }
+
+  Widget _buildSectionHeader(
+    ThemeData theme, {
+    required String title,
+    String? trailing,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 10),
+            Text(
+              trailing,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -204,7 +287,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           border: Border.all(color: theme.colorScheme.outline),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -347,6 +430,44 @@ class _BookshelfContentState extends State<BookshelfContent> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('已移除《${book.title}》')));
+  }
+
+  Future<void> _renameBook(ReadingProvider provider, BookMetadata book) async {
+    final controller = TextEditingController(text: book.title);
+    final renamedTitle = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('重命名书籍'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: '书名'),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (value) => Navigator.pop(dialogContext, value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, controller.text),
+              child: const Text('保存'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+
+    final trimmed = renamedTitle?.trim();
+    if (trimmed == null || trimmed.isEmpty || trimmed == book.title) return;
+    await provider.renameBook(book.id, trimmed);
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('已重命名为《$trimmed》')));
   }
 
   Future<void> _importEpub(ReadingProvider provider) async {

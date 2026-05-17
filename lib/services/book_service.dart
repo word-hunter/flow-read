@@ -56,6 +56,12 @@ class BookService {
     }
   }
 
+  Future<void> renameBook(String id, String title) async {
+    final meta = _box.get(id);
+    if (meta == null) return;
+    await _box.put(id, meta.copyWith(title: title));
+  }
+
   Future<void> updateProgress(
     String id,
     int currentChapter,

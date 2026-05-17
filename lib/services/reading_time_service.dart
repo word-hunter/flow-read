@@ -4,8 +4,11 @@ class ReadingTimeService {
   late Box<int> _box;
   int _totalSeconds = 0;
   DateTime? _startTime;
+  String? _activeBookId;
 
   int get totalSeconds => _totalSeconds;
+
+  int secondsForBook(String bookId) => _box.get(bookId, defaultValue: 0) ?? 0;
 
   String get displayText {
     if (_totalSeconds < 60) return '$_totalSeconds 秒';
@@ -21,8 +24,9 @@ class ReadingTimeService {
     _totalSeconds = _box.get('_global_', defaultValue: 0) ?? 0;
   }
 
-  void start() {
+  void start([String? bookId]) {
     _startTime = DateTime.now();
+    _activeBookId = bookId;
   }
 
   Future<void> stop() async {
@@ -30,7 +34,12 @@ class ReadingTimeService {
     final elapsed = DateTime.now().difference(_startTime!).inSeconds;
     _totalSeconds += elapsed;
     await _box.put('_global_', _totalSeconds);
+    final bookId = _activeBookId;
+    if (bookId != null) {
+      await _box.put(bookId, secondsForBook(bookId) + elapsed);
+    }
     _startTime = null;
+    _activeBookId = null;
   }
 
   Future<void> close() async {

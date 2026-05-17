@@ -179,6 +179,22 @@ class ReadingProvider extends ChangeNotifier {
 
   Uint8List? getCoverBytes(String bookId) => _bookService.loadCover(bookId);
 
+  int noteCountForBook(String bookId) {
+    final wordCount = _bookmarkService?.loadWordBookmarks(bookId).length ?? 0;
+    final readingCount =
+        _bookmarkService?.loadReadingBookmarks(bookId).length ?? 0;
+    return wordCount + readingCount;
+  }
+
+  String? latestReadingExcerptForBook(String bookId) {
+    final bookmarks = _bookmarkService?.loadReadingBookmarks(bookId) ?? [];
+    for (final bookmark in bookmarks) {
+      final excerpt = bookmark.excerpt.trim();
+      if (excerpt.isNotEmpty) return excerpt;
+    }
+    return null;
+  }
+
   // -- UI --
   int get currentTab => _currentTab;
   bool get isLoading => _isLoading;
@@ -214,6 +230,11 @@ class ReadingProvider extends ChangeNotifier {
   // -- Reading time (delegated to ReadingTimeService) --
   int get readingTimeSeconds => _readingTime?.totalSeconds ?? 0;
   String get readingTimeDisplay => _readingTime?.displayText ?? '0 秒';
+  int readingTimeSecondsForBook(String bookId) {
+    final seconds = _readingTime?.secondsForBook(bookId) ?? 0;
+    if (seconds > 0 || _bookService.books.length != 1) return seconds;
+    return readingTimeSeconds;
+  }
 
   // -- AI --
   AITextAnalysis? get aiTextAnalysis => _aiTextAnalysis;
@@ -403,6 +424,13 @@ class ReadingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> renameBook(String bookId, String title) async {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) return;
+    await _bookService.renameBook(bookId, trimmed);
+    notifyListeners();
+  }
+
   // ============================================================
   // Navigation
   // ============================================================
@@ -415,7 +443,7 @@ class ReadingProvider extends ChangeNotifier {
   void enterReader() {
     _isReading = true;
     _hasBeenOpened = true;
-    _readingTime?.start();
+    _readingTime?.start(_activeBookId);
     notifyListeners();
   }
 

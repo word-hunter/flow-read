@@ -1,123 +1,256 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
-class BookShelfItem extends StatelessWidget {
+import 'book_cover_view.dart';
+
+enum BookShelfAction { open, rename, remove }
+
+class BookShelfItem extends StatefulWidget {
+  static const double itemHeight = 248;
+
   final String title;
+  final String author;
   final Uint8List? coverBytes;
   final int progressPercent;
   final VoidCallback? onTap;
+  final VoidCallback? onRename;
   final VoidCallback? onRemove;
 
   const BookShelfItem({
     super.key,
     required this.title,
+    required this.author,
     this.coverBytes,
     required this.progressPercent,
     this.onTap,
+    this.onRename,
     this.onRemove,
+  });
+
+  @override
+  State<BookShelfItem> createState() => _BookShelfItemState();
+}
+
+class _BookShelfItemState extends State<BookShelfItem> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onSecondaryTapDown: (details) =>
+            _showContextMenu(context, details.globalPosition),
+        child: SizedBox(
+          width: 156,
+          height: BookShelfItem.itemHeight,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  BookCoverView(
+                    coverBytes: widget.coverBytes,
+                    progressPercent: widget.progressPercent,
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: AnimatedOpacity(
+                      opacity: _isHovering ? 1 : 0,
+                      duration: const Duration(milliseconds: 140),
+                      child: IgnorePointer(
+                        ignoring: !_isHovering,
+                        child: _BookActionsButton(
+                          onSelected: _handleAction,
+                          canRename: widget.onRename != null,
+                          canRemove: widget.onRemove != null,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                widget.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                widget.author,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showContextMenu(BuildContext context, Offset position) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final selected = await showMenu<BookShelfAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(position, position),
+        Offset.zero & overlay.size,
+      ),
+      items: _buildMenuItems(context),
+    );
+    if (selected != null) _handleAction(selected);
+  }
+
+  List<PopupMenuEntry<BookShelfAction>> _buildMenuItems(BuildContext context) {
+    final theme = Theme.of(context);
+    return [
+      const PopupMenuItem(
+        value: BookShelfAction.open,
+        child: _BookMenuItem(icon: Icons.menu_book_outlined, label: '继续阅读'),
+      ),
+      if (widget.onRename != null)
+        const PopupMenuItem(
+          value: BookShelfAction.rename,
+          child: _BookMenuItem(
+            icon: Icons.drive_file_rename_outline,
+            label: '重命名',
+          ),
+        ),
+      if (widget.onRemove != null) const PopupMenuDivider(),
+      if (widget.onRemove != null)
+        PopupMenuItem(
+          value: BookShelfAction.remove,
+          child: _BookMenuItem(
+            icon: Icons.remove_circle_outline,
+            label: '移出书架',
+            color: theme.colorScheme.error,
+          ),
+        ),
+    ];
+  }
+
+  void _handleAction(BookShelfAction action) {
+    switch (action) {
+      case BookShelfAction.open:
+        widget.onTap?.call();
+        return;
+      case BookShelfAction.rename:
+        widget.onRename?.call();
+        return;
+      case BookShelfAction.remove:
+        widget.onRemove?.call();
+        return;
+    }
+  }
+}
+
+class _BookActionsButton extends StatelessWidget {
+  final ValueChanged<BookShelfAction> onSelected;
+  final bool canRename;
+  final bool canRemove;
+
+  const _BookActionsButton({
+    required this.onSelected,
+    required this.canRename,
+    required this.canRemove,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 120,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              children: [
-                Container(
-                  width: 120,
-                  height: 160,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 8,
-                        offset: const Offset(2, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: coverBytes != null
-                        ? Image.memory(
-                            coverBytes!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => _buildPlaceholder(theme),
-                          )
-                        : _buildPlaceholder(theme),
-                  ),
-                ),
-                Positioned(
-                  left: 6,
-                  bottom: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '$progressPercent%',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                ),
-                if (onRemove != null)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Tooltip(
-                      message: '移除书籍',
-                      child: IconButton.filledTonal(
-                        onPressed: onRemove,
-                        icon: const Icon(Icons.delete_outline, size: 16),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints.tightFor(
-                          width: 30,
-                          height: 30,
-                        ),
-                        style: IconButton.styleFrom(
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          backgroundColor: theme.colorScheme.surface.withValues(
-                            alpha: 0.88,
-                          ),
-                          foregroundColor: theme.colorScheme.error,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+    return PopupMenuButton<BookShelfAction>(
+      tooltip: '书籍操作',
+      onSelected: onSelected,
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: BookShelfAction.open,
+          child: _BookMenuItem(icon: Icons.menu_book_outlined, label: '继续阅读'),
+        ),
+        if (canRename)
+          const PopupMenuItem(
+            value: BookShelfAction.rename,
+            child: _BookMenuItem(
+              icon: Icons.drive_file_rename_outline,
+              label: '重命名',
+            ),
+          ),
+        if (canRemove) const PopupMenuDivider(),
+        if (canRemove)
+          PopupMenuItem(
+            value: BookShelfAction.remove,
+            child: _BookMenuItem(
+              icon: Icons.remove_circle_outline,
+              label: '移出书架',
+              color: theme.colorScheme.error,
+            ),
+          ),
+      ],
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.65),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
+        ),
+        child: SizedBox(
+          width: 34,
+          height: 34,
+          child: Icon(
+            Icons.more_horiz,
+            size: 20,
+            color: theme.colorScheme.onSurface,
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildPlaceholder(ThemeData theme) {
-    return Container(
-      color: theme.colorScheme.primaryContainer,
-      child: Center(
-        child: Icon(
-          Icons.menu_book,
-          size: 32,
-          color: theme.colorScheme.primary.withValues(alpha: 0.6),
+class _BookMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  const _BookMenuItem({required this.icon, required this.label, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final foreground = color ?? theme.colorScheme.onSurface;
+
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: foreground),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(color: foreground),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

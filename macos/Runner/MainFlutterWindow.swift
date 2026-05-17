@@ -2,6 +2,9 @@ import Cocoa
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
+  private static let defaultContentSize = NSSize(width: 1360, height: 840)
+  private static let minimumContentSize = NSSize(width: 1180, height: 740)
+
   private var backupFolderChannel: FlutterMethodChannel?
   private var backupFolderAccessHandler: BackupFolderAccessHandler?
 
@@ -10,11 +13,39 @@ class MainFlutterWindow: NSWindow {
     let windowFrame = self.frame
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
+    configureInitialWindowSize()
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     registerBackupFolderAccessChannel(flutterViewController: flutterViewController)
 
     super.awakeFromNib()
+  }
+
+  private func configureInitialWindowSize() {
+    contentMinSize = Self.minimumContentSize
+
+    let currentContentSize = contentLayoutRect.size
+    guard currentContentSize.width < Self.minimumContentSize.width ||
+      currentContentSize.height < Self.minimumContentSize.height
+    else {
+      return
+    }
+
+    let targetSize = Self.contentSizeThatFitsScreen()
+    setContentSize(targetSize)
+    center()
+  }
+
+  private static func contentSizeThatFitsScreen() -> NSSize {
+    guard let visibleFrame = NSScreen.main?.visibleFrame else {
+      return defaultContentSize
+    }
+
+    let availableWidth = max(0, visibleFrame.width - 48)
+    let availableHeight = max(0, visibleFrame.height - 48)
+    return NSSize(
+      width: min(defaultContentSize.width, availableWidth),
+      height: min(defaultContentSize.height, availableHeight))
   }
 
   private func registerBackupFolderAccessChannel(flutterViewController: FlutterViewController) {
