@@ -455,7 +455,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildAboutSection() {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.menu_book_outlined),
+      leading: Image.asset(
+        'assets/brand/flow_read_logo.png',
+        width: 32,
+        height: 32,
+        filterQuality: FilterQuality.high,
+      ),
       title: const Text('Flow Read'),
       subtitle: const Text('版本 ${FlowReadVersion.display}'),
       trailing: Tooltip(

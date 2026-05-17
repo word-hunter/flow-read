@@ -68,6 +68,7 @@ flutter:
 
   assets:
     - CHANGELOG.md
+    - assets/brand/
     - assets/wordnet/
     - assets/dict/
 

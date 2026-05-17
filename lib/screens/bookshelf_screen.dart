@@ -5,6 +5,8 @@ import '../models/book_metadata.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_constants.dart';
 
+const _logoAsset = 'assets/brand/flow_read_logo.png';
+
 class BookshelfScreen extends StatelessWidget {
   const BookshelfScreen({super.key});
 
@@ -412,10 +414,11 @@ Widget _buildEmptyState(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.menu_book,
-            size: 80,
-            color: theme.colorScheme.primary.withValues(alpha: 0.5),
+          Image.asset(
+            _logoAsset,
+            width: 96,
+            height: 96,
+            filterQuality: FilterQuality.high,
           ),
           const SizedBox(height: 24),
           Text(

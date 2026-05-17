@@ -120,6 +120,8 @@ class _FlowReadBootstrapAppState extends State<FlowReadBootstrapApp> {
 class StartupScreen extends StatelessWidget {
   const StartupScreen({super.key, this.error, required this.onRetry});
 
+  static const _logoAsset = 'assets/brand/flow_read_logo.png';
+
   final Object? error;
   final VoidCallback onRetry;
 

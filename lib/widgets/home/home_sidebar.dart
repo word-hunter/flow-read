@@ -3,6 +3,8 @@ import '../../theme/app_constants.dart';
 import 'reading_stats_ring.dart';
 
 class HomeSidebar extends StatelessWidget {
+  static const _logoAsset = 'assets/brand/flow_read_logo.png';
+
   final int currentTab;
   final ValueChanged<int> onTabChanged;
   final int readingTimeSeconds;
@@ -96,8 +98,13 @@ class HomeSidebar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          Icon(Icons.auto_stories, color: theme.colorScheme.primary, size: 32),
-          const SizedBox(width: 10),
+          Image.asset(
+            _logoAsset,
+            width: 40,
+            height: 40,
+            filterQuality: FilterQuality.high,
+          ),
+          const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
