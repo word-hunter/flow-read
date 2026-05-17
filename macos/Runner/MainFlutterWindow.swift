@@ -1,12 +1,13 @@
 import Cocoa
 import FlutterMacOS
 
-class MainFlutterWindow: NSWindow {
+class MainFlutterWindow: NSWindow, NSDraggingDestination {
   private static let defaultContentSize = NSSize(width: 1360, height: 840)
   private static let minimumContentSize = NSSize(width: 1180, height: 740)
 
   private var backupFolderChannel: FlutterMethodChannel?
   private var backupFolderAccessHandler: BackupFolderAccessHandler?
+  private var fileDropChannel: FlutterMethodChannel?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -17,6 +18,8 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     registerBackupFolderAccessChannel(flutterViewController: flutterViewController)
+    registerFileDropChannel(flutterViewController: flutterViewController)
+    registerForDraggedTypes([.fileURL])
 
     super.awakeFromNib()
   }
@@ -56,6 +59,54 @@ class MainFlutterWindow: NSWindow {
     channel.setMethodCallHandler(handler.handle)
     backupFolderChannel = channel
     backupFolderAccessHandler = handler
+  }
+
+  private func registerFileDropChannel(flutterViewController: FlutterViewController) {
+    fileDropChannel = FlutterMethodChannel(
+      name: "flow_read/file_drop",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+  }
+
+  func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+    guard !epubFilePaths(from: sender).isEmpty else {
+      return []
+    }
+    fileDropChannel?.invokeMethod("dragEntered", arguments: nil)
+    return .copy
+  }
+
+  func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+    return epubFilePaths(from: sender).isEmpty ? [] : .copy
+  }
+
+  func draggingExited(_ sender: NSDraggingInfo?) {
+    fileDropChannel?.invokeMethod("dragExited", arguments: nil)
+  }
+
+  func draggingEnded(_ sender: NSDraggingInfo) {
+    fileDropChannel?.invokeMethod("dragExited", arguments: nil)
+  }
+
+  func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+    let paths = epubFilePaths(from: sender)
+    guard !paths.isEmpty else {
+      fileDropChannel?.invokeMethod("dragExited", arguments: nil)
+      return false
+    }
+
+    fileDropChannel?.invokeMethod("filesDropped", arguments: paths)
+    return true
+  }
+
+  private func epubFilePaths(from draggingInfo: NSDraggingInfo) -> [String] {
+    let pasteboard = draggingInfo.draggingPasteboard
+    let urls = pasteboard.readObjects(
+      forClasses: [NSURL.self],
+      options: [.urlReadingFileURLsOnly: true]) as? [URL]
+
+    return urls?
+      .filter { $0.pathExtension.lowercased() == "epub" }
+      .map { $0.path } ?? []
   }
 }
 

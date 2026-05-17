@@ -35,6 +35,7 @@ import 'services/word_context_service.dart';
 import 'services/word_level_service.dart';
 import 'services/wordnet_repository.dart';
 import 'theme/app_theme.dart';
+import 'widgets/epub_drop_importer.dart';
 import 'widgets/release_notes_gate.dart';
 import 'widgets/theme_transition.dart';
 
@@ -321,7 +322,9 @@ class FlowReadApp extends StatelessWidget {
               themeMode: settings.themeMode,
               themeAnimationDuration: const Duration(milliseconds: 220),
               themeAnimationCurve: Curves.easeOutCubic,
-              home: const ReleaseNotesGate(child: HomeScreen()),
+              home: const ReleaseNotesGate(
+                child: EpubDropImporter(child: HomeScreen()),
+              ),
               routes: {
                 '/dashboard': (_) => const DashboardScreen(),
                 '/syntax': (_) => const SyntaxScreen(),
