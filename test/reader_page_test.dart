@@ -5,7 +5,7 @@ import 'package:flow_read/pages/reader_page.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/screens/reading_desk_screen.dart';
 import 'package:flow_read/services/settings_service.dart';
-import 'package:flow_read/services/word_repository.dart';
+import 'package:flow_read/services/dictionary/word_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';

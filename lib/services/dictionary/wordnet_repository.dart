@@ -14,7 +14,7 @@ class WordNetRepository implements WordRepository {
     if (lower.isEmpty) return null;
 
     if (_resultCache.containsKey(lower)) {
-      return _resultCache[lower];
+      return _resultCache[lower]?.copyWith(fromCache: true);
     }
 
     // Try exact match first
@@ -24,7 +24,7 @@ class WordNetRepository implements WordRepository {
     // Try lemmatized forms
     for (final lemma in _lemmatize(lower)) {
       if (_resultCache.containsKey(lemma)) {
-        return _resultCache[lemma];
+        return _resultCache[lemma]?.copyWith(fromCache: true);
       }
       final lemmaEntry = await _lookupRaw(lemma);
       if (lemmaEntry != null) return lemmaEntry;
@@ -44,12 +44,12 @@ class WordNetRepository implements WordRepository {
       if (base.length >= 2 && base[base.length - 1] == base[base.length - 2]) {
         forms.add(base.substring(0, base.length - 1));
       }
-      forms.add(base + 'e');
+      forms.add('${base}e');
     }
     if (word.endsWith('ed')) {
       final base = word.substring(0, word.length - 2);
       forms.add(base); // walked -> walk, glanced -> glanc
-      forms.add(base + 'e'); // glanced -> glance
+      forms.add('${base}e'); // glanced -> glance
       if (base.length >= 2 && base[base.length - 1] == base[base.length - 2]) {
         forms.add(base.substring(0, base.length - 1)); // stopped -> stop
       }
@@ -133,21 +133,21 @@ class WordNetRepository implements WordRepository {
 
     final meanings = <Meaning>[];
     for (final e in posMap.entries) {
-      final definitions = <String>[];
-      for (final def in e.value) {
-        definitions.add(def);
-      }
-      final examples = posExamples[e.key];
-      if (examples != null) {
-        for (final ex in examples) {
-          definitions.add('Example: $ex');
-        }
-      }
-      meanings.add(Meaning(partOfSpeech: e.key, definitions: definitions));
+      meanings.add(
+        Meaning(
+          partOfSpeech: e.key,
+          definitions: List.unmodifiable(e.value),
+          examples: List.unmodifiable(posExamples[e.key] ?? const []),
+        ),
+      );
     }
 
     if (meanings.isEmpty) return null;
 
-    return DictionaryEntry(word: word, meanings: meanings);
+    return DictionaryEntry(
+      word: word,
+      meanings: meanings,
+      sourceName: 'WordNet',
+    );
   }
 }

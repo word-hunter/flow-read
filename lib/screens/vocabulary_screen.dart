@@ -5,6 +5,7 @@ import '../models/aggregated_vocabulary.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
+import '../widgets/word_bottom_sheet.dart';
 
 class VocabularyScreen extends StatefulWidget {
   const VocabularyScreen({super.key});
@@ -88,13 +89,27 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                             provider.markWordLearning(vocab.word),
                         onMarkUnknown: () =>
                             provider.markWordUnknown(vocab.word),
-                        onTap: () => provider.lookupWord(vocab.word),
+                        onTap: () => _openWordDetail(context, provider, vocab),
                       );
                     },
                   ),
           ),
         ],
       ),
+    );
+  }
+
+  void _openWordDetail(
+    BuildContext context,
+    ReadingProvider provider,
+    AggregatedVocabulary vocab,
+  ) {
+    provider.lookupWord(vocab.word, contextText: vocab.context);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => WordBottomSheet(word: vocab.word),
     );
   }
 

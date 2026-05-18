@@ -11,6 +11,7 @@ import '../services/app_version.dart';
 import '../services/backup_folder_access.dart';
 import '../services/backup_service.dart';
 import '../services/changelog_service.dart';
+import '../services/dictionary/dictionary_cache_service.dart';
 import '../services/llm_client.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
@@ -254,6 +255,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 22),
             switch (_selectedSection) {
               _SettingsSection.appearance => _buildAppearanceSection(
+                theme,
+                settings,
+              ),
+              _SettingsSection.dictionary => _buildDictionarySection(
                 theme,
                 settings,
               ),
@@ -508,6 +513,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDictionarySection(ThemeData theme, SettingsService settings) {
+    final enabledSources = settings.dictionarySources
+        .where((config) => config.enabled)
+        .map((config) => config.type.label)
+        .join(' → ');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SettingsCard(
+          icon: Icons.menu_book_outlined,
+          title: '来源',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                secondary: const Icon(Icons.language_outlined),
+                title: const Text('Collins 在线词典'),
+                subtitle: Text(
+                  settings.collinsDictionaryEnabled ? '已启用' : '已停用',
+                ),
+                value: settings.collinsDictionaryEnabled,
+                onChanged: settings.setCollinsDictionaryEnabled,
+              ),
+              if (enabledSources.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                _StatusLine(
+                  icon: Icons.low_priority_outlined,
+                  text: '当前顺序：$enabledSources',
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        _SettingsCard(
+          icon: Icons.delete_sweep_outlined,
+          title: '缓存',
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _clearDictionaryCache,
+              icon: const Icon(Icons.cleaning_services_outlined),
+              label: const Text('清理词典缓存'),
+            ),
           ),
         ),
       ],
@@ -1025,6 +1083,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _clearDictionaryCache() async {
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('清理词典缓存'),
+            content: const Text('将删除 Collins、Longman 等在线词典的本地缓存。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('清理'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+
+    final cache = DictionaryCacheService();
+    await cache.init();
+    await cache.clear();
+    if (mounted) {
+      _showSnackBar('词典缓存已清理');
+    }
+  }
+
   Future<void> _setAllExperimentalFeatures(
     SettingsService settings,
     bool enabled,
@@ -1272,13 +1360,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-enum _SettingsSection { appearance, ai, backup, experiments, about }
+enum _SettingsSection { appearance, dictionary, ai, backup, experiments, about }
 
 extension _SettingsSectionMeta on _SettingsSection {
   String get title {
     switch (this) {
       case _SettingsSection.appearance:
         return '外观';
+      case _SettingsSection.dictionary:
+        return '词典';
       case _SettingsSection.ai:
         return 'AI 设置';
       case _SettingsSection.backup:
@@ -1294,6 +1384,8 @@ extension _SettingsSectionMeta on _SettingsSection {
     switch (this) {
       case _SettingsSection.appearance:
         return '调整主题、颜色模式与词汇标记色。';
+      case _SettingsSection.dictionary:
+        return '管理查词来源和本地缓存。';
       case _SettingsSection.ai:
         return '配置 AI 服务商、模型、密钥与连接状态。';
       case _SettingsSection.backup:
@@ -1309,6 +1401,8 @@ extension _SettingsSectionMeta on _SettingsSection {
     switch (this) {
       case _SettingsSection.appearance:
         return Icons.palette_outlined;
+      case _SettingsSection.dictionary:
+        return Icons.menu_book_outlined;
       case _SettingsSection.ai:
         return Icons.auto_awesome;
       case _SettingsSection.backup:

@@ -4,6 +4,7 @@ import '../models/analysis_result.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
+import 'dictionary_detail_view.dart';
 import 'reader_text_view.dart' show WordTapCallback;
 
 Color _sidebarLevelColor(String level) {
@@ -381,43 +382,12 @@ class ReaderSidebar extends StatelessWidget {
               ),
             ],
           ),
-          if (provider.selectedWordTranslation != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              provider.selectedWordTranslation!,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ],
-          if (provider.isLoadingWord)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            ),
-          if (provider.selectedWordEntry != null) ...[
-            const SizedBox(height: 8),
-            ...provider.selectedWordEntry!.meanings
-                .take(1)
-                .map(
-                  (m) => Text(
-                    m.definitions.firstOrNull ?? '',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-          ],
+          const SizedBox(height: 8),
+          DictionaryDetailView.fromProvider(
+            provider: provider,
+            word: provider.selectedWord!,
+            showWordHeader: false,
+          ),
           const SizedBox(height: 10),
           Row(
             children: [

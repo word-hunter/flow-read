@@ -6,6 +6,7 @@ import '../services/settings_service.dart';
 import '../services/word_level_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
+import 'dictionary_detail_view.dart';
 
 typedef WordTapCallback = void Function(String word, String contextText);
 
@@ -890,97 +891,12 @@ Widget _buildPopupHeader(ReadingProvider provider, ThemeData theme) {
   );
 }
 
-Widget _buildDictionaryContent(ReadingProvider provider, ThemeData theme) {
-  if (provider.isLoadingWord) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
-  final entry = provider.selectedWordEntry;
-  if (entry == null) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'No definition found',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Try checking the spelling or your network connection.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-          ),
-        ),
-      ],
-    );
-  }
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      if (entry.phonetic != null) ...[
-        Text(
-          entry.phonetic!,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-        const SizedBox(height: 8),
-      ],
-      ...entry.meanings.map(
-        (meaning) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (meaning.partOfSpeech.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    meaning.partOfSpeech,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSecondaryContainer,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 4),
-              ...meaning.definitions.asMap().entries.map((e) {
-                final isExample = e.value.startsWith('Example:');
-                return Padding(
-                  padding: const EdgeInsets.only(top: 4, left: 4),
-                  child: Text(
-                    '${e.key + 1}. ${e.value}',
-                    style:
-                        (isExample
-                                ? theme.textTheme.bodySmall
-                                : theme.textTheme.bodyMedium)
-                            ?.copyWith(
-                              color: isExample
-                                  ? theme.colorScheme.tertiary
-                                  : theme.colorScheme.onSurface,
-                              fontStyle: isExample ? FontStyle.italic : null,
-                            ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ),
-    ],
+Widget _buildDictionaryContent(ReadingProvider provider, ThemeData _) {
+  final word = provider.selectedWord;
+  if (word == null) return const SizedBox.shrink();
+  return DictionaryDetailView.fromProvider(
+    provider: provider,
+    word: word,
+    showWordHeader: false,
   );
 }

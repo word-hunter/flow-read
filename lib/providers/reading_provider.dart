@@ -34,8 +34,8 @@ import '../services/settings_service.dart';
 import '../services/user_vocabulary_service.dart';
 import '../services/word_context_service.dart';
 import '../services/word_level_service.dart';
-import '../services/word_repository.dart';
-import '../services/wordnet_repository.dart';
+import '../services/dictionary/word_repository.dart';
+import '../services/dictionary/wordnet_repository.dart';
 
 class ReadingProvider extends ChangeNotifier {
   // ============================================================

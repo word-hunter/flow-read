@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/user_vocabulary.dart';
-import '../models/word_level.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
-import 'imported_word_examples.dart';
+import 'dictionary_detail_view.dart';
 
 class WordBottomSheet extends StatefulWidget {
   final String word;
@@ -42,15 +41,11 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
           child: Column(
             children: [
               _buildHeader(theme),
-              _buildWordHeader(provider, theme),
-              Divider(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
-              ),
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                  child: _buildContent(provider, theme),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                  child: _buildContent(provider),
                 ),
               ),
               _buildBottomActions(
@@ -97,241 +92,10 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
     );
   }
 
-  Widget _buildWordHeader(ReadingProvider provider, ThemeData theme) {
-    final levelService = provider.wordLevelService;
-    LevelKey? level;
-    if (levelService != null && levelService.hasWord(widget.word)) {
-      level = levelService.getLevel(widget.word);
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-      child: Row(
-        children: [
-          Icon(Icons.translate, size: 20, color: theme.colorScheme.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.word,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Serif',
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-                if (level != null ||
-                    provider.selectedWordEntry?.sourceName != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(
-                      children: [
-                        if (level != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _levelColor(level).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '${level.shortLabel} ${level.label}',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: _levelColor(level),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
-                        if (level != null &&
-                            provider.selectedWordEntry?.sourceName != null)
-                          const SizedBox(width: 8),
-                        if (provider.selectedWordEntry?.sourceName != null)
-                          Text(
-                            'via ${provider.selectedWordEntry!.sourceName}',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant
-                                  .withValues(alpha: 0.5),
-                              fontSize: 10,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (provider.isLoadingWord)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Color _levelColor(LevelKey level) {
-    switch (level) {
-      case LevelKey.p:
-        return Colors.green;
-      case LevelKey.m:
-        return Colors.teal;
-      case LevelKey.h:
-        return Colors.blue;
-      case LevelKey.cet4:
-        return Colors.orange;
-      case LevelKey.cet6:
-        return Colors.deepOrange;
-      case LevelKey.gre:
-        return Colors.red;
-      case LevelKey.other:
-        return Colors.grey;
-    }
-  }
-
-  Widget _buildContent(ReadingProvider provider, ThemeData theme) {
-    if (provider.isLoadingWord) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    final entry = provider.selectedWordEntry;
-    final importedExamples = provider.importedExamplesFor(widget.word);
-    final hasContent =
-        entry != null ||
-        provider.selectedWordTranslation != null ||
-        importedExamples.isNotEmpty;
-
-    if (!hasContent) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '未找到释义',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '请检查拼写或网络连接。',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (provider.selectedWordTranslation != null) ...[
-          Text(
-            '释义',
-            style: theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              provider.selectedWordTranslation!,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
-            ),
-          ),
-        ],
-        if (entry != null) ...[
-          if (provider.selectedWordTranslation != null)
-            const SizedBox(height: 16),
-          if (entry.phonetic != null) ...[
-            Text(
-              entry.phonetic!,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          ...entry.meanings.map(
-            (meaning) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (meaning.partOfSpeech.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        meaning.partOfSpeech,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSecondaryContainer,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 4),
-                  ...meaning.definitions.asMap().entries.map((e) {
-                    final isExample = e.value.startsWith('Example:');
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 4, left: 4),
-                      child: Text(
-                        '${e.key + 1}. ${e.value}',
-                        style:
-                            (isExample
-                                    ? theme.textTheme.bodySmall
-                                    : theme.textTheme.bodyMedium)
-                                ?.copyWith(
-                                  color: isExample
-                                      ? theme.colorScheme.tertiary
-                                      : theme.colorScheme.onSurface,
-                                  fontStyle: isExample
-                                      ? FontStyle.italic
-                                      : null,
-                                ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ),
-        ],
-        if (importedExamples.isNotEmpty) ...[
-          if (entry != null || provider.selectedWordTranslation != null)
-            const SizedBox(height: 8),
-          ImportedWordExamples(examples: importedExamples),
-        ],
-      ],
+  Widget _buildContent(ReadingProvider provider) {
+    return DictionaryDetailView.fromProvider(
+      provider: provider,
+      word: widget.word,
     );
   }
 

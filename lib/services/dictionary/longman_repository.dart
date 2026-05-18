@@ -20,7 +20,7 @@ class LongmanRepository implements WordRepository {
 
     final cached = _cache.get(_name, lower);
     if (cached != null) {
-      return _parseEntry(lower, cached);
+      return parseHtml(lower, cached, fromCache: true);
     }
 
     try {
@@ -33,13 +33,17 @@ class LongmanRepository implements WordRepository {
 
       final rawHtml = response.body;
       await _cache.set(_name, lower, rawHtml);
-      return _parseEntry(lower, rawHtml);
+      return parseHtml(lower, rawHtml);
     } catch (_) {
       return null;
     }
   }
 
-  DictionaryEntry? _parseEntry(String word, String rawHtml) {
+  DictionaryEntry? parseHtml(
+    String word,
+    String rawHtml, {
+    bool fromCache = false,
+  }) {
     final document = parser.parse(rawHtml);
     final root = document.querySelector('.responsive_cell6');
     if (root == null) return null;
@@ -70,10 +74,12 @@ class LongmanRepository implements WordRepository {
       final senses = entry.querySelectorAll('.Sense');
       if (senses.isNotEmpty) {
         final definitions = <String>[];
+        final examples = <String>[];
         for (final sense in senses) {
           final defElement = sense.querySelector('.DEF');
           if (defElement != null) {
-            definitions.add(defElement.text.trim());
+            final text = defElement.text.trim();
+            if (text.isNotEmpty) definitions.add(text);
           } else {
             final text = sense.text.trim();
             if (text.isNotEmpty) {
@@ -81,16 +87,22 @@ class LongmanRepository implements WordRepository {
             }
           }
 
-          final examples = sense.querySelectorAll('.EXAMPLE');
-          for (final ex in examples) {
+          final exampleElements = sense.querySelectorAll('.EXAMPLE');
+          for (final ex in exampleElements) {
             final text = ex.text.trim();
             if (text.isNotEmpty) {
-              definitions.add('Example: $text');
+              examples.add(text);
             }
           }
         }
-        if (definitions.isNotEmpty) {
-          meanings.add(Meaning(partOfSpeech: pos, definitions: definitions));
+        if (definitions.isNotEmpty || examples.isNotEmpty) {
+          meanings.add(
+            Meaning(
+              partOfSpeech: pos,
+              definitions: definitions,
+              examples: examples,
+            ),
+          );
         }
       }
     }
@@ -107,7 +119,8 @@ class LongmanRepository implements WordRepository {
             final definitions = <String>[];
             final defs = parent.querySelectorAll('.def, .definition');
             for (final d in defs) {
-              definitions.add(d.text.trim());
+              final text = d.text.trim();
+              if (text.isNotEmpty) definitions.add(text);
             }
             if (definitions.isNotEmpty) {
               meanings.add(
@@ -131,6 +144,7 @@ class LongmanRepository implements WordRepository {
             sourceName: _name,
             sourceUrl: sourceUrl,
             htmlContent: root.innerHtml,
+            fromCache: fromCache,
           );
   }
 

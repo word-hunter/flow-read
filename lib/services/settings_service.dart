@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
 import 'ai_provider_config.dart';
+import 'dictionary/dictionary_source_config.dart';
 import '../theme/app_theme.dart';
 
 class AIUsageStats {
@@ -77,6 +78,7 @@ class SettingsService extends ChangeNotifier {
     experimentalFeatureBrowser,
   };
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
+  static const _dictionarySourcesKey = 'dictionarySources';
   static const _themeModeCycle = <ThemeMode>[
     ThemeMode.system,
     ThemeMode.light,
@@ -102,6 +104,8 @@ class SettingsService extends ChangeNotifier {
   String? _lastBackupPath;
   String _lastSeenReleaseNotesVersion = '';
   Set<String> _enabledExperimentalFeatures = {};
+  List<DictionarySourceConfig> _dictionarySources =
+      DictionarySourceConfig.defaults;
 
   VocabularyColorSettings get colors => _colors;
   String get aiProviderId => _aiProviderId;
@@ -145,6 +149,11 @@ class SettingsService extends ChangeNotifier {
   String get lastSeenReleaseNotesVersion => _lastSeenReleaseNotesVersion;
   Set<String> get enabledExperimentalFeatures =>
       Set.unmodifiable(_enabledExperimentalFeatures);
+  List<DictionarySourceConfig> get dictionarySources =>
+      List.unmodifiable(_dictionarySources);
+  bool get collinsDictionaryEnabled => _dictionarySources.any(
+    (config) => config.type == DictionarySourceType.collins && config.enabled,
+  );
   bool get rssFeatureEnabled =>
       isExperimentalFeatureEnabled(experimentalFeatureRss);
   bool get browserFeatureEnabled =>
@@ -153,6 +162,9 @@ class SettingsService extends ChangeNotifier {
   Future<void> init() async {
     _box = Hive.box('settings');
     _load();
+    if (!_box.containsKey(_dictionarySourcesKey)) {
+      await _writeDictionarySources(_dictionarySources);
+    }
   }
 
   Future<void> reloadFromStorage() async {
@@ -211,6 +223,7 @@ class SettingsService extends ChangeNotifier {
     _enabledExperimentalFeatures = _readStringSet(
       _enabledExperimentalFeaturesKey,
     );
+    _dictionarySources = _readDictionarySources();
   }
 
   Map<String, String> _readStringMap(String key) {
@@ -255,6 +268,30 @@ class SettingsService extends ChangeNotifier {
     return {};
   }
 
+  List<DictionarySourceConfig> _readDictionarySources() {
+    final raw = _box.get(_dictionarySourcesKey);
+    Object? decoded = raw;
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        decoded = jsonDecode(raw);
+      } catch (_) {
+        return DictionarySourceConfig.defaults;
+      }
+    }
+    if (decoded is Iterable) {
+      final configs = decoded
+          .whereType<Map>()
+          .map(
+            (item) => DictionarySourceConfig.fromJson(
+              item.map((key, value) => MapEntry(key.toString(), value)),
+            ),
+          )
+          .toList();
+      return DictionarySourceConfig.normalize(configs);
+    }
+    return DictionarySourceConfig.defaults;
+  }
+
   Future<void> _writeStringMap(String key, Map<String, String> value) async {
     await _box.put(key, jsonEncode(value));
   }
@@ -262,6 +299,15 @@ class SettingsService extends ChangeNotifier {
   Future<void> _writeStringSet(String key, Set<String> value) async {
     final sorted = value.toList()..sort();
     await _box.put(key, jsonEncode(sorted));
+  }
+
+  Future<void> _writeDictionarySources(
+    List<DictionarySourceConfig> value,
+  ) async {
+    await _box.put(
+      _dictionarySourcesKey,
+      jsonEncode(value.map((config) => config.toJson()).toList()),
+    );
   }
 
   Future<void> setAppThemeId(AppThemeId themeId) async {
@@ -413,6 +459,24 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setBrowserFeatureEnabled(bool enabled) {
     return setExperimentalFeatureEnabled(experimentalFeatureBrowser, enabled);
+  }
+
+  Future<void> setDictionarySourceEnabled(
+    DictionarySourceType type,
+    bool enabled,
+  ) async {
+    _dictionarySources = DictionarySourceConfig.normalize(
+      _dictionarySources.map(
+        (config) =>
+            config.type == type ? config.copyWith(enabled: enabled) : config,
+      ),
+    );
+    await _writeDictionarySources(_dictionarySources);
+    notifyListeners();
+  }
+
+  Future<void> setCollinsDictionaryEnabled(bool enabled) {
+    return setDictionarySourceEnabled(DictionarySourceType.collins, enabled);
   }
 
   Future<void> incrementAIUsage({

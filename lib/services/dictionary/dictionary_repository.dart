@@ -11,7 +11,7 @@ class DictionaryRepository implements WordRepository {
     if (lower.isEmpty) return null;
 
     if (_cache.containsKey(lower)) {
-      return _cache[lower];
+      return _cache[lower]?.copyWith(fromCache: true);
     }
 
     try {
@@ -23,7 +23,7 @@ class DictionaryRepository implements WordRepository {
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         if (data.isNotEmpty) {
-          final entry = _parseEntry(data[0]);
+          final entry = parseEntry(data[0], word: lower);
           _cache[lower] = entry;
           return entry;
         }
@@ -39,7 +39,7 @@ class DictionaryRepository implements WordRepository {
     return null;
   }
 
-  DictionaryEntry? _parseEntry(Map<String, dynamic> json) {
+  DictionaryEntry? parseEntry(Map<String, dynamic> json, {String? word}) {
     final meanings = <Meaning>[];
 
     final meaningsList = json['meanings'] as List<dynamic>?;
@@ -47,6 +47,7 @@ class DictionaryRepository implements WordRepository {
       for (final m in meaningsList) {
         final partOfSpeech = m['partOfSpeech'] as String? ?? '';
         final definitions = <String>[];
+        final examples = <String>[];
         final definitionsList = m['definitions'] as List<dynamic>?;
         if (definitionsList != null) {
           for (final d in definitionsList) {
@@ -56,14 +57,18 @@ class DictionaryRepository implements WordRepository {
 
               final example = d['example'] as String?;
               if (example != null && example.isNotEmpty) {
-                definitions.add('Example: $example');
+                examples.add(example);
               }
             }
           }
         }
-        if (definitions.isNotEmpty) {
+        if (definitions.isNotEmpty || examples.isNotEmpty) {
           meanings.add(
-            Meaning(partOfSpeech: partOfSpeech, definitions: definitions),
+            Meaning(
+              partOfSpeech: partOfSpeech,
+              definitions: definitions,
+              examples: examples,
+            ),
           );
         }
       }
@@ -76,10 +81,15 @@ class DictionaryRepository implements WordRepository {
       phoneticText = phonetics[0]['text'] as String?;
     }
 
+    final entryWord = json['word'] as String? ?? word ?? '';
     return DictionaryEntry(
-      word: json['word'] as String? ?? '',
+      word: entryWord,
       phonetic: phoneticText,
       meanings: meanings,
+      sourceName: 'Dictionary API',
+      sourceUrl: entryWord.isEmpty
+          ? null
+          : 'https://api.dictionaryapi.dev/api/v2/entries/en/$entryWord',
     );
   }
 }

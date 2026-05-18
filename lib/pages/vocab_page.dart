@@ -5,7 +5,7 @@ import '../models/aggregated_vocabulary.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
-import '../widgets/imported_word_examples.dart';
+import '../widgets/dictionary_detail_view.dart';
 
 class VocabPage extends StatefulWidget {
   const VocabPage({super.key});
@@ -226,10 +226,7 @@ class _VocabPageState extends State<VocabPage> {
     ReadingProvider provider,
     ThemeData theme,
   ) {
-    final entry = provider.selectedWordEntry;
-    final translation = provider.selectedWordTranslation;
     final word = provider.selectedWord!;
-    final importedExamples = provider.importedExamplesFor(word);
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -260,117 +257,12 @@ class _VocabPageState extends State<VocabPage> {
                 ),
               ],
             ),
-            if (entry?.phonetic != null) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(
-                    Icons.volume_up,
-                    color: theme.colorScheme.primary,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    entry!.phonetic!,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if (translation != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withValues(
-                    alpha: 0.3,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  translation,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.onPrimaryContainer,
-                  ),
-                ),
-              ),
-            ],
-            if (entry != null && entry.meanings.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Definitions',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...entry.meanings.map(
-                (meaning) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (meaning.partOfSpeech.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.secondaryContainer,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            meaning.partOfSpeech,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onSecondaryContainer,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 4),
-                      ...meaning.definitions.asMap().entries.map(
-                        (e) => Padding(
-                          padding: const EdgeInsets.only(top: 4, left: 4),
-                          child: Text(
-                            '${e.key + 1}. ${e.value}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.8,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-            if (importedExamples.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              ImportedWordExamples(examples: importedExamples),
-            ],
-            if (provider.isLoadingWord)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
+            const SizedBox(height: 12),
+            DictionaryDetailView.fromProvider(
+              provider: provider,
+              word: word,
+              showWordHeader: false,
+            ),
           ],
         ),
       ),

@@ -23,19 +23,20 @@ import 'services/ai_service.dart';
 import 'services/backup_service.dart';
 import 'services/book_service.dart';
 import 'services/bookmark_service.dart';
-import 'services/collins_repository.dart';
-import 'services/composite_word_repository.dart';
-import 'services/dictionary_cache_service.dart';
-import 'services/dictionary_repository.dart';
+import 'services/dictionary/collins_repository.dart';
+import 'services/dictionary/dictionary_cache_service.dart';
+import 'services/dictionary/dictionary_manager_service.dart';
+import 'services/dictionary/dictionary_repository.dart';
+import 'services/dictionary/dictionary_source_config.dart';
 import 'services/llm_client.dart';
-import 'services/longman_repository.dart';
+import 'services/dictionary/longman_repository.dart';
 import 'services/reading_config_service.dart';
 import 'services/reading_time_service.dart';
 import 'services/settings_service.dart';
 import 'services/user_vocabulary_service.dart';
 import 'services/word_context_service.dart';
 import 'services/word_level_service.dart';
-import 'services/wordnet_repository.dart';
+import 'services/dictionary/wordnet_repository.dart';
 import 'theme/app_theme.dart';
 import 'widgets/epub_drop_importer.dart';
 import 'widgets/release_notes_gate.dart';
@@ -363,16 +364,30 @@ class _FlowReadAppState extends State<FlowReadApp> {
             final dictCache = DictionaryCacheService();
             dictCache.init();
 
-            final collinsRepo = CollinsRepository(dictCache);
-            final longmanRepo = LongmanRepository(dictCache);
+            final settings = context.read<SettingsService>();
 
             provider.setWordRepository(
-              CompositeWordRepository([
-                WordNetRepository(),
-                DictionaryRepository(),
-                collinsRepo,
-                longmanRepo,
-              ]),
+              DictionaryManagerService(
+                settings: settings,
+                sources: [
+                  DictionarySourceAdapter(
+                    type: DictionarySourceType.wordNet,
+                    repository: WordNetRepository(),
+                  ),
+                  DictionarySourceAdapter(
+                    type: DictionarySourceType.dictionaryApi,
+                    repository: DictionaryRepository(),
+                  ),
+                  DictionarySourceAdapter(
+                    type: DictionarySourceType.collins,
+                    repository: CollinsRepository(dictCache),
+                  ),
+                  DictionarySourceAdapter(
+                    type: DictionarySourceType.longman,
+                    repository: LongmanRepository(dictCache),
+                  ),
+                ],
+              ),
             );
 
             final wordLevelService = WordLevelService();
@@ -383,7 +398,6 @@ class _FlowReadAppState extends State<FlowReadApp> {
             wordContextService.init();
             provider.setWordContextService(wordContextService);
 
-            final settings = context.read<SettingsService>();
             provider.setSettings(settings);
 
             final llmClient = LLMClient(settings);
