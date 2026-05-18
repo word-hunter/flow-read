@@ -77,6 +77,11 @@ class SettingsService extends ChangeNotifier {
     experimentalFeatureBrowser,
   };
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
+  static const _themeModeCycle = <ThemeMode>[
+    ThemeMode.system,
+    ThemeMode.light,
+    ThemeMode.dark,
+  ];
 
   late Box _box;
 
@@ -124,6 +129,12 @@ class SettingsService extends ChangeNotifier {
   AIUsageStats get aiUsage => _aiUsage;
   AppThemeId get appThemeId => _appThemeId;
   ThemeMode get themeMode => _themeMode;
+  ThemeMode get nextThemeMode {
+    final currentIndex = _themeModeCycle.indexOf(_themeMode);
+    final safeIndex = currentIndex < 0 ? 0 : currentIndex;
+    return _themeModeCycle[(safeIndex + 1) % _themeModeCycle.length];
+  }
+
   bool get backupEnabled => _backupEnabled;
   bool get includeSecretsInBackup => _includeSecretsInBackup;
   String get backupFolderPath => _backupFolderPath;
@@ -268,10 +279,7 @@ class SettingsService extends ChangeNotifier {
   }
 
   Future<void> toggleThemeMode() {
-    final next = _themeMode == ThemeMode.dark
-        ? ThemeMode.light
-        : ThemeMode.dark;
-    return setThemeMode(next);
+    return setThemeMode(nextThemeMode);
   }
 
   Future<void> setUnknownColor(Color color) async {

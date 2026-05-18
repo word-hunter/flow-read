@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/reading_provider.dart';
 import '../../services/settings_service.dart';
+import '../theme_mode_cycle_button.dart';
 import '../theme_transition.dart';
 import '../toc_bottom_sheet.dart';
 
@@ -256,17 +257,12 @@ class ReaderBookSidebar extends StatelessWidget {
             onPressed: () {},
             tooltip: '亮度',
           ),
-          IconButton(
-            icon: Icon(
-              theme.brightness == Brightness.dark
-                  ? Icons.light_mode_outlined
-                  : Icons.dark_mode_outlined,
-              size: 20,
-            ),
+          ThemeModeCycleButton(
+            nextMode: settings.nextThemeMode,
+            iconSize: 20,
             color: theme.colorScheme.onSurfaceVariant,
             onPressed: () =>
                 runThemeTransition(context, settings.toggleThemeMode),
-            tooltip: '切换主题',
           ),
           IconButton(
             icon: const Icon(Icons.more_horiz, size: 20),

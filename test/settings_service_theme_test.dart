@@ -41,6 +41,25 @@ void main() {
     expect(reloaded.themeMode, ThemeMode.dark);
   });
 
+  test('theme mode toggle cycles through system, light, and dark', () async {
+    final settings = SettingsService();
+    await settings.init();
+
+    expect(settings.themeMode, ThemeMode.system);
+    expect(settings.nextThemeMode, ThemeMode.light);
+
+    await settings.toggleThemeMode();
+    expect(settings.themeMode, ThemeMode.light);
+    expect(settings.nextThemeMode, ThemeMode.dark);
+
+    await settings.toggleThemeMode();
+    expect(settings.themeMode, ThemeMode.dark);
+    expect(settings.nextThemeMode, ThemeMode.system);
+
+    await settings.toggleThemeMode();
+    expect(settings.themeMode, ThemeMode.system);
+  });
+
   test('unknown stored theme family falls back to classic', () async {
     await Hive.box('settings').put('appThemeId', 'legacy_theme');
 

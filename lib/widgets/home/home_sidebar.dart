@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_constants.dart';
+import '../theme_mode_cycle_button.dart';
 import 'reading_stats_ring.dart';
 
 class HomeSidebar extends StatelessWidget {
@@ -8,7 +9,7 @@ class HomeSidebar extends StatelessWidget {
   final int readingTimeSeconds;
   final VoidCallback onSettingsTap;
   final VoidCallback onThemeToggle;
-  final bool isDarkMode;
+  final ThemeMode nextThemeMode;
   final bool showRss;
   final bool showBrowser;
 
@@ -19,7 +20,7 @@ class HomeSidebar extends StatelessWidget {
     required this.readingTimeSeconds,
     required this.onSettingsTap,
     required this.onThemeToggle,
-    required this.isDarkMode,
+    required this.nextThemeMode,
     required this.showRss,
     required this.showBrowser,
   });
@@ -189,13 +190,10 @@ class HomeSidebar extends StatelessWidget {
             onPressed: onSettingsTap,
             tooltip: '设置',
           ),
-          IconButton(
-            icon: Icon(
-              isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-            ),
+          ThemeModeCycleButton(
+            nextMode: nextThemeMode,
             color: theme.colorScheme.onSurfaceVariant,
             onPressed: onThemeToggle,
-            tooltip: isDarkMode ? '浅色模式' : '深色模式',
           ),
         ],
       ),

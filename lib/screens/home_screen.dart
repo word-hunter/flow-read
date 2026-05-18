@@ -200,7 +200,7 @@ class _WideHomeLayout extends StatelessWidget {
                 Navigator.pushNamed(context, SettingsScreen.routeName),
             onThemeToggle: () =>
                 runThemeTransition(context, settings.toggleThemeMode),
-            isDarkMode: theme.brightness == Brightness.dark,
+            nextThemeMode: settings.nextThemeMode,
             showRss: showRss,
             showBrowser: showBrowser,
           ),
