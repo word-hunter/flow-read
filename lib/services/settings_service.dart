@@ -162,9 +162,7 @@ class SettingsService extends ChangeNotifier {
   Future<void> init() async {
     _box = Hive.box('settings');
     _load();
-    if (!_box.containsKey(_dictionarySourcesKey)) {
-      await _writeDictionarySources(_dictionarySources);
-    }
+    await _writeDictionarySources(_dictionarySources);
   }
 
   Future<void> reloadFromStorage() async {
@@ -287,7 +285,7 @@ class SettingsService extends ChangeNotifier {
             ),
           )
           .toList();
-      return DictionarySourceConfig.normalize(configs);
+      return DictionarySourceConfig.migrateLegacyOrder(configs);
     }
     return DictionarySourceConfig.defaults;
   }

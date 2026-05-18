@@ -1,5 +1,5 @@
 enum DictionarySourceType {
-  wordNet('wordnet', 'WordNet', true),
+  wordNet('wordnet', 'WordNet', false),
   dictionaryApi('dictionaryapi', 'Dictionary API', true),
   collins('collins', 'Collins', true),
   longman('longman', 'Longman', true);
@@ -30,6 +30,29 @@ class DictionarySourceConfig {
   });
 
   static const defaults = <DictionarySourceConfig>[
+    DictionarySourceConfig(
+      type: DictionarySourceType.collins,
+      enabled: true,
+      priority: 0,
+    ),
+    DictionarySourceConfig(
+      type: DictionarySourceType.wordNet,
+      enabled: true,
+      priority: 1,
+    ),
+    DictionarySourceConfig(
+      type: DictionarySourceType.dictionaryApi,
+      enabled: true,
+      priority: 2,
+    ),
+    DictionarySourceConfig(
+      type: DictionarySourceType.longman,
+      enabled: true,
+      priority: 3,
+    ),
+  ];
+
+  static const legacyWordNetFirstDefaults = <DictionarySourceConfig>[
     DictionarySourceConfig(
       type: DictionarySourceType.wordNet,
       enabled: true,
@@ -84,5 +107,33 @@ class DictionarySourceConfig {
     final byType = {for (final config in configs) config.type: config};
     return [for (final fallback in defaults) byType[fallback.type] ?? fallback]
       ..sort((a, b) => a.priority.compareTo(b.priority));
+  }
+
+  static List<DictionarySourceConfig> migrateLegacyOrder(
+    Iterable<DictionarySourceConfig> configs,
+  ) {
+    final normalized = normalize(configs);
+    if (!_matchesOrder(normalized, legacyWordNetFirstDefaults)) {
+      return normalized;
+    }
+
+    final byType = {for (final config in normalized) config.type: config};
+    return [
+      for (final fallback in defaults)
+        (byType[fallback.type] ?? fallback).copyWith(
+          priority: fallback.priority,
+        ),
+    ]..sort((a, b) => a.priority.compareTo(b.priority));
+  }
+
+  static bool _matchesOrder(
+    List<DictionarySourceConfig> configs,
+    List<DictionarySourceConfig> expected,
+  ) {
+    final byType = {for (final config in configs) config.type: config};
+    for (final item in expected) {
+      if (byType[item.type]?.priority != item.priority) return false;
+    }
+    return true;
   }
 }

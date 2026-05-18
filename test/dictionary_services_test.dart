@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flow_read/models/word_context_example.dart';
@@ -136,6 +137,77 @@ void main() {
         DictionarySourceConfig.defaults.map((config) => config.type).toList(),
       );
       expect(Hive.box('settings').get('dictionarySources'), isA<String>());
+    });
+
+    test(
+      'legacy WordNet-first source order migrates to Collins-first',
+      () async {
+        await Hive.box('settings').put(
+          'dictionarySources',
+          jsonEncode(
+            DictionarySourceConfig.legacyWordNetFirstDefaults
+                .map((config) => config.toJson())
+                .toList(),
+          ),
+        );
+
+        final settings = SettingsService();
+        await settings.init();
+
+        expect(
+          settings.dictionarySources.first.type,
+          DictionarySourceType.collins,
+        );
+        final persisted =
+            jsonDecode(Hive.box('settings').get('dictionarySources') as String)
+                as List<dynamic>;
+        expect(persisted.first, containsPair('type', 'collins'));
+      },
+    );
+
+    test('enabled Collins source is queried before WordNet', () async {
+      final settings = SettingsService();
+      await settings.init();
+
+      final collins = _CountingRepository(
+        DictionaryEntry(
+          word: 'flow',
+          meanings: const [
+            Meaning(partOfSpeech: 'noun', definitions: ['collins result']),
+          ],
+          sourceName: 'Collins',
+        ),
+      );
+      final wordNet = _CountingRepository(
+        DictionaryEntry(
+          word: 'flow',
+          meanings: const [
+            Meaning(partOfSpeech: 'noun', definitions: ['wordnet result']),
+          ],
+          sourceName: 'WordNet',
+        ),
+      );
+
+      final manager = DictionaryManagerService(
+        settings: settings,
+        sources: [
+          DictionarySourceAdapter(
+            type: DictionarySourceType.collins,
+            repository: collins,
+          ),
+          DictionarySourceAdapter(
+            type: DictionarySourceType.wordNet,
+            repository: wordNet,
+          ),
+        ],
+      );
+
+      final entry = await manager.lookup('flow');
+
+      expect(collins.calls, 1);
+      expect(wordNet.calls, 0);
+      expect(entry!.sourceName, 'Collins');
+      expect(entry.meanings.single.definitions.single, 'collins result');
     });
 
     test('disabled Collins source is skipped', () async {
