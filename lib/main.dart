@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
@@ -14,6 +15,7 @@ import 'screens/dashboard_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/practice_screen.dart';
 import 'screens/review_screen.dart';
+import 'screens/settings_screen.dart';
 import 'screens/spaced_review_screen.dart';
 import 'screens/syntax_screen.dart';
 import 'services/ai_cache_service.dart';
@@ -221,8 +223,101 @@ class StartupScreen extends StatelessWidget {
   }
 }
 
-class FlowReadApp extends StatelessWidget {
+class _OpenSettingsIntent extends Intent {
+  const _OpenSettingsIntent();
+}
+
+class _CurrentRouteObserver extends NavigatorObserver {
+  String? currentRouteName;
+
+  void _setCurrent(Route<dynamic>? route) {
+    currentRouteName = route?.settings.name;
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _setCurrent(route);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _setCurrent(previousRoute);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _setCurrent(previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    _setCurrent(newRoute);
+  }
+}
+
+class FlowReadApp extends StatefulWidget {
   const FlowReadApp({super.key});
+
+  @override
+  State<FlowReadApp> createState() => _FlowReadAppState();
+}
+
+class _FlowReadAppState extends State<FlowReadApp> {
+  static const _appMenuChannel = MethodChannel('flow_read/app_menu');
+
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  final _routeObserver = _CurrentRouteObserver();
+
+  @override
+  void initState() {
+    super.initState();
+    _appMenuChannel.setMethodCallHandler(_handleAppMenuCall);
+  }
+
+  @override
+  void dispose() {
+    _appMenuChannel.setMethodCallHandler(null);
+    super.dispose();
+  }
+
+  Future<void> _handleAppMenuCall(MethodCall call) async {
+    if (call.method == 'openSettings') {
+      _openSettings();
+      return;
+    }
+    throw MissingPluginException('Unknown app menu method: ${call.method}');
+  }
+
+  void _openSettings() {
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null ||
+        _routeObserver.currentRouteName == SettingsScreen.routeName) {
+      return;
+    }
+    navigator.pushNamed(SettingsScreen.routeName);
+  }
+
+  Widget _buildShortcutScope(BuildContext context, Widget? child) {
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.comma, meta: true):
+            _OpenSettingsIntent(),
+        SingleActivator(LogicalKeyboardKey.comma, control: true):
+            _OpenSettingsIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _OpenSettingsIntent: CallbackAction<_OpenSettingsIntent>(
+            onInvoke: (_) {
+              _openSettings();
+              return null;
+            },
+          ),
+        },
+        child: Focus(autofocus: true, child: child ?? const SizedBox.shrink()),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -315,6 +410,8 @@ class FlowReadApp extends StatelessWidget {
           final themeId = settings.appThemeId;
           return ThemeTransitionHost(
             child: MaterialApp(
+              navigatorKey: _navigatorKey,
+              navigatorObservers: [_routeObserver],
               title: 'Flow Read',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.lightThemeFor(themeId),
@@ -322,10 +419,12 @@ class FlowReadApp extends StatelessWidget {
               themeMode: settings.themeMode,
               themeAnimationDuration: const Duration(milliseconds: 220),
               themeAnimationCurve: Curves.easeOutCubic,
+              builder: _buildShortcutScope,
               home: const ReleaseNotesGate(
                 child: EpubDropImporter(child: HomeScreen()),
               ),
               routes: {
+                SettingsScreen.routeName: (_) => const SettingsScreen(),
                 '/dashboard': (_) => const DashboardScreen(),
                 '/syntax': (_) => const SyntaxScreen(),
                 '/practice': (_) => const PracticeScreen(),

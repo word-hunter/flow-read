@@ -3,8 +3,6 @@ import '../../theme/app_constants.dart';
 import 'reading_stats_ring.dart';
 
 class HomeSidebar extends StatelessWidget {
-  static const _logoAsset = 'assets/brand/flow_read_logo.png';
-
   final int currentTab;
   final ValueChanged<int> onTabChanged;
   final int readingTimeSeconds;
@@ -62,7 +60,7 @@ class HomeSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final topSpacing = 24 + AppConstants.immersiveTitleBarTopInset;
+    final topSpacing = 16 + AppConstants.immersiveTitleBarTopInset;
 
     return Container(
       width: AppConstants.sidebarWidth,
@@ -70,8 +68,6 @@ class HomeSidebar extends StatelessWidget {
       child: Column(
         children: [
           SizedBox(height: topSpacing),
-          _buildLogo(theme),
-          const SizedBox(height: 32),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 16),
@@ -89,41 +85,6 @@ class HomeSidebar extends StatelessWidget {
           ),
           _buildBottomActions(theme),
           const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLogo(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          Image.asset(
-            _logoAsset,
-            width: 40,
-            height: 40,
-            filterQuality: FilterQuality.high,
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'FlowRead',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              Text(
-                '阅读·探索·成长',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );

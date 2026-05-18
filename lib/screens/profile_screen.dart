@@ -195,11 +195,7 @@ class ProfileScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SettingsScreen(),
-                        ),
-                      );
+                      Navigator.of(context).pushNamed(SettingsScreen.routeName);
                     },
                   ),
                 ),

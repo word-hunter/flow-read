@@ -4,7 +4,7 @@ const _pubspecPath = 'pubspec.yaml';
 const _changelogPath = 'CHANGELOG.md';
 const _appVersionPath = 'lib/services/app_version.dart';
 const _defaultDistDir = 'dist';
-const _appBundleName = 'flow_read.app';
+const _appBundleName = 'FlowRead.app';
 const _requiredReleaseEntitlements = [
   'com.apple.security.network.client',
   'com.apple.security.files.user-selected.read-write',

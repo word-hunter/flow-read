@@ -21,6 +21,8 @@ import '../widgets/theme_transition.dart';
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
+  static const routeName = '/settings';
+
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
@@ -85,12 +87,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     Expanded(
-                      child: _buildSectionContent(
-                        theme,
-                        settings,
-                        backup,
-                        topInset: AppConstants.immersiveTitleBarTopInset,
-                      ),
+                      child: _buildSectionContent(theme, settings, backup),
                     ),
                   ],
                 );
@@ -145,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'flow_read',
+                      'FlowRead',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleMedium?.copyWith(

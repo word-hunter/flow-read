@@ -196,10 +196,8 @@ class _WideHomeLayout extends StatelessWidget {
             currentTab: provider.currentTab,
             onTabChanged: provider.switchTab,
             readingTimeSeconds: provider.readingTimeSeconds,
-            onSettingsTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
+            onSettingsTap: () =>
+                Navigator.pushNamed(context, SettingsScreen.routeName),
             onThemeToggle: () =>
                 runThemeTransition(context, settings.toggleThemeMode),
             isDarkMode: theme.brightness == Brightness.dark,
@@ -208,14 +206,9 @@ class _WideHomeLayout extends StatelessWidget {
           ),
           VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
           Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                top: AppConstants.immersiveTitleBarTopInset,
-              ),
-              child: IndexedStack(
-                index: selectedIndex,
-                children: HomeScreen._visibleWidgets(_widePanels, visibleTabs),
-              ),
+            child: IndexedStack(
+              index: selectedIndex,
+              children: HomeScreen._visibleWidgets(_widePanels, visibleTabs),
             ),
           ),
         ],
