@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -269,6 +270,10 @@ class _FlowReadAppState extends State<FlowReadApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _routeObserver = _CurrentRouteObserver();
 
+  bool get _usesNativeSettingsMenu {
+    return !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -283,6 +288,9 @@ class _FlowReadAppState extends State<FlowReadApp> {
 
   Future<void> _handleAppMenuCall(MethodCall call) async {
     if (call.method == 'openSettings') {
+      // AppKit key equivalents can consume Cmd+, before Flutter records the
+      // modifier down, so align state before the synthesized modifier up.
+      await HardwareKeyboard.instance.syncKeyboardState();
       _openSettings();
       return;
     }
@@ -299,12 +307,15 @@ class _FlowReadAppState extends State<FlowReadApp> {
   }
 
   Widget _buildShortcutScope(BuildContext context, Widget? child) {
+    const openSettingsIntent = _OpenSettingsIntent();
+
     return Shortcuts(
-      shortcuts: const <ShortcutActivator, Intent>{
-        SingleActivator(LogicalKeyboardKey.comma, meta: true):
-            _OpenSettingsIntent(),
-        SingleActivator(LogicalKeyboardKey.comma, control: true):
-            _OpenSettingsIntent(),
+      shortcuts: <ShortcutActivator, Intent>{
+        if (!_usesNativeSettingsMenu)
+          const SingleActivator(LogicalKeyboardKey.comma, meta: true):
+              openSettingsIntent,
+        const SingleActivator(LogicalKeyboardKey.comma, control: true):
+            openSettingsIntent,
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
