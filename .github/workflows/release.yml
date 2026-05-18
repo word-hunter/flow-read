@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent \
-            build/macos/Build/Products/Release/flow_read.app \
+            build/macos/Build/Products/Release/FlowRead.app \
             "dist/flow_read-macos-${{ steps.version.outputs.name }}.zip"
 
       - name: Export release notes
