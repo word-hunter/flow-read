@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart';
+
 abstract final class AppConstants {
   static const double layoutBreakpoint = 600;
   static const double wideBreakpoint = 900;
   static const double sidebarWidth = 260;
+  static double get immersiveTitleBarTopInset =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS ? 40 : 0;
   static const double readerMaxWidth = 700;
   static const int syntaxLimit = 8;
   static const int minWordLength = 3;

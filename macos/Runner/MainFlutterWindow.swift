@@ -10,6 +10,8 @@ class MainFlutterWindow: NSWindow, NSDraggingDestination {
   private var fileDropChannel: FlutterMethodChannel?
 
   override func awakeFromNib() {
+    configureTitleBar()
+
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
     self.contentViewController = flutterViewController
@@ -22,6 +24,13 @@ class MainFlutterWindow: NSWindow, NSDraggingDestination {
     registerForDraggedTypes([.fileURL])
 
     super.awakeFromNib()
+  }
+
+  private func configureTitleBar() {
+    titleVisibility = .hidden
+    titlebarAppearsTransparent = true
+    styleMask.insert(.fullSizeContentView)
+    isMovableByWindowBackground = true
   }
 
   private func configureInitialWindowSize() {

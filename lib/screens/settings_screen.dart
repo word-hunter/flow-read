@@ -13,6 +13,7 @@ import '../services/backup_service.dart';
 import '../services/changelog_service.dart';
 import '../services/llm_client.dart';
 import '../services/settings_service.dart';
+import '../theme/app_constants.dart';
 import '../theme/app_theme.dart';
 import '../widgets/release_notes_dialog.dart';
 import '../widgets/theme_transition.dart';
@@ -84,7 +85,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     Expanded(
-                      child: _buildSectionContent(theme, settings, backup),
+                      child: _buildSectionContent(
+                        theme,
+                        settings,
+                        backup,
+                        topInset: AppConstants.immersiveTitleBarTopInset,
+                      ),
                     ),
                   ],
                 );
@@ -106,6 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSidebar(ThemeData theme) {
+    final topInset = AppConstants.immersiveTitleBarTopInset;
     return SizedBox(
       width: 240,
       child: DecoratedBox(
@@ -116,7 +123,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              padding: EdgeInsets.fromLTRB(18, 18 + topInset, 18, 22),
               child: Row(
                 children: [
                   if (Navigator.canPop(context)) ...[
@@ -176,7 +183,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+          padding: EdgeInsets.fromLTRB(
+            12,
+            10 + AppConstants.immersiveTitleBarTopInset,
+            12,
+            6,
+          ),
           child: Row(
             children: [
               if (Navigator.canPop(context))
@@ -230,15 +242,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSectionContent(
     ThemeData theme,
     SettingsService settings,
-    BackupService backup,
-  ) {
+    BackupService backup, {
+    double topInset = 0,
+  }) {
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1120),
         child: ListView(
           key: ValueKey('settings-section-${_selectedSection.name}'),
-          padding: const EdgeInsets.fromLTRB(32, 28, 36, 36),
+          padding: EdgeInsets.fromLTRB(32, 28 + topInset, 36, 36),
           children: [
             _SectionHeading(section: _selectedSection),
             const SizedBox(height: 22),

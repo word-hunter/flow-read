@@ -208,9 +208,14 @@ class _WideHomeLayout extends StatelessWidget {
           ),
           VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
           Expanded(
-            child: IndexedStack(
-              index: selectedIndex,
-              children: HomeScreen._visibleWidgets(_widePanels, visibleTabs),
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: AppConstants.immersiveTitleBarTopInset,
+              ),
+              child: IndexedStack(
+                index: selectedIndex,
+                children: HomeScreen._visibleWidgets(_widePanels, visibleTabs),
+              ),
             ),
           ),
         ],

@@ -62,13 +62,14 @@ class HomeSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final topSpacing = 24 + AppConstants.immersiveTitleBarTopInset;
 
     return Container(
       width: AppConstants.sidebarWidth,
       color: theme.colorScheme.surface,
       child: Column(
         children: [
-          const SizedBox(height: 24),
+          SizedBox(height: topSpacing),
           _buildLogo(theme),
           const SizedBox(height: 32),
           Expanded(
