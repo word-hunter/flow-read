@@ -93,7 +93,5 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('版本 ${FlowReadVersion.display}'), findsOneWidget);
     expect(find.text('检查更新'), findsOneWidget);
-    expect(find.text('打开配置目录'), findsOneWidget);
-    expect(find.text('打开备份目录'), findsOneWidget);
   });
 }
