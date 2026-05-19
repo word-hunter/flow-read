@@ -7,24 +7,19 @@ import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/widgets/reader_text_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+
+import 'support/hive_test_storage.dart';
 
 void main() {
   late Directory tempDir;
   late WordLevelService wordLevels;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp(
-      'flow_read_reader_forms_test_',
-    );
-    Hive.init(tempDir.path);
-    if (!Hive.isAdapterRegistered(4)) {
-      Hive.registerAdapter(WordLevelInfoAdapter());
-    }
-    await Hive.openBox<WordLevelInfo>('word_levels');
-    await Hive.openBox('settings');
-    await Hive.box('settings').put('word_levels_imported', 'true');
-    await Hive.box<WordLevelInfo>('word_levels').addAll([
+    tempDir = await initHiveTestStorage('flow_read_reader_forms_test_');
+    await openWordLevelsTestBox();
+    await openSettingsTestBox();
+    await settingsBox().put('word_levels_imported', 'true');
+    await wordLevelsBox().addAll([
       const WordLevelInfo(
         word: 'partitions',
         originForm: 'partition',
@@ -41,10 +36,7 @@ void main() {
   });
 
   tearDown(() async {
-    await Hive.close();
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
+    await disposeHiveTestStorage(tempDir);
   });
 
   testWidgets(

@@ -4,7 +4,8 @@ import 'package:flow_read/models/ai_text_analysis.dart';
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/services/learning_item_service.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+
+import 'support/hive_test_storage.dart';
 
 void main() {
   late Directory tempDir;
@@ -17,23 +18,14 @@ void main() {
   );
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp(
-      'flow_read_learning_item_test_',
-    );
-    Hive.init(tempDir.path);
-    if (!Hive.isAdapterRegistered(11)) {
-      Hive.registerAdapter(LearningItemAdapter());
-    }
-    await Hive.openBox<LearningItem>('learning_items');
+    tempDir = await initHiveTestStorage('flow_read_learning_item_test_');
+    await openLearningItemsTestBox();
     service = LearningItemService();
     await service.init();
   });
 
   tearDown(() async {
-    await Hive.close();
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
+    await disposeHiveTestStorage(tempDir);
   });
 
   test('saves a lookup word as a learning item', () async {

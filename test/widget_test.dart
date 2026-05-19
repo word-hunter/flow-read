@@ -3,20 +3,18 @@ import 'package:flow_read/screens/settings_screen.dart';
 import 'package:flow_read/services/app_version.dart';
 import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';
-import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
 import 'package:flutter/material.dart';
 
+import 'support/hive_test_storage.dart';
+
 void main() {
-  late Directory tempDir;
   late SettingsService settings;
   late BackupService backup;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('flow_read_widget_test_');
-    Hive.init(tempDir.path);
-    await Hive.openBox('settings');
+    await initHiveTestStorage('flow_read_widget_test_');
+    await openSettingsTestBox();
     settings = SettingsService();
     await settings.init();
     backup = BackupService(settings);
@@ -93,5 +91,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('版本 ${FlowReadVersion.display}'), findsOneWidget);
     expect(find.text('检查更新'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 }

@@ -15,7 +15,8 @@ import 'package:flow_read/services/dictionary/wordnet_repository.dart';
 import 'package:flow_read/widgets/dictionary_detail_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+
+import 'support/hive_test_storage.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -114,18 +115,12 @@ void main() {
     late Directory tempDir;
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp(
-        'flow_read_dictionary_manager_test_',
-      );
-      Hive.init(tempDir.path);
-      await Hive.openBox('settings');
+      tempDir = await initHiveTestStorage('flow_read_dictionary_manager_test_');
+      await openSettingsTestBox();
     });
 
     tearDown(() async {
-      await Hive.close();
-      if (await tempDir.exists()) {
-        await tempDir.delete(recursive: true);
-      }
+      await disposeHiveTestStorage(tempDir);
     });
 
     test('default source order is persisted', () async {
@@ -136,13 +131,13 @@ void main() {
         settings.dictionarySources.map((config) => config.type).toList(),
         DictionarySourceConfig.defaults.map((config) => config.type).toList(),
       );
-      expect(Hive.box('settings').get('dictionarySources'), isA<String>());
+      expect(settingsBox().get('dictionarySources'), isA<String>());
     });
 
     test(
       'legacy WordNet-first source order migrates to Collins-first',
       () async {
-        await Hive.box('settings').put(
+        await settingsBox().put(
           'dictionarySources',
           jsonEncode(
             DictionarySourceConfig.legacyWordNetFirstDefaults
@@ -159,7 +154,7 @@ void main() {
           DictionarySourceType.collins,
         );
         final persisted =
-            jsonDecode(Hive.box('settings').get('dictionarySources') as String)
+            jsonDecode(settingsBox().get('dictionarySources') as String)
                 as List<dynamic>;
         expect(persisted.first, containsPair('type', 'collins'));
       },

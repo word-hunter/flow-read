@@ -5,18 +5,18 @@ import 'package:flow_read/services/llm_client.dart';
 import 'package:flow_read/services/reading_assistant_agent.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+
+import 'support/hive_test_storage.dart';
 
 void main() {
   late Directory tempDir;
   late SettingsService settings;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('flow_read_agent_test_');
-    Hive.init(tempDir.path);
-    await Hive.openBox('settings');
+    tempDir = await initHiveTestStorage('flow_read_agent_test_');
+    await openSettingsTestBox();
     settings = SettingsService();
     await settings.init();
     await settings.setAIProvider('openai_compatible');
@@ -26,10 +26,7 @@ void main() {
   });
 
   tearDown(() async {
-    await Hive.close();
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
+    await disposeHiveTestStorage(tempDir);
   });
 
   test(

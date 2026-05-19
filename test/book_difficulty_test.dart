@@ -6,24 +6,19 @@ import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/services/analysis_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+
+import 'support/hive_test_storage.dart';
 
 void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp(
-      'flow_read_book_difficulty_test_',
-    );
-    Hive.init(tempDir.path);
-    await Hive.openBox<String>('user_vocabulary');
+    tempDir = await initHiveTestStorage('flow_read_book_difficulty_test_');
+    await openUserVocabularyTestBox();
   });
 
   tearDown(() async {
-    await Hive.close();
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
+    await disposeHiveTestStorage(tempDir);
   });
 
   test('book difficulty is based on unique study words in the whole book', () {

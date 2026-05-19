@@ -2,16 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flow_read/models/book_metadata.dart';
-import 'package:flow_read/models/bookmarked_word.dart';
 import 'package:flow_read/models/learning_item.dart';
-import 'package:flow_read/models/reading_bookmark.dart';
-import 'package:flow_read/models/reading_config.dart';
 import 'package:flow_read/models/rss_models.dart';
-import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/storage/hive_box_names.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+
+import 'support/hive_test_storage.dart';
 
 void main() {
   late Directory tempDir;
@@ -19,10 +17,11 @@ void main() {
   late BackupService backup;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('flow_read_backup_test_');
-    Hive.init('${tempDir.path}/hive');
-    _registerAdapters();
-    await _openBoxes();
+    tempDir = await initHiveTestStorage(
+      'flow_read_backup_test_',
+      hivePathSuffix: 'hive',
+    );
+    await openFlowReadTestBoxes();
 
     settings = SettingsService();
     await settings.init();
@@ -31,10 +30,7 @@ void main() {
 
   tearDown(() async {
     backup.dispose();
-    await Hive.close();
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
+    await disposeHiveTestStorage(tempDir);
   });
 
   test('exports Hive data to JSON and imports it back', () async {
@@ -48,15 +44,16 @@ void main() {
       chapterProgress: 0.4,
       lastReadAt: DateTime.utc(2026, 5, 15, 8, 30),
     );
-    await Hive.box<BookMetadata>('books').put(book.id, book);
-    await Hive.box<String>('user_vocabulary').put('flow', 'known');
-    await Hive.box<String>('reading_config').put('fontSize', '18.0');
-    await Hive.box<int>('reading_time').put('_global_', 120);
-    await Hive.box<String>('dictionary_cache').put('flow', '{"word":"flow"}');
-    await Hive.box<String>(
-      'word_contexts',
-    ).put('flow', '[{"word":"flow","text":"A steady flow of ideas."}]');
-    await Hive.box<LearningItem>('learning_items').put(
+    await booksBox().put(book.id, book);
+    await userVocabularyBox().put('flow', 'known');
+    await readingConfigBox().put('fontSize', '18.0');
+    await readingTimeBox().put('_global_', 120);
+    await dictionaryCacheBox().put('flow', '{"word":"flow"}');
+    await wordContextsBox().put(
+      'flow',
+      '[{"word":"flow","text":"A steady flow of ideas."}]',
+    );
+    await learningItemsBox().put(
       'learning-1',
       LearningItem(
         id: 'learning-1',
@@ -74,7 +71,7 @@ void main() {
         updatedAt: DateTime.utc(2026, 5, 15, 8, 45),
       ),
     );
-    await Hive.box<RssFeedSubscription>('rss_subscriptions').add(
+    await rssSubscriptionsBox().add(
       RssFeedSubscription(
         url: 'https://example.com/rss.xml',
         title: 'Example',
@@ -88,14 +85,15 @@ void main() {
       '/private/backups',
       bookmark: 'bookmark',
     );
-    await Hive.box('settings').put('rss_read_articles', jsonEncode(['a1']));
+    await settingsBox().put('rss_read_articles', jsonEncode(['a1']));
 
     final payload = backup.createBackupPayload(
       createdAt: DateTime.utc(2026, 5, 15, 9),
     );
 
     final settingsEntries =
-        (payload['boxes'] as Map<String, dynamic>)['settings']['entries']
+        (payload['boxes']
+                as Map<String, dynamic>)[HiveBoxNames.settings]['entries']
             as List<dynamic>;
     final settingKeys = settingsEntries
         .map((entry) => entry['key']['value'] as String)
@@ -112,40 +110,34 @@ void main() {
     );
     final secretSettingKeys =
         ((payloadWithSecrets['boxes']
-                    as Map<String, dynamic>)['settings']['entries']
+                    as Map<String, dynamic>)[HiveBoxNames.settings]['entries']
                 as List<dynamic>)
             .map((entry) => entry['key']['value'] as String);
     expect(secretSettingKeys, contains('aiApiKeys'));
 
-    await Hive.box<BookMetadata>('books').clear();
-    await Hive.box<String>('user_vocabulary').clear();
-    await Hive.box<String>('reading_config').clear();
-    await Hive.box<int>('reading_time').clear();
-    await Hive.box<String>('dictionary_cache').clear();
-    await Hive.box<String>('word_contexts').clear();
-    await Hive.box<LearningItem>('learning_items').clear();
-    await Hive.box<RssFeedSubscription>('rss_subscriptions').clear();
+    await booksBox().clear();
+    await userVocabularyBox().clear();
+    await readingConfigBox().clear();
+    await readingTimeBox().clear();
+    await dictionaryCacheBox().clear();
+    await wordContextsBox().clear();
+    await learningItemsBox().clear();
+    await rssSubscriptionsBox().clear();
 
     await backup.importBackupPayload(payload);
 
-    final restoredBook = Hive.box<BookMetadata>('books').get('book-1');
+    final restoredBook = booksBox().get('book-1');
     expect(restoredBook?.title, 'Test Book');
-    expect(Hive.box<String>('user_vocabulary').get('flow'), 'known');
-    expect(Hive.box<String>('reading_config').get('fontSize'), '18.0');
-    expect(Hive.box<int>('reading_time').get('_global_'), 120);
-    expect(Hive.box<String>('dictionary_cache').get('flow'), '{"word":"flow"}');
+    expect(userVocabularyBox().get('flow'), 'known');
+    expect(readingConfigBox().get('fontSize'), '18.0');
+    expect(readingTimeBox().get('_global_'), 120);
+    expect(dictionaryCacheBox().get('flow'), '{"word":"flow"}');
     expect(
-      Hive.box<String>('word_contexts').get('flow'),
+      wordContextsBox().get('flow'),
       '[{"word":"flow","text":"A steady flow of ideas."}]',
     );
-    expect(
-      Hive.box<LearningItem>('learning_items').get('learning-1')?.answer,
-      'movement',
-    );
-    expect(
-      Hive.box<RssFeedSubscription>('rss_subscriptions').values.single.title,
-      'Example',
-    );
+    expect(learningItemsBox().get('learning-1')?.answer, 'movement');
+    expect(rssSubscriptionsBox().values.single.title, 'Example');
     expect(settings.aiProviderId, 'openai');
     expect(settings.apiKeyFor('openai'), 'secret-key');
     expect(settings.backupFolderPath, '/private/backups');
@@ -154,7 +146,7 @@ void main() {
 
   test('exportNow writes a backup file into the selected folder', () async {
     await settings.setBackupFolderPath('${tempDir.path}/backups');
-    await Hive.box<int>('reading_time').put('_global_', 30);
+    await readingTimeBox().put('_global_', 30);
 
     final path = await backup.exportNow();
     final file = File(path);
@@ -169,8 +161,8 @@ void main() {
   test(
     'imports Word Hunter backup as vocabulary status and examples',
     () async {
-      await Hive.box<String>('user_vocabulary').put('agenda', 'known');
-      await Hive.box<String>('word_contexts').put(
+      await userVocabularyBox().put('agenda', 'known');
+      await wordContextsBox().put(
         'agenda',
         jsonEncode([
           {'word': 'agenda', 'text': 'Existing example.'},
@@ -199,15 +191,14 @@ void main() {
       expect(result.knownCount, 2);
       expect(result.learningCount, 2);
       expect(result.exampleCount, 2);
-      expect(Hive.box<String>('user_vocabulary').get('flow'), 'known');
-      expect(Hive.box<String>('user_vocabulary').get('the'), 'known');
-      expect(Hive.box<String>('user_vocabulary').get('agenda'), 'known');
-      expect(Hive.box<String>('user_vocabulary').get('migrate'), 'learning');
-      expect(Hive.box<String>('user_vocabulary').get('partition'), 'learning');
+      expect(userVocabularyBox().get('flow'), 'known');
+      expect(userVocabularyBox().get('the'), 'known');
+      expect(userVocabularyBox().get('agenda'), 'known');
+      expect(userVocabularyBox().get('migrate'), 'learning');
+      expect(userVocabularyBox().get('partition'), 'learning');
 
       final agendaExamples =
-          jsonDecode(Hive.box<String>('word_contexts').get('agenda')!)
-              as List<dynamic>;
+          jsonDecode(wordContextsBox().get('agenda')!) as List<dynamic>;
       expect(agendaExamples, hasLength(2));
       expect(
         agendaExamples.last['text'],
@@ -216,8 +207,7 @@ void main() {
       expect(agendaExamples.last['title'], 'Sapiens');
 
       final partitionExamples =
-          jsonDecode(Hive.box<String>('word_contexts').get('partition')!)
-              as List<dynamic>;
+          jsonDecode(wordContextsBox().get('partition')!) as List<dynamic>;
       expect(
         partitionExamples.single['text'],
         'function partition(nums, l, r) {',
@@ -247,55 +237,15 @@ void main() {
     expect(result.knownCount, 2);
     expect(result.learningCount, 1);
     expect(result.exampleCount, 1);
-    expect(Hive.box<String>('user_vocabulary').get('already'), 'known');
-    expect(Hive.box<String>('user_vocabulary').get('mastered'), 'known');
-    expect(Hive.box<String>('user_vocabulary').get('learning'), 'learning');
+    expect(userVocabularyBox().get('already'), 'known');
+    expect(userVocabularyBox().get('mastered'), 'known');
+    expect(userVocabularyBox().get('learning'), 'learning');
 
     final examples =
-        jsonDecode(Hive.box<String>('word_contexts').get('learning')!)
-            as List<dynamic>;
+        jsonDecode(wordContextsBox().get('learning')!) as List<dynamic>;
     expect(
       examples.single['text'],
       'Learning appears in an imported sentence.',
     );
   });
-}
-
-void _registerAdapters() {
-  if (!Hive.isAdapterRegistered(0)) {
-    Hive.registerAdapter(BookMetadataAdapter());
-  }
-  if (!Hive.isAdapterRegistered(1)) {
-    Hive.registerAdapter(BookmarkedWordAdapter());
-  }
-  if (!Hive.isAdapterRegistered(2)) {
-    Hive.registerAdapter(ReadingBookmarkAdapter());
-  }
-  if (!Hive.isAdapterRegistered(3)) {
-    Hive.registerAdapter(ReadingConfigAdapter());
-  }
-  if (!Hive.isAdapterRegistered(4)) {
-    Hive.registerAdapter(WordLevelInfoAdapter());
-  }
-  if (!Hive.isAdapterRegistered(10)) {
-    Hive.registerAdapter(RssFeedSubscriptionAdapter());
-  }
-  if (!Hive.isAdapterRegistered(11)) {
-    Hive.registerAdapter(LearningItemAdapter());
-  }
-}
-
-Future<void> _openBoxes() async {
-  await Hive.openBox<BookMetadata>('books');
-  await Hive.openBox<String>('user_vocabulary');
-  await Hive.openBox('settings');
-  await Hive.openBox<String>('word_bookmarks');
-  await Hive.openBox<String>('reading_bookmarks');
-  await Hive.openBox<String>('reading_config');
-  await Hive.openBox<int>('reading_time');
-  await Hive.openBox<WordLevelInfo>('word_levels');
-  await Hive.openBox<String>('dictionary_cache');
-  await Hive.openBox<RssFeedSubscription>('rss_subscriptions');
-  await Hive.openBox<String>('word_contexts');
-  await Hive.openBox<LearningItem>('learning_items');
 }

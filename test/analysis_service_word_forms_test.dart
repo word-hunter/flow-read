@@ -5,24 +5,19 @@ import 'package:flow_read/services/analysis_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+
+import 'support/hive_test_storage.dart';
 
 void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp(
-      'flow_read_word_forms_test_',
-    );
-    Hive.init(tempDir.path);
-    if (!Hive.isAdapterRegistered(4)) {
-      Hive.registerAdapter(WordLevelInfoAdapter());
-    }
-    await Hive.openBox<String>('user_vocabulary');
-    await Hive.openBox<WordLevelInfo>('word_levels');
-    await Hive.openBox('settings');
-    await Hive.box('settings').put('word_levels_imported', 'true');
-    await Hive.box<WordLevelInfo>('word_levels').addAll([
+    tempDir = await initHiveTestStorage('flow_read_word_forms_test_');
+    await openUserVocabularyTestBox();
+    await openWordLevelsTestBox();
+    await openSettingsTestBox();
+    await settingsBox().put('word_levels_imported', 'true');
+    await wordLevelsBox().addAll([
       const WordLevelInfo(
         word: 'partitions',
         originForm: 'partition',
@@ -37,10 +32,7 @@ void main() {
   });
 
   tearDown(() async {
-    await Hive.close();
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
+    await disposeHiveTestStorage(tempDir);
   });
 
   test('analysis normalizes plural and tense forms like Word Hunter', () async {

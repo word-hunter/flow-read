@@ -4,24 +4,19 @@ import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+
+import 'support/hive_test_storage.dart';
 
 void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp(
-      'flow_read_theme_settings_test_',
-    );
-    Hive.init(tempDir.path);
-    await Hive.openBox('settings');
+    tempDir = await initHiveTestStorage('flow_read_theme_settings_test_');
+    await openSettingsTestBox();
   });
 
   tearDown(() async {
-    await Hive.close();
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
+    await disposeHiveTestStorage(tempDir);
   });
 
   test('app theme family and brightness mode persist', () async {
@@ -61,7 +56,7 @@ void main() {
   });
 
   test('unknown stored theme family falls back to classic', () async {
-    await Hive.box('settings').put('appThemeId', 'legacy_theme');
+    await settingsBox().put('appThemeId', 'legacy_theme');
 
     final settings = SettingsService();
     await settings.init();
