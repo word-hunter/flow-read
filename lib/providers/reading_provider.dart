@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../controllers/reading_search_controller.dart';
 import '../models/aggregated_vocabulary.dart';
 import '../models/ai_practice_questions.dart';
 import '../models/ai_summary.dart';
@@ -29,7 +30,6 @@ import '../services/bookmark_service.dart';
 import '../services/epub_service.dart';
 import '../services/learning_item_service.dart';
 import '../services/reading_config_service.dart';
-import '../services/reading_search_service.dart';
 import '../services/reading_time_service.dart';
 import '../services/sentence_analyzer.dart';
 import '../services/settings_service.dart';
@@ -107,13 +107,7 @@ class ReadingProvider extends ChangeNotifier {
   // ============================================================
   // Full-book search state
   // ============================================================
-  static const int collapsedSearchLimit = 100;
-  int _searchGeneration = 0;
-  String _searchQuery = '';
-  final List<ReadingSearchResult> _searchResults = [];
-  bool _isSearching = false;
-  bool _searchStoppedAtLimit = false;
-  ReadingSearchResult? _activeSearchResult;
+  final ReadingSearchController _searchController = ReadingSearchController();
 
   // ============================================================
   // AI state
@@ -129,6 +123,10 @@ class ReadingProvider extends ChangeNotifier {
   bool _isGeneratingPractice = false;
   WordAnalysis? _aiWordAnalysis;
   bool _isAnalyzingWord = false;
+
+  ReadingProvider() {
+    _searchController.addListener(notifyListeners);
+  }
 
   // ============================================================
   // Public getters
@@ -280,12 +278,11 @@ class ReadingProvider extends ChangeNotifier {
   SentenceAnalyzer get sentenceAnalyzer => _sentenceAnalyzer;
 
   // -- Full-book search --
-  String get searchQuery => _searchQuery;
-  List<ReadingSearchResult> get searchResults =>
-      List.unmodifiable(_searchResults);
-  bool get isSearching => _isSearching;
-  bool get searchStoppedAtLimit => _searchStoppedAtLimit;
-  ReadingSearchResult? get activeSearchResult => _activeSearchResult;
+  String get searchQuery => _searchController.query;
+  List<ReadingSearchResult> get searchResults => _searchController.results;
+  bool get isSearching => _searchController.isSearching;
+  bool get searchStoppedAtLimit => _searchController.stoppedAtLimit;
+  ReadingSearchResult? get activeSearchResult => _searchController.activeResult;
 
   // -- Reading config (delegated to ReadingConfigService) --
   double get fontSize => _readingConfig?.fontSize ?? 16.0;
@@ -733,53 +730,11 @@ class ReadingProvider extends ChangeNotifier {
   // ============================================================
 
   Future<void> searchInBook(String query, {bool includeAll = false}) async {
-    final book = _book;
-    final trimmedQuery = query.trim();
-    final generation = ++_searchGeneration;
-
-    _searchQuery = trimmedQuery;
-    _searchResults.clear();
-    _searchStoppedAtLimit = false;
-    _activeSearchResult = null;
-
-    if (book == null || trimmedQuery.isEmpty) {
-      _isSearching = false;
-      notifyListeners();
-      return;
-    }
-
-    _isSearching = true;
-    notifyListeners();
-
-    final limit = includeAll ? null : collapsedSearchLimit;
-    await for (final progress in ReadingSearchService.search(
-      book,
-      trimmedQuery,
-      limit: limit,
-    )) {
-      if (generation != _searchGeneration) return;
-
-      if (progress.stoppedAtLimit) {
-        _isSearching = false;
-        _searchStoppedAtLimit = true;
-        notifyListeners();
-        return;
-      }
-
-      final result = progress.result;
-      if (result == null) continue;
-      _searchResults.add(result);
-      notifyListeners();
-    }
-
-    if (generation != _searchGeneration) return;
-    _isSearching = false;
-    _searchStoppedAtLimit = false;
-    notifyListeners();
+    return _searchController.search(_book, query, includeAll: includeAll);
   }
 
   Future<void> searchAllInBook() {
-    return searchInBook(_searchQuery, includeAll: true);
+    return _searchController.searchAll(_book);
   }
 
   Future<void> goToSearchResult(ReadingSearchResult result) async {
@@ -789,7 +744,7 @@ class ReadingProvider extends ChangeNotifier {
       return;
     }
 
-    _activeSearchResult = result;
+    _searchController.activateResult(result);
     if (result.chapterIndex != _currentChapter) {
       await goToChapter(result.chapterIndex);
       return;
@@ -799,7 +754,6 @@ class ReadingProvider extends ChangeNotifier {
 
   void clearSearch() {
     _resetSearchState();
-    notifyListeners();
   }
 
   // ============================================================
@@ -1247,12 +1201,7 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   void _resetSearchState() {
-    _searchGeneration += 1;
-    _searchQuery = '';
-    _searchResults.clear();
-    _isSearching = false;
-    _searchStoppedAtLimit = false;
-    _activeSearchResult = null;
+    _searchController.reset();
   }
 
   LearningItemSource _currentLearningItemSource() {
@@ -1272,5 +1221,12 @@ class ReadingProvider extends ChangeNotifier {
     final lower = word.toLowerCase().trim();
     if (lower.isEmpty) return lower;
     return _wordLevelService?.canonicalForm(lower) ?? lower;
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(notifyListeners);
+    _searchController.dispose();
+    super.dispose();
   }
 }
