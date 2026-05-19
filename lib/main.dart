@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'models/book_metadata.dart';
 import 'models/bookmarked_word.dart';
+import 'models/learning_item.dart';
 import 'models/reading_bookmark.dart';
 import 'models/reading_config.dart';
 import 'models/rss_models.dart';
@@ -29,6 +30,7 @@ import 'services/dictionary/dictionary_cache_service.dart';
 import 'services/dictionary/dictionary_manager_service.dart';
 import 'services/dictionary/dictionary_repository.dart';
 import 'services/dictionary/dictionary_source_config.dart';
+import 'services/learning_item_service.dart';
 import 'services/llm_client.dart';
 import 'services/dictionary/longman_repository.dart';
 import 'services/reading_config_service.dart';
@@ -57,6 +59,7 @@ Future<void> _bootstrapStorage() async {
   _registerHiveAdapter(3, ReadingConfigAdapter());
   _registerHiveAdapter(4, WordLevelInfoAdapter());
   _registerHiveAdapter(10, RssFeedSubscriptionAdapter());
+  _registerHiveAdapter(11, LearningItemAdapter());
 
   await Future.wait([
     Hive.openBox<BookMetadata>('books'),
@@ -70,6 +73,7 @@ Future<void> _bootstrapStorage() async {
     Hive.openBox<String>('dictionary_cache'),
     Hive.openBox<RssFeedSubscription>('rss_subscriptions'),
     Hive.openBox<String>('word_contexts'),
+    Hive.openBox<LearningItem>('learning_items'),
   ]);
 }
 
@@ -408,6 +412,10 @@ class _FlowReadAppState extends State<FlowReadApp> {
             final wordContextService = WordContextService();
             wordContextService.init();
             provider.setWordContextService(wordContextService);
+
+            final learningItemService = LearningItemService();
+            learningItemService.init();
+            provider.setLearningItemService(learningItemService);
 
             provider.setSettings(settings);
 

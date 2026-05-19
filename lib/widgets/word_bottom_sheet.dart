@@ -17,6 +17,7 @@ class WordBottomSheet extends StatefulWidget {
 
 class _WordBottomSheetState extends State<WordBottomSheet> {
   bool _bookmarkAdded = false;
+  bool _learningItemSaved = false;
   bool _showAIAnalysis = false;
 
   @override
@@ -209,6 +210,31 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
             ],
           ),
           const SizedBox(height: 8),
+          _learningItemSaved
+              ? _savedLearningItemHint(theme)
+              : SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        provider.canCreateLearningItems &&
+                            provider.selectedWordTranslation != null
+                        ? () => _addLearningItem(provider)
+                        : null,
+                    icon: const Icon(Icons.add_card_outlined, size: 20),
+                    label: const Text('加入学习卡片'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+          const SizedBox(height: 8),
           isBookmarked
               ? Container(
                   padding: const EdgeInsets.symmetric(
@@ -263,6 +289,54 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
                     ),
                   ),
                 ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addLearningItem(ReadingProvider provider) async {
+    final result = await provider.addSelectedWordLearningItem();
+    if (!mounted) return;
+    if (result != null) {
+      setState(() => _learningItemSaved = true);
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result == null
+              ? '无法加入学习卡片'
+              : result.created
+              ? '已加入学习卡片'
+              : '学习卡片已存在',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _savedLearningItemHint(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.add_card,
+            size: 18,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '已加入学习卡片',
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
         ],
       ),
     );

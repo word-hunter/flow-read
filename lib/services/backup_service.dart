@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 
 import '../models/book_metadata.dart';
+import '../models/learning_item.dart';
 import '../models/rss_models.dart';
 import '../models/word_context_example.dart';
 import 'backup_folder_access.dart';
@@ -48,6 +49,7 @@ class BackupService extends ChangeNotifier {
     'dictionary_cache',
     'rss_subscriptions',
     'word_contexts',
+    'learning_items',
   ];
 
   static const _localSettingKeys = <String>{
@@ -340,6 +342,8 @@ class BackupService extends ChangeNotifier {
         return Hive.box<RssFeedSubscription>('rss_subscriptions').keys;
       case 'word_contexts':
         return Hive.box<String>('word_contexts').keys;
+      case 'learning_items':
+        return Hive.box<LearningItem>('learning_items').keys;
       default:
         return const [];
     }
@@ -367,6 +371,8 @@ class BackupService extends ChangeNotifier {
         return Hive.box<RssFeedSubscription>('rss_subscriptions').get(key);
       case 'word_contexts':
         return Hive.box<String>('word_contexts').get(key);
+      case 'learning_items':
+        return Hive.box<LearningItem>('learning_items').get(key);
     }
   }
 
@@ -398,6 +404,9 @@ class BackupService extends ChangeNotifier {
         return;
       case 'word_contexts':
         await Hive.box<String>('word_contexts').clear();
+        return;
+      case 'learning_items':
+        await Hive.box<LearningItem>('learning_items').clear();
         return;
     }
   }
@@ -436,6 +445,11 @@ class BackupService extends ChangeNotifier {
       case 'word_contexts':
         await Hive.box<String>('word_contexts').put(key, value as String);
         return;
+      case 'learning_items':
+        await Hive.box<LearningItem>(
+          'learning_items',
+        ).put(key, value as LearningItem);
+        return;
     }
   }
 
@@ -459,6 +473,8 @@ class BackupService extends ChangeNotifier {
         return (value as BookMetadata).toJson();
       case 'rss_subscriptions':
         return _rssSubscriptionToJson(value as RssFeedSubscription);
+      case 'learning_items':
+        return (value as LearningItem).toJson();
       default:
         return _encodeJsonValue(value);
     }
@@ -470,6 +486,8 @@ class BackupService extends ChangeNotifier {
         return BookMetadata.fromJson(_asStringKeyMap(value));
       case 'rss_subscriptions':
         return _rssSubscriptionFromJson(_asStringKeyMap(value));
+      case 'learning_items':
+        return LearningItem.fromJson(_asStringKeyMap(value));
       case 'reading_time':
         return (value as num).toInt();
       default:

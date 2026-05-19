@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/bookmarked_word.dart';
+import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/models/reading_bookmark.dart';
 import 'package:flow_read/models/reading_config.dart';
 import 'package:flow_read/models/rss_models.dart';
@@ -55,6 +56,24 @@ void main() {
     await Hive.box<String>(
       'word_contexts',
     ).put('flow', '[{"word":"flow","text":"A steady flow of ideas."}]');
+    await Hive.box<LearningItem>('learning_items').put(
+      'learning-1',
+      LearningItem(
+        id: 'learning-1',
+        type: LearningItemType.word,
+        canonicalKey: 'flow',
+        title: 'flow',
+        content: 'flow',
+        answer: 'movement',
+        note: '',
+        sourceText: 'A steady flow of ideas.',
+        bookId: 'book-1',
+        chapterIndex: 1,
+        chapterTitle: 'Chapter 2',
+        createdAt: DateTime.utc(2026, 5, 15, 8, 45),
+        updatedAt: DateTime.utc(2026, 5, 15, 8, 45),
+      ),
+    );
     await Hive.box<RssFeedSubscription>('rss_subscriptions').add(
       RssFeedSubscription(
         url: 'https://example.com/rss.xml',
@@ -104,6 +123,7 @@ void main() {
     await Hive.box<int>('reading_time').clear();
     await Hive.box<String>('dictionary_cache').clear();
     await Hive.box<String>('word_contexts').clear();
+    await Hive.box<LearningItem>('learning_items').clear();
     await Hive.box<RssFeedSubscription>('rss_subscriptions').clear();
 
     await backup.importBackupPayload(payload);
@@ -117,6 +137,10 @@ void main() {
     expect(
       Hive.box<String>('word_contexts').get('flow'),
       '[{"word":"flow","text":"A steady flow of ideas."}]',
+    );
+    expect(
+      Hive.box<LearningItem>('learning_items').get('learning-1')?.answer,
+      'movement',
     );
     expect(
       Hive.box<RssFeedSubscription>('rss_subscriptions').values.single.title,
@@ -256,6 +280,9 @@ void _registerAdapters() {
   if (!Hive.isAdapterRegistered(10)) {
     Hive.registerAdapter(RssFeedSubscriptionAdapter());
   }
+  if (!Hive.isAdapterRegistered(11)) {
+    Hive.registerAdapter(LearningItemAdapter());
+  }
 }
 
 Future<void> _openBoxes() async {
@@ -270,4 +297,5 @@ Future<void> _openBoxes() async {
   await Hive.openBox<String>('dictionary_cache');
   await Hive.openBox<RssFeedSubscription>('rss_subscriptions');
   await Hive.openBox<String>('word_contexts');
+  await Hive.openBox<LearningItem>('learning_items');
 }

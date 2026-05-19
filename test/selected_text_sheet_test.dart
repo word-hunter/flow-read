@@ -12,6 +12,13 @@ void main() {
     final provider = _SelectedTextReadingProvider(
       aiTextAnalysis: const AITextAnalysis(
         translation: '敏捷的狐狸跳过了懒狗。',
+        structureNotes: [
+          StructureNote(
+            source: 'The quick fox',
+            role: 'main subject',
+            explanation: '主语部分，说明动作发出者。',
+          ),
+        ],
         grammarPoints: [
           GrammarPoint(
             source: 'jumps over',
@@ -21,6 +28,13 @@ void main() {
         ],
         vocabularyNotes: [
           VocabularyNote(word: 'quick', contextMeaning: '敏捷的，快速的', pos: 'adj.'),
+        ],
+        expressionNotes: [
+          ExpressionNote(
+            source: 'lazy dog',
+            meaning: '懒狗',
+            usage: '可复用为描述懒散对象的表达。',
+          ),
         ],
         readingTip: '注意主语和谓语动作之间的关系。',
       ),
@@ -47,11 +61,16 @@ void main() {
     expect(find.text('翻译'), findsNothing);
     expect(find.text('译文'), findsOneWidget);
     expect(find.text('敏捷的狐狸跳过了懒狗。'), findsOneWidget);
+    expect(find.text('结构'), findsOneWidget);
+    expect(find.text('The quick fox'), findsOneWidget);
     expect(find.text('语法要点'), findsOneWidget);
     expect(find.text('jumps over'), findsOneWidget);
     expect(find.text('词汇说明'), findsOneWidget);
     expect(find.text('quick'), findsOneWidget);
+    expect(find.text('表达'), findsOneWidget);
+    expect(find.text('lazy dog'), findsOneWidget);
     expect(find.text('阅读提示'), findsOneWidget);
+    expect(find.text('加入学习卡片'), findsOneWidget);
   });
 }
 

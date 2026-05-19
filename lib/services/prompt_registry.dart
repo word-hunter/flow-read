@@ -29,6 +29,13 @@ class PromptRegistry {
 ## Output Format (strict JSON)
 {
   "translation": "Contextual Chinese translation that preserves literary feel",
+  "structure_notes": [
+    {
+      "source": "exact clause or phrase from the selected text",
+      "role": "main clause|subordinate clause|modifier|object|contrast|other",
+      "explanation": "How this part functions in the sentence or passage (Chinese)"
+    }
+  ],
   "grammar_points": [
     {
       "source": "exact phrase from the selected text",
@@ -43,14 +50,25 @@ class PromptRegistry {
       "pos": "part of speech (noun/verb/adj/adv/prep/conj)"
     }
   ],
+  "expression_notes": [
+    {
+      "source": "reusable expression or collocation from the selected text",
+      "meaning": "Contextual meaning in Chinese",
+      "usage": "How a learner can reuse this expression in writing or reading (Chinese)"
+    }
+  ],
   "reading_tip": "One key insight to understand this passage (1-2 sentences in Chinese)"
 }
 
 ## Rules
+- Each structure_note.source must be a substring of the selected text
 - Each grammar_point.source must be a substring of the selected text
 - Each vocabulary_note.word must appear in the selected text
+- Each expression_note.source must be a substring of the selected text
+- Limit structure_notes to at most 3
 - Limit grammar_points to at most 3
 - Limit vocabulary_notes to at most 5
+- Limit expression_notes to at most 3
 - Only include words that a Chinese English learner might not know
 - Do NOT add information that does not exist in the text''';
   }

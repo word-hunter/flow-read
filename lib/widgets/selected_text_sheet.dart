@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/ai_text_analysis.dart';
 import '../models/analysis_result.dart';
+import '../models/learning_item.dart';
 import '../models/sentence_breakdown.dart';
 import '../providers/reading_provider.dart';
 import '../utils/syntax_helpers.dart';
@@ -11,6 +12,8 @@ class SelectedTextSheet extends StatefulWidget {
   final AnalysisResult? analysis; // 兼容旧的分析结果
   final List<SentenceBreakdown>? breakdowns; // 新的逐句分析
   final String analyzerName;
+  final bool embedded;
+  final VoidCallback? onClose;
 
   const SelectedTextSheet({
     super.key,
@@ -18,6 +21,8 @@ class SelectedTextSheet extends StatefulWidget {
     required this.analysis,
     this.breakdowns,
     this.analyzerName = '规则引擎',
+    this.embedded = false,
+    this.onClose,
   });
 
   @override
@@ -25,9 +30,40 @@ class SelectedTextSheet extends StatefulWidget {
 }
 
 class _SelectedTextSheetState extends State<SelectedTextSheet> {
+  final ScrollController _embeddedScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _embeddedScrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    if (widget.embedded) {
+      return Container(
+        width: 420,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border(
+            left: BorderSide(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+            ),
+          ),
+        ),
+        child: Column(
+          children: [
+            _buildHeader(theme),
+            _buildSheetTitle(theme),
+            Expanded(
+              child: _buildAnalysisTab(theme, _embeddedScrollController),
+            ),
+          ],
+        ),
+      );
+    }
 
     return DraggableScrollableSheet(
       initialChildSize: 0.65,
@@ -55,6 +91,24 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
   // ======== Header ========
 
   Widget _buildHeader(ThemeData theme) {
+    if (widget.embedded) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 10, 0),
+        child: Row(
+          children: [
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.chevron_right, size: 20),
+              tooltip: '收起侧栏',
+              onPressed: _close,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 12, 0),
       child: Row(
@@ -75,13 +129,22 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
           ),
           IconButton(
             icon: const Icon(Icons.close, size: 18),
-            onPressed: () => Navigator.pop(context),
+            onPressed: _close,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
         ],
       ),
     );
+  }
+
+  void _close() {
+    final onClose = widget.onClose;
+    if (onClose != null) {
+      onClose();
+      return;
+    }
+    Navigator.pop(context);
   }
 
   // ======== Title ========
@@ -242,6 +305,7 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
     }
 
     addSection(_buildAnalyzerBadge(theme));
+    addSection(_buildSelectedTextLearningAction(theme));
 
     final translation = analysis.translation.trim();
     if (translation.isNotEmpty) {
@@ -261,12 +325,20 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
       );
     }
 
+    if (analysis.structureNotes.isNotEmpty) {
+      addSection(_buildStructureSection(theme, analysis.structureNotes));
+    }
+
     if (analysis.grammarPoints.isNotEmpty) {
       addSection(_buildGrammarSection(theme, analysis.grammarPoints));
     }
 
     if (analysis.vocabularyNotes.isNotEmpty) {
       addSection(_buildVocabularySection(theme, analysis.vocabularyNotes));
+    }
+
+    if (analysis.expressionNotes.isNotEmpty) {
+      addSection(_buildExpressionSection(theme, analysis.expressionNotes));
     }
 
     final readingTip = analysis.readingTip.trim();
@@ -290,6 +362,25 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: sections,
+    );
+  }
+
+  Widget _buildSelectedTextLearningAction(ThemeData theme) {
+    final provider = context.watch<ReadingProvider>();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: OutlinedButton.icon(
+        onPressed: provider.canCreateLearningItems
+            ? () => _saveLearningItem(provider.addSelectedTextLearningItem())
+            : null,
+        icon: const Icon(Icons.add_card_outlined, size: 18),
+        label: const Text('加入学习卡片'),
+        style: OutlinedButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
     );
   }
 
@@ -328,7 +419,7 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
             ],
           ),
           const SizedBox(height: 10),
-          child,
+          SizedBox(width: double.infinity, child: child),
         ],
       ),
     );
@@ -366,11 +457,79 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
                     ),
                     const SizedBox(width: 8),
                     _buildDifficultyPill(theme, point.difficulty),
+                    const SizedBox(width: 2),
+                    _buildInlineSaveButton(
+                      theme,
+                      onPressed: () => _saveLearningItem(
+                        context
+                            .read<ReadingProvider>()
+                            .addAIGrammarLearningItem(point),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Text(
                   point.explanation,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    height: 1.5,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildStructureSection(
+    ThemeData theme,
+    List<StructureNote> structureNotes,
+  ) {
+    return _buildAISection(
+      theme,
+      icon: Icons.schema_outlined,
+      title: '结构',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: structureNotes.map((note) {
+          final role = note.role.trim();
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        note.source,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontFamily: 'Serif',
+                          height: 1.5,
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (role.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        role,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.tertiary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  note.explanation,
                   style: theme.textTheme.bodySmall?.copyWith(
                     height: 1.5,
                     color: theme.colorScheme.onSurfaceVariant,
@@ -422,6 +581,15 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
                         ),
                       ),
                     ],
+                    const Spacer(),
+                    _buildInlineSaveButton(
+                      theme,
+                      onPressed: () => _saveLearningItem(
+                        context
+                            .read<ReadingProvider>()
+                            .addAIVocabularyLearningItem(note),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -436,6 +604,88 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildExpressionSection(
+    ThemeData theme,
+    List<ExpressionNote> expressionNotes,
+  ) {
+    return _buildAISection(
+      theme,
+      icon: Icons.format_quote_outlined,
+      title: '表达',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: expressionNotes.map((note) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        note.source,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    _buildInlineSaveButton(
+                      theme,
+                      onPressed: () => _saveLearningItem(
+                        context
+                            .read<ReadingProvider>()
+                            .addAIExpressionLearningItem(note),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  note.meaning,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    height: 1.5,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (note.usage.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    note.usage,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      height: 1.5,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildInlineSaveButton(
+    ThemeData theme, {
+    required VoidCallback onPressed,
+  }) {
+    final provider = context.watch<ReadingProvider>();
+    return Tooltip(
+      message: '加入学习卡片',
+      child: IconButton(
+        onPressed: provider.canCreateLearningItems ? onPressed : null,
+        icon: const Icon(Icons.add_card_outlined, size: 18),
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        color: theme.colorScheme.primary,
       ),
     );
   }
@@ -461,6 +711,21 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
           fontWeight: FontWeight.w700,
         ),
       ),
+    );
+  }
+
+  Future<void> _saveLearningItem(
+    Future<LearningItemSaveResult?> saveFuture,
+  ) async {
+    final result = await saveFuture;
+    if (!mounted) return;
+    final message = result == null
+        ? '无法加入学习卡片'
+        : result.created
+        ? '已加入学习卡片'
+        : '学习卡片已存在';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 

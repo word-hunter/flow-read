@@ -129,6 +129,12 @@ class AIService {
   }
 
   void _validateTextAnalysis(AITextAnalysis result, String originalText) {
+    for (final note in result.structureNotes) {
+      if (note.source.isNotEmpty &&
+          !originalText.toLowerCase().contains(note.source.toLowerCase())) {
+        debugPrint('[AI] Structure source not found in text: "${note.source}"');
+      }
+    }
     for (final point in result.grammarPoints) {
       if (point.source.isNotEmpty &&
           !originalText.toLowerCase().contains(point.source.toLowerCase())) {
@@ -139,6 +145,14 @@ class AIService {
       if (note.word.isNotEmpty &&
           !originalText.toLowerCase().contains(note.word.toLowerCase())) {
         debugPrint('[AI] Word not found in text: "${note.word}"');
+      }
+    }
+    for (final note in result.expressionNotes) {
+      if (note.source.isNotEmpty &&
+          !originalText.toLowerCase().contains(note.source.toLowerCase())) {
+        debugPrint(
+          '[AI] Expression source not found in text: "${note.source}"',
+        );
       }
     }
   }

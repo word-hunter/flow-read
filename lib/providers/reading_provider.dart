@@ -14,6 +14,7 @@ import '../models/book.dart';
 import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
 import '../models/bookmarked_word.dart';
+import '../models/learning_item.dart';
 import '../models/reading_search_result.dart';
 import '../models/reading_bookmark.dart';
 import '../models/sentence_breakdown.dart';
@@ -26,6 +27,7 @@ import '../services/analysis_service.dart';
 import '../services/book_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/epub_service.dart';
+import '../services/learning_item_service.dart';
 import '../services/reading_config_service.dart';
 import '../services/reading_search_service.dart';
 import '../services/reading_time_service.dart';
@@ -53,6 +55,7 @@ class ReadingProvider extends ChangeNotifier {
   AICacheService? _aiCache;
   WordLevelService? _wordLevelService;
   WordContextService? _wordContextService;
+  LearningItemService? _learningItemService;
 
   // ============================================================
   // Core reading state
@@ -325,6 +328,10 @@ class ReadingProvider extends ChangeNotifier {
   UserVocabularyService? get userVocabulary => _userVocab;
   WordLevelService? get wordLevelService => _wordLevelService;
   WordContextService? get wordContextService => _wordContextService;
+  List<LearningItem> get learningItems =>
+      _learningItemService?.allItems ?? const [];
+  int get learningItemCount => _learningItemService?.count ?? 0;
+  bool get canCreateLearningItems => _learningItemService != null;
 
   // ============================================================
   // Dependency injection
@@ -347,6 +354,8 @@ class ReadingProvider extends ChangeNotifier {
       _wordLevelService = service;
   void setWordContextService(WordContextService service) =>
       _wordContextService = service;
+  void setLearningItemService(LearningItemService service) =>
+      _learningItemService = service;
 
   // ============================================================
   // Initialisation
@@ -359,6 +368,7 @@ class ReadingProvider extends ChangeNotifier {
     await _readingTime?.init();
     await _userVocab?.init();
     await _wordContextService?.init();
+    await _learningItemService?.init();
     _refreshCachedBookDifficulties();
     if (_book != null) {
       _refreshCurrentBookStudyWords();
@@ -472,6 +482,7 @@ class ReadingProvider extends ChangeNotifier {
     await _bookService.removeBook(bookId);
     await _bookmarkService?.deleteWordBookmarks(bookId);
     await _bookmarkService?.deleteReadingBookmarks(bookId);
+    await _learningItemService?.deleteForBook(bookId);
     await _aiCache?.clearBookCache(bookId);
     _bookStudyWordsById.remove(bookId);
     _bookDifficultyById.remove(bookId);
@@ -845,6 +856,117 @@ class ReadingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ============================================================
+  // Learning items
+  // ============================================================
+
+  Future<LearningItemSaveResult?> addSelectedWordLearningItem() async {
+    final service = _learningItemService;
+    final word = _selectedWord?.trim();
+    if (service == null || word == null || word.isEmpty) return null;
+
+    final definition = _selectedWordTranslation?.trim() ?? '';
+    final draft = LearningItemDraft.word(
+      word: word,
+      definition: definition,
+      context: _selectedWordContext ?? '',
+      source: _currentLearningItemSource(),
+      metadata: {
+        if (_selectedWordEntry?.sourceName != null)
+          'dictionarySource': _selectedWordEntry!.sourceName!,
+        if (_selectedWordEntry?.phonetic?.trim().isNotEmpty ?? false)
+          'phonetic': _selectedWordEntry!.phonetic!.trim(),
+      },
+    );
+    final result = await service.saveDraft(draft);
+    notifyListeners();
+    return result;
+  }
+
+  Future<LearningItemSaveResult?> addSelectedTextLearningItem() async {
+    final service = _learningItemService;
+    final selectedText = _selectedText?.trim();
+    final analysis = _aiTextAnalysis;
+    if (service == null ||
+        selectedText == null ||
+        selectedText.isEmpty ||
+        analysis == null) {
+      return null;
+    }
+
+    final result = await service.saveDraft(
+      LearningItemDraft.selectedText(
+        selectedText: selectedText,
+        analysis: analysis,
+        source: _currentLearningItemSource(),
+      ),
+    );
+    notifyListeners();
+    return result;
+  }
+
+  Future<LearningItemSaveResult?> addAIVocabularyLearningItem(
+    VocabularyNote note,
+  ) async {
+    final service = _learningItemService;
+    final selectedText = _selectedText?.trim();
+    if (service == null || selectedText == null || selectedText.isEmpty) {
+      return null;
+    }
+    final result = await service.saveDraft(
+      LearningItemDraft.vocabularyNote(
+        note: note,
+        selectedText: selectedText,
+        source: _currentLearningItemSource(),
+      ),
+    );
+    notifyListeners();
+    return result;
+  }
+
+  Future<LearningItemSaveResult?> addAIGrammarLearningItem(
+    GrammarPoint point,
+  ) async {
+    final service = _learningItemService;
+    final selectedText = _selectedText?.trim();
+    if (service == null || selectedText == null || selectedText.isEmpty) {
+      return null;
+    }
+    final result = await service.saveDraft(
+      LearningItemDraft.grammarPoint(
+        point: point,
+        selectedText: selectedText,
+        source: _currentLearningItemSource(),
+      ),
+    );
+    notifyListeners();
+    return result;
+  }
+
+  Future<LearningItemSaveResult?> addAIExpressionLearningItem(
+    ExpressionNote note,
+  ) async {
+    final service = _learningItemService;
+    final selectedText = _selectedText?.trim();
+    if (service == null || selectedText == null || selectedText.isEmpty) {
+      return null;
+    }
+    final result = await service.saveDraft(
+      LearningItemDraft.expressionNote(
+        note: note,
+        selectedText: selectedText,
+        source: _currentLearningItemSource(),
+      ),
+    );
+    notifyListeners();
+    return result;
+  }
+
+  Future<void> deleteLearningItem(String id) async {
+    await _learningItemService?.delete(id);
+    notifyListeners();
+  }
+
   // -- Reading bookmarks --
 
   bool isCurrentPositionBookmarked() {
@@ -1131,6 +1253,14 @@ class ReadingProvider extends ChangeNotifier {
     _isSearching = false;
     _searchStoppedAtLimit = false;
     _activeSearchResult = null;
+  }
+
+  LearningItemSource _currentLearningItemSource() {
+    return LearningItemSource(
+      bookId: _activeBookId ?? '',
+      chapterIndex: _book == null ? -1 : _currentChapter,
+      chapterTitle: _book == null ? '' : _book!.chapters[_currentChapter].title,
+    );
   }
 
   String _generateBookId(String fileName) {

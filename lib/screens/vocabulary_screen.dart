@@ -2,10 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/aggregated_vocabulary.dart';
+import '../models/learning_item.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/word_bottom_sheet.dart';
+
+enum _VocabularyView { words, cards }
 
 class VocabularyScreen extends StatefulWidget {
   const VocabularyScreen({super.key});
@@ -16,6 +19,7 @@ class VocabularyScreen extends StatefulWidget {
 
 class _VocabularyScreenState extends State<VocabularyScreen> {
   bool _sortAlpha = false;
+  _VocabularyView _view = _VocabularyView.words;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   Timer? _debounce;
@@ -48,10 +52,14 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
     final provider = context.watch<ReadingProvider>();
     final theme = Theme.of(context);
     final allVocab = provider.getAllVocabulary(alphabetical: _sortAlpha);
+    final allLearningItems = provider.learningItems;
 
     final filtered = _searchQuery.isEmpty
         ? allVocab
         : allVocab.where((v) => v.word.contains(_searchQuery)).toList();
+    final filteredLearningItems = _searchQuery.isEmpty
+        ? allLearningItems
+        : allLearningItems.where((item) => _matchesLearningItem(item)).toList();
 
     final unknownCount = filtered
         .where((v) => provider.getWordStatus(v.word) == null)
@@ -71,32 +79,62 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
       body: Column(
         children: [
           _buildSearchBar(theme),
-          _buildStatsBar(theme, filtered.length, unknownCount, learningCount),
-          _buildSortToggle(theme),
-          Expanded(
-            child: filtered.isEmpty
-                ? _buildEmptyState(theme)
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 24),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final vocab = filtered[index];
-                      return _VocabItem(
-                        vocab: vocab,
-                        status: provider.getWordStatus(vocab.word),
-                        onMarkKnown: () => provider.markWordKnown(vocab.word),
-                        onMarkLearning: () =>
-                            provider.markWordLearning(vocab.word),
-                        onMarkUnknown: () =>
-                            provider.markWordUnknown(vocab.word),
-                        onTap: () => _openWordDetail(context, provider, vocab),
-                      );
-                    },
-                  ),
-          ),
+          _buildViewToggle(theme),
+          if (_view == _VocabularyView.words) ...[
+            _buildStatsBar(theme, filtered.length, unknownCount, learningCount),
+            _buildSortToggle(theme),
+            Expanded(
+              child: filtered.isEmpty
+                  ? _buildEmptyState(theme)
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final vocab = filtered[index];
+                        return _VocabItem(
+                          vocab: vocab,
+                          status: provider.getWordStatus(vocab.word),
+                          onMarkKnown: () => provider.markWordKnown(vocab.word),
+                          onMarkLearning: () =>
+                              provider.markWordLearning(vocab.word),
+                          onMarkUnknown: () =>
+                              provider.markWordUnknown(vocab.word),
+                          onTap: () =>
+                              _openWordDetail(context, provider, vocab),
+                        );
+                      },
+                    ),
+            ),
+          ] else ...[
+            _buildLearningItemStatsBar(theme, filteredLearningItems),
+            Expanded(
+              child: filteredLearningItems.isEmpty
+                  ? _buildLearningItemEmptyState(theme)
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      itemCount: filteredLearningItems.length,
+                      itemBuilder: (context, index) {
+                        final item = filteredLearningItems[index];
+                        return _LearningItemCard(
+                          item: item,
+                          onDelete: () => provider.deleteLearningItem(item.id),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  bool _matchesLearningItem(LearningItem item) {
+    final query = _searchQuery.toLowerCase();
+    return item.title.toLowerCase().contains(query) ||
+        item.content.toLowerCase().contains(query) ||
+        item.answer.toLowerCase().contains(query) ||
+        item.note.toLowerCase().contains(query) ||
+        item.sourceText.toLowerCase().contains(query);
   }
 
   void _openWordDetail(
@@ -119,7 +157,9 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
-          hintText: 'Search words...',
+          hintText: _view == _VocabularyView.words
+              ? 'Search words...'
+              : 'Search learning cards...',
           hintStyle: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -143,6 +183,41 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
             borderSide: BorderSide.none,
           ),
           contentPadding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildViewToggle(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
+      child: SizedBox(
+        width: double.infinity,
+        child: SegmentedButton<_VocabularyView>(
+          selected: {_view},
+          onSelectionChanged: (value) {
+            setState(() {
+              _view = value.single;
+            });
+          },
+          segments: const [
+            ButtonSegment(
+              value: _VocabularyView.words,
+              icon: Icon(Icons.text_fields_outlined, size: 18),
+              label: Text('Words'),
+            ),
+            ButtonSegment(
+              value: _VocabularyView.cards,
+              icon: Icon(Icons.add_card_outlined, size: 18),
+              label: Text('Cards'),
+            ),
+          ],
+          style: ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
         ),
       ),
     );
@@ -221,6 +296,54 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
     );
   }
 
+  Widget _buildLearningItemStatsBar(ThemeData theme, List<LearningItem> items) {
+    final wordCount = items
+        .where((item) => item.type == LearningItemType.word)
+        .length;
+    final sentenceCount = items
+        .where((item) => item.type == LearningItemType.sentence)
+        .length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      child: Row(
+        children: [
+          Text(
+            '${items.length} cards',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          if (wordCount > 0) ...[
+            const SizedBox(width: 10),
+            _statPill('$wordCount words', AppColors.vocabLearning),
+          ],
+          if (sentenceCount > 0) ...[
+            const SizedBox(width: 6),
+            _statPill('$sentenceCount passages', theme.colorScheme.tertiary),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _statPill(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   Widget _sortChip({
     required String label,
     required bool selected,
@@ -266,6 +389,28 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
           const SizedBox(height: 16),
           Text(
             'Import a book to see vocabulary',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLearningItemEmptyState(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.add_card_outlined,
+            size: 56,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No learning cards yet',
             style: theme.textTheme.bodyLarge?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -471,5 +616,161 @@ class _VocabItem extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _LearningItemCard extends StatelessWidget {
+  final LearningItem item;
+  final VoidCallback onDelete;
+
+  const _LearningItemCard({required this.item, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final subtitle = _firstNonEmpty([item.answer, item.note, item.sourceText]);
+    final location = item.chapterIndex >= 0
+        ? '位置 ${item.chapterIndex + 1}'
+        : '未关联书籍';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _typeBadge(theme),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      item.title.isEmpty ? item.content : item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                  Tooltip(
+                    message: '删除',
+                    child: IconButton(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (subtitle.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  subtitle,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.place_outlined,
+                    size: 14,
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.7,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      item.chapterTitle.isNotEmpty
+                          ? '$location · ${item.chapterTitle}'
+                          : location,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.7,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _formatDate(item.createdAt),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.7,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _typeBadge(ThemeData theme) {
+    final color = switch (item.type) {
+      LearningItemType.word => AppColors.vocabLearning,
+      LearningItemType.sentence => theme.colorScheme.primary,
+      LearningItemType.grammar => theme.colorScheme.tertiary,
+      LearningItemType.expression => Colors.indigo,
+      LearningItemType.questionMistake => theme.colorScheme.error,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        item.type.label,
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  String _firstNonEmpty(List<String> values) {
+    for (final value in values) {
+      final trimmed = value.trim();
+      if (trimmed.isNotEmpty) return trimmed;
+    }
+    return '';
+  }
+
+  String _formatDate(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '$month-$day';
   }
 }

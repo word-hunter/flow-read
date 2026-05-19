@@ -17,6 +17,8 @@ import '../widgets/selected_text_sheet.dart';
 import '../widgets/toc_bottom_sheet.dart';
 import '../widgets/word_bottom_sheet.dart';
 
+enum _ReaderSidebarMode { word, textAnalysis }
+
 class ReaderPage extends StatefulWidget {
   const ReaderPage({super.key});
 
@@ -33,6 +35,9 @@ class _ReaderPageState extends State<ReaderPage> {
   String? _lastReaderLocationKey;
   bool _scrollResetQueued = false;
   String _selectedText = '';
+  String _sidebarSelectedText = '';
+  String _sidebarAnalyzerName = 'AI';
+  _ReaderSidebarMode _sidebarMode = _ReaderSidebarMode.word;
   bool _sidebarOpen = false;
   bool _searchSheetOpen = false;
   bool _searchShowingAll = false;
@@ -126,7 +131,10 @@ class _ReaderPageState extends State<ReaderPage> {
   void _onWordTapped(String word, String contextText) {
     context.read<ReadingProvider>().lookupWord(word, contextText: contextText);
     if (_isWideScreen) {
-      setState(() => _sidebarOpen = true);
+      setState(() {
+        _sidebarMode = _ReaderSidebarMode.word;
+        _sidebarOpen = true;
+      });
     } else {
       showModalBottomSheet(
         context: context,
@@ -135,10 +143,6 @@ class _ReaderPageState extends State<ReaderPage> {
         builder: (_) => WordBottomSheet(word: word),
       );
     }
-  }
-
-  void _onTranslateSelected(String text) {
-    _onAnalyzeSelected(text);
   }
 
   void _onAnalyzeSelected(String text) {
@@ -163,6 +167,16 @@ class _ReaderPageState extends State<ReaderPage> {
       }
     }
     provider.analyzeSelectedTextAI(selectedText, before, after);
+    if (_isWideScreen) {
+      setState(() {
+        _sidebarMode = _ReaderSidebarMode.textAnalysis;
+        _sidebarSelectedText = selectedText;
+        _sidebarAnalyzerName = analyzerName;
+        _sidebarOpen = true;
+      });
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -398,10 +412,7 @@ class _ReaderPageState extends State<ReaderPage> {
                             curve: Curves.easeInOut,
                             alignment: Alignment.topCenter,
                             child: _sidebarOpen
-                                ? ReaderWordSidebar(
-                                    onClose: () =>
-                                        setState(() => _sidebarOpen = false),
-                                  )
+                                ? _buildReaderSidebar()
                                 : const SizedBox.shrink(),
                           ),
                         ],
@@ -466,14 +477,6 @@ class _ReaderPageState extends State<ReaderPage> {
       contextMenuBuilder: (context, selectableRegionState) {
         final defaultItems = selectableRegionState.contextMenuButtonItems;
         final customItems = <ContextMenuButtonItem>[
-          ContextMenuButtonItem(
-            onPressed: aiFeaturesEnabled
-                ? () {
-                    _onTranslateSelected(_selectedText);
-                  }
-                : null,
-            label: '翻译',
-          ),
           ContextMenuButtonItem(
             onPressed: aiFeaturesEnabled
                 ? () {
@@ -875,7 +878,12 @@ class _ReaderPageState extends State<ReaderPage> {
                   ? Icons.vertical_split
                   : Icons.vertical_split_outlined,
               tooltip: _sidebarOpen ? '收起侧栏' : '展开侧栏',
-              onPressed: () => setState(() => _sidebarOpen = !_sidebarOpen),
+              onPressed: () => setState(() {
+                if (!_sidebarOpen && _sidebarSelectedText.isEmpty) {
+                  _sidebarMode = _ReaderSidebarMode.word;
+                }
+                _sidebarOpen = !_sidebarOpen;
+              }),
             ),
           if (showSearch)
             _compactIconButton(
@@ -972,6 +980,21 @@ class _ReaderPageState extends State<ReaderPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildReaderSidebar() {
+    return switch (_sidebarMode) {
+      _ReaderSidebarMode.word => ReaderWordSidebar(
+        onClose: () => setState(() => _sidebarOpen = false),
+      ),
+      _ReaderSidebarMode.textAnalysis => SelectedTextSheet(
+        selectedText: _sidebarSelectedText,
+        analysis: null,
+        analyzerName: _sidebarAnalyzerName,
+        embedded: true,
+        onClose: () => setState(() => _sidebarOpen = false),
+      ),
+    };
   }
 }
 
