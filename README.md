@@ -33,10 +33,18 @@
 
 ## 运行
 
+项目通过 `.fvmrc` 锁定 Flutter SDK 版本。建议本地安装 FVM 后使用以下命令：
+
 ```bash
-flutter pub get
-flutter run
+fvm flutter pub get
+fvm flutter run
 ```
+
+如果不使用 FVM，请确认 `flutter --version` 与 `.fvmrc` 中的版本一致。
+
+## 依赖升级
+
+依赖和 SDK 升级由 Renovate 检测并创建 PR，GitHub Actions 会对升级 PR 执行 `dart analyze`、`flutter test` 和 macOS debug build。Flutter/Dart SDK 升级应作为独立 PR 人工确认，不随功能开发自动变更应用版本号。
 
 ## 发布
 

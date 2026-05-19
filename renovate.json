@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Asia/Shanghai",
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 9am on monday"]
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["pub"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "Dart package updates",
+      "schedule": ["before 9am on monday"]
+    },
+    {
+      "matchManagers": ["pub"],
+      "matchUpdateTypes": ["major"],
+      "labels": ["dependencies", "major"]
+    },
+    {
+      "matchDatasources": ["flutter-version", "dart-version"],
+      "labels": ["dependencies", "sdk"],
+      "automerge": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions updates",
+      "schedule": ["before 9am on monday"]
+    }
+  ]
+}
