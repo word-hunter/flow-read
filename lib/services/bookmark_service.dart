@@ -1,24 +1,23 @@
 import 'dart:convert';
 
-import 'package:hive/hive.dart';
-
 import '../models/bookmarked_word.dart';
 import '../models/reading_bookmark.dart';
-import '../storage/hive_box_names.dart';
+import '../storage/repositories/bookmark_repository.dart';
 
 class BookmarkService {
-  late Box<String> _wordBox;
-  late Box<String> _readingBox;
+  BookmarkService({BookmarkRepository? repository})
+    : _repository = repository ?? HiveBookmarkRepository();
+
+  final BookmarkRepository _repository;
 
   Future<void> init() async {
-    _wordBox = Hive.box<String>(HiveBoxNames.wordBookmarks);
-    _readingBox = Hive.box<String>(HiveBoxNames.readingBookmarks);
+    await _repository.init();
   }
 
   // --- Word Bookmarks ---
 
   List<BookmarkedWord> loadWordBookmarks(String bookId) {
-    final json = _wordBox.get(bookId);
+    final json = _repository.getWordBookmarks(bookId);
     if (json == null) return [];
     try {
       final list = jsonDecode(json) as List<dynamic>;
@@ -53,17 +52,17 @@ class BookmarkService {
           },
         )
         .toList();
-    await _wordBox.put(bookId, jsonEncode(list));
+    await _repository.putWordBookmarks(bookId, jsonEncode(list));
   }
 
   Future<void> deleteWordBookmarks(String bookId) async {
-    await _wordBox.delete(bookId);
+    await _repository.deleteWordBookmarks(bookId);
   }
 
   // --- Reading Bookmarks ---
 
   List<ReadingBookmark> loadReadingBookmarks(String bookId) {
-    final json = _readingBox.get(bookId);
+    final json = _repository.getReadingBookmarks(bookId);
     if (json == null) return [];
     try {
       final list = jsonDecode(json) as List<dynamic>;
@@ -100,15 +99,14 @@ class BookmarkService {
           },
         )
         .toList();
-    await _readingBox.put(bookId, jsonEncode(list));
+    await _repository.putReadingBookmarks(bookId, jsonEncode(list));
   }
 
   Future<void> deleteReadingBookmarks(String bookId) async {
-    await _readingBox.delete(bookId);
+    await _repository.deleteReadingBookmarks(bookId);
   }
 
   Future<void> close() async {
-    await _wordBox.close();
-    await _readingBox.close();
+    await _repository.close();
   }
 }

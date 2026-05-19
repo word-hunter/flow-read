@@ -1,7 +1,11 @@
 import 'dart:io';
 
+import 'package:flow_read/models/bookmarked_word.dart';
+import 'package:flow_read/models/reading_bookmark.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
 import 'package:flow_read/models/word_context_example.dart';
+import 'package:flow_read/services/bookmark_service.dart';
+import 'package:flow_read/services/dictionary/dictionary_cache_service.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
@@ -103,4 +107,65 @@ void main() {
     expect(examples, hasLength(1));
     expect(examples.single.title, 'Book');
   });
+
+  test('bookmarks persist word and reading bookmark payloads', () async {
+    final service = BookmarkService();
+    await service.init();
+
+    await service.saveWordBookmarks('book-1', [
+      BookmarkedWord(
+        word: 'flow',
+        translation: '流动',
+        context: 'A steady flow of ideas.',
+        addedAt: DateTime.utc(2026, 5, 19, 9),
+        bookId: 'book-1',
+      ),
+    ]);
+    await service.saveReadingBookmarks('book-1', [
+      ReadingBookmark(
+        chapterIndex: 2,
+        progress: 0.42,
+        chapterTitle: 'Chapter 3',
+        excerpt: 'A bookmarked paragraph.',
+        createdAt: DateTime.utc(2026, 5, 19, 10),
+        bookId: 'book-1',
+      ),
+    ]);
+
+    final reloaded = BookmarkService();
+    await reloaded.init();
+
+    expect(reloaded.loadWordBookmarks('book-1').single.word, 'flow');
+    expect(reloaded.loadReadingBookmarks('book-1').single.progress, 0.42);
+
+    await reloaded.deleteWordBookmarks('book-1');
+    await reloaded.deleteReadingBookmarks('book-1');
+
+    expect(reloaded.loadWordBookmarks('book-1'), isEmpty);
+    expect(reloaded.loadReadingBookmarks('book-1'), isEmpty);
+  });
+
+  test(
+    'dictionary cache persists entries and prunes oldest overflow',
+    () async {
+      final cache = DictionaryCacheService();
+      await cache.init();
+
+      await cache.set('Collins', 'flow', '<html>flow</html>');
+
+      expect(cache.get('Collins', 'flow'), '<html>flow</html>');
+      expect(cache.hasWord('Collins', 'flow'), isTrue);
+
+      for (var index = 0; index < 501; index += 1) {
+        await cache.set('Longman', 'word$index', 'entry$index');
+      }
+
+      expect(cache.hasWord('Collins', 'flow'), isFalse);
+      expect(cache.hasWord('Longman', 'word500'), isTrue);
+
+      await cache.clear();
+
+      expect(cache.hasWord('Longman', 'word500'), isFalse);
+    },
+  );
 }

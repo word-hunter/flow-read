@@ -1,22 +1,27 @@
-import 'package:hive/hive.dart';
-
 import '../models/learning_item.dart';
-import '../storage/hive_box_names.dart';
+import '../storage/repositories/learning_item_repository.dart';
 
 class LearningItemService {
-  late Box<LearningItem> _box;
+  LearningItemService({
+    LearningItemRepository? repository,
+    DateTime Function()? clock,
+  }) : _repository = repository ?? HiveLearningItemRepository(),
+       _clock = clock ?? DateTime.now;
+
+  final LearningItemRepository _repository;
+  final DateTime Function() _clock;
 
   Future<void> init() async {
-    _box = Hive.box<LearningItem>(HiveBoxNames.learningItems);
+    await _repository.init();
   }
 
   List<LearningItem> get allItems {
-    final items = _box.values.toList();
+    final items = _repository.values.toList();
     items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return items;
   }
 
-  int get count => _box.length;
+  int get count => _repository.length;
 
   LearningItem? findDuplicate({
     required String bookId,
@@ -28,7 +33,7 @@ class LearningItemService {
     final normalizedKey = normalizeCanonicalKey(canonicalKey);
     if (normalizedKey.isEmpty) return null;
 
-    for (final item in _box.values) {
+    for (final item in _repository.values) {
       if (item.matchesIdentity(
         bookId: normalizedBookId,
         chapterIndex: chapterIndex,
@@ -69,7 +74,7 @@ class LearningItemService {
       return LearningItemSaveResult(item: duplicate, created: false);
     }
 
-    final now = DateTime.now();
+    final now = _clock();
     final item = LearningItem(
       id: _newId(draft.type, normalizedKey, now),
       type: draft.type,
@@ -87,31 +92,31 @@ class LearningItemService {
       tags: _cleanList(draft.tags),
       metadata: _cleanMap(draft.metadata),
     );
-    await _box.put(item.id, item);
+    await _repository.put(item.id, item);
     return LearningItemSaveResult(item: item, created: true);
   }
 
   Future<void> delete(String id) async {
-    await _box.delete(id);
+    await _repository.delete(id);
   }
 
   Future<void> deleteForBook(String bookId) async {
     final keys = <dynamic>[];
-    for (final key in _box.keys) {
-      final item = _box.get(key);
+    for (final key in _repository.keys) {
+      final item = _repository.get(key);
       if (item?.bookId == bookId) keys.add(key);
     }
     if (keys.isNotEmpty) {
-      await _box.deleteAll(keys);
+      await _repository.deleteAll(keys);
     }
   }
 
   Future<void> clear() async {
-    await _box.clear();
+    await _repository.clear();
   }
 
   Future<void> close() async {
-    await _box.close();
+    await _repository.close();
   }
 
   static String normalizeCanonicalKey(String value) {

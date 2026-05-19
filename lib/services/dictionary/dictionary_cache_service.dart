@@ -1,40 +1,48 @@
-import 'package:hive/hive.dart';
-
-import '../../storage/hive_box_names.dart';
+import '../../storage/repositories/dictionary_cache_repository.dart';
 
 class DictionaryCacheService {
-  Box<String>? _box;
+  DictionaryCacheService({DictionaryCacheRepository? repository})
+    : _repository = repository ?? HiveDictionaryCacheRepository();
+
+  final DictionaryCacheRepository _repository;
+  bool _initialized = false;
 
   static const int _maxEntries = 500;
 
   Future<void> init() async {
-    _box = await Hive.openBox<String>(HiveBoxNames.dictionaryCache);
+    await _repository.init();
+    _initialized = true;
   }
 
   String? get(String source, String word) {
-    return _box?.get('${source}_$word');
+    if (!_initialized) return null;
+    return _repository.get(_cacheKey(source, word));
   }
 
   Future<void> set(String source, String word, String content) async {
-    final box = _box;
-    if (box == null) return;
+    if (!_initialized) return;
 
-    final key = '${source}_$word';
-    await box.put(key, content);
+    await _repository.put(_cacheKey(source, word), content);
 
-    if (box.length > _maxEntries) {
-      final keysToRemove = box.keys.take(box.length - _maxEntries).toList();
+    if (_repository.length > _maxEntries) {
+      final keysToRemove = _repository.keys
+          .take(_repository.length - _maxEntries)
+          .toList();
       for (final k in keysToRemove) {
-        await box.delete(k);
+        await _repository.delete(k);
       }
     }
   }
 
   bool hasWord(String source, String word) {
-    return _box?.containsKey('${source}_$word') ?? false;
+    if (!_initialized) return false;
+    return _repository.containsKey(_cacheKey(source, word));
   }
 
   Future<void> clear() async {
-    await _box?.clear();
+    if (!_initialized) return;
+    await _repository.clear();
   }
+
+  String _cacheKey(String source, String word) => '${source}_$word';
 }
