@@ -10,6 +10,7 @@ const _requiredReleaseEntitlements = [
   'com.apple.security.files.user-selected.read-write',
   'com.apple.security.files.bookmarks.app-scope',
 ];
+const _generatedChangelogSections = ['Added', 'Fixed', 'Changed'];
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty || args.first == '--help' || args.first == '-h') {
@@ -269,7 +270,7 @@ void _writeChangelogRelease(String version, String date) {
 
   final unreleased = _unreleasedContent(changelog).trim();
   final releaseNotes = unreleased.isEmpty
-      ? '### Changed\n\n- Prepared $version release.'
+      ? _generatedReleaseNotesFromGit(version)
       : unreleased;
 
   final block = RegExp(
@@ -294,6 +295,82 @@ String _unreleasedContent(String changelog) {
     multiLine: true,
   ).firstMatch(changelog);
   return match?.group(1) ?? '';
+}
+
+String _generatedReleaseNotesFromGit(String version) {
+  final commits = _releaseCommitsSinceLastTag();
+  if (commits.isEmpty) {
+    return '### Changed\n\n- 发布 $version 版本。';
+  }
+
+  final grouped = <String, List<String>>{
+    for (final section in _generatedChangelogSections) section: <String>[],
+  };
+  for (final commit in commits) {
+    if (commit.isReleaseCommit) continue;
+    final section = _sectionForCommitType(commit.type);
+    final text = commit.summary.trim();
+    if (text.isEmpty) continue;
+    if (!grouped[section]!.contains(text)) {
+      grouped[section]!.add(text);
+    }
+  }
+
+  final parts = <String>[];
+  for (final section in _generatedChangelogSections) {
+    final items = grouped[section]!;
+    if (items.isEmpty) continue;
+    parts.add('### $section\n\n${items.map((item) => '- $item').join('\n')}');
+  }
+
+  if (parts.isEmpty) {
+    return '### Changed\n\n- 发布 $version 版本。';
+  }
+  return parts.join('\n\n');
+}
+
+List<_ReleaseCommit> _releaseCommitsSinceLastTag() {
+  final lastTag = _lastReleaseTag();
+  final args = [
+    'log',
+    '--no-merges',
+    '--format=%h%x00%s',
+    if (lastTag == null) 'HEAD' else '$lastTag..HEAD',
+  ];
+  final result = Process.runSync('git', args);
+  if (result.exitCode != 0) {
+    return const [];
+  }
+
+  return (result.stdout as String)
+      .split('\n')
+      .where((line) => line.trim().isNotEmpty)
+      .map(_ReleaseCommit.parse)
+      .toList();
+}
+
+String? _lastReleaseTag() {
+  final result = Process.runSync('git', [
+    'describe',
+    '--tags',
+    '--abbrev=0',
+    '--match',
+    'v[0-9]*',
+  ]);
+  if (result.exitCode != 0) {
+    return null;
+  }
+
+  final tag = (result.stdout as String).trim();
+  return tag.isEmpty ? null : tag;
+}
+
+String _sectionForCommitType(String type) {
+  return switch (type) {
+    'feat' => 'Added',
+    'fix' => 'Fixed',
+    _ => 'Changed',
+  };
 }
 
 bool _hasChangelogSection(String changelog, String version) {
@@ -532,6 +609,40 @@ class AppVersion {
     }
 
     return parts.join('.');
+  }
+}
+
+class _ReleaseCommit {
+  const _ReleaseCommit({
+    required this.rawSubject,
+    required this.type,
+    required this.summary,
+  });
+
+  factory _ReleaseCommit.parse(String line) {
+    final separator = line.indexOf('\x00');
+    final rawSubject = separator == -1
+        ? line.trim()
+        : line.substring(separator + 1).trim();
+    final match = RegExp(
+      r'^([a-zA-Z]+)(?:\([^)]+\))?!?:\s*(.+)$',
+    ).firstMatch(rawSubject);
+
+    return _ReleaseCommit(
+      rawSubject: rawSubject,
+      type: match?.group(1)?.toLowerCase() ?? '',
+      summary: match?.group(2)?.trim() ?? rawSubject,
+    );
+  }
+
+  final String rawSubject;
+  final String type;
+  final String summary;
+
+  bool get isReleaseCommit {
+    final subject = rawSubject.toLowerCase();
+    return subject.startsWith('chore(release):') ||
+        subject.startsWith('release:');
   }
 }
 
