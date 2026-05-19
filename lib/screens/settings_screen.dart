@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/reading_provider.dart';
 import '../providers/rss_provider.dart';
 import '../services/app_update_service.dart';
+import '../services/app_links.dart';
 import '../services/backup_folder_access.dart';
 import '../services/backup_service.dart';
 import '../services/changelog_service.dart';
@@ -322,6 +323,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onOpenUpdateReleasePage: _availableUpdate == null
                     ? null
                     : () => unawaited(_openAvailableUpdateReleasePage()),
+                onOpenRepository: () => unawaited(_openRepositoryUrl()),
+                onOpenIssueFeedback: () => unawaited(_openIssueFeedbackUrl()),
               ),
             },
           ],
@@ -676,6 +679,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final update = _availableUpdate;
     if (update == null) return;
     await _openExternalUrl(update.releasePageUrl);
+  }
+
+  Future<void> _openRepositoryUrl() async {
+    await _openExternalUrl(AppLinks.repositoryUrl);
+  }
+
+  Future<void> _openIssueFeedbackUrl() async {
+    await _openExternalUrl(AppLinks.issueFeedbackUrl);
   }
 
   Future<void> _openExternalUrl(Uri uri) async {

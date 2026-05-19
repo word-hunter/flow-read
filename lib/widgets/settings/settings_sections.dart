@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/app_links.dart';
 import '../../services/app_update_service.dart';
 import '../../services/app_version.dart';
 import '../../services/backup_service.dart';
@@ -54,7 +55,7 @@ extension SettingsSectionMeta on SettingsSection {
       case SettingsSection.experiments:
         return '管理仍在测试中的入口和功能项。';
       case SettingsSection.about:
-        return '查看版本信息并检查可用更新。';
+        return '查看版本、开发者信息并反馈问题。';
     }
   }
 
@@ -798,6 +799,8 @@ class SettingsAboutSection extends StatelessWidget {
     required this.availableUpdate,
     required this.onDownloadUpdate,
     required this.onOpenUpdateReleasePage,
+    required this.onOpenRepository,
+    required this.onOpenIssueFeedback,
   });
 
   final VoidCallback onShowReleaseNotes;
@@ -810,6 +813,8 @@ class SettingsAboutSection extends StatelessWidget {
   final AppUpdateInfo? availableUpdate;
   final VoidCallback? onDownloadUpdate;
   final VoidCallback? onOpenUpdateReleasePage;
+  final VoidCallback onOpenRepository;
+  final VoidCallback onOpenIssueFeedback;
 
   @override
   Widget build(BuildContext context) {
@@ -849,6 +854,46 @@ class SettingsAboutSection extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          icon: Icons.person_outline,
+          title: '开发者',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppLinks.developerName,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                AppLinks.repositoryUrl.toString(),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onOpenRepository,
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('GitHub 仓库'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: onOpenIssueFeedback,
+                    icon: const Icon(Icons.bug_report_outlined),
+                    label: const Text('反馈问题'),
+                  ),
+                ],
               ),
             ],
           ),

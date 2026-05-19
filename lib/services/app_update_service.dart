@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'app_links.dart';
 import 'app_version.dart';
 
 class AppUpdateInfo {
@@ -42,8 +43,8 @@ class AppUpdateException implements Exception {
 class AppUpdateService {
   AppUpdateService({
     http.Client? client,
-    this.owner = 'word-hunter',
-    this.repo = 'flow-read',
+    this.owner = AppLinks.repositoryOwner,
+    this.repo = AppLinks.repositoryName,
   }) : _client = client ?? http.Client(),
        _ownsClient = client == null;
 

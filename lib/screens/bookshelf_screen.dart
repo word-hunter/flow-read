@@ -6,6 +6,8 @@ import 'package:file_picker/file_picker.dart';
 import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
 import '../providers/reading_provider.dart';
+import '../services/app_links.dart';
+import '../services/external_url_launcher.dart';
 import '../theme/app_constants.dart';
 
 const _logoAsset = 'assets/brand/flow_read_logo.png';
@@ -682,21 +684,83 @@ Future<void> _importEpub(BuildContext context, ReadingProvider provider) async {
 }
 
 void _showAbout(BuildContext context) {
+  final theme = Theme.of(context);
+
   showDialog(
     context: context,
     builder: (ctx) => AlertDialog(
       title: const Text('Flow Read'),
-      content: const Text(
-        'A Reading Training System that transforms novel text into structured '
-        'language training — improving vocabulary, sentence comprehension, '
-        'and reading inference.',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'A Reading Training System that transforms novel text into '
+            'structured language training — improving vocabulary, sentence '
+            'comprehension, and reading inference.',
+          ),
+          const SizedBox(height: 18),
+          Text(
+            '开发者',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            AppLinks.developerName,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'GitHub',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          SelectableText(
+            AppLinks.repositoryUrl.toString(),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+          ),
+        ],
       ),
       actions: [
+        TextButton.icon(
+          onPressed: () =>
+              unawaited(_openAboutLink(context, AppLinks.repositoryUrl)),
+          icon: const Icon(Icons.open_in_new),
+          label: const Text('GitHub'),
+        ),
+        TextButton.icon(
+          onPressed: () =>
+              unawaited(_openAboutLink(context, AppLinks.issueFeedbackUrl)),
+          icon: const Icon(Icons.bug_report_outlined),
+          label: const Text('反馈问题'),
+        ),
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('OK'),
+          child: const Text('关闭'),
         ),
       ],
     ),
   );
+}
+
+Future<void> _openAboutLink(BuildContext context, Uri uri) async {
+  try {
+    await const ExternalUrlLauncher().open(uri);
+  } catch (error) {
+    if (!context.mounted) return;
+    final message = error is ExternalUrlOpenException
+        ? error.message
+        : '打开链接失败';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 }
