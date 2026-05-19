@@ -1,5 +1,7 @@
 import 'package:hive/hive.dart';
 
+import '../storage/hive_box_names.dart';
+
 class ReadingConfigService {
   late Box<String> _box;
 
@@ -9,7 +11,7 @@ class ReadingConfigService {
   String theme = 'light';
 
   Future<void> init() async {
-    _box = Hive.box<String>('reading_config');
+    _box = Hive.box<String>(HiveBoxNames.readingConfig);
     _load();
   }
 

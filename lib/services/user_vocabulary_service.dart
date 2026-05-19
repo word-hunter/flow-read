@@ -1,12 +1,13 @@
 import 'package:hive/hive.dart';
 
 import '../models/user_vocabulary.dart';
+import '../storage/hive_box_names.dart';
 
 class UserVocabularyService {
   late Box<String> _box;
 
   Future<void> init() async {
-    _box = Hive.box<String>('user_vocabulary');
+    _box = Hive.box<String>(HiveBoxNames.userVocabulary);
   }
 
   UserWordStatus? getStatus(String word) {

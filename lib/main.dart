@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'app/app_providers.dart';
-import 'app/app_storage.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/practice_screen.dart';
@@ -13,6 +12,7 @@ import 'screens/settings_screen.dart';
 import 'screens/spaced_review_screen.dart';
 import 'screens/syntax_screen.dart';
 import 'services/settings_service.dart';
+import 'storage/hive_storage.dart';
 import 'theme/app_theme.dart';
 import 'widgets/epub_drop_importer.dart';
 import 'widgets/release_notes_gate.dart';

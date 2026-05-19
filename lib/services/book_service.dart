@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/book_metadata.dart';
+import '../storage/hive_box_names.dart';
 
 class BookService {
   late Box<BookMetadata> _box;
@@ -13,7 +14,7 @@ class BookService {
   List<BookMetadata> get books => _box.values.toList();
 
   Future<void> init() async {
-    _box = Hive.box<BookMetadata>('books');
+    _box = Hive.box<BookMetadata>(HiveBoxNames.books);
     final dir = await getApplicationDocumentsDirectory();
     _booksDir = '${dir.path}/books';
     final booksDir = Directory(_booksDir!);

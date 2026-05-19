@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 
 import 'ai_provider_config.dart';
 import 'dictionary/dictionary_source_config.dart';
+import '../storage/hive_box_names.dart';
 import '../theme/app_theme.dart';
 
 class AIUsageStats {
@@ -160,7 +161,7 @@ class SettingsService extends ChangeNotifier {
       isExperimentalFeatureEnabled(experimentalFeatureBrowser);
 
   Future<void> init() async {
-    _box = Hive.box('settings');
+    _box = Hive.box(HiveBoxNames.settings);
     _load();
     await _writeDictionarySources(_dictionarySources);
   }

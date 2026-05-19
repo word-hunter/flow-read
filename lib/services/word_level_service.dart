@@ -1,9 +1,9 @@
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:hive/hive.dart';
 import '../models/word_level.dart';
+import '../storage/hive_box_names.dart';
 
 class WordLevelService {
-  static const _boxName = 'word_levels';
   static const _importedKey = 'word_levels_imported';
   Box<WordLevelInfo>? _box;
   Box? _metaBox;
@@ -11,8 +11,8 @@ class WordLevelService {
   final Map<String, String> _originMap = {};
 
   Future<void> init() async {
-    _box = Hive.box<WordLevelInfo>(_boxName);
-    _metaBox = Hive.box('settings');
+    _box = Hive.box<WordLevelInfo>(HiveBoxNames.wordLevels);
+    _metaBox = Hive.box(HiveBoxNames.settings);
 
     if (_metaBox?.get(_importedKey) != 'true') {
       await _importBuiltinDict();

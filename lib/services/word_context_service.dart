@@ -3,12 +3,13 @@ import 'dart:convert';
 import 'package:hive/hive.dart';
 
 import '../models/word_context_example.dart';
+import '../storage/hive_box_names.dart';
 
 class WordContextService {
   late Box<String> _box;
 
   Future<void> init() async {
-    _box = Hive.box<String>('word_contexts');
+    _box = Hive.box<String>(HiveBoxNames.wordContexts);
   }
 
   List<WordContextExample> examplesFor(String word) {

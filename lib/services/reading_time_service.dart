@@ -1,5 +1,7 @@
 import 'package:hive/hive.dart';
 
+import '../storage/hive_box_names.dart';
+
 class ReadingTimeService {
   late Box<int> _box;
   int _totalSeconds = 0;
@@ -20,7 +22,7 @@ class ReadingTimeService {
   }
 
   Future<void> init() async {
-    _box = Hive.box<int>('reading_time');
+    _box = Hive.box<int>(HiveBoxNames.readingTime);
     _totalSeconds = _box.get('_global_', defaultValue: 0) ?? 0;
   }
 

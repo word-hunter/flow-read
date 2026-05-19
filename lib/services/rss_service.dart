@@ -7,9 +7,9 @@ import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 import '../models/rss_models.dart';
+import '../storage/hive_box_names.dart';
 
 class RssService {
-  static const _boxName = 'rss_subscriptions';
   static const _readArticlesKey = 'rss_read_articles';
   static const _requestHeaders = {
     'Accept':
@@ -22,8 +22,8 @@ class RssService {
   final Set<String> _readArticleIds = {};
 
   Future<void> init() async {
-    _feedBox = Hive.box<RssFeedSubscription>(_boxName);
-    _metaBox = Hive.box('settings');
+    _feedBox = Hive.box<RssFeedSubscription>(HiveBoxNames.rssSubscriptions);
+    _metaBox = Hive.box(HiveBoxNames.settings);
 
     final readIdsJson = _metaBox?.get(_readArticlesKey);
     if (readIdsJson != null && readIdsJson.isNotEmpty) {

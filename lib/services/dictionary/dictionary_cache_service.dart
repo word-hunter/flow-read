@@ -1,13 +1,14 @@
 import 'package:hive/hive.dart';
 
+import '../../storage/hive_box_names.dart';
+
 class DictionaryCacheService {
-  static const _boxName = 'dictionary_cache';
   Box<String>? _box;
 
   static const int _maxEntries = 500;
 
   Future<void> init() async {
-    _box = await Hive.openBox<String>(_boxName);
+    _box = await Hive.openBox<String>(HiveBoxNames.dictionaryCache);
   }
 
   String? get(String source, String word) {

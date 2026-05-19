@@ -4,14 +4,15 @@ import 'package:hive/hive.dart';
 
 import '../models/bookmarked_word.dart';
 import '../models/reading_bookmark.dart';
+import '../storage/hive_box_names.dart';
 
 class BookmarkService {
   late Box<String> _wordBox;
   late Box<String> _readingBox;
 
   Future<void> init() async {
-    _wordBox = Hive.box<String>('word_bookmarks');
-    _readingBox = Hive.box<String>('reading_bookmarks');
+    _wordBox = Hive.box<String>(HiveBoxNames.wordBookmarks);
+    _readingBox = Hive.box<String>(HiveBoxNames.readingBookmarks);
   }
 
   // --- Word Bookmarks ---

@@ -1,12 +1,13 @@
 import 'package:hive/hive.dart';
 
 import '../models/learning_item.dart';
+import '../storage/hive_box_names.dart';
 
 class LearningItemService {
   late Box<LearningItem> _box;
 
   Future<void> init() async {
-    _box = Hive.box<LearningItem>('learning_items');
+    _box = Hive.box<LearningItem>(HiveBoxNames.learningItems);
   }
 
   List<LearningItem> get allItems {

@@ -10,6 +10,7 @@ import '../models/book_metadata.dart';
 import '../models/learning_item.dart';
 import '../models/rss_models.dart';
 import '../models/word_context_example.dart';
+import '../storage/hive_box_names.dart';
 import 'backup_folder_access.dart';
 import 'settings_service.dart';
 
@@ -38,19 +39,7 @@ class BackupService extends ChangeNotifier {
   static const schemaVersion = 1;
   static const appId = 'flow_read';
 
-  static const _includedBoxes = <String>[
-    'books',
-    'user_vocabulary',
-    'settings',
-    'word_bookmarks',
-    'reading_bookmarks',
-    'reading_config',
-    'reading_time',
-    'dictionary_cache',
-    'rss_subscriptions',
-    'word_contexts',
-    'learning_items',
-  ];
+  static const _includedBoxes = HiveBoxNames.backupIncludedBoxes;
 
   static const _localSettingKeys = <String>{
     'backupEnabled',
@@ -194,7 +183,7 @@ class BackupService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final vocabBox = Hive.box<String>('user_vocabulary');
+      final vocabBox = Hive.box<String>(HiveBoxNames.userVocabulary);
       final currentKnown = <String>{
         for (final key in vocabBox.keys)
           if (vocabBox.get(key) == 'known') key.toString(),
@@ -213,7 +202,7 @@ class BackupService extends ChangeNotifier {
         await vocabBox.putAll(learningUpdates);
       }
 
-      final contextBox = Hive.box<String>('word_contexts');
+      final contextBox = Hive.box<String>(HiveBoxNames.wordContexts);
       var exampleCount = 0;
       for (final entry in contexts.entries) {
         final merged = _mergeContextExamples(
@@ -279,7 +268,8 @@ class BackupService extends ChangeNotifier {
   Map<String, dynamic> _snapshotBox(String boxName) {
     final entries = <Map<String, dynamic>>[];
     for (final key in _keysFor(boxName)) {
-      if (boxName == 'settings' && _shouldSkipSettingInSnapshot(key)) {
+      if (boxName == HiveBoxNames.settings &&
+          _shouldSkipSettingInSnapshot(key)) {
         continue;
       }
       final value = _getValue(boxName, key);
@@ -297,14 +287,14 @@ class BackupService extends ChangeNotifier {
       throw BackupException('$boxName 备份数据无效');
     }
 
-    if (boxName != 'settings') {
+    if (boxName != HiveBoxNames.settings) {
       await _clearBox(boxName);
     }
 
     for (final entry in entries) {
       if (entry is! Map) continue;
       final key = _decodeKey(entry['key']);
-      if (boxName == 'settings' && _localSettingKeys.contains(key)) {
+      if (boxName == HiveBoxNames.settings && _localSettingKeys.contains(key)) {
         continue;
       }
       final value = _decodeBoxValue(boxName, entry['value']);
@@ -322,28 +312,30 @@ class BackupService extends ChangeNotifier {
 
   Iterable<dynamic> _keysFor(String boxName) {
     switch (boxName) {
-      case 'books':
-        return Hive.box<BookMetadata>('books').keys;
-      case 'user_vocabulary':
-        return Hive.box<String>('user_vocabulary').keys;
-      case 'settings':
-        return Hive.box('settings').keys;
-      case 'word_bookmarks':
-        return Hive.box<String>('word_bookmarks').keys;
-      case 'reading_bookmarks':
-        return Hive.box<String>('reading_bookmarks').keys;
-      case 'reading_config':
-        return Hive.box<String>('reading_config').keys;
-      case 'reading_time':
-        return Hive.box<int>('reading_time').keys;
-      case 'dictionary_cache':
-        return Hive.box<String>('dictionary_cache').keys;
-      case 'rss_subscriptions':
-        return Hive.box<RssFeedSubscription>('rss_subscriptions').keys;
-      case 'word_contexts':
-        return Hive.box<String>('word_contexts').keys;
-      case 'learning_items':
-        return Hive.box<LearningItem>('learning_items').keys;
+      case HiveBoxNames.books:
+        return Hive.box<BookMetadata>(HiveBoxNames.books).keys;
+      case HiveBoxNames.userVocabulary:
+        return Hive.box<String>(HiveBoxNames.userVocabulary).keys;
+      case HiveBoxNames.settings:
+        return Hive.box(HiveBoxNames.settings).keys;
+      case HiveBoxNames.wordBookmarks:
+        return Hive.box<String>(HiveBoxNames.wordBookmarks).keys;
+      case HiveBoxNames.readingBookmarks:
+        return Hive.box<String>(HiveBoxNames.readingBookmarks).keys;
+      case HiveBoxNames.readingConfig:
+        return Hive.box<String>(HiveBoxNames.readingConfig).keys;
+      case HiveBoxNames.readingTime:
+        return Hive.box<int>(HiveBoxNames.readingTime).keys;
+      case HiveBoxNames.dictionaryCache:
+        return Hive.box<String>(HiveBoxNames.dictionaryCache).keys;
+      case HiveBoxNames.rssSubscriptions:
+        return Hive.box<RssFeedSubscription>(
+          HiveBoxNames.rssSubscriptions,
+        ).keys;
+      case HiveBoxNames.wordContexts:
+        return Hive.box<String>(HiveBoxNames.wordContexts).keys;
+      case HiveBoxNames.learningItems:
+        return Hive.box<LearningItem>(HiveBoxNames.learningItems).keys;
       default:
         return const [];
     }
@@ -351,103 +343,121 @@ class BackupService extends ChangeNotifier {
 
   dynamic _getValue(String boxName, dynamic key) {
     switch (boxName) {
-      case 'books':
-        return Hive.box<BookMetadata>('books').get(key);
-      case 'user_vocabulary':
-        return Hive.box<String>('user_vocabulary').get(key);
-      case 'settings':
-        return Hive.box('settings').get(key);
-      case 'word_bookmarks':
-        return Hive.box<String>('word_bookmarks').get(key);
-      case 'reading_bookmarks':
-        return Hive.box<String>('reading_bookmarks').get(key);
-      case 'reading_config':
-        return Hive.box<String>('reading_config').get(key);
-      case 'reading_time':
-        return Hive.box<int>('reading_time').get(key);
-      case 'dictionary_cache':
-        return Hive.box<String>('dictionary_cache').get(key);
-      case 'rss_subscriptions':
-        return Hive.box<RssFeedSubscription>('rss_subscriptions').get(key);
-      case 'word_contexts':
-        return Hive.box<String>('word_contexts').get(key);
-      case 'learning_items':
-        return Hive.box<LearningItem>('learning_items').get(key);
+      case HiveBoxNames.books:
+        return Hive.box<BookMetadata>(HiveBoxNames.books).get(key);
+      case HiveBoxNames.userVocabulary:
+        return Hive.box<String>(HiveBoxNames.userVocabulary).get(key);
+      case HiveBoxNames.settings:
+        return Hive.box(HiveBoxNames.settings).get(key);
+      case HiveBoxNames.wordBookmarks:
+        return Hive.box<String>(HiveBoxNames.wordBookmarks).get(key);
+      case HiveBoxNames.readingBookmarks:
+        return Hive.box<String>(HiveBoxNames.readingBookmarks).get(key);
+      case HiveBoxNames.readingConfig:
+        return Hive.box<String>(HiveBoxNames.readingConfig).get(key);
+      case HiveBoxNames.readingTime:
+        return Hive.box<int>(HiveBoxNames.readingTime).get(key);
+      case HiveBoxNames.dictionaryCache:
+        return Hive.box<String>(HiveBoxNames.dictionaryCache).get(key);
+      case HiveBoxNames.rssSubscriptions:
+        return Hive.box<RssFeedSubscription>(
+          HiveBoxNames.rssSubscriptions,
+        ).get(key);
+      case HiveBoxNames.wordContexts:
+        return Hive.box<String>(HiveBoxNames.wordContexts).get(key);
+      case HiveBoxNames.learningItems:
+        return Hive.box<LearningItem>(HiveBoxNames.learningItems).get(key);
     }
   }
 
   Future<void> _clearBox(String boxName) async {
     switch (boxName) {
-      case 'books':
-        await Hive.box<BookMetadata>('books').clear();
+      case HiveBoxNames.books:
+        await Hive.box<BookMetadata>(HiveBoxNames.books).clear();
         return;
-      case 'user_vocabulary':
-        await Hive.box<String>('user_vocabulary').clear();
+      case HiveBoxNames.userVocabulary:
+        await Hive.box<String>(HiveBoxNames.userVocabulary).clear();
         return;
-      case 'word_bookmarks':
-        await Hive.box<String>('word_bookmarks').clear();
+      case HiveBoxNames.wordBookmarks:
+        await Hive.box<String>(HiveBoxNames.wordBookmarks).clear();
         return;
-      case 'reading_bookmarks':
-        await Hive.box<String>('reading_bookmarks').clear();
+      case HiveBoxNames.readingBookmarks:
+        await Hive.box<String>(HiveBoxNames.readingBookmarks).clear();
         return;
-      case 'reading_config':
-        await Hive.box<String>('reading_config').clear();
+      case HiveBoxNames.readingConfig:
+        await Hive.box<String>(HiveBoxNames.readingConfig).clear();
         return;
-      case 'reading_time':
-        await Hive.box<int>('reading_time').clear();
+      case HiveBoxNames.readingTime:
+        await Hive.box<int>(HiveBoxNames.readingTime).clear();
         return;
-      case 'dictionary_cache':
-        await Hive.box<String>('dictionary_cache').clear();
+      case HiveBoxNames.dictionaryCache:
+        await Hive.box<String>(HiveBoxNames.dictionaryCache).clear();
         return;
-      case 'rss_subscriptions':
-        await Hive.box<RssFeedSubscription>('rss_subscriptions').clear();
+      case HiveBoxNames.rssSubscriptions:
+        await Hive.box<RssFeedSubscription>(
+          HiveBoxNames.rssSubscriptions,
+        ).clear();
         return;
-      case 'word_contexts':
-        await Hive.box<String>('word_contexts').clear();
+      case HiveBoxNames.wordContexts:
+        await Hive.box<String>(HiveBoxNames.wordContexts).clear();
         return;
-      case 'learning_items':
-        await Hive.box<LearningItem>('learning_items').clear();
+      case HiveBoxNames.learningItems:
+        await Hive.box<LearningItem>(HiveBoxNames.learningItems).clear();
         return;
     }
   }
 
   Future<void> _putValue(String boxName, dynamic key, dynamic value) async {
     switch (boxName) {
-      case 'books':
-        await Hive.box<BookMetadata>('books').put(key, value as BookMetadata);
+      case HiveBoxNames.books:
+        await Hive.box<BookMetadata>(
+          HiveBoxNames.books,
+        ).put(key, value as BookMetadata);
         return;
-      case 'user_vocabulary':
-        await Hive.box<String>('user_vocabulary').put(key, value as String);
+      case HiveBoxNames.userVocabulary:
+        await Hive.box<String>(
+          HiveBoxNames.userVocabulary,
+        ).put(key, value as String);
         return;
-      case 'settings':
-        await Hive.box('settings').put(key, value);
+      case HiveBoxNames.settings:
+        await Hive.box(HiveBoxNames.settings).put(key, value);
         return;
-      case 'word_bookmarks':
-        await Hive.box<String>('word_bookmarks').put(key, value as String);
+      case HiveBoxNames.wordBookmarks:
+        await Hive.box<String>(
+          HiveBoxNames.wordBookmarks,
+        ).put(key, value as String);
         return;
-      case 'reading_bookmarks':
-        await Hive.box<String>('reading_bookmarks').put(key, value as String);
+      case HiveBoxNames.readingBookmarks:
+        await Hive.box<String>(
+          HiveBoxNames.readingBookmarks,
+        ).put(key, value as String);
         return;
-      case 'reading_config':
-        await Hive.box<String>('reading_config').put(key, value as String);
+      case HiveBoxNames.readingConfig:
+        await Hive.box<String>(
+          HiveBoxNames.readingConfig,
+        ).put(key, value as String);
         return;
-      case 'reading_time':
-        await Hive.box<int>('reading_time').put(key, value as int);
+      case HiveBoxNames.readingTime:
+        await Hive.box<int>(HiveBoxNames.readingTime).put(key, value as int);
         return;
-      case 'dictionary_cache':
-        await Hive.box<String>('dictionary_cache').put(key, value as String);
+      case HiveBoxNames.dictionaryCache:
+        await Hive.box<String>(
+          HiveBoxNames.dictionaryCache,
+        ).put(key, value as String);
         return;
-      case 'rss_subscriptions':
+      case HiveBoxNames.rssSubscriptions:
         await Hive.box<RssFeedSubscription>(
-          'rss_subscriptions',
+          HiveBoxNames.rssSubscriptions,
         ).put(key, value as RssFeedSubscription);
         return;
-      case 'word_contexts':
-        await Hive.box<String>('word_contexts').put(key, value as String);
+      case HiveBoxNames.wordContexts:
+        await Hive.box<String>(
+          HiveBoxNames.wordContexts,
+        ).put(key, value as String);
         return;
-      case 'learning_items':
+      case HiveBoxNames.learningItems:
         await Hive.box<LearningItem>(
-          'learning_items',
+          HiveBoxNames.learningItems,
         ).put(key, value as LearningItem);
         return;
     }
@@ -469,11 +479,11 @@ class BackupService extends ChangeNotifier {
 
   dynamic _encodeBoxValue(String boxName, dynamic value) {
     switch (boxName) {
-      case 'books':
+      case HiveBoxNames.books:
         return (value as BookMetadata).toJson();
-      case 'rss_subscriptions':
+      case HiveBoxNames.rssSubscriptions:
         return _rssSubscriptionToJson(value as RssFeedSubscription);
-      case 'learning_items':
+      case HiveBoxNames.learningItems:
         return (value as LearningItem).toJson();
       default:
         return _encodeJsonValue(value);
@@ -482,13 +492,13 @@ class BackupService extends ChangeNotifier {
 
   dynamic _decodeBoxValue(String boxName, dynamic value) {
     switch (boxName) {
-      case 'books':
+      case HiveBoxNames.books:
         return BookMetadata.fromJson(_asStringKeyMap(value));
-      case 'rss_subscriptions':
+      case HiveBoxNames.rssSubscriptions:
         return _rssSubscriptionFromJson(_asStringKeyMap(value));
-      case 'learning_items':
+      case HiveBoxNames.learningItems:
         return LearningItem.fromJson(_asStringKeyMap(value));
-      case 'reading_time':
+      case HiveBoxNames.readingTime:
         return (value as num).toInt();
       default:
         return value;
