@@ -14,7 +14,11 @@ This project follows a simple semantic versioning flow:
 
 ### Changed
 
-- Prepared 0.0.2-alpha release.
+- 发布 `0.0.2-alpha` 内测版本。
+
+### Fixed
+
+- 修复设置页列表项在新版 Flutter 下的 Material 层级断言，保持点击反馈可见。
 
 ## [0.0.1-alpha] - 2026-05-18
 

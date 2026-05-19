@@ -1168,20 +1168,16 @@ class SettingsCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLowest,
+    return Material(
+      color: colorScheme.surfaceContainerLowest,
+      elevation: 1,
+      shadowColor: colorScheme.shadow.withValues(alpha: 0.05),
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
+        side: BorderSide(
           color: colorScheme.outlineVariant.withValues(alpha: 0.65),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
