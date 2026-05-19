@@ -8,13 +8,23 @@ import '../theme_transition.dart';
 
 typedef ThemeMutationRunner = Future<void> Function(ThemeMutation mutation);
 
-enum SettingsSection { appearance, dictionary, ai, backup, experiments, about }
+enum SettingsSection {
+  appearance,
+  reading,
+  dictionary,
+  ai,
+  backup,
+  experiments,
+  about,
+}
 
 extension SettingsSectionMeta on SettingsSection {
   String get title {
     switch (this) {
       case SettingsSection.appearance:
         return '外观';
+      case SettingsSection.reading:
+        return '阅读';
       case SettingsSection.dictionary:
         return '词典';
       case SettingsSection.ai:
@@ -32,6 +42,8 @@ extension SettingsSectionMeta on SettingsSection {
     switch (this) {
       case SettingsSection.appearance:
         return '调整主题、颜色模式与词汇标记色。';
+      case SettingsSection.reading:
+        return '设置首页阅读目标和阅读节奏。';
       case SettingsSection.dictionary:
         return '管理查词来源和本地缓存。';
       case SettingsSection.ai:
@@ -49,6 +61,8 @@ extension SettingsSectionMeta on SettingsSection {
     switch (this) {
       case SettingsSection.appearance:
         return Icons.palette_outlined;
+      case SettingsSection.reading:
+        return Icons.flag_outlined;
       case SettingsSection.dictionary:
         return Icons.menu_book_outlined;
       case SettingsSection.ai:
@@ -154,6 +168,100 @@ class SettingsAppearanceSection extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class SettingsReadingSection extends StatelessWidget {
+  const SettingsReadingSection({super.key, required this.settings});
+
+  final SettingsService settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final currentMinutes = settings.dailyReadingGoalMinutes;
+    final weeklyMinutes = currentMinutes * 6;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsCard(
+          icon: Icons.flag_outlined,
+          title: '每日目标',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.timer_outlined,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '每日 ${_formatDuration(currentMinutes)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Slider(
+                value: currentMinutes.toDouble(),
+                min: SettingsService.minDailyReadingGoalMinutes.toDouble(),
+                max: SettingsService.maxDailyReadingGoalMinutes.toDouble(),
+                divisions:
+                    (SettingsService.maxDailyReadingGoalMinutes -
+                        SettingsService.minDailyReadingGoalMinutes) ~/
+                    SettingsService.dailyReadingGoalStepMinutes,
+                label: _formatDuration(currentMinutes),
+                onChanged: (value) {
+                  settings.setDailyReadingGoalMinutes(value.round());
+                },
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    _formatDuration(SettingsService.minDailyReadingGoalMinutes),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    _formatDuration(SettingsService.maxDailyReadingGoalMinutes),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SettingsStatusLine(
+                icon: Icons.calendar_view_week_outlined,
+                text: '周目标 ${_formatDuration(weeklyMinutes)}',
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _formatDuration(int minutes) {
+    if (minutes < 60) return '$minutes 分钟';
+    final hours = minutes ~/ 60;
+    final remain = minutes % 60;
+    if (remain == 0) return '$hours 小时';
+    return '$hours 小时 $remain 分钟';
   }
 }
 

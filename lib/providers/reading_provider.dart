@@ -293,6 +293,13 @@ class ReadingProvider extends ChangeNotifier {
   // -- Reading time (delegated to ReadingTimeService) --
   int get readingTimeSeconds => _readingTime?.totalSeconds ?? 0;
   String get readingTimeDisplay => _readingTime?.displayText ?? '0 秒';
+  int get todayReadingTimeSeconds => _readingTime?.todaySeconds ?? 0;
+  int get dailyReadingGoalSeconds =>
+      _settings?.dailyReadingGoalSeconds ??
+      SettingsService.defaultDailyReadingGoalMinutes * 60;
+  bool get dailyReadingGoalReached =>
+      dailyReadingGoalSeconds > 0 &&
+      todayReadingTimeSeconds >= dailyReadingGoalSeconds;
   int readingTimeSecondsForBook(String bookId) {
     final seconds = _readingTime?.secondsForBook(bookId) ?? 0;
     if (seconds > 0 || _bookService.books.length != 1) return seconds;

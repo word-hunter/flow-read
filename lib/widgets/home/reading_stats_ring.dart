@@ -3,32 +3,24 @@ import 'package:flutter/material.dart';
 
 class ReadingStatsRing extends StatelessWidget {
   final int totalSeconds;
-  final int goalSeconds;
+  final int dailyGoalSeconds;
 
   const ReadingStatsRing({
     super.key,
     required this.totalSeconds,
-    this.goalSeconds = 6 * 3600,
+    this.dailyGoalSeconds = 3600,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final progress = (totalSeconds / goalSeconds).clamp(0.0, 1.0);
+    final weeklyGoalSeconds = max(dailyGoalSeconds, 1) * 6;
+    final progress = (totalSeconds / weeklyGoalSeconds).clamp(0.0, 1.0);
     final percent = (progress * 100).toInt();
 
-    final hours = totalSeconds ~/ 3600;
-    final minutes = (totalSeconds % 3600) ~/ 60;
-    final goalHours = goalSeconds ~/ 3600;
-
-    String timeText;
-    if (hours > 0 && minutes > 0) {
-      timeText = '$hours小时 $minutes分';
-    } else if (hours > 0) {
-      timeText = '$hours小时';
-    } else {
-      timeText = '$minutes分钟';
-    }
+    final timeText = _durationText(totalSeconds);
+    final weeklyGoalText = _durationText(weeklyGoalSeconds);
+    final dailyGoalText = _durationText(dailyGoalSeconds);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -70,14 +62,14 @@ class ReadingStatsRing extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '$timeText / $goalHours小时',
+            '$timeText / $weeklyGoalText',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            '每日目标: 1小时',
+            '每日目标: $dailyGoalText',
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
             ),
@@ -85,6 +77,15 @@ class ReadingStatsRing extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _durationText(int seconds) {
+    if (seconds < 60) return '${max(seconds, 0)}秒';
+    final minutes = seconds ~/ 60;
+    if (minutes < 60) return '$minutes分钟';
+    final hours = minutes ~/ 60;
+    final remain = minutes % 60;
+    return remain > 0 ? '$hours小时 $remain分' : '$hours小时';
   }
 }
 

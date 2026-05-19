@@ -76,10 +76,12 @@ void main() {
 
     service.start('book-1');
     now = now.add(const Duration(seconds: 125));
+    expect(service.todaySeconds, 125);
     await service.stop();
 
     expect(service.totalSeconds, 125);
     expect(service.secondsForBook('book-1'), 125);
+    expect(service.todaySeconds, 125);
     expect(service.displayText, '2 分钟');
 
     final reloaded = ReadingTimeService(clock: () => now);
@@ -87,6 +89,7 @@ void main() {
 
     expect(reloaded.totalSeconds, 125);
     expect(reloaded.secondsForBook('book-1'), 125);
+    expect(reloaded.todaySeconds, 125);
   });
 
   test('word context examples are merged and deduplicated', () async {

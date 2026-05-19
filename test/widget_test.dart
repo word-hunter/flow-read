@@ -38,6 +38,7 @@ void main() {
     );
 
     expect(find.text('外观'), findsWidgets);
+    expect(find.text('阅读'), findsOneWidget);
     expect(find.text('AI 设置'), findsOneWidget);
     expect(find.text('备份与同步'), findsOneWidget);
     expect(find.text('测试功能'), findsOneWidget);
@@ -47,6 +48,12 @@ void main() {
     expect(find.text('颜色模式'), findsOneWidget);
     expect(find.text('生词颜色'), findsOneWidget);
     expect(find.text('学习中颜色'), findsOneWidget);
+
+    await tester.tap(find.text('阅读'));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('每日目标'), findsOneWidget);
+    expect(find.text('每日 1 小时'), findsOneWidget);
+    expect(find.text('周目标 6 小时'), findsOneWidget);
 
     await tester.tap(find.text('AI 设置'));
     await tester.pump(const Duration(milliseconds: 250));

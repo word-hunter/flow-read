@@ -41,6 +41,9 @@ class _ReaderPageState extends State<ReaderPage> {
   bool _sidebarOpen = false;
   bool _searchSheetOpen = false;
   bool _searchShowingAll = false;
+  bool _dailyGoalPromptShown = false;
+  bool _wasDailyGoalReached = false;
+  Timer? _dailyGoalCheckTimer;
   double _layoutWidth = 0;
   double _displayProgress = 0.0;
   int _visibleContentCount = 0;
@@ -64,10 +67,12 @@ class _ReaderPageState extends State<ReaderPage> {
     _readingProvider = provider;
     _lastReaderLocationKey = _readerLocationKey(provider);
     provider.addListener(_onReadingProviderChanged);
+    _syncDailyGoalWatcher(provider);
   }
 
   @override
   void dispose() {
+    _dailyGoalCheckTimer?.cancel();
     _readingProvider?.removeListener(_onReadingProviderChanged);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
@@ -89,6 +94,7 @@ class _ReaderPageState extends State<ReaderPage> {
   void _onReadingProviderChanged() {
     final provider = _readingProvider;
     if (provider == null) return;
+    _syncDailyGoalWatcher(provider);
 
     final nextLocationKey = _readerLocationKey(provider);
     if (_lastReaderLocationKey == null) {
@@ -125,7 +131,59 @@ class _ReaderPageState extends State<ReaderPage> {
     final progress = (_scrollController.offset / maxScroll).clamp(0.0, 1.0);
     _displayProgress = progress;
     context.read<ReadingProvider>().updateReadingProgress(progress);
+    _checkDailyReadingGoal();
     setState(() {});
+  }
+
+  void _syncDailyGoalWatcher(ReadingProvider provider) {
+    if (!provider.isReading) {
+      _dailyGoalCheckTimer?.cancel();
+      _dailyGoalCheckTimer = null;
+      _dailyGoalPromptShown = false;
+      _wasDailyGoalReached = provider.dailyReadingGoalReached;
+      return;
+    }
+
+    if (_dailyGoalCheckTimer != null) return;
+    _wasDailyGoalReached = provider.dailyReadingGoalReached;
+    _dailyGoalCheckTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _checkDailyReadingGoal(),
+    );
+  }
+
+  void _checkDailyReadingGoal() {
+    if (!mounted) return;
+    final provider = context.read<ReadingProvider>();
+    final reached = provider.dailyReadingGoalReached;
+    if (!reached) {
+      _wasDailyGoalReached = false;
+      _dailyGoalPromptShown = false;
+      return;
+    }
+    if (_wasDailyGoalReached || _dailyGoalPromptShown) return;
+
+    _wasDailyGoalReached = true;
+    _dailyGoalPromptShown = true;
+    final goalText = _formatGoalDuration(provider.dailyReadingGoalSeconds);
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('今日阅读目标已达成：$goalText'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+  }
+
+  String _formatGoalDuration(int seconds) {
+    final minutes = (seconds / 60).round();
+    if (minutes < 60) return '$minutes 分钟';
+    final hours = minutes ~/ 60;
+    final remain = minutes % 60;
+    if (remain == 0) return '$hours 小时';
+    return '$hours 小时 $remain 分钟';
   }
 
   void _onWordTapped(String word, String contextText) {

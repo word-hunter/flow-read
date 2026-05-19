@@ -16,6 +16,7 @@ class FeaturedBookCard extends StatelessWidget {
   final int currentChapter;
   final int totalChapters;
   final int readingTimeSeconds;
+  final int dailyReadingGoalSeconds;
   final int noteCount;
   final String? latestExcerpt;
   final BookDifficultyRating? difficulty;
@@ -34,6 +35,7 @@ class FeaturedBookCard extends StatelessWidget {
     required this.currentChapter,
     required this.totalChapters,
     required this.readingTimeSeconds,
+    required this.dailyReadingGoalSeconds,
     required this.noteCount,
     this.latestExcerpt,
     this.difficulty,
@@ -327,7 +329,10 @@ class FeaturedBookCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 14),
-          _GoalStrip(theme: theme),
+          _GoalStrip(
+            theme: theme,
+            dailyGoalText: _durationText(dailyReadingGoalSeconds),
+          ),
         ],
       ),
     );
@@ -500,8 +505,9 @@ class _InfoMetric extends StatelessWidget {
 
 class _GoalStrip extends StatelessWidget {
   final ThemeData theme;
+  final String dailyGoalText;
 
-  const _GoalStrip({required this.theme});
+  const _GoalStrip({required this.theme, required this.dailyGoalText});
 
   @override
   Widget build(BuildContext context) {
@@ -517,7 +523,7 @@ class _GoalStrip extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '阅读目标 · 每日 1 小时',
+              '阅读目标 · 每日 $dailyGoalText',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelMedium?.copyWith(

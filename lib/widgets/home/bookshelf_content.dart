@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../models/book_metadata.dart';
 import '../../providers/reading_provider.dart';
+import '../../services/settings_service.dart';
 import 'featured_book_card.dart';
 import 'book_shelf_row.dart';
 
@@ -39,6 +40,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ReadingProvider>();
+    final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
     final allBooks = provider.allBooks;
     _queueDifficultyRatings(provider, allBooks);
@@ -88,6 +90,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
               readingTimeSeconds: provider.readingTimeSecondsForBook(
                 featuredBook.id,
               ),
+              dailyReadingGoalSeconds: settings.dailyReadingGoalSeconds,
               noteCount: provider.noteCountForBook(featuredBook.id),
               latestExcerpt: provider.latestReadingExcerptForBook(
                 featuredBook.id,

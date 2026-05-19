@@ -242,6 +242,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 settings: settings,
                 onSwitchTheme: _switchTheme,
               ),
+              SettingsSection.reading => SettingsReadingSection(
+                settings: settings,
+              ),
               SettingsSection.dictionary => SettingsDictionarySection(
                 settings: settings,
                 onClearCache: () => unawaited(_clearDictionaryCache()),

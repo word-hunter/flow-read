@@ -72,12 +72,17 @@ class VocabularyColorSettings {
 }
 
 class SettingsService extends ChangeNotifier {
+  static const defaultDailyReadingGoalMinutes = 60;
+  static const minDailyReadingGoalMinutes = 15;
+  static const maxDailyReadingGoalMinutes = 240;
+  static const dailyReadingGoalStepMinutes = 15;
   static const experimentalFeatureRss = 'rss';
   static const experimentalFeatureBrowser = 'browser';
   static const supportedExperimentalFeatureIds = <String>{
     experimentalFeatureRss,
     experimentalFeatureBrowser,
   };
+  static const _dailyReadingGoalMinutesKey = 'dailyReadingGoalMinutes';
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
   static const _dictionarySourcesKey = 'dictionarySources';
   static const _themeModeCycle = <ThemeMode>[
@@ -96,6 +101,7 @@ class SettingsService extends ChangeNotifier {
   AIUsageStats _aiUsage = AIUsageStats();
   AppThemeId _appThemeId = AppThemeId.classic;
   ThemeMode _themeMode = ThemeMode.system;
+  int _dailyReadingGoalMinutes = defaultDailyReadingGoalMinutes;
   bool _backupEnabled = false;
   bool _includeSecretsInBackup = false;
   String _backupFolderPath = '';
@@ -134,6 +140,8 @@ class SettingsService extends ChangeNotifier {
   AIUsageStats get aiUsage => _aiUsage;
   AppThemeId get appThemeId => _appThemeId;
   ThemeMode get themeMode => _themeMode;
+  int get dailyReadingGoalMinutes => _dailyReadingGoalMinutes;
+  int get dailyReadingGoalSeconds => _dailyReadingGoalMinutes * 60;
   ThemeMode get nextThemeMode {
     final currentIndex = _themeModeCycle.indexOf(_themeMode);
     final safeIndex = currentIndex < 0 ? 0 : currentIndex;
@@ -203,6 +211,12 @@ class SettingsService extends ChangeNotifier {
       defaultValue: AppThemeId.classic.name,
     );
     _appThemeId = AppTheme.themeIdFromName(appThemeIdValue.toString());
+    _dailyReadingGoalMinutes = _normalizeDailyReadingGoalMinutes(
+      _box.get(
+        _dailyReadingGoalMinutesKey,
+        defaultValue: defaultDailyReadingGoalMinutes,
+      ),
+    );
     _backupEnabled = _box.get('backupEnabled', defaultValue: false) as bool;
     _includeSecretsInBackup =
         _box.get('includeSecretsInBackup', defaultValue: false) as bool;
@@ -325,6 +339,14 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> toggleThemeMode() {
     return setThemeMode(nextThemeMode);
+  }
+
+  Future<void> setDailyReadingGoalMinutes(int minutes) async {
+    final normalized = _normalizeDailyReadingGoalMinutes(minutes);
+    if (_dailyReadingGoalMinutes == normalized) return;
+    _dailyReadingGoalMinutes = normalized;
+    await _box.put(_dailyReadingGoalMinutesKey, normalized);
+    notifyListeners();
   }
 
   Future<void> setUnknownColor(Color color) async {
@@ -514,5 +536,28 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> close() async {
     await _box.close();
+  }
+
+  int _normalizeDailyReadingGoalMinutes(Object? raw) {
+    int minutes;
+    if (raw is int) {
+      minutes = raw;
+    } else if (raw is num) {
+      minutes = raw.round();
+    } else if (raw is String) {
+      minutes =
+          int.tryParse(raw) ??
+          double.tryParse(raw)?.round() ??
+          defaultDailyReadingGoalMinutes;
+    } else {
+      minutes = defaultDailyReadingGoalMinutes;
+    }
+
+    final stepped =
+        (minutes / dailyReadingGoalStepMinutes).round() *
+        dailyReadingGoalStepMinutes;
+    return stepped
+        .clamp(minDailyReadingGoalMinutes, maxDailyReadingGoalMinutes)
+        .toInt();
   }
 }

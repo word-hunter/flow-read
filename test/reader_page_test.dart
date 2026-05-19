@@ -65,6 +65,37 @@ void main() {
     expect(tester.getSize(previousItem).width, greaterThan(70));
   });
 
+  testWidgets('shows a prompt when the daily reading goal is reached', (
+    tester,
+  ) async {
+    final provider = _FakeReadingProvider(isReading: true)
+      ..setDailyGoalState(todaySeconds: 55, goalSeconds: 60);
+    final settings = SettingsService();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+      ),
+    );
+
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pump();
+    expect(find.textContaining('今日阅读目标已达成'), findsNothing);
+
+    provider.setDailyGoalState(todaySeconds: 60, goalSeconds: 60);
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pump();
+
+    expect(find.text('今日阅读目标已达成：1 分钟'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
   testWidgets('reading desk navigation is localized and theme-aware', (
     tester,
   ) async {
@@ -131,27 +162,37 @@ void main() {
 }
 
 class _FakeReadingProvider extends ReadingProvider {
-  _FakeReadingProvider()
-    : _book = Book(
-        title: 'Test Book',
-        author: 'Tester',
-        chapters: [
-          Chapter(
-            title: 'Chapter One',
-            plainText: _chapterText('第一章顶部标记'),
-            rawHtml: '',
-          ),
-          Chapter(
-            title: 'Chapter Two',
-            plainText: _chapterText('第二章顶部标记'),
-            rawHtml: '',
-          ),
-        ],
-      );
+  _FakeReadingProvider({bool isReading = false}) : _isReading = isReading;
 
-  final Book _book;
+  final bool _isReading;
+  final Book _book = Book(
+    title: 'Test Book',
+    author: 'Tester',
+    chapters: [
+      Chapter(
+        title: 'Chapter One',
+        plainText: _chapterText('第一章顶部标记'),
+        rawHtml: '',
+      ),
+      Chapter(
+        title: 'Chapter Two',
+        plainText: _chapterText('第二章顶部标记'),
+        rawHtml: '',
+      ),
+    ],
+  );
+  int _todaySeconds = 0;
+  int _goalSeconds = 3600;
   int _currentChapter = 0;
   double _readingProgress = 0.0;
+
+  void setDailyGoalState({
+    required int todaySeconds,
+    required int goalSeconds,
+  }) {
+    _todaySeconds = todaySeconds;
+    _goalSeconds = goalSeconds;
+  }
 
   @override
   Book? get book => _book;
@@ -170,6 +211,15 @@ class _FakeReadingProvider extends ReadingProvider {
 
   @override
   bool get hasBook => true;
+
+  @override
+  bool get isReading => _isReading;
+
+  @override
+  int get todayReadingTimeSeconds => _todaySeconds;
+
+  @override
+  int get dailyReadingGoalSeconds => _goalSeconds;
 
   @override
   int get chapterCount => _book.chapters.length;

@@ -11,6 +11,7 @@ void main() {
             currentTab: 0,
             onTabChanged: (_) {},
             readingTimeSeconds: 0,
+            dailyReadingGoalSeconds: 3600,
             onSettingsTap: () {},
             onThemeToggle: () {},
             nextThemeMode: ThemeMode.dark,
@@ -33,6 +34,7 @@ void main() {
             currentTab: 0,
             onTabChanged: (_) {},
             readingTimeSeconds: 0,
+            dailyReadingGoalSeconds: 3600,
             onSettingsTap: () {},
             onThemeToggle: () {},
             nextThemeMode: ThemeMode.dark,
@@ -55,6 +57,7 @@ void main() {
             currentTab: 0,
             onTabChanged: (_) {},
             readingTimeSeconds: 0,
+            dailyReadingGoalSeconds: 3600,
             onSettingsTap: () {},
             onThemeToggle: () {},
             nextThemeMode: ThemeMode.system,
@@ -67,5 +70,30 @@ void main() {
 
     expect(find.byIcon(Icons.devices_outlined), findsOneWidget);
     expect(find.byTooltip('切换到系统模式'), findsOneWidget);
+  });
+
+  testWidgets('sidebar reading goal uses configured daily target', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HomeSidebar(
+            currentTab: 0,
+            onTabChanged: (_) {},
+            readingTimeSeconds: 3 * 3600,
+            dailyReadingGoalSeconds: 30 * 60,
+            onSettingsTap: () {},
+            onThemeToggle: () {},
+            nextThemeMode: ThemeMode.dark,
+            showRss: true,
+            showBrowser: false,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('3小时 / 3小时'), findsOneWidget);
+    expect(find.text('每日目标: 30分钟'), findsOneWidget);
   });
 }

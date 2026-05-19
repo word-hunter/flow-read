@@ -7,6 +7,7 @@ class HomeSidebar extends StatelessWidget {
   final int currentTab;
   final ValueChanged<int> onTabChanged;
   final int readingTimeSeconds;
+  final int dailyReadingGoalSeconds;
   final VoidCallback onSettingsTap;
   final VoidCallback onThemeToggle;
   final ThemeMode nextThemeMode;
@@ -18,6 +19,7 @@ class HomeSidebar extends StatelessWidget {
     required this.currentTab,
     required this.onTabChanged,
     required this.readingTimeSeconds,
+    required this.dailyReadingGoalSeconds,
     required this.onSettingsTap,
     required this.onThemeToggle,
     required this.nextThemeMode,
@@ -79,7 +81,10 @@ class HomeSidebar extends StatelessWidget {
                   const SizedBox(height: 28),
                   _buildSectionLabel(theme, '阅读目标'),
                   const SizedBox(height: 10),
-                  ReadingStatsRing(totalSeconds: readingTimeSeconds),
+                  ReadingStatsRing(
+                    totalSeconds: readingTimeSeconds,
+                    dailyGoalSeconds: dailyReadingGoalSeconds,
+                  ),
                 ],
               ),
             ),
