@@ -1,28 +1,34 @@
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:hive/hive.dart';
+
 import '../models/word_level.dart';
-import '../storage/hive_box_names.dart';
+import '../storage/repositories/word_level_repository.dart';
+
+typedef WordLevelAssetLoader = Future<String> Function(String assetPath);
 
 class WordLevelService {
-  static const _importedKey = 'word_levels_imported';
-  Box<WordLevelInfo>? _box;
-  Box? _metaBox;
+  WordLevelService({
+    WordLevelRepository? repository,
+    WordLevelAssetLoader? assetLoader,
+  }) : _repository = repository ?? HiveWordLevelRepository(),
+       _assetLoader = assetLoader ?? rootBundle.loadString;
+
+  final WordLevelRepository _repository;
+  final WordLevelAssetLoader _assetLoader;
+
   final Map<String, LevelKey> _levelMap = {};
   final Map<String, String> _originMap = {};
 
   Future<void> init() async {
-    _box = Hive.box<WordLevelInfo>(HiveBoxNames.wordLevels);
-    _metaBox = Hive.box(HiveBoxNames.settings);
+    await _repository.init();
+    _levelMap.clear();
+    _originMap.clear();
 
-    if (_metaBox?.get(_importedKey) != 'true') {
+    if (!_repository.imported) {
       await _importBuiltinDict();
     }
 
-    for (final info in _box!.values) {
-      _levelMap[info.word] = info.level;
-      _levelMap[info.originForm] = info.level;
-      _originMap[info.word] = info.originForm;
-      _originMap[info.originForm] = info.originForm;
+    for (final info in _repository.values) {
+      _indexInfo(info);
     }
   }
 
@@ -80,12 +86,10 @@ class WordLevelService {
   }
 
   Future<void> _importBuiltinDict() async {
-    final box = _box;
-    if (box == null) return;
-    if (box.isNotEmpty) return;
+    if (_repository.isNotEmpty) return;
 
     try {
-      final content = await rootBundle.loadString('assets/dict/eng-dict.txt');
+      final content = await _assetLoader('assets/dict/eng-dict.txt');
       final lines = content.split('\n');
       final batch = <WordLevelInfo>[];
 
@@ -109,18 +113,24 @@ class WordLevelService {
             levelIndex: level.index,
           ),
         );
-        final canonical = originForm.isNotEmpty ? originForm : word;
-        _levelMap[word] = level;
-        _levelMap[canonical] = level;
-        _originMap[word] = canonical;
-        _originMap[canonical] = canonical;
       }
 
-      await box.addAll(batch);
-      await _metaBox?.put(_importedKey, 'true');
+      await _repository.addAll(batch);
+      await _repository.markImported();
     } catch (e) {
       // Silently fail - dict import is best-effort
-      await _metaBox?.put(_importedKey, 'true');
+      await _repository.markImported();
     }
+  }
+
+  void _indexInfo(WordLevelInfo info) {
+    _levelMap[info.word] = info.level;
+    _levelMap[info.originForm] = info.level;
+    _originMap[info.word] = info.originForm;
+    _originMap[info.originForm] = info.originForm;
+  }
+
+  Future<void> close() async {
+    await _repository.close();
   }
 }

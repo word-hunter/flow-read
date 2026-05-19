@@ -1,14 +1,19 @@
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/bookmarked_word.dart';
 import 'package:flow_read/models/reading_bookmark.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
+import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/models/word_context_example.dart';
+import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/bookmark_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_cache_service.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
+import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/services/word_context_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -108,6 +113,62 @@ void main() {
     expect(examples.single.title, 'Book');
   });
 
+  test(
+    'book metadata persists while file artifacts stay service-owned',
+    () async {
+      final documentsDir = await Directory(
+        '${tempDir.path}/documents',
+      ).create();
+      var now = DateTime.utc(2026, 5, 19, 11);
+      final service = BookService(
+        documentsDirectoryProvider: () async => documentsDir,
+        clock: () => now,
+      );
+      await service.init();
+
+      await service.addBook(
+        const BookMetadata(
+          id: 'book-1',
+          title: 'Flow',
+          author: 'Author',
+          sourcePath: '/imports/flow.epub',
+          totalChapters: 4,
+        ),
+      );
+      await service.saveCover('book-1', Uint8List.fromList([1, 2, 3]));
+      final sourceFile = File('${documentsDir.path}/books/book-1.epub');
+      await sourceFile.writeAsString('epub');
+
+      await service.renameBook('book-1', 'Flow Updated');
+      now = DateTime.utc(2026, 5, 19, 12);
+      await service.updateProgress('book-1', 1, 0.5);
+
+      final reloaded = BookService(
+        documentsDirectoryProvider: () async {
+          return documentsDir;
+        },
+      );
+      await reloaded.init();
+      final book = reloaded.books.single;
+
+      expect(book.title, 'Flow Updated');
+      expect(book.currentChapter, 1);
+      expect(book.chapterProgress, 0.5);
+      expect(book.globalProgress, 0.375);
+      expect(book.lastReadAt, now);
+      expect(reloaded.loadCover('book-1'), Uint8List.fromList([1, 2, 3]));
+
+      await reloaded.removeBook('book-1');
+
+      expect(reloaded.books, isEmpty);
+      expect(
+        File('${documentsDir.path}/books/book-1_cover.png').existsSync(),
+        isFalse,
+      );
+      expect(sourceFile.existsSync(), isFalse);
+    },
+  );
+
   test('bookmarks persist word and reading bookmark payloads', () async {
     final service = BookmarkService();
     await service.init();
@@ -166,6 +227,42 @@ void main() {
       await cache.clear();
 
       expect(cache.hasWord('Longman', 'word500'), isFalse);
+    },
+  );
+
+  test(
+    'word levels import built-in dictionary through storage boundary',
+    () async {
+      final service = WordLevelService(
+        assetLoader: (_) async => 'flow\tflow\t4\nmigrating\tmigrate\t6\n',
+      );
+      await service.init();
+
+      expect(settingsBox().get('word_levels_imported'), 'true');
+      expect(wordLevelsBox().length, 2);
+      expect(service.canonicalForm('Migrating'), 'migrate');
+      expect(service.getLevel('flow'), LevelKey.cet4);
+      expect(service.getLevel('migrating'), LevelKey.cet6);
+      expect(service.getOriginForm('migrating'), 'migrate');
+      expect(service.hasWord('migrate'), isTrue);
+    },
+  );
+
+  test(
+    'word levels index existing persisted entries without asset import',
+    () async {
+      await settingsBox().put('word_levels_imported', 'true');
+      await wordLevelsBox().add(
+        const WordLevelInfo(word: 'running', originForm: 'run', levelIndex: 5),
+      );
+
+      final service = WordLevelService();
+      await service.init();
+
+      expect(service.canonicalForm('Running'), 'run');
+      expect(service.getLevel('run'), LevelKey.gre);
+      expect(service.getOriginForm('running'), 'run');
+      expect(service.wordCount, 2);
     },
   );
 }

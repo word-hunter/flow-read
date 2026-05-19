@@ -1,21 +1,32 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/book_metadata.dart';
-import '../storage/hive_box_names.dart';
+import '../storage/repositories/book_metadata_repository.dart';
 
 class BookService {
-  late Box<BookMetadata> _box;
+  BookService({
+    BookMetadataRepository? repository,
+    Future<Directory> Function()? documentsDirectoryProvider,
+    DateTime Function()? clock,
+  }) : _repository = repository ?? HiveBookMetadataRepository(),
+       _documentsDirectoryProvider =
+           documentsDirectoryProvider ?? getApplicationDocumentsDirectory,
+       _clock = clock ?? DateTime.now;
+
+  final BookMetadataRepository _repository;
+  final Future<Directory> Function() _documentsDirectoryProvider;
+  final DateTime Function() _clock;
+
   String? _booksDir;
 
-  List<BookMetadata> get books => _box.values.toList();
+  List<BookMetadata> get books => _repository.values.toList();
 
   Future<void> init() async {
-    _box = Hive.box<BookMetadata>(HiveBoxNames.books);
-    final dir = await getApplicationDocumentsDirectory();
+    await _repository.init();
+    final dir = await _documentsDirectoryProvider();
     _booksDir = '${dir.path}/books';
     final booksDir = Directory(_booksDir!);
     if (!await booksDir.exists()) {
@@ -42,11 +53,11 @@ class BookService {
   }
 
   Future<void> addBook(BookMetadata metadata) async {
-    await _box.put(metadata.id, metadata);
+    await _repository.put(metadata.id, metadata);
   }
 
   Future<void> removeBook(String id) async {
-    await _box.delete(id);
+    await _repository.delete(id);
     final coverFile = File(_coverFilePath(id));
     if (await coverFile.exists()) {
       await coverFile.delete();
@@ -58,9 +69,9 @@ class BookService {
   }
 
   Future<void> renameBook(String id, String title) async {
-    final meta = _box.get(id);
+    final meta = _repository.get(id);
     if (meta == null) return;
-    await _box.put(id, meta.copyWith(title: title));
+    await _repository.put(id, meta.copyWith(title: title));
   }
 
   Future<void> updateProgress(
@@ -68,13 +79,13 @@ class BookService {
     int currentChapter,
     double chapterProgress,
   ) async {
-    final meta = _box.get(id);
+    final meta = _repository.get(id);
     if (meta == null) return;
 
     final updated = meta.copyWith(
       currentChapter: currentChapter,
       chapterProgress: chapterProgress,
-      lastReadAt: DateTime.now(),
+      lastReadAt: _clock(),
     );
 
     final chapters = updated.totalChapters;
@@ -82,7 +93,7 @@ class BookService {
         ? ((currentChapter + chapterProgress) / chapters).clamp(0.0, 1.0)
         : 0.0;
 
-    await _box.put(id, updated.copyWith(globalProgress: globalProg));
+    await _repository.put(id, updated.copyWith(globalProgress: globalProg));
   }
 
   void removeCover(String bookId) {
@@ -93,6 +104,6 @@ class BookService {
   }
 
   Future<void> close() async {
-    await _box.close();
+    await _repository.close();
   }
 }
