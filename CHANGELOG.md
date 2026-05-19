@@ -10,6 +10,12 @@ This project follows a simple semantic versioning flow:
 
 ## [Unreleased]
 
+## [0.0.2-alpha] - 2026-05-19
+
+### Changed
+
+- Prepared 0.0.2-alpha release.
+
 ## [0.0.1-alpha] - 2026-05-18
 
 ### Milestone
