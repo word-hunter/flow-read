@@ -344,7 +344,6 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
 
     // 有从句标记 → 切分
     final clauses = <ClauseInfo>[];
-    int lastEnd = 0;
     int wordIdx = 0;
 
     for (final marker in markers) {
@@ -617,21 +616,27 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
 
     // 名词短语：determiner? adjective* noun+
     int end = start;
-    if (_determiners.contains(words[end].toLowerCase())) end++;
+    if (_determiners.contains(words[end].toLowerCase())) {
+      end++;
+    }
     while (end < words.length && _isLikelyAdjective(words[end])) {
       end++;
     }
     if (end < words.length && _isLikelyNoun(words[end])) {
       end++;
       // 可能的后置修饰
-      while (end < words.length && _isLikelyNoun(words[end])) end++;
+      while (end < words.length && _isLikelyNoun(words[end])) {
+        end++;
+      }
       return words.sublist(start, end).join(' ');
     }
 
     // 名词主语（无冠词）
     if (_isLikelyNoun(words[start])) {
       end = start + 1;
-      while (end < words.length && _isLikelyNoun(words[end])) end++;
+      while (end < words.length && _isLikelyNoun(words[end])) {
+        end++;
+      }
       return words.sublist(start, end).join(' ');
     }
 

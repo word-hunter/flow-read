@@ -1,8 +1,5 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/reading_provider.dart';
@@ -272,7 +269,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 theme,
                 settings,
               ),
-              _SettingsSection.about => _buildAboutSection(theme, settings),
+              _SettingsSection.about => _buildAboutSection(theme),
             },
           ],
         ),
@@ -811,7 +808,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildAboutSection(ThemeData theme, SettingsService settings) {
+  Widget _buildAboutSection(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -863,18 +860,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: const Icon(Icons.new_releases_outlined),
                 label: const Text('检查更新'),
               ),
-              // OutlinedButton.icon(
-              //   onPressed: _openConfigDirectory,
-              //   icon: const Icon(Icons.folder_open_outlined),
-              //   label: const Text('打开配置目录'),
-              // ),
-              // OutlinedButton.icon(
-              //   onPressed: settings.backupFolderPath.trim().isEmpty
-              //       ? null
-              //       : () => _openBackupDirectory(settings),
-              //   icon: const Icon(Icons.backup_outlined),
-              //   label: const Text('打开备份目录'),
-              // ),
             ],
           ),
         ),
@@ -1288,56 +1273,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (_) => ReleaseNotesDialog(notes: notes),
     );
-  }
-
-  Future<void> _openConfigDirectory() async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      await dir.create(recursive: true);
-      await _openDirectory(dir.path);
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('无法打开配置目录：$e');
-    }
-  }
-
-  Future<void> _openBackupDirectory(SettingsService settings) async {
-    final path = settings.backupFolderPath.trim();
-    if (path.isEmpty) {
-      _showSnackBar('请先选择备份路径');
-      return;
-    }
-
-    try {
-      final dir = Directory(path);
-      await dir.create(recursive: true);
-      await _openDirectory(dir.path);
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('无法打开备份目录：$e');
-    }
-  }
-
-  Future<void> _openDirectory(String path) async {
-    late final String executable;
-    late final List<String> arguments;
-
-    if (Platform.isMacOS) {
-      executable = 'open';
-      arguments = [path];
-    } else if (Platform.isWindows) {
-      executable = 'explorer';
-      arguments = [path];
-    } else {
-      executable = 'xdg-open';
-      arguments = [path];
-    }
-
-    final result = await Process.run(executable, arguments);
-    if (result.exitCode != 0) {
-      final error = result.stderr.toString().trim();
-      throw Exception(error.isEmpty ? '系统无法打开目录' : error);
-    }
   }
 
   void _showSnackBar(String message) {
