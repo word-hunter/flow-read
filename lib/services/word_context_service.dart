@@ -1,19 +1,20 @@
 import 'dart:convert';
 
-import 'package:hive/hive.dart';
-
 import '../models/word_context_example.dart';
-import '../storage/hive_box_names.dart';
+import '../storage/repositories/word_context_repository.dart';
 
 class WordContextService {
-  late Box<String> _box;
+  WordContextService({WordContextRepository? repository})
+    : _repository = repository ?? HiveWordContextRepository();
+
+  final WordContextRepository _repository;
 
   Future<void> init() async {
-    _box = Hive.box<String>(HiveBoxNames.wordContexts);
+    await _repository.init();
   }
 
   List<WordContextExample> examplesFor(String word) {
-    final json = _box.get(_normalizeWord(word));
+    final json = _repository.getEncodedExamples(_normalizeWord(word));
     if (json == null || json.isEmpty) return const [];
     try {
       final decoded = jsonDecode(json) as List<dynamic>;
@@ -42,7 +43,7 @@ class WordContextService {
     final deduped = _dedupeExamples(next);
     if (deduped.isEmpty) return;
 
-    await _box.put(
+    await _repository.putEncodedExamples(
       normalized,
       jsonEncode(deduped.map((example) => example.toJson()).toList()),
     );

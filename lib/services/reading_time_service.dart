@@ -1,16 +1,24 @@
-import 'package:hive/hive.dart';
-
-import '../storage/hive_box_names.dart';
+import '../storage/repositories/reading_time_repository.dart';
 
 class ReadingTimeService {
-  late Box<int> _box;
+  ReadingTimeService({
+    ReadingTimeRepository? repository,
+    DateTime Function()? clock,
+  }) : _repository = repository ?? HiveReadingTimeRepository(),
+       _clock = clock ?? DateTime.now;
+
+  static const _globalKey = '_global_';
+
+  final ReadingTimeRepository _repository;
+  final DateTime Function() _clock;
+
   int _totalSeconds = 0;
   DateTime? _startTime;
   String? _activeBookId;
 
   int get totalSeconds => _totalSeconds;
 
-  int secondsForBook(String bookId) => _box.get(bookId, defaultValue: 0) ?? 0;
+  int secondsForBook(String bookId) => _repository.secondsFor(bookId);
 
   String get displayText {
     if (_totalSeconds < 60) return '$_totalSeconds 秒';
@@ -22,29 +30,29 @@ class ReadingTimeService {
   }
 
   Future<void> init() async {
-    _box = Hive.box<int>(HiveBoxNames.readingTime);
-    _totalSeconds = _box.get('_global_', defaultValue: 0) ?? 0;
+    await _repository.init();
+    _totalSeconds = _repository.secondsFor(_globalKey);
   }
 
   void start([String? bookId]) {
-    _startTime = DateTime.now();
+    _startTime = _clock();
     _activeBookId = bookId;
   }
 
   Future<void> stop() async {
     if (_startTime == null) return;
-    final elapsed = DateTime.now().difference(_startTime!).inSeconds;
+    final elapsed = _clock().difference(_startTime!).inSeconds;
     _totalSeconds += elapsed;
-    await _box.put('_global_', _totalSeconds);
+    await _repository.putSeconds(_globalKey, _totalSeconds);
     final bookId = _activeBookId;
     if (bookId != null) {
-      await _box.put(bookId, secondsForBook(bookId) + elapsed);
+      await _repository.putSeconds(bookId, secondsForBook(bookId) + elapsed);
     }
     _startTime = null;
     _activeBookId = null;
   }
 
   Future<void> close() async {
-    await _box.close();
+    await _repository.close();
   }
 }

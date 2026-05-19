@@ -1,9 +1,10 @@
-import 'package:hive/hive.dart';
-
-import '../storage/hive_box_names.dart';
+import '../storage/repositories/reading_config_repository.dart';
 
 class ReadingConfigService {
-  late Box<String> _box;
+  ReadingConfigService({ReadingConfigRepository? repository})
+    : _repository = repository ?? HiveReadingConfigRepository();
+
+  final ReadingConfigRepository _repository;
 
   double fontSize = 16.0;
   String fontFamily = 'Serif';
@@ -11,40 +12,46 @@ class ReadingConfigService {
   String theme = 'light';
 
   Future<void> init() async {
-    _box = Hive.box<String>(HiveBoxNames.readingConfig);
+    await _repository.init();
     _load();
   }
 
   void _load() {
     fontSize =
-        double.tryParse(_box.get('fontSize', defaultValue: '16.0')!) ?? 16.0;
-    fontFamily = _box.get('fontFamily', defaultValue: 'Serif')!;
+        double.tryParse(
+          _repository.getString('fontSize', defaultValue: '16.0'),
+        ) ??
+        16.0;
+    fontFamily = _repository.getString('fontFamily', defaultValue: 'Serif');
     lineHeight =
-        double.tryParse(_box.get('lineHeight', defaultValue: '2.0')!) ?? 2.0;
-    theme = _box.get('theme', defaultValue: 'light')!;
+        double.tryParse(
+          _repository.getString('lineHeight', defaultValue: '2.0'),
+        ) ??
+        2.0;
+    theme = _repository.getString('theme', defaultValue: 'light');
   }
 
   Future<void> setFontSize(double value) async {
     fontSize = value.clamp(12.0, 24.0);
-    await _box.put('fontSize', fontSize.toString());
+    await _repository.putString('fontSize', fontSize.toString());
   }
 
   Future<void> setFontFamily(String value) async {
     fontFamily = value;
-    await _box.put('fontFamily', value);
+    await _repository.putString('fontFamily', value);
   }
 
   Future<void> setLineHeight(double value) async {
     lineHeight = value.clamp(1.4, 2.8);
-    await _box.put('lineHeight', lineHeight.toString());
+    await _repository.putString('lineHeight', lineHeight.toString());
   }
 
   Future<void> setTheme(String value) async {
     theme = value;
-    await _box.put('theme', value);
+    await _repository.putString('theme', value);
   }
 
   Future<void> close() async {
-    await _box.close();
+    await _repository.close();
   }
 }

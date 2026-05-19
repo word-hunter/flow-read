@@ -1,19 +1,18 @@
-import 'package:hive/hive.dart';
-
 import '../models/user_vocabulary.dart';
-import '../storage/hive_box_names.dart';
+import '../storage/repositories/user_vocabulary_repository.dart';
 
 class UserVocabularyService {
-  late Box<String> _box;
+  UserVocabularyService({UserVocabularyRepository? repository})
+    : _repository = repository ?? HiveUserVocabularyRepository();
+
+  final UserVocabularyRepository _repository;
 
   Future<void> init() async {
-    _box = Hive.box<String>(HiveBoxNames.userVocabulary);
+    await _repository.init();
   }
 
   UserWordStatus? getStatus(String word) {
-    final value = _box.get(word.toLowerCase().trim());
-    if (value == null) return null;
-    return value == 'learning' ? UserWordStatus.learning : UserWordStatus.known;
+    return _repository.getStatus(word);
   }
 
   bool isKnown(String word) {
@@ -25,43 +24,30 @@ class UserVocabularyService {
   }
 
   Set<String> get knownWords {
-    final result = <String>{};
-    for (final key in _box.keys) {
-      if (_box.get(key) == 'known') result.add(key);
-    }
-    return result;
+    return _repository.wordsWithStatus(UserWordStatus.known);
   }
 
   Set<String> get learningWords {
-    final result = <String>{};
-    for (final key in _box.keys) {
-      if (_box.get(key) == 'learning') result.add(key);
-    }
-    return result;
+    return _repository.wordsWithStatus(UserWordStatus.learning);
   }
 
   Map<String, UserWordStatus> get allWords {
-    return _box.keys.fold<Map<String, UserWordStatus>>({}, (map, key) {
-      map[key] = _box.get(key) == 'learning'
-          ? UserWordStatus.learning
-          : UserWordStatus.known;
-      return map;
-    });
+    return _repository.allWords;
   }
 
   Future<void> setKnown(String word) async {
-    await _box.put(word.toLowerCase().trim(), 'known');
+    await _repository.setStatus(word, UserWordStatus.known);
   }
 
   Future<void> setLearning(String word) async {
-    await _box.put(word.toLowerCase().trim(), 'learning');
+    await _repository.setStatus(word, UserWordStatus.learning);
   }
 
   Future<void> setUnknown(String word) async {
-    await _box.delete(word.toLowerCase().trim());
+    await _repository.remove(word);
   }
 
   Future<void> close() async {
-    await _box.close();
+    await _repository.close();
   }
 }
