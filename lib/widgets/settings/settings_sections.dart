@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/app_update_service.dart';
 import '../../services/app_version.dart';
 import '../../services/backup_service.dart';
 import '../../services/settings_service.dart';
@@ -53,7 +54,7 @@ extension SettingsSectionMeta on SettingsSection {
       case SettingsSection.experiments:
         return '管理仍在测试中的入口和功能项。';
       case SettingsSection.about:
-        return '查看版本信息并打开本地目录。';
+        return '查看版本信息并检查可用更新。';
     }
   }
 
@@ -785,9 +786,30 @@ class SettingsBackupSection extends StatelessWidget {
 }
 
 class SettingsAboutSection extends StatelessWidget {
-  const SettingsAboutSection({super.key, required this.onShowReleaseNotes});
+  const SettingsAboutSection({
+    super.key,
+    required this.onShowReleaseNotes,
+    required this.onCheckForUpdates,
+    required this.checkingForUpdate,
+    required this.updateStatusMessage,
+    required this.updateStatusIsError,
+    required this.updateFallbackActionLabel,
+    required this.onOpenUpdateFallback,
+    required this.availableUpdate,
+    required this.onDownloadUpdate,
+    required this.onOpenUpdateReleasePage,
+  });
 
   final VoidCallback onShowReleaseNotes;
+  final VoidCallback onCheckForUpdates;
+  final bool checkingForUpdate;
+  final String? updateStatusMessage;
+  final bool updateStatusIsError;
+  final String? updateFallbackActionLabel;
+  final VoidCallback? onOpenUpdateFallback;
+  final AppUpdateInfo? availableUpdate;
+  final VoidCallback? onDownloadUpdate;
+  final VoidCallback? onOpenUpdateReleasePage;
 
   @override
   Widget build(BuildContext context) {
@@ -835,19 +857,142 @@ class SettingsAboutSection extends StatelessWidget {
         SettingsCard(
           icon: Icons.settings_applications_outlined,
           title: '操作',
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 12,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              OutlinedButton.icon(
-                onPressed: onShowReleaseNotes,
-                icon: const Icon(Icons.new_releases_outlined),
-                label: const Text('检查更新'),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  FilledButton.icon(
+                    onPressed: checkingForUpdate ? null : onCheckForUpdates,
+                    icon: checkingForUpdate
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.system_update_alt_outlined),
+                    label: Text(checkingForUpdate ? '检查中...' : '检查更新'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onShowReleaseNotes,
+                    icon: const Icon(Icons.new_releases_outlined),
+                    label: const Text('当前版本更新内容'),
+                  ),
+                ],
               ),
+              if (updateStatusMessage != null) ...[
+                const SizedBox(height: 14),
+                SettingsStatusLine(
+                  icon: updateStatusIsError
+                      ? Icons.error_outline
+                      : Icons.check_circle_outline,
+                  text: updateStatusMessage!,
+                  color: updateStatusIsError
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.primary,
+                ),
+                if (updateFallbackActionLabel != null &&
+                    onOpenUpdateFallback != null) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: onOpenUpdateFallback,
+                    icon: const Icon(Icons.open_in_new),
+                    label: Text(updateFallbackActionLabel!),
+                  ),
+                ],
+              ],
             ],
           ),
         ),
+        if (availableUpdate != null) ...[
+          const SizedBox(height: 16),
+          _AvailableUpdateCard(
+            update: availableUpdate!,
+            onDownloadUpdate: onDownloadUpdate,
+            onOpenReleasePage: onOpenUpdateReleasePage,
+          ),
+        ],
       ],
+    );
+  }
+}
+
+class _AvailableUpdateCard extends StatelessWidget {
+  const _AvailableUpdateCard({
+    required this.update,
+    required this.onDownloadUpdate,
+    required this.onOpenReleasePage,
+  });
+
+  final AppUpdateInfo update;
+  final VoidCallback? onDownloadUpdate;
+  final VoidCallback? onOpenReleasePage;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mutedStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final notes = update.releaseNotes.trim();
+
+    return SettingsCard(
+      icon: Icons.download_for_offline_outlined,
+      title: '可用更新',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Flow Read ${update.version}',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(update.isPrerelease ? '预发布版本' : '正式版本', style: mutedStyle),
+          if (notes.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              notes,
+              maxLines: 6,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ],
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              FilledButton.icon(
+                onPressed: onDownloadUpdate,
+                icon: Icon(
+                  update.hasDownloadAsset
+                      ? Icons.download_outlined
+                      : Icons.open_in_new,
+                ),
+                label: Text(update.hasDownloadAsset ? '下载更新' : '打开发布页'),
+              ),
+              if (update.hasDownloadAsset)
+                OutlinedButton.icon(
+                  onPressed: onOpenReleasePage,
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('发布页'),
+                ),
+            ],
+          ),
+          if (update.assetName != null) ...[
+            const SizedBox(height: 12),
+            SettingsStatusLine(
+              icon: Icons.inventory_2_outlined,
+              text: update.assetName!,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

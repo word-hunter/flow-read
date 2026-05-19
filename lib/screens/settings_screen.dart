@@ -6,10 +6,12 @@ import 'package:provider/provider.dart';
 
 import '../providers/reading_provider.dart';
 import '../providers/rss_provider.dart';
+import '../services/app_update_service.dart';
 import '../services/backup_folder_access.dart';
 import '../services/backup_service.dart';
 import '../services/changelog_service.dart';
 import '../services/dictionary/dictionary_cache_service.dart';
+import '../services/external_url_launcher.dart';
 import '../services/llm_client.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
@@ -34,9 +36,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _obscureKey = true;
   bool _testingConnection = false;
   bool _importingWordHunter = false;
+  bool _checkingForUpdate = false;
   String? _connectionResult;
+  String? _updateStatusMessage;
+  bool _updateStatusIsError = false;
+  String? _updateFallbackActionLabel;
+  Uri? _updateFallbackUrl;
+  AppUpdateInfo? _availableUpdate;
   SettingsSection _selectedSection = SettingsSection.appearance;
   final BackupFolderAccess _backupFolderAccess = const BackupFolderAccess();
+  final AppUpdateService _appUpdateService = AppUpdateService();
+  final ExternalUrlLauncher _externalUrlLauncher = const ExternalUrlLauncher();
 
   static const _desktopBreakpoint = 760.0;
 
@@ -45,6 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _apiKeyController.dispose();
     _baseUrlController.dispose();
     _modelController.dispose();
+    _appUpdateService.dispose();
     super.dispose();
   }
 
@@ -296,6 +307,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               SettingsSection.about => SettingsAboutSection(
                 onShowReleaseNotes: () => unawaited(_showCurrentReleaseNotes()),
+                onCheckForUpdates: () => unawaited(_checkForUpdates()),
+                checkingForUpdate: _checkingForUpdate,
+                updateStatusMessage: _updateStatusMessage,
+                updateStatusIsError: _updateStatusIsError,
+                updateFallbackActionLabel: _updateFallbackActionLabel,
+                onOpenUpdateFallback: _updateFallbackUrl == null
+                    ? null
+                    : () => unawaited(_openUpdateFallbackUrl()),
+                availableUpdate: _availableUpdate,
+                onDownloadUpdate: _availableUpdate == null
+                    ? null
+                    : () => unawaited(_openAvailableUpdateDownload()),
+                onOpenUpdateReleasePage: _availableUpdate == null
+                    ? null
+                    : () => unawaited(_openAvailableUpdateReleasePage()),
               ),
             },
           ],
@@ -582,7 +608,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         false;
   }
 
-  // TODO: 增加自动更新
   Future<void> _showCurrentReleaseNotes() async {
     final notes = await ChangelogService.loadCurrentReleaseNotes();
     if (!mounted) return;
@@ -591,6 +616,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (_) => ReleaseNotesDialog(notes: notes),
     );
+  }
+
+  Future<void> _checkForUpdates() async {
+    if (_checkingForUpdate) return;
+
+    setState(() {
+      _checkingForUpdate = true;
+      _updateStatusMessage = null;
+      _updateStatusIsError = false;
+      _updateFallbackActionLabel = null;
+      _updateFallbackUrl = null;
+    });
+
+    try {
+      final update = await _appUpdateService.checkForUpdate();
+      if (!mounted) return;
+
+      setState(() {
+        _checkingForUpdate = false;
+        _availableUpdate = update;
+        _updateStatusIsError = false;
+        _updateFallbackActionLabel = null;
+        _updateFallbackUrl = null;
+        _updateStatusMessage = update == null
+            ? '已是最新版本'
+            : '发现 Flow Read ${update.version}';
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _checkingForUpdate = false;
+        _updateStatusIsError = true;
+        _updateStatusMessage = _friendlyUpdateError(error);
+        _updateFallbackActionLabel = error is AppUpdateException
+            ? error.actionLabel
+            : null;
+        _updateFallbackUrl = error is AppUpdateException
+            ? error.actionUrl
+            : null;
+      });
+    }
+  }
+
+  Future<void> _openUpdateFallbackUrl() async {
+    final url = _updateFallbackUrl;
+    if (url == null) return;
+    await _openExternalUrl(url);
+  }
+
+  Future<void> _openAvailableUpdateDownload() async {
+    final update = _availableUpdate;
+    if (update == null) return;
+    await _openExternalUrl(update.downloadUrl ?? update.releasePageUrl);
+  }
+
+  Future<void> _openAvailableUpdateReleasePage() async {
+    final update = _availableUpdate;
+    if (update == null) return;
+    await _openExternalUrl(update.releasePageUrl);
+  }
+
+  Future<void> _openExternalUrl(Uri uri) async {
+    try {
+      await _externalUrlLauncher.open(uri);
+    } catch (error) {
+      if (!mounted) return;
+      _showSnackBar(_friendlyUpdateError(error));
+    }
+  }
+
+  String _friendlyUpdateError(Object error) {
+    if (error is AppUpdateException) return error.message;
+    if (error is ExternalUrlOpenException) return error.message;
+    return '检查更新失败，请稍后重试';
   }
 
   void _showSnackBar(String message) {

@@ -8,6 +8,7 @@ class MainFlutterWindow: NSWindow, NSDraggingDestination {
   private var backupFolderChannel: FlutterMethodChannel?
   private var backupFolderAccessHandler: BackupFolderAccessHandler?
   private var fileDropChannel: FlutterMethodChannel?
+  private var externalUrlChannel: FlutterMethodChannel?
 
   override func awakeFromNib() {
     configureTitleBar()
@@ -21,6 +22,7 @@ class MainFlutterWindow: NSWindow, NSDraggingDestination {
     RegisterGeneratedPlugins(registry: flutterViewController)
     registerBackupFolderAccessChannel(flutterViewController: flutterViewController)
     registerFileDropChannel(flutterViewController: flutterViewController)
+    registerExternalUrlChannel(flutterViewController: flutterViewController)
     registerForDraggedTypes([.fileURL])
 
     super.awakeFromNib()
@@ -74,6 +76,45 @@ class MainFlutterWindow: NSWindow, NSDraggingDestination {
     fileDropChannel = FlutterMethodChannel(
       name: "flow_read/file_drop",
       binaryMessenger: flutterViewController.engine.binaryMessenger)
+  }
+
+  private func registerExternalUrlChannel(flutterViewController: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: "flow_read/external_url",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "openExternalUrl":
+        Self.openExternalUrl(arguments: call.arguments, result: result)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+    externalUrlChannel = channel
+  }
+
+  private static func openExternalUrl(arguments: Any?, result: @escaping FlutterResult) {
+    guard let args = arguments as? [String: Any],
+      let urlString = args["url"] as? String,
+      let url = URL(string: urlString),
+      let scheme = url.scheme?.lowercased(),
+      ["http", "https"].contains(scheme)
+    else {
+      result(FlutterError(
+        code: "INVALID_URL",
+        message: "Only http and https URLs can be opened.",
+        details: nil))
+      return
+    }
+
+    if NSWorkspace.shared.open(url) {
+      result(nil)
+    } else {
+      result(FlutterError(
+        code: "OPEN_URL_FAILED",
+        message: "Failed to open URL.",
+        details: urlString))
+    }
   }
 
   func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
