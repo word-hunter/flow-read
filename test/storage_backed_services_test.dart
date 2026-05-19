@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/bookmarked_word.dart';
 import 'package:flow_read/models/reading_bookmark.dart';
+import 'package:flow_read/models/rss_models.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/models/word_context_example.dart';
@@ -12,6 +14,7 @@ import 'package:flow_read/services/bookmark_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_cache_service.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
+import 'package:flow_read/services/rss_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/services/word_context_service.dart';
@@ -229,6 +232,38 @@ void main() {
       expect(cache.hasWord('Longman', 'word500'), isFalse);
     },
   );
+
+  test('rss service loads subscriptions and persists read state', () async {
+    await rssSubscriptionsBox().add(
+      RssFeedSubscription(url: 'https://b.example/rss.xml', title: 'Beta'),
+    );
+    await rssSubscriptionsBox().add(
+      RssFeedSubscription(url: 'https://a.example/rss.xml', title: 'Alpha'),
+    );
+    await settingsBox().put('rss_read_articles', jsonEncode(['article-1']));
+
+    final service = RssService();
+    await service.init();
+
+    expect(service.subscriptions.map((s) => s.title), ['Alpha', 'Beta']);
+
+    await service.markAsRead('article-2');
+    var ids =
+        (jsonDecode(settingsBox().get('rss_read_articles') as String)
+                as List<dynamic>)
+            .cast<String>();
+
+    expect(ids, containsAll(['article-1', 'article-2']));
+
+    await service.markAsUnread('article-1');
+    ids =
+        (jsonDecode(settingsBox().get('rss_read_articles') as String)
+                as List<dynamic>)
+            .cast<String>();
+
+    expect(ids, isNot(contains('article-1')));
+    expect(ids, contains('article-2'));
+  });
 
   test(
     'word levels import built-in dictionary through storage boundary',

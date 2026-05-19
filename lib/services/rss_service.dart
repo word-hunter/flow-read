@@ -1,39 +1,35 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:hive/hive.dart';
 import 'package:html/parser.dart' as html;
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 import '../models/rss_models.dart';
-import '../storage/hive_box_names.dart';
+import '../storage/repositories/rss_repository.dart';
 
 class RssService {
-  static const _readArticlesKey = 'rss_read_articles';
+  RssService({RssRepository? repository})
+    : _repository = repository ?? HiveRssRepository();
+
   static const _requestHeaders = {
     'Accept':
         'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5',
     'User-Agent': 'FlowRead/1.0 RSS Reader',
   };
-  Box<RssFeedSubscription>? _feedBox;
-  Box? _metaBox;
+  final RssRepository _repository;
   final Map<String, List<RssArticle>> _articleCache = {};
   final Set<String> _readArticleIds = {};
 
   Future<void> init() async {
-    _feedBox = Hive.box<RssFeedSubscription>(HiveBoxNames.rssSubscriptions);
-    _metaBox = Hive.box(HiveBoxNames.settings);
-
-    final readIdsJson = _metaBox?.get(_readArticlesKey);
-    if (readIdsJson != null && readIdsJson.isNotEmpty) {
-      final list = jsonDecode(readIdsJson) as List<dynamic>;
-      _readArticleIds.addAll(list.cast<String>());
-    }
+    await _repository.init();
+    _readArticleIds
+      ..clear()
+      ..addAll(_repository.readArticleIds);
   }
 
   List<RssFeedSubscription> get subscriptions {
-    final list = _feedBox?.values.toList() ?? [];
+    final list = _repository.subscriptions.toList();
     list.sort((a, b) => a.title.compareTo(b.title));
     return list;
   }
@@ -56,7 +52,7 @@ class RssService {
       imageUrl: info['imageUrl'],
       lastFetchedAt: DateTime.now(),
     );
-    await _feedBox?.add(sub);
+    await _repository.addSubscription(sub);
     return sub;
   }
 
@@ -67,9 +63,6 @@ class RssService {
     String? description,
     bool refreshMetadata = false,
   }) async {
-    final box = _feedBox;
-    if (box == null) return null;
-
     final normalizedUrl = _normalizeUrl(url);
     _validateUrl(normalizedUrl);
     final duplicate = subscriptions
@@ -79,13 +72,7 @@ class RssService {
       throw StateError('订阅地址已存在');
     }
 
-    final key = box.keys.firstWhere(
-      (k) => box.get(k)?.url == originalUrl,
-      orElse: () => -1,
-    );
-    if (key == -1) return null;
-
-    final current = box.get(key);
+    final current = _repository.findSubscriptionByUrl(originalUrl);
     if (current == null) return null;
 
     var nextTitle = title.trim().isEmpty ? normalizedUrl : title.trim();
@@ -114,7 +101,7 @@ class RssService {
       imageUrl: imageUrl,
       lastFetchedAt: lastFetchedAt,
     );
-    await box.put(key, updated);
+    await _repository.replaceSubscription(originalUrl, updated);
     _articleCache.remove(originalUrl);
     if (normalizedUrl != originalUrl) {
       _articleCache.remove(normalizedUrl);
@@ -123,14 +110,8 @@ class RssService {
   }
 
   Future<void> removeSubscription(String url) async {
-    final box = _feedBox;
-    if (box == null) return;
-    final key = box.keys.firstWhere(
-      (k) => box.get(k)?.url == url,
-      orElse: () => -1,
-    );
-    if (key != -1) {
-      await box.delete(key);
+    final removed = await _repository.deleteSubscriptionByUrl(url);
+    if (removed) {
       _articleCache.remove(url);
     }
   }
@@ -153,7 +134,7 @@ class RssService {
       }
 
       _articleCache[feedUrl] = articles;
-      _updateLastFetched(feedUrl);
+      await _updateLastFetched(feedUrl);
       return articles;
     } catch (e) {
       debugPrint('RSS fetch failed for $feedUrl: $e');
@@ -176,7 +157,7 @@ class RssService {
 
   Future<void> markAsRead(String articleId) async {
     _readArticleIds.add(articleId);
-    await _metaBox?.put(_readArticlesKey, jsonEncode(_readArticleIds.toList()));
+    await _repository.putReadArticleIds(_readArticleIds);
     for (final articles in _articleCache.values) {
       for (final a in articles) {
         if (a.id == articleId) a.isRead = true;
@@ -186,7 +167,7 @@ class RssService {
 
   Future<void> markAsUnread(String articleId) async {
     _readArticleIds.remove(articleId);
-    await _metaBox?.put(_readArticlesKey, jsonEncode(_readArticleIds.toList()));
+    await _repository.putReadArticleIds(_readArticleIds);
     for (final articles in _articleCache.values) {
       for (final a in articles) {
         if (a.id == articleId) a.isRead = false;
@@ -486,19 +467,7 @@ class RssService {
     return a.title.compareTo(b.title);
   }
 
-  void _updateLastFetched(String url) {
-    final box = _feedBox;
-    if (box == null) return;
-    final key = box.keys.firstWhere(
-      (k) => box.get(k)?.url == url,
-      orElse: () => -1,
-    );
-    if (key != -1) {
-      final sub = box.get(key);
-      if (sub != null) {
-        sub.lastFetchedAt = DateTime.now();
-        sub.save();
-      }
-    }
+  Future<void> _updateLastFetched(String url) async {
+    await _repository.updateLastFetched(url, DateTime.now());
   }
 }
