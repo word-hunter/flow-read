@@ -11,6 +11,7 @@ import '../services/reading_assistant_agent.dart';
 import '../services/settings_service.dart';
 import '../services/web_content_service.dart';
 import '../theme/app_constants.dart';
+import '../widgets/selected_text_action_toolbar.dart';
 import '../widgets/reader_text_view.dart';
 import '../widgets/selected_text_sheet.dart';
 import '../widgets/word_bottom_sheet.dart';
@@ -35,7 +36,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
   AnalysisResult? _analysis;
   bool _isLoading = false;
   String? _error;
-  String _selectedText = '';
   bool _assistantOpen = false;
   bool _assistantBusy = false;
   String? _assistantOutput;
@@ -111,14 +111,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
-  void _translateSelected() {
-    _analyzeSelected();
-  }
-
-  void _analyzeSelected() {
+  void _analyzeSelected(String text) {
     final settings = context.read<SettingsService>();
     if (!settings.aiFeaturesEnabled) return;
-    final selectedText = _selectedText.trim();
+    final selectedText = text.trim();
     if (selectedText.isEmpty) return;
     final pageText = _page?.plainText ?? '';
     final index = pageText.indexOf(selectedText);
@@ -357,38 +353,23 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final readingProvider = context.watch<ReadingProvider>();
     final settings = context.watch<SettingsService>();
 
-    return SelectionArea(
-      onSelectionChanged: (selection) {
-        if (selection == null) return;
-        setState(() => _selectedText = selection.plainText);
-      },
-      contextMenuBuilder: (context, selectableRegionState) {
-        final defaultItems = selectableRegionState.contextMenuButtonItems;
-        return AdaptiveTextSelectionToolbar.buttonItems(
-          anchors: selectableRegionState.contextMenuAnchors,
-          buttonItems: [
-            ...defaultItems,
-            ContextMenuButtonItem(
-              onPressed: settings.aiFeaturesEnabled
-                  ? () {
-                      ContextMenuController.removeAny();
-                      _translateSelected();
-                    }
-                  : null,
-              label: '翻译',
-            ),
-            ContextMenuButtonItem(
-              onPressed: settings.aiFeaturesEnabled
-                  ? () {
-                      ContextMenuController.removeAny();
-                      _analyzeSelected();
-                    }
-                  : null,
-              label: 'AI 解析',
-            ),
-          ],
-        );
-      },
+    return SelectedTextActionRegion(
+      actionsBuilder: (context, selectedText, closeToolbar) => [
+        SelectedTextAction.copy(
+          context: context,
+          selectedText: selectedText,
+          closeToolbar: closeToolbar,
+        ),
+        SelectedTextAction(
+          icon: Icons.auto_awesome_rounded,
+          tooltip: 'AI 解析',
+          enabled: settings.aiFeaturesEnabled && selectedText.trim().isNotEmpty,
+          onPressed: () {
+            closeToolbar();
+            _analyzeSelected(selectedText);
+          },
+        ),
+      ],
       child: ListView(
         controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(28, 22, 28, 36),

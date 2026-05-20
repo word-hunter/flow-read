@@ -13,6 +13,7 @@ import '../widgets/bookmark_sheet.dart';
 import '../widgets/font_settings_sheet.dart';
 import '../widgets/reader/reader_word_sidebar.dart';
 import '../widgets/reader_text_view.dart';
+import '../widgets/selected_text_action_toolbar.dart';
 import '../widgets/selected_text_sheet.dart';
 import '../widgets/toc_bottom_sheet.dart';
 import '../widgets/word_bottom_sheet.dart';
@@ -34,7 +35,6 @@ class _ReaderPageState extends State<ReaderPage> {
   ReadingProvider? _readingProvider;
   String? _lastReaderLocationKey;
   bool _scrollResetQueued = false;
-  String _selectedText = '';
   String _sidebarSelectedText = '';
   String _sidebarAnalyzerName = 'AI';
   _ReaderSidebarMode _sidebarMode = _ReaderSidebarMode.word;
@@ -526,30 +526,14 @@ class _ReaderPageState extends State<ReaderPage> {
     VocabularyColorSettings colorSettings,
     bool aiFeaturesEnabled,
   ) {
-    return SelectionArea(
-      onSelectionChanged: (selection) {
-        if (selection != null) {
-          setState(() => _selectedText = selection.plainText);
-        }
-      },
-      contextMenuBuilder: (context, selectableRegionState) {
-        final defaultItems = selectableRegionState.contextMenuButtonItems;
-        final customItems = <ContextMenuButtonItem>[
-          ContextMenuButtonItem(
-            onPressed: aiFeaturesEnabled
-                ? () {
-                    ContextMenuController.removeAny();
-                    _onAnalyzeSelected(_selectedText);
-                  }
-                : null,
-            label: 'AI 解析',
+    return SelectedTextActionRegion(
+      actionsBuilder: (context, selectedText, closeToolbar) =>
+          _buildSelectedTextActions(
+            context,
+            selectedText,
+            closeToolbar,
+            aiFeaturesEnabled: aiFeaturesEnabled,
           ),
-        ];
-        return AdaptiveTextSelectionToolbar.buttonItems(
-          anchors: selectableRegionState.contextMenuAnchors,
-          buttonItems: [...defaultItems, ...customItems],
-        );
-      },
       child: LayoutBuilder(
         builder: (context, constraints) {
           final provider = context.read<ReadingProvider>();
@@ -623,6 +607,30 @@ class _ReaderPageState extends State<ReaderPage> {
         },
       ),
     );
+  }
+
+  List<SelectedTextAction> _buildSelectedTextActions(
+    BuildContext context,
+    String selectedText,
+    VoidCallback closeToolbar, {
+    required bool aiFeaturesEnabled,
+  }) {
+    return [
+      SelectedTextAction.copy(
+        context: context,
+        selectedText: selectedText,
+        closeToolbar: closeToolbar,
+      ),
+      SelectedTextAction(
+        icon: Icons.auto_awesome_rounded,
+        tooltip: 'AI 解析',
+        enabled: aiFeaturesEnabled && selectedText.trim().isNotEmpty,
+        onPressed: () {
+          closeToolbar();
+          _onAnalyzeSelected(selectedText);
+        },
+      ),
+    ];
   }
 
   Widget _buildContentBlock(
