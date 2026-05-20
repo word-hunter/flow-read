@@ -64,4 +64,47 @@ void main() {
       isNot(contains('migrating')),
     );
   });
+
+  test('analysis does not emit fake words from common contractions', () {
+    final result = AnalysisService.analyzeChapter(
+      'Contractions',
+      "I didn't say it isn\u2019t true. It wasn\u2019t easy, "
+          "Wouldn\u2019t work, and hadn\u2019t happened.",
+    );
+
+    final words = result.vocabulary.map((item) => item.word);
+
+    expect(words, isNot(contains('didn')));
+    expect(words, isNot(contains('isn')));
+    expect(words, isNot(contains('wasn')));
+    expect(words, isNot(contains('wouldn')));
+    expect(words, isNot(contains('hadn')));
+    expect(words, isNot(contains("didn't")));
+    expect(words, isNot(contains("isn't")));
+    expect(words, isNot(contains("wasn't")));
+    expect(words, isNot(contains("wouldn't")));
+    expect(words, isNot(contains("hadn't")));
+  });
+
+  test('analysis handles stacked contractions and apostrophe variants', () {
+    final result = AnalysisService.analyzeChapter(
+      'Contractions',
+      'They shouldn\u2019t\u2019ve left. You\u2018re here. '
+          'They\u02BCve arrived. We\uFF07ll stay. It\u00B4s done. '
+          'Cannot fail. \u2019Twas late. \u2019til morning.',
+    );
+
+    final words = result.vocabulary.map((item) => item.word);
+
+    expect(words, isNot(contains('shouldn')));
+    expect(words, isNot(contains("shouldn't")));
+    expect(words, isNot(contains("shouldn't've")));
+    expect(words, isNot(contains("you're")));
+    expect(words, isNot(contains("they've")));
+    expect(words, isNot(contains("we'll")));
+    expect(words, isNot(contains("it's")));
+    expect(words, isNot(contains('cannot')));
+    expect(words, isNot(contains('twas')));
+    expect(words, isNot(contains('til')));
+  });
 }

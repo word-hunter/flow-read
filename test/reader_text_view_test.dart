@@ -96,6 +96,57 @@ void main() {
     expect(_colorFor(tappableTexts, 'mystery'), unknownColor);
   });
 
+  testWidgets(
+    'common contractions with straight or curly apostrophes stay unhighlighted',
+    (tester) async {
+      final theme = ThemeData();
+      const text =
+          "didn't isn't wasn\u2019t Wouldn\u2019t hadn\u2019t "
+          "shouldn\u2019t\u2019ve You\u2018re They\u02BCve We\uFF07ll "
+          "It\u00B4s y\u2019all Cannot \u2019Twas \u2019til";
+      final contractionResult = AnalysisResult(
+        passageText: text,
+        title: 'Test',
+        vocabulary: const [],
+        knownWords: const {},
+        learningWords: const {},
+        syntaxPatterns: const [],
+        comprehension: const Comprehension(
+          whatHappened: '',
+          whyHappened: '',
+          implicitMeaning: '',
+        ),
+        practice: const [],
+        difficulty: const Difficulty(
+          vocab: 0,
+          syntax: 0,
+          inference: 0,
+          explanation: '',
+        ),
+      );
+
+      final paragraphSpan = buildHighlightedParagraph(
+        text,
+        contractionResult,
+        theme,
+        onWordTapped: (_, _) {},
+        colorSettings: colorSettings,
+      );
+      final blockSpan = buildStyledBlock(
+        TextBlock(type: BlockType.paragraph, spans: const [StyledText(text)]),
+        contractionResult,
+        theme,
+        onWordTapped: (_, _) {},
+        colorSettings: colorSettings,
+      );
+
+      expect(paragraphSpan.toPlainText(), text);
+      expect(blockSpan.toPlainText(), text);
+      expect(_tappableTextSpans(paragraphSpan), isEmpty);
+      expect(_tappableTextSpans(blockSpan), isEmpty);
+    },
+  );
+
   testWidgets('search query highlights matching plain text spans', (
     tester,
   ) async {

@@ -39,6 +39,7 @@ import '../services/word_context_service.dart';
 import '../services/word_level_service.dart';
 import '../services/dictionary/word_repository.dart';
 import '../services/dictionary/wordnet_repository.dart';
+import '../services/english_word_utils.dart';
 
 class ReadingProvider extends ChangeNotifier {
   static const _difficultyRefreshDebounce = Duration(seconds: 2);
@@ -1384,9 +1385,11 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   String _canonicalWord(String word) {
-    final lower = word.toLowerCase().trim();
+    final lower = normalizeEnglishApostrophes(word).toLowerCase().trim();
     if (lower.isEmpty) return lower;
-    return _wordLevelService?.canonicalForm(lower) ?? lower;
+    return _wordLevelService?.canonicalForm(lower) ??
+        canonicalEnglishContraction(lower) ??
+        lower;
   }
 
   @override

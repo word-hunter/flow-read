@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../providers/reading_provider.dart';
+import '../services/common_words.dart';
+import '../services/english_word_utils.dart';
 import '../services/settings_service.dart';
 import '../services/word_level_service.dart';
 import '../theme/app_colors.dart';
@@ -377,9 +379,11 @@ class _HighlightBuilder {
   }
 
   String _keyFor(String word) {
-    final lower = word.toLowerCase().trim();
+    final lower = normalizeEnglishApostrophes(word).toLowerCase().trim();
     if (lower.isEmpty) return lower;
-    return wordLevelService?.canonicalForm(lower) ?? lower;
+    return wordLevelService?.canonicalForm(lower) ??
+        canonicalEnglishContraction(lower) ??
+        lower;
   }
 
   InlineSpan build() {
@@ -388,7 +392,7 @@ class _HighlightBuilder {
 
   InlineSpan buildParagraph(String paragraph) {
     final spans = <InlineSpan>[];
-    final wordPattern = RegExp(r"[a-zA-Z]+(?:'[a-zA-Z]+)?");
+    final wordPattern = englishWordPattern;
     final matches = wordPattern.allMatches(paragraph).toList();
     int lastIndex = 0;
 
@@ -448,7 +452,9 @@ class _HighlightBuilder {
             contextText: '...$word...',
           ),
         );
-      } else if (isKnown || key.length < AppConstants.minWordLength) {
+      } else if (isKnown ||
+          key.length < AppConstants.minWordLength ||
+          _isCommonContraction(word, key)) {
         spans.addAll(
           _buildSearchHighlightedSpans(word, theme, searchQuery: searchQuery),
         );
@@ -541,15 +547,17 @@ class _StyledBlockBuilder {
   }
 
   String _keyFor(String word) {
-    final lower = word.toLowerCase().trim();
+    final lower = normalizeEnglishApostrophes(word).toLowerCase().trim();
     if (lower.isEmpty) return lower;
-    return wordLevelService?.canonicalForm(lower) ?? lower;
+    return wordLevelService?.canonicalForm(lower) ??
+        canonicalEnglishContraction(lower) ??
+        lower;
   }
 
   InlineSpan build() {
     final fullText = block.plainText;
     final spans = <InlineSpan>[];
-    final wordPattern = RegExp(r"[a-zA-Z]+(?:'[a-zA-Z]+)?");
+    final wordPattern = englishWordPattern;
     final matches = wordPattern.allMatches(fullText).toList();
     int lastIndex = 0;
 
@@ -615,7 +623,9 @@ class _StyledBlockBuilder {
             contextText: '...$word...',
           ),
         );
-      } else if (isKnown || key.length < AppConstants.minWordLength) {
+      } else if (isKnown ||
+          key.length < AppConstants.minWordLength ||
+          _isCommonContraction(word, key)) {
         spans.addAll(
           _buildSearchHighlightedSpans(
             word,
@@ -681,6 +691,11 @@ class _StyledBlockBuilder {
       fontStyle: style.italic ? FontStyle.italic : null,
     );
   }
+}
+
+bool _isCommonContraction(String word, String key) {
+  final contractionKey = canonicalEnglishContraction(word) ?? key;
+  return isCommonWord(contractionKey);
 }
 
 Widget buildChapterNav(

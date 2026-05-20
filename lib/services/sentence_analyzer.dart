@@ -1,4 +1,5 @@
 import '../models/sentence_breakdown.dart';
+import 'english_word_utils.dart';
 
 // ============================================================
 // 抽象接口 —— AI 接入点：实现 SentenceAnalyzer 即可替换
@@ -251,7 +252,7 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
 
   // ---------- 词组抽取 ----------
 
-  static final _wordRe = RegExp(r"[a-zA-Z]+(?:'[a-zA-Z]+)?");
+  static final _wordRe = englishWordPattern;
 
   List<String> _words(String text) =>
       _wordRe.allMatches(text).map((m) => m.group(0)!).toList();

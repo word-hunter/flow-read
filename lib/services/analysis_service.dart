@@ -4,12 +4,13 @@ import '../models/book_difficulty.dart';
 import '../models/word_level.dart';
 import '../theme/app_constants.dart';
 import 'common_words.dart';
+import 'english_word_utils.dart';
 import 'user_vocabulary_service.dart';
 import 'word_level_service.dart';
 
 class AnalysisService {
   static final RegExp _sentenceSplitter = RegExp(r'(?<=[.!?])\s+');
-  static final RegExp _wordSplitter = RegExp(r"[a-zA-Z]+(?:'[a-zA-Z]+)?");
+  static final RegExp _wordSplitter = englishWordPattern;
   static final Set<String> _subordinatingMarkers = {
     'which',
     'who',
@@ -273,9 +274,11 @@ class AnalysisService {
     String word, [
     WordLevelService? wordLevelService,
   ]) {
-    final lower = word.toLowerCase().trim();
+    final lower = normalizeEnglishApostrophes(word).toLowerCase().trim();
     if (lower.isEmpty) return lower;
-    return wordLevelService?.canonicalForm(lower) ?? lower;
+    return wordLevelService?.canonicalForm(lower) ??
+        canonicalEnglishContraction(lower) ??
+        lower;
   }
 
   static bool _isStudyWord(String word) {

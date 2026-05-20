@@ -311,6 +311,25 @@ void main() {
     },
   );
 
+  test('word levels normalize contractions with curly apostrophes', () async {
+    final service = WordLevelService(
+      assetLoader: (_) async =>
+          'did\tdo\tp\nwas\tbe\tp\nhad\thave\tp\nwould\twould\tm\n'
+          'should\tshould\tm\nthey\tthey\tp\nwe\twe\tp\nit\tit\tp\n',
+    );
+    await service.init();
+
+    expect(service.canonicalForm('didn\u2019t'), 'do');
+    expect(service.canonicalForm('isn\u2019t'), 'is');
+    expect(service.canonicalForm('wasn\u2019t'), 'be');
+    expect(service.canonicalForm('Wouldn\u2019t'), 'would');
+    expect(service.canonicalForm('hadn\u2019t'), 'have');
+    expect(service.canonicalForm('shouldn\u2019t\u2019ve'), 'should');
+    expect(service.canonicalForm('They\u02BCve'), 'they');
+    expect(service.canonicalForm('We\uFF07ll'), 'we');
+    expect(service.canonicalForm('It\u00B4s'), 'it');
+  });
+
   test(
     'word levels index existing persisted entries without asset import',
     () async {
