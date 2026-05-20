@@ -7,6 +7,7 @@ import 'package:flow_read/screens/reading_desk_screen.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/dictionary/word_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -41,6 +42,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('第二章顶部标记00'), findsOneWidget);
+  });
+
+  testWidgets('supports arrow keys for scrolling and chapter navigation', (
+    tester,
+  ) async {
+    final provider = _FakeReadingProvider();
+    final settings = SettingsService();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+      ),
+    );
+    await tester.pump();
+
+    expect(provider.currentChapter, 0);
+    expect(provider.readingProgress, 0);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+
+    expect(provider.currentChapter, 0);
+    expect(provider.readingProgress, greaterThan(0));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+
+    expect(provider.currentChapter, 1);
+    expect(find.textContaining('第二章顶部标记00'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+
+    expect(provider.currentChapter, 0);
+    expect(find.textContaining('第一章顶部标记00'), findsOneWidget);
   });
 
   testWidgets('shows the full reader more menu', (tester) async {

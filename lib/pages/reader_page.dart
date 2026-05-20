@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
@@ -28,7 +29,12 @@ class ReaderPage extends StatefulWidget {
 }
 
 class _ReaderPageState extends State<ReaderPage> {
+  static const double _keyboardLineScrollDelta = 92;
+
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _readerFocusNode = FocusNode(
+    debugLabel: 'ReaderPageKeyboard',
+  );
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final Map<int, GlobalKey> _contentKeys = {};
@@ -76,6 +82,7 @@ class _ReaderPageState extends State<ReaderPage> {
     _readingProvider?.removeListener(_onReadingProviderChanged);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _readerFocusNode.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -364,6 +371,81 @@ class _ReaderPageState extends State<ReaderPage> {
     return _contentKeys.putIfAbsent(index, GlobalKey.new);
   }
 
+  Widget _buildKeyboardScope(Widget child) {
+    return Focus(
+      focusNode: _readerFocusNode,
+      autofocus: true,
+      skipTraversal: true,
+      onKeyEvent: _handleReaderKeyEvent,
+      child: child,
+    );
+  }
+
+  KeyEventResult _handleReaderKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    final route = ModalRoute.of(context);
+    if ((route != null && !route.isCurrent) ||
+        _searchSheetOpen ||
+        !_scrollController.hasClients) {
+      return KeyEventResult.ignored;
+    }
+
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowUp) {
+      _scrollReaderBy(-_keyboardLineScrollDelta);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowDown) {
+      _scrollReaderBy(_keyboardLineScrollDelta);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowLeft) {
+      _turnChapter(-1);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowRight) {
+      _turnChapter(1);
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
+  }
+
+  void _scrollReaderBy(double delta) {
+    if (!_scrollController.hasClients) return;
+
+    final position = _scrollController.position;
+    final current = position.pixels;
+    final target = (current + delta)
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
+
+    if ((target - current).abs() < 1) return;
+
+    unawaited(
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      ),
+    );
+  }
+
+  void _turnChapter(int direction) {
+    if (direction == 0) return;
+
+    final provider = context.read<ReadingProvider>();
+    if (!provider.hasBook || provider.chapterCount <= 1) return;
+
+    final nextChapter = provider.currentChapter + direction;
+    if (nextChapter < 0 || nextChapter >= provider.chapterCount) return;
+
+    unawaited(provider.goToChapter(nextChapter));
+  }
+
   void _onBookmarkTap() {
     final provider = context.read<ReadingProvider>();
     if (provider.isCurrentPositionBookmarked()) {
@@ -417,8 +499,10 @@ class _ReaderPageState extends State<ReaderPage> {
     final settings = context.watch<SettingsService>();
     final result = provider.result;
     if (result == null) {
-      return _buildPageScaffold(
-        child: const Center(child: CircularProgressIndicator()),
+      return _buildKeyboardScope(
+        _buildPageScaffold(
+          child: const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
@@ -433,61 +517,63 @@ class _ReaderPageState extends State<ReaderPage> {
         : result.title;
     final colorSettings = settings.colors;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        _layoutWidth = constraints.maxWidth;
-        final isWide = _isWideScreen;
+    return _buildKeyboardScope(
+      LayoutBuilder(
+        builder: (context, constraints) {
+          _layoutWidth = constraints.maxWidth;
+          final isWide = _isWideScreen;
 
-        return _buildPageScaffold(
-          child: Column(
-            children: [
-              _buildNavBar(
-                provider,
-                theme,
-                chapterTitle,
-                progressPercent: progressPercent,
-                showSidebarToggle: isWide,
-                aiFeaturesEnabled: settings.aiFeaturesEnabled,
-              ),
-              _buildReadingProgressLine(theme, _displayProgress),
-              Expanded(
-                child: isWide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: _buildReadingContent(
-                              paragraphs,
-                              blocks,
-                              result,
-                              theme,
-                              colorSettings,
-                              settings.aiFeaturesEnabled,
+          return _buildPageScaffold(
+            child: Column(
+              children: [
+                _buildNavBar(
+                  provider,
+                  theme,
+                  chapterTitle,
+                  progressPercent: progressPercent,
+                  showSidebarToggle: isWide,
+                  aiFeaturesEnabled: settings.aiFeaturesEnabled,
+                ),
+                _buildReadingProgressLine(theme, _displayProgress),
+                Expanded(
+                  child: isWide
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _buildReadingContent(
+                                paragraphs,
+                                blocks,
+                                result,
+                                theme,
+                                colorSettings,
+                                settings.aiFeaturesEnabled,
+                              ),
                             ),
-                          ),
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 250),
-                            curve: Curves.easeInOut,
-                            alignment: Alignment.topCenter,
-                            child: _sidebarOpen
-                                ? _buildReaderSidebar()
-                                : const SizedBox.shrink(),
-                          ),
-                        ],
-                      )
-                    : _buildReadingContent(
-                        paragraphs,
-                        blocks,
-                        result,
-                        theme,
-                        colorSettings,
-                        settings.aiFeaturesEnabled,
-                      ),
-              ),
-            ],
-          ),
-        );
-      },
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeInOut,
+                              alignment: Alignment.topCenter,
+                              child: _sidebarOpen
+                                  ? _buildReaderSidebar()
+                                  : const SizedBox.shrink(),
+                            ),
+                          ],
+                        )
+                      : _buildReadingContent(
+                          paragraphs,
+                          blocks,
+                          result,
+                          theme,
+                          colorSettings,
+                          settings.aiFeaturesEnabled,
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
