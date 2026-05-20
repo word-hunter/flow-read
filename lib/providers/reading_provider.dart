@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -40,6 +41,10 @@ import '../services/dictionary/word_repository.dart';
 import '../services/dictionary/wordnet_repository.dart';
 
 class ReadingProvider extends ChangeNotifier {
+  static const _difficultyRefreshDebounce = Duration(seconds: 2);
+  static const _difficultyRefreshBatchSize = 4;
+  static const _difficultyRefreshBatchPause = Duration(milliseconds: 16);
+
   // ============================================================
   // Dependencies
   // ============================================================
@@ -73,6 +78,9 @@ class ReadingProvider extends ChangeNotifier {
   final Map<String, Set<String>> _bookStudyWordsById = {};
   final Map<String, BookDifficultyRating> _bookDifficultyById = {};
   final Set<String> _loadingBookDifficultyIds = {};
+  final Set<String> _pendingDifficultyRefreshBookIds = {};
+  Timer? _difficultyRefreshTimer;
+  bool _isRefreshingBookDifficulties = false;
 
   // ============================================================
   // Bookmarks (in-memory, backed by BookmarkService)
@@ -216,6 +224,18 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   Future<void> ensureBookDifficulties(Iterable<BookMetadata> books) async {
+    var hydratedFromCache = false;
+    for (final book in books) {
+      if (_bookDifficultyById.containsKey(book.id) ||
+          _loadingBookDifficultyIds.contains(book.id)) {
+        continue;
+      }
+      hydratedFromCache =
+          await _tryUseCachedDifficulty(book) || hydratedFromCache;
+    }
+    if (hydratedFromCache) notifyListeners();
+    _scheduleDifficultyRefresh();
+
     final pending = books
         .where(
           (book) =>
@@ -237,15 +257,11 @@ class ReadingProvider extends ChangeNotifier {
           book,
           _wordLevelService,
         );
-        _bookStudyWordsById[meta.id] = studyWords;
-        _bookDifficultyById[meta.id] = AnalysisService.rateBookDifficulty(
+        final rating = AnalysisService.rateBookDifficulty(
           studyWords,
           _userVocab,
         );
-        if (meta.id == _activeBookId) {
-          _currentBookStudyWords = studyWords;
-          _currentBookDifficulty = _bookDifficultyById[meta.id];
-        }
+        await _persistBookDifficulty(meta.id, studyWords, rating);
       } catch (_) {
         _bookDifficultyById.remove(meta.id);
         _bookStudyWordsById.remove(meta.id);
@@ -373,9 +389,9 @@ class ReadingProvider extends ChangeNotifier {
     await _userVocab?.init();
     await _wordContextService?.init();
     await _learningItemService?.init();
-    _refreshCachedBookDifficulties();
+    _loadCachedBookDifficultyInputs();
     if (_book != null) {
-      _refreshCurrentBookStudyWords();
+      await _refreshAndPersistCurrentBookDifficulty();
       await _analyzeCurrentChapter();
     } else {
       notifyListeners();
@@ -430,8 +446,7 @@ class ReadingProvider extends ChangeNotifier {
       _readingProgress = 0.0;
       _hasBeenOpened = false;
       _allVocab.clear();
-      _refreshCurrentBookStudyWords();
-      _currentBookDifficulty = null;
+      await _refreshAndPersistCurrentBookDifficulty();
       _bookmarkedWords.clear();
       _readingBookmarks.clear();
       _resetSearchState();
@@ -466,8 +481,7 @@ class ReadingProvider extends ChangeNotifier {
       _currentChapter = meta.currentChapter.clamp(0, book.chapters.length - 1);
       _readingProgress = meta.chapterProgress;
       _allVocab.clear();
-      _refreshCurrentBookStudyWords();
-      _currentBookDifficulty = null;
+      await _refreshAndPersistCurrentBookDifficulty();
       _resetSearchState();
 
       _loadBookmarks(bookId);
@@ -580,22 +594,65 @@ class ReadingProvider extends ChangeNotifier {
       _wordLevelService,
     );
     _updateAllVocab();
-    _updateCurrentBookDifficulty();
     notifyListeners();
   }
 
-  void _updateCurrentBookDifficulty() {
-    if (_book == null) {
-      _currentBookDifficulty = null;
-      return;
+  void _loadCachedBookDifficultyInputs() {
+    _difficultyRefreshTimer?.cancel();
+    _difficultyRefreshTimer = null;
+    _pendingDifficultyRefreshBookIds.clear();
+    final bookIds = _bookService.books.map((book) => book.id).toSet();
+    _bookStudyWordsById.removeWhere((id, _) => !bookIds.contains(id));
+    _bookDifficultyById.removeWhere((id, _) => !bookIds.contains(id));
+
+    for (final meta in _bookService.books) {
+      _usePersistedDifficulty(meta);
     }
-    _currentBookDifficulty = AnalysisService.rateBookDifficulty(
+    _scheduleDifficultyRefresh();
+  }
+
+  void _usePersistedDifficulty(BookMetadata meta) {
+    final cached = meta.difficultyStudyWords;
+    if (cached != null) {
+      _bookStudyWordsById[meta.id] = cached.toSet();
+    }
+    final rating = meta.difficultyRating;
+    if (rating != null) {
+      _bookDifficultyById[meta.id] = rating;
+    }
+    if (meta.id == _activeBookId) {
+      _currentBookStudyWords = _bookStudyWordsById[meta.id] ?? {};
+      _currentBookDifficulty = rating;
+    }
+    if (cached != null && _isDifficultyCacheStale(meta)) {
+      _pendingDifficultyRefreshBookIds.add(meta.id);
+    }
+  }
+
+  Future<bool> _tryUseCachedDifficulty(BookMetadata meta) async {
+    _usePersistedDifficulty(meta);
+    if (_bookDifficultyById.containsKey(meta.id)) return true;
+
+    final studyWords = _bookStudyWordsById[meta.id];
+    if (studyWords == null) return false;
+    final rating = AnalysisService.rateBookDifficulty(studyWords, _userVocab);
+    await _persistBookDifficulty(meta.id, studyWords, rating);
+    return true;
+  }
+
+  bool _isDifficultyCacheStale(BookMetadata meta) {
+    return meta.difficultyVocabularySignature != _vocabularySignature;
+  }
+
+  Future<void> _refreshAndPersistCurrentBookDifficulty() async {
+    _refreshCurrentBookStudyWords();
+    final bookId = _activeBookId;
+    if (bookId == null) return;
+    final rating = AnalysisService.rateBookDifficulty(
       _currentBookStudyWords,
       _userVocab,
     );
-    if (_activeBookId != null) {
-      _bookDifficultyById[_activeBookId!] = _currentBookDifficulty!;
-    }
+    await _persistBookDifficulty(bookId, _currentBookStudyWords, rating);
   }
 
   void _refreshCurrentBookStudyWords() {
@@ -608,17 +665,105 @@ class ReadingProvider extends ChangeNotifier {
     }
   }
 
-  void _refreshCachedBookDifficulties() {
-    for (final entry in _bookStudyWordsById.entries) {
-      _bookDifficultyById[entry.key] = AnalysisService.rateBookDifficulty(
-        entry.value,
-        _userVocab,
-      );
+  Future<void> _persistBookDifficulty(
+    String bookId,
+    Set<String> studyWords,
+    BookDifficultyRating rating,
+  ) async {
+    _bookStudyWordsById[bookId] = studyWords;
+    _bookDifficultyById[bookId] = rating;
+    if (bookId == _activeBookId) {
+      _currentBookStudyWords = studyWords;
+      _currentBookDifficulty = rating;
     }
-    if (_activeBookId != null &&
-        _bookDifficultyById.containsKey(_activeBookId)) {
-      _currentBookDifficulty = _bookDifficultyById[_activeBookId];
+    await _bookService.updateDifficultyCache(
+      id: bookId,
+      studyWords: studyWords,
+      rating: rating,
+      vocabularySignature: _vocabularySignature,
+    );
+  }
+
+  void _queueDifficultyRefreshForWord(String word) {
+    final affectedBookIds = _bookStudyWordsById.entries
+        .where((entry) => entry.value.contains(word))
+        .map((entry) => entry.key);
+    _pendingDifficultyRefreshBookIds.addAll(affectedBookIds);
+    _scheduleDifficultyRefresh();
+  }
+
+  void _queueDifficultyRefreshForVocabularyChange(
+    String word,
+    UserWordStatus? previousStatus,
+    UserWordStatus? nextStatus,
+  ) {
+    if (previousStatus == UserWordStatus.known ||
+        nextStatus == UserWordStatus.known) {
+      _pendingDifficultyRefreshBookIds.addAll(_bookStudyWordsById.keys);
+      _scheduleDifficultyRefresh();
+      return;
     }
+    _queueDifficultyRefreshForWord(word);
+  }
+
+  void _scheduleDifficultyRefresh() {
+    if (_pendingDifficultyRefreshBookIds.isEmpty ||
+        _isRefreshingBookDifficulties) {
+      return;
+    }
+    _difficultyRefreshTimer?.cancel();
+    _difficultyRefreshTimer = Timer(_difficultyRefreshDebounce, () {
+      unawaited(_refreshPendingBookDifficulties());
+    });
+  }
+
+  Future<void> _refreshPendingBookDifficulties() async {
+    if (_isRefreshingBookDifficulties ||
+        _pendingDifficultyRefreshBookIds.isEmpty) {
+      return;
+    }
+
+    _difficultyRefreshTimer?.cancel();
+    _difficultyRefreshTimer = null;
+    _isRefreshingBookDifficulties = true;
+    try {
+      while (_pendingDifficultyRefreshBookIds.isNotEmpty) {
+        final batch = _takeDifficultyRefreshBatch();
+        var changedInBatch = false;
+        for (final bookId in batch) {
+          final studyWords = _bookStudyWordsById[bookId];
+          if (studyWords == null) continue;
+          final rating = AnalysisService.rateBookDifficulty(
+            studyWords,
+            _userVocab,
+          );
+          await _persistBookDifficulty(bookId, studyWords, rating);
+          changedInBatch = true;
+        }
+        if (changedInBatch) notifyListeners();
+        if (_pendingDifficultyRefreshBookIds.isNotEmpty) {
+          await Future<void>.delayed(_difficultyRefreshBatchPause);
+        }
+      }
+    } finally {
+      _isRefreshingBookDifficulties = false;
+      _scheduleDifficultyRefresh();
+    }
+  }
+
+  List<String> _takeDifficultyRefreshBatch() {
+    final batch = <String>[];
+    for (final bookId in _pendingDifficultyRefreshBookIds) {
+      batch.add(bookId);
+      if (batch.length >= _difficultyRefreshBatchSize) break;
+    }
+    _pendingDifficultyRefreshBookIds.removeAll(batch);
+    return batch;
+  }
+
+  String get _vocabularySignature {
+    return _userVocab?.revisionSignature ??
+        UserVocabularyService.emptyRevisionSignature;
   }
 
   void _updateAllVocab() {
@@ -651,22 +796,36 @@ class ReadingProvider extends ChangeNotifier {
   // ============================================================
 
   Future<void> markWordKnown(String word) async {
-    await _userVocab?.setKnown(_canonicalWord(word));
-    _refreshCachedBookDifficulties();
+    final canonical = _canonicalWord(word);
+    final previousStatus = _userVocab?.getStatus(canonical);
+    await _userVocab?.setKnown(canonical);
+    _queueDifficultyRefreshForVocabularyChange(
+      canonical,
+      previousStatus,
+      UserWordStatus.known,
+    );
     await _analyzeCurrentChapter();
     notifyListeners();
   }
 
   Future<void> markWordLearning(String word) async {
-    await _userVocab?.setLearning(_canonicalWord(word));
-    _refreshCachedBookDifficulties();
+    final canonical = _canonicalWord(word);
+    final previousStatus = _userVocab?.getStatus(canonical);
+    await _userVocab?.setLearning(canonical);
+    _queueDifficultyRefreshForVocabularyChange(
+      canonical,
+      previousStatus,
+      UserWordStatus.learning,
+    );
     await _analyzeCurrentChapter();
     notifyListeners();
   }
 
   Future<void> markWordUnknown(String word) async {
-    await _userVocab?.setUnknown(_canonicalWord(word));
-    _refreshCachedBookDifficulties();
+    final canonical = _canonicalWord(word);
+    final previousStatus = _userVocab?.getStatus(canonical);
+    await _userVocab?.setUnknown(canonical);
+    _queueDifficultyRefreshForVocabularyChange(canonical, previousStatus, null);
     await _analyzeCurrentChapter();
     notifyListeners();
   }
@@ -1232,6 +1391,7 @@ class ReadingProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _difficultyRefreshTimer?.cancel();
     _searchController.removeListener(notifyListeners);
     _searchController.dispose();
     super.dispose();

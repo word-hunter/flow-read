@@ -23,13 +23,21 @@ class BookMetadataAdapter extends TypeAdapter<BookMetadata> {
       currentChapter: fields[7] as int,
       chapterProgress: fields[8] as double,
       lastReadAt: fields[9] as DateTime?,
+      difficultyStudyWords: (fields[10] as List?)
+          ?.map((word) => word.toString())
+          .toList(),
+      difficultyRatingJson: (fields[11] as Map?)?.map(
+        (key, value) => MapEntry(key.toString(), value),
+      ),
+      difficultyVocabularySignature: fields[12] as String?,
+      difficultyComputedAt: fields[13] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, BookMetadata obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -49,7 +57,15 @@ class BookMetadataAdapter extends TypeAdapter<BookMetadata> {
       ..writeByte(8)
       ..write(obj.chapterProgress)
       ..writeByte(9)
-      ..write(obj.lastReadAt);
+      ..write(obj.lastReadAt)
+      ..writeByte(10)
+      ..write(obj.difficultyStudyWords)
+      ..writeByte(11)
+      ..write(obj.difficultyRatingJson)
+      ..writeByte(12)
+      ..write(obj.difficultyVocabularySignature)
+      ..writeByte(13)
+      ..write(obj.difficultyComputedAt);
   }
 
   @override

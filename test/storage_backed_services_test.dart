@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/bookmarked_word.dart';
 import 'package:flow_read/models/reading_bookmark.dart';
@@ -37,18 +38,22 @@ void main() {
   test('user vocabulary persists normalized word status', () async {
     final service = UserVocabularyService();
     await service.init();
+    final emptySignature = service.revisionSignature;
 
     await service.setKnown(' Flow ');
     await service.setLearning('Migrating');
+    final populatedSignature = service.revisionSignature;
 
     expect(service.getStatus('flow'), UserWordStatus.known);
     expect(service.getStatus(' migrating '), UserWordStatus.learning);
     expect(service.knownWords, contains('flow'));
     expect(service.learningWords, contains('migrating'));
+    expect(populatedSignature, isNot(emptySignature));
 
     await service.setUnknown('FLOW');
 
     expect(service.getStatus('flow'), isNull);
+    expect(service.revisionSignature, isNot(populatedSignature));
   });
 
   test('reading config persists clamped display settings', () async {
@@ -145,6 +150,23 @@ void main() {
       final sourceFile = File('${documentsDir.path}/books/book-1.epub');
       await sourceFile.writeAsString('epub');
 
+      await service.updateDifficultyCache(
+        id: 'book-1',
+        studyWords: {'reading', 'flow'},
+        rating: const BookDifficultyRating(
+          studyWordCount: 2,
+          masteredWordCount: 1,
+          userKnownWordCount: 10,
+          learningWordCount: 0,
+          newWordCount: 1,
+          weightedNewWordCount: 1,
+          newWordToKnownRatio: 0.1,
+          score: 40,
+          level: BookDifficultyLevel.l3,
+        ),
+        vocabularySignature: 'vocab-v1',
+        computedAt: now,
+      );
       await service.renameBook('book-1', 'Flow Updated');
       now = DateTime.utc(2026, 5, 19, 12);
       await service.updateProgress('book-1', 1, 0.5);
@@ -162,6 +184,9 @@ void main() {
       expect(book.chapterProgress, 0.5);
       expect(book.globalProgress, 0.375);
       expect(book.lastReadAt, now);
+      expect(book.difficultyStudyWords, ['flow', 'reading']);
+      expect(book.difficultyRating?.level, BookDifficultyLevel.l3);
+      expect(book.difficultyVocabularySignature, 'vocab-v1');
       expect(reloaded.loadCover('book-1'), Uint8List.fromList([1, 2, 3]));
 
       await reloaded.removeBook('book-1');

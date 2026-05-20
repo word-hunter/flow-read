@@ -1,5 +1,7 @@
 import 'package:hive/hive.dart';
 
+import 'book_difficulty.dart';
+
 part 'book_metadata.g.dart';
 
 @HiveType(typeId: 0)
@@ -34,6 +36,18 @@ class BookMetadata {
   @HiveField(9)
   final DateTime? lastReadAt;
 
+  @HiveField(10)
+  final List<String>? difficultyStudyWords;
+
+  @HiveField(11)
+  final Map<String, dynamic>? difficultyRatingJson;
+
+  @HiveField(12)
+  final String? difficultyVocabularySignature;
+
+  @HiveField(13)
+  final DateTime? difficultyComputedAt;
+
   const BookMetadata({
     required this.id,
     required this.title,
@@ -45,7 +59,21 @@ class BookMetadata {
     this.currentChapter = 0,
     this.chapterProgress = 0.0,
     this.lastReadAt,
+    this.difficultyStudyWords,
+    this.difficultyRatingJson,
+    this.difficultyVocabularySignature,
+    this.difficultyComputedAt,
   });
+
+  BookDifficultyRating? get difficultyRating {
+    final json = difficultyRatingJson;
+    if (json == null) return null;
+    try {
+      return BookDifficultyRating.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }
 
   BookMetadata copyWith({
     String? id,
@@ -58,6 +86,10 @@ class BookMetadata {
     int? currentChapter,
     double? chapterProgress,
     DateTime? lastReadAt,
+    List<String>? difficultyStudyWords,
+    Map<String, dynamic>? difficultyRatingJson,
+    String? difficultyVocabularySignature,
+    DateTime? difficultyComputedAt,
   }) {
     return BookMetadata(
       id: id ?? this.id,
@@ -70,6 +102,11 @@ class BookMetadata {
       currentChapter: currentChapter ?? this.currentChapter,
       chapterProgress: chapterProgress ?? this.chapterProgress,
       lastReadAt: lastReadAt ?? this.lastReadAt,
+      difficultyStudyWords: difficultyStudyWords ?? this.difficultyStudyWords,
+      difficultyRatingJson: difficultyRatingJson ?? this.difficultyRatingJson,
+      difficultyVocabularySignature:
+          difficultyVocabularySignature ?? this.difficultyVocabularySignature,
+      difficultyComputedAt: difficultyComputedAt ?? this.difficultyComputedAt,
     );
   }
 
@@ -84,9 +121,16 @@ class BookMetadata {
     'currentChapter': currentChapter,
     'chapterProgress': chapterProgress,
     'lastReadAt': lastReadAt?.toIso8601String(),
+    'difficultyStudyWords': difficultyStudyWords,
+    'difficultyRating': difficultyRatingJson,
+    'difficultyVocabularySignature': difficultyVocabularySignature,
+    'difficultyComputedAt': difficultyComputedAt?.toIso8601String(),
   };
 
   factory BookMetadata.fromJson(Map<String, dynamic> json) {
+    final rawDifficultyStudyWords = json['difficultyStudyWords'];
+    final rawDifficultyRating = json['difficultyRating'];
+    final rawDifficultyComputedAt = json['difficultyComputedAt'];
     return BookMetadata(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -99,6 +143,19 @@ class BookMetadata {
       chapterProgress: (json['chapterProgress'] as num?)?.toDouble() ?? 0.0,
       lastReadAt: json['lastReadAt'] != null
           ? DateTime.tryParse(json['lastReadAt'] as String)
+          : null,
+      difficultyStudyWords: rawDifficultyStudyWords is Iterable
+          ? rawDifficultyStudyWords.map((word) => word.toString()).toList()
+          : null,
+      difficultyRatingJson: rawDifficultyRating is Map
+          ? rawDifficultyRating.map(
+              (key, value) => MapEntry(key.toString(), value),
+            )
+          : null,
+      difficultyVocabularySignature: json['difficultyVocabularySignature']
+          ?.toString(),
+      difficultyComputedAt: rawDifficultyComputedAt is String
+          ? DateTime.tryParse(rawDifficultyComputedAt)
           : null,
     );
   }

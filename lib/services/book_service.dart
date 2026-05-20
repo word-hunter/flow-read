@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/book_metadata.dart';
+import '../models/book_difficulty.dart';
 import '../storage/repositories/book_metadata_repository.dart';
 
 class BookService {
@@ -72,6 +73,27 @@ class BookService {
     final meta = _repository.get(id);
     if (meta == null) return;
     await _repository.put(id, meta.copyWith(title: title));
+  }
+
+  Future<void> updateDifficultyCache({
+    required String id,
+    required Set<String> studyWords,
+    required BookDifficultyRating rating,
+    required String vocabularySignature,
+    DateTime? computedAt,
+  }) async {
+    final meta = _repository.get(id);
+    if (meta == null) return;
+    final sorted = studyWords.toList()..sort();
+    await _repository.put(
+      id,
+      meta.copyWith(
+        difficultyStudyWords: sorted,
+        difficultyRatingJson: rating.toJson(),
+        difficultyVocabularySignature: vocabularySignature,
+        difficultyComputedAt: computedAt ?? _clock(),
+      ),
+    );
   }
 
   Future<void> updateProgress(

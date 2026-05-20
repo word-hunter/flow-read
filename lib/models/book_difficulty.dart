@@ -86,6 +86,55 @@ class BookDifficultyRating {
     required this.level,
   });
 
+  factory BookDifficultyRating.fromJson(Map<String, dynamic> json) {
+    final levelValue = json['level'];
+    final level = levelValue is int
+        ? BookDifficultyLevel.values[levelValue.clamp(
+            0,
+            BookDifficultyLevel.values.length - 1,
+          )]
+        : BookDifficultyLevel.values.firstWhere(
+            (item) => item.name == levelValue?.toString(),
+            orElse: () => BookDifficultyLevel.l3,
+          );
+    return BookDifficultyRating(
+      studyWordCount: _readInt(json['studyWordCount']),
+      masteredWordCount: _readInt(json['masteredWordCount']),
+      userKnownWordCount: _readInt(json['userKnownWordCount']),
+      learningWordCount: _readInt(json['learningWordCount']),
+      newWordCount: _readInt(json['newWordCount']),
+      weightedNewWordCount: _readDouble(json['weightedNewWordCount']),
+      newWordToKnownRatio: _readDouble(json['newWordToKnownRatio']),
+      score: _readInt(json['score']),
+      level: level,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'studyWordCount': studyWordCount,
+    'masteredWordCount': masteredWordCount,
+    'userKnownWordCount': userKnownWordCount,
+    'learningWordCount': learningWordCount,
+    'newWordCount': newWordCount,
+    'weightedNewWordCount': weightedNewWordCount,
+    'newWordToKnownRatio': newWordToKnownRatio,
+    'score': score,
+    'level': level.name,
+  };
+
+  static int _readInt(Object? value) {
+    if (value is int) return value;
+    if (value is num) return value.round();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static double _readDouble(Object? value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
+  }
+
   int get activeNewWordCount => learningWordCount + newWordCount;
 
   String get levelText => '${level.shortLabel} ${level.label}';

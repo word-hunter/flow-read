@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/models/rss_models.dart';
@@ -43,6 +44,20 @@ void main() {
       currentChapter: 1,
       chapterProgress: 0.4,
       lastReadAt: DateTime.utc(2026, 5, 15, 8, 30),
+      difficultyStudyWords: const ['flow', 'reading'],
+      difficultyRatingJson: const BookDifficultyRating(
+        studyWordCount: 2,
+        masteredWordCount: 1,
+        userKnownWordCount: 20,
+        learningWordCount: 0,
+        newWordCount: 1,
+        weightedNewWordCount: 1,
+        newWordToKnownRatio: 0.05,
+        score: 20,
+        level: BookDifficultyLevel.l2,
+      ).toJson(),
+      difficultyVocabularySignature: 'vocab-v1',
+      difficultyComputedAt: DateTime.utc(2026, 5, 15, 8, 31),
     );
     await booksBox().put(book.id, book);
     await userVocabularyBox().put('flow', 'known');
@@ -128,6 +143,9 @@ void main() {
 
     final restoredBook = booksBox().get('book-1');
     expect(restoredBook?.title, 'Test Book');
+    expect(restoredBook?.difficultyStudyWords, ['flow', 'reading']);
+    expect(restoredBook?.difficultyRating?.level, BookDifficultyLevel.l2);
+    expect(restoredBook?.difficultyVocabularySignature, 'vocab-v1');
     expect(userVocabularyBox().get('flow'), 'known');
     expect(readingConfigBox().get('fontSize'), '18.0');
     expect(readingTimeBox().get('_global_'), 120);

@@ -2,6 +2,8 @@ import '../models/user_vocabulary.dart';
 import '../storage/repositories/user_vocabulary_repository.dart';
 
 class UserVocabularyService {
+  static const emptyRevisionSignature = '811c9dc5';
+
   UserVocabularyService({UserVocabularyRepository? repository})
     : _repository = repository ?? HiveUserVocabularyRepository();
 
@@ -33,6 +35,25 @@ class UserVocabularyService {
 
   Map<String, UserWordStatus> get allWords {
     return _repository.allWords;
+  }
+
+  String get revisionSignature {
+    final entries = allWords.entries.toList()
+      ..sort((a, b) {
+        final wordResult = a.key.compareTo(b.key);
+        if (wordResult != 0) return wordResult;
+        return a.value.name.compareTo(b.value.name);
+      });
+
+    var hash = 0x811c9dc5;
+    for (final entry in entries) {
+      final token = '${entry.key}:${entry.value.name};';
+      for (var i = 0; i < token.length; i += 1) {
+        hash ^= token.codeUnitAt(i);
+        hash = (hash * 0x01000193) & 0xffffffff;
+      }
+    }
+    return hash.toRadixString(16).padLeft(8, '0');
   }
 
   Future<void> setKnown(String word) async {

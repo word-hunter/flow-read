@@ -107,6 +107,27 @@ void main() {
       expect(rating.level, BookDifficultyLevel.l2);
     },
   );
+
+  test('book difficulty rating survives JSON round trip', () {
+    const rating = BookDifficultyRating(
+      studyWordCount: 12,
+      masteredWordCount: 3,
+      userKnownWordCount: 100,
+      learningWordCount: 4,
+      newWordCount: 5,
+      weightedNewWordCount: 7,
+      newWordToKnownRatio: 0.07,
+      score: 28,
+      level: BookDifficultyLevel.l3,
+    );
+
+    final restored = BookDifficultyRating.fromJson(rating.toJson());
+
+    expect(restored.level, BookDifficultyLevel.l3);
+    expect(restored.studyWordCount, 12);
+    expect(restored.weightedNewWordCount, 7);
+    expect(restored.newWordToKnownRatio, 0.07);
+  });
 }
 
 Book _bookWithWords(Iterable<String> words) {
