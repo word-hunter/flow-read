@@ -538,6 +538,7 @@ class _ReaderPageState extends State<ReaderPage> {
           ContextMenuButtonItem(
             onPressed: aiFeaturesEnabled
                 ? () {
+                    ContextMenuController.removeAny();
                     _onAnalyzeSelected(_selectedText);
                   }
                 : null,

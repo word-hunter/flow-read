@@ -369,11 +369,21 @@ class _BrowserScreenState extends State<BrowserScreen> {
           buttonItems: [
             ...defaultItems,
             ContextMenuButtonItem(
-              onPressed: settings.aiFeaturesEnabled ? _translateSelected : null,
+              onPressed: settings.aiFeaturesEnabled
+                  ? () {
+                      ContextMenuController.removeAny();
+                      _translateSelected();
+                    }
+                  : null,
               label: '翻译',
             ),
             ContextMenuButtonItem(
-              onPressed: settings.aiFeaturesEnabled ? _analyzeSelected : null,
+              onPressed: settings.aiFeaturesEnabled
+                  ? () {
+                      ContextMenuController.removeAny();
+                      _analyzeSelected();
+                    }
+                  : null,
               label: 'AI 解析',
             ),
           ],
