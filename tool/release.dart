@@ -73,12 +73,13 @@ Future<void> _packageLocal(List<String> args) async {
     await _runCommand('flutter', ['test']);
   }
 
-  await _runCommand('flutter', ['build', 'macos', '--$configuration']);
+  await _buildMacosApp(version, configuration);
 
   final appPath = _macosAppPath(configuration);
   if (!Directory(appPath).existsSync()) {
     throw ReleaseException('Build did not produce $appPath.');
   }
+  await _verifyMacosBundleVersion(appPath, version);
 
   final entitlements = await _runCommandCapture('codesign', [
     '-d',
@@ -112,7 +113,7 @@ Future<void> _packageLocal(List<String> args) async {
   }
 
   if (!skipArchiveCheck) {
-    await _verifyArchive(zipPath);
+    await _verifyArchive(zipPath, version);
   }
 
   stdout.writeln('');
@@ -434,6 +435,47 @@ String _macosAppPath(String configuration) {
   );
 }
 
+Future<void> _buildMacosApp(AppVersion version, String configuration) async {
+  await _runCommand('flutter', [
+    'build',
+    'macos',
+    '--$configuration',
+    '--build-name',
+    version.name,
+    '--build-number',
+    version.build.toString(),
+  ]);
+}
+
+Future<void> _verifyMacosBundleVersion(
+  String appPath,
+  AppVersion version,
+) async {
+  final infoPlistPath = _joinPath(_joinPath(appPath, 'Contents'), 'Info.plist');
+  final buildName = await _readPlistValue(
+    infoPlistPath,
+    'CFBundleShortVersionString',
+  );
+  final buildNumber = await _readPlistValue(infoPlistPath, 'CFBundleVersion');
+
+  if (buildName != version.name || buildNumber != version.build.toString()) {
+    throw ReleaseException(
+      'Built app version mismatch: expected ${version.name} '
+      '(${version.build}), got $buildName ($buildNumber).',
+    );
+  }
+}
+
+Future<String> _readPlistValue(String plistPath, String key) async {
+  final output = await _runCommandCapture('plutil', [
+    '-extract',
+    key,
+    'raw',
+    plistPath,
+  ]);
+  return output.trim();
+}
+
 void _verifyEntitlements(String output) {
   final missing = _requiredReleaseEntitlements
       .where((entitlement) => !output.contains(entitlement))
@@ -445,7 +487,7 @@ void _verifyEntitlements(String output) {
   }
 }
 
-Future<void> _verifyArchive(String zipPath) async {
+Future<void> _verifyArchive(String zipPath, AppVersion version) async {
   final tempDir = Directory.systemTemp.createTempSync(
     'flow_read_package_check_',
   );
@@ -457,6 +499,7 @@ Future<void> _verifyArchive(String zipPath) async {
         'Archive check failed: $_appBundleName was not found after extraction.',
       );
     }
+    await _verifyMacosBundleVersion(extractedApp.path, version);
   } finally {
     if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);

@@ -48,11 +48,39 @@ jobs:
       - name: Validate release metadata
         run: dart run tool/release.dart check --version "${{ steps.version.outputs.name }}"
 
+      - name: Resolve Flutter build metadata
+        id: flutter_build
+        shell: bash
+        run: |
+          version_line="$(grep -E '^version:' pubspec.yaml | head -n 1 | sed -E 's/^version:[[:space:]]*//')"
+          build_name="${version_line%%+*}"
+          build_number="${version_line##*+}"
+
+          if [[ -z "$build_name" || -z "$build_number" || "$build_name" == "$version_line" ]]; then
+            echo "Invalid pubspec version: $version_line" >&2
+            exit 1
+          fi
+
+          echo "name=$build_name" >> "$GITHUB_OUTPUT"
+          echo "number=$build_number" >> "$GITHUB_OUTPUT"
+
       - name: Test
         run: flutter test
 
       - name: Build macOS app
-        run: flutter build macos --release
+        run: flutter build macos --release --build-name "${{ steps.flutter_build.outputs.name }}" --build-number "${{ steps.flutter_build.outputs.number }}"
+
+      - name: Verify macOS bundle version
+        shell: bash
+        run: |
+          app_plist="build/macos/Build/Products/Release/FlowRead.app/Contents/Info.plist"
+          actual_name="$(plutil -extract CFBundleShortVersionString raw "$app_plist")"
+          actual_number="$(plutil -extract CFBundleVersion raw "$app_plist")"
+
+          if [[ "$actual_name" != "${{ steps.flutter_build.outputs.name }}" || "$actual_number" != "${{ steps.flutter_build.outputs.number }}" ]]; then
+            echo "Built app version mismatch: expected ${{ steps.flutter_build.outputs.name }} (${{ steps.flutter_build.outputs.number }}), got $actual_name ($actual_number)." >&2
+            exit 1
+          fi
 
       - name: Package app
         shell: bash
