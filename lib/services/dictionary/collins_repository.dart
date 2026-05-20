@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as parser;
 import 'package:http/http.dart' as http;
@@ -7,37 +9,37 @@ import 'word_repository.dart';
 
 class CollinsRepository implements WordRepository {
   static const name = 'Collins';
-  static const parserVersion = 'collins-html-v2';
+  static const parserVersion = 'collins-html-v3';
   static const _cacheSource = '$name:$parserVersion';
-  static const _legacyCacheSource = name;
   static const _host = 'https://www.collinsdictionary.com';
   static const _apiBase = '$_host/dictionary/english/';
 
   final DictionaryCacheService _cache;
+  final http.Client? _httpClient;
 
-  CollinsRepository(this._cache);
+  CollinsRepository(this._cache, {http.Client? httpClient})
+    : _httpClient = httpClient;
 
   @override
   Future<DictionaryEntry?> lookup(String word) async {
     final lower = word.toLowerCase().trim();
     if (lower.isEmpty) return null;
 
-    final cached =
-        _cache.get(_cacheSource, lower) ??
-        _cache.get(_legacyCacheSource, lower);
+    final cached = _cache.get(_cacheSource, lower);
     if (cached != null) {
       return parseHtml(lower, cached, fromCache: true);
     }
 
     try {
       final url = _sourceUrl(lower);
-      final response = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 8));
+      final uri = Uri.parse(url);
+      final response = await (_httpClient?.get(uri) ?? http.get(uri)).timeout(
+        const Duration(seconds: 8),
+      );
 
       if (response.statusCode != 200) return null;
 
-      final rawHtml = response.body;
+      final rawHtml = utf8.decode(response.bodyBytes, allowMalformed: true);
       await _cache.set(_cacheSource, lower, rawHtml);
       return parseHtml(lower, rawHtml);
     } catch (_) {

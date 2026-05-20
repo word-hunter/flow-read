@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flow_read/models/word_context_example.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/services/dictionary/collins_repository.dart';
+import 'package:flow_read/storage/repositories/dictionary_cache_repository.dart';
 import 'package:flow_read/services/dictionary/dictionary_cache_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_manager_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_repository.dart';
@@ -15,6 +16,8 @@ import 'package:flow_read/services/dictionary/wordnet_repository.dart';
 import 'package:flow_read/widgets/dictionary_detail_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import 'support/hive_test_storage.dart';
 
@@ -54,6 +57,83 @@ void main() {
       expect(entry.meanings.single.examples, ['The flow of ideas was steady.']);
       expect(entry.htmlContent, isNot(contains('<script>')));
     });
+
+    test('Collins parser reads IPA text from pron type-ipa span', () {
+      final repository = CollinsRepository(DictionaryCacheService());
+
+      final entry = repository.parseHtml('kirby', '''
+        <main id="main_content">
+          <div class="res_cell_center">
+            <span class="pron type-ipa">ˈkɜːrbi</span>
+            <div class="cB">
+              <span class="gramGrp"><span class="pos">noun</span></span>
+              <div class="sense">
+                <span class="def">A surname or given name.</span>
+              </div>
+            </div>
+          </div>
+        </main>
+        ''');
+
+      expect(entry, isNotNull);
+      expect(entry!.phonetic, 'ˈkɜːrbi');
+    });
+
+    test(
+      'Collins lookup decodes UTF-8 phonetics and skips stale caches',
+      () async {
+        final cache = DictionaryCacheService(
+          repository: _MemoryDictionaryCacheRepository(),
+        );
+        await cache.init();
+        await cache.set(
+          'Collins',
+          'kirby',
+          '<span class="pron">/ËˆkÉœËrbi/</span>',
+        );
+        await cache.set(
+          'Collins:collins-html-v2',
+          'kirby',
+          '<span class="pron">/ËˆkÉœËrbi/</span>',
+        );
+
+        final repository = CollinsRepository(
+          cache,
+          httpClient: MockClient((request) async {
+            expect(request.url.toString(), contains('/kirby'));
+            return http.Response.bytes(
+              utf8.encode('''
+              <main id="main_content">
+                <div class="res_cell_center">
+                  <div class="mini_h2">
+                    <span class="pron">/ˈkɜːrbi/</span>
+                  </div>
+                  <div class="cB">
+                    <span class="gramGrp"><span class="pos">noun</span></span>
+                    <div class="sense">
+                      <span class="def">A surname or given name.</span>
+                    </div>
+                  </div>
+                </div>
+              </main>
+            '''),
+              200,
+              headers: {'content-type': 'text/html'},
+            );
+          }),
+        );
+
+        final entry = await repository.lookup('Kirby');
+
+        expect(entry, isNotNull);
+        expect(entry!.fromCache, isFalse);
+        expect(entry.phonetic, '/ˈkɜːrbi/');
+        expect(
+          cache.get('Collins:${CollinsRepository.parserVersion}', 'kirby'),
+          contains('/ˈkɜːrbi/'),
+        );
+      },
+    );
 
     test('Longman parser returns source metadata and examples', () {
       final repository = LongmanRepository(DictionaryCacheService());
@@ -329,6 +409,44 @@ void main() {
     );
     expect(find.text('Word Hunter'), findsOneWidget);
   });
+
+  testWidgets('DictionaryDetailView renders IPA with phonetic font fallback', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DefaultTextStyle.merge(
+          style: const TextStyle(fontFamily: 'Serif'),
+          child: Scaffold(
+            body: DictionaryDetailView(
+              word: 'Kirby',
+              entry: const DictionaryEntry(
+                word: 'Kirby',
+                phonetic: 'ˈkɜːrbi',
+                meanings: [
+                  Meaning(
+                    partOfSpeech: 'noun',
+                    definitions: ['A surname or given name.'],
+                  ),
+                ],
+                sourceName: 'Collins',
+              ),
+              primaryDefinition: null,
+              isLoading: false,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final phoneticText = tester.widget<Text>(find.text('ˈkɜːrbi'));
+    expect(phoneticText.style?.fontFamily, 'Lucida Grande');
+    expect(
+      phoneticText.style?.fontFamilyFallback,
+      contains('Arial Unicode MS'),
+    );
+    expect(phoneticText.style?.fontStyle, FontStyle.normal);
+  });
 }
 
 class _CountingRepository implements WordRepository {
@@ -350,5 +468,39 @@ class _ThrowingRepository implements WordRepository {
   @override
   Future<DictionaryEntry?> lookup(String word) async {
     throw Exception('network down');
+  }
+}
+
+class _MemoryDictionaryCacheRepository implements DictionaryCacheRepository {
+  final Map<String, String> _storage = {};
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  String? get(String key) => _storage[key];
+
+  @override
+  Future<void> put(String key, String content) async {
+    _storage[key] = content;
+  }
+
+  @override
+  bool containsKey(String key) => _storage.containsKey(key);
+
+  @override
+  int get length => _storage.length;
+
+  @override
+  Iterable<dynamic> get keys => _storage.keys;
+
+  @override
+  Future<void> delete(dynamic key) async {
+    _storage.remove(key);
+  }
+
+  @override
+  Future<void> clear() async {
+    _storage.clear();
   }
 }

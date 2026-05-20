@@ -149,13 +149,7 @@ class _WordHeader extends StatelessWidget {
         ),
         if (phonetic != null && phonetic.isNotEmpty) ...[
           const SizedBox(height: 6),
-          Text(
-            phonetic,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
+          _PhoneticText(text: phonetic),
         ],
         if (level != null || sourceName != null) ...[
           const SizedBox(height: 10),
@@ -193,6 +187,37 @@ class _WordHeader extends StatelessWidget {
       case LevelKey.other:
         return Colors.grey;
     }
+  }
+}
+
+class _PhoneticText extends StatelessWidget {
+  final String text;
+
+  const _PhoneticText({required this.text});
+
+  static const _fontFamilyFallback = [
+    'Lucida Grande',
+    'Helvetica Neue',
+    'Arial Unicode MS',
+    'Noto Sans',
+    'DejaVu Sans',
+    'Segoe UI',
+    'Arial',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Text(
+      text,
+      style: theme.textTheme.bodyMedium?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+        fontFamily: 'Lucida Grande',
+        fontFamilyFallback: _fontFamilyFallback,
+        fontStyle: FontStyle.normal,
+        letterSpacing: 0,
+      ),
+    );
   }
 }
 
