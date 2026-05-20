@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
@@ -41,7 +42,7 @@ List<String> splitIntoParagraphs(String text) {
   return paragraphs;
 }
 
-Widget buildWordTapable({
+TextSpan buildTappableWordSpan({
   required String word,
   required Color color,
   required TextStyle textStyle,
@@ -51,20 +52,20 @@ Widget buildWordTapable({
   String? searchQuery,
 }) {
   final isSearchMatch = _containsSearchMatch(word, searchQuery);
-  return GestureDetector(
-    onTap: () => onWordTapped(word, contextText),
-    child: Text(
-      word,
-      style: textStyle.copyWith(
-        fontWeight: FontWeight.w600,
-        color: isSearchMatch ? searchHighlightForegroundFor(theme) : color,
-        backgroundColor: isSearchMatch
-            ? searchHighlightBackgroundFor(theme)
-            : textStyle.backgroundColor,
-        decoration: TextDecoration.underline,
-        decorationColor: color.withValues(alpha: 0.5),
-      ),
+  return TextSpan(
+    text: word,
+    style: textStyle.copyWith(
+      fontWeight: FontWeight.w600,
+      color: isSearchMatch ? searchHighlightForegroundFor(theme) : color,
+      backgroundColor: isSearchMatch
+          ? searchHighlightBackgroundFor(theme)
+          : textStyle.backgroundColor,
+      decoration: TextDecoration.underline,
+      decorationColor: color.withValues(alpha: 0.5),
     ),
+    mouseCursor: SystemMouseCursors.click,
+    recognizer: TapGestureRecognizer()
+      ..onTap = () => onWordTapped(word, contextText),
   );
 }
 
@@ -414,43 +415,37 @@ class _HighlightBuilder {
         final vocab = vocabWords[key]!;
         final color = _colorForVocab(key, vocab);
         spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: buildWordTapable(
-              word: word,
-              color: color,
-              textStyle: theme.textTheme.bodyLarge!.copyWith(
-                height: lineHeight,
-                letterSpacing: 0.3,
-                fontFamily: fontFamily,
-                fontSize: fontSize,
-              ),
-              theme: theme,
-              searchQuery: searchQuery,
-              onWordTapped: onWordTapped,
-              contextText: vocab.context,
+          buildTappableWordSpan(
+            word: word,
+            color: color,
+            textStyle: theme.textTheme.bodyLarge!.copyWith(
+              height: lineHeight,
+              letterSpacing: 0.3,
+              fontFamily: fontFamily,
+              fontSize: fontSize,
             ),
+            theme: theme,
+            searchQuery: searchQuery,
+            onWordTapped: onWordTapped,
+            contextText: vocab.context,
           ),
         );
       } else if (isLearning) {
         final learningColor = _colorForLearning();
         spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: buildWordTapable(
-              word: word,
-              color: learningColor,
-              textStyle: theme.textTheme.bodyLarge!.copyWith(
-                height: lineHeight,
-                letterSpacing: 0.3,
-                fontFamily: fontFamily,
-                fontSize: fontSize,
-              ),
-              theme: theme,
-              searchQuery: searchQuery,
-              onWordTapped: onWordTapped,
-              contextText: '...$word...',
+          buildTappableWordSpan(
+            word: word,
+            color: learningColor,
+            textStyle: theme.textTheme.bodyLarge!.copyWith(
+              height: lineHeight,
+              letterSpacing: 0.3,
+              fontFamily: fontFamily,
+              fontSize: fontSize,
             ),
+            theme: theme,
+            searchQuery: searchQuery,
+            onWordTapped: onWordTapped,
+            contextText: '...$word...',
           ),
         );
       } else if (isKnown || key.length < AppConstants.minWordLength) {
@@ -461,22 +456,19 @@ class _HighlightBuilder {
         final unknownColor =
             colorSettings?.unknownColor ?? AppColors.familiarityLow;
         spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: buildWordTapable(
-              word: word,
-              color: unknownColor,
-              textStyle: theme.textTheme.bodyLarge!.copyWith(
-                height: lineHeight,
-                letterSpacing: 0.3,
-                fontFamily: fontFamily,
-                fontSize: fontSize,
-              ),
-              theme: theme,
-              searchQuery: searchQuery,
-              onWordTapped: onWordTapped,
-              contextText: '...$word...',
+          buildTappableWordSpan(
+            word: word,
+            color: unknownColor,
+            textStyle: theme.textTheme.bodyLarge!.copyWith(
+              height: lineHeight,
+              letterSpacing: 0.3,
+              fontFamily: fontFamily,
+              fontSize: fontSize,
             ),
+            theme: theme,
+            searchQuery: searchQuery,
+            onWordTapped: onWordTapped,
+            contextText: '...$word...',
           ),
         );
       }
@@ -600,49 +592,27 @@ class _StyledBlockBuilder {
         final vocab = vocabWords[key]!;
         final color = _colorForVocab(key, vocab);
         spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: GestureDetector(
-              onTap: () => onWordTapped(word, vocab.context),
-              child: Text(
-                word,
-                style: _textStyleFor(wordStyle).copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: _containsSearchMatch(word, searchQuery)
-                      ? searchHighlightForegroundFor(theme)
-                      : color,
-                  backgroundColor: _containsSearchMatch(word, searchQuery)
-                      ? searchHighlightBackgroundFor(theme)
-                      : null,
-                  decoration: TextDecoration.underline,
-                  decorationColor: color.withValues(alpha: 0.5),
-                ),
-              ),
-            ),
+          buildTappableWordSpan(
+            word: word,
+            color: color,
+            textStyle: _textStyleFor(wordStyle),
+            theme: theme,
+            searchQuery: searchQuery,
+            onWordTapped: onWordTapped,
+            contextText: vocab.context,
           ),
         );
       } else if (isLearning) {
         final learningColor = _colorForLearning();
         spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: GestureDetector(
-              onTap: () => onWordTapped(word, '...$word...'),
-              child: Text(
-                word,
-                style: _textStyleFor(wordStyle).copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: _containsSearchMatch(word, searchQuery)
-                      ? searchHighlightForegroundFor(theme)
-                      : learningColor,
-                  backgroundColor: _containsSearchMatch(word, searchQuery)
-                      ? searchHighlightBackgroundFor(theme)
-                      : null,
-                  decoration: TextDecoration.underline,
-                  decorationColor: learningColor.withValues(alpha: 0.5),
-                ),
-              ),
-            ),
+          buildTappableWordSpan(
+            word: word,
+            color: learningColor,
+            textStyle: _textStyleFor(wordStyle),
+            theme: theme,
+            searchQuery: searchQuery,
+            onWordTapped: onWordTapped,
+            contextText: '...$word...',
           ),
         );
       } else if (isKnown || key.length < AppConstants.minWordLength) {
@@ -658,25 +628,14 @@ class _StyledBlockBuilder {
         final unknownColor =
             colorSettings?.unknownColor ?? AppColors.familiarityLow;
         spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: GestureDetector(
-              onTap: () => onWordTapped(word, '...$word...'),
-              child: Text(
-                word,
-                style: _textStyleFor(wordStyle).copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: _containsSearchMatch(word, searchQuery)
-                      ? searchHighlightForegroundFor(theme)
-                      : unknownColor,
-                  backgroundColor: _containsSearchMatch(word, searchQuery)
-                      ? searchHighlightBackgroundFor(theme)
-                      : null,
-                  decoration: TextDecoration.underline,
-                  decorationColor: unknownColor.withValues(alpha: 0.5),
-                ),
-              ),
-            ),
+          buildTappableWordSpan(
+            word: word,
+            color: unknownColor,
+            textStyle: _textStyleFor(wordStyle),
+            theme: theme,
+            searchQuery: searchQuery,
+            onWordTapped: onWordTapped,
+            contextText: '...$word...',
           ),
         );
       }

@@ -5,10 +5,17 @@ import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/widgets/reader_text_view.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
+
+typedef _TappableTextProbe = ({
+  String text,
+  Color? color,
+  GestureRecognizer? recognizer,
+});
 
 void main() {
   late Directory tempDir;
@@ -73,30 +80,33 @@ void main() {
         wordLevelService: wordLevels,
       );
 
-      final widgetTexts = _widgetTexts(span);
+      final tappableTexts = _tappableTextSpans(span);
 
       expect(
-        widgetTexts.map((item) => item.text),
+        tappableTexts.map((item) => item.text),
         isNot(contains('Partitions')),
       );
-      expect(widgetTexts.map((item) => item.text), isNot(contains("can't")));
-      expect(widgetTexts.map((item) => item.text), contains('migrating'));
-      expect(_colorFor(widgetTexts, 'migrating'), learningColor);
+      expect(tappableTexts.map((item) => item.text), isNot(contains("can't")));
+      expect(tappableTexts.map((item) => item.text), contains('migrating'));
+      expect(_colorFor(tappableTexts, 'migrating'), learningColor);
     },
   );
 }
 
-List<({String text, Color? color})> _widgetTexts(InlineSpan span) {
-  final result = <({String text, Color? color})>[];
+List<_TappableTextProbe> _tappableTextSpans(InlineSpan span) {
+  final result = <_TappableTextProbe>[];
 
   void visit(InlineSpan item) {
     if (item is TextSpan) {
+      final text = item.text;
+      if (text != null && item.recognizer != null) {
+        result.add((
+          text: text,
+          color: item.style?.color,
+          recognizer: item.recognizer,
+        ));
+      }
       item.children?.forEach(visit);
-      return;
-    }
-    if (item is WidgetSpan) {
-      final text = _textFromWidget(item.child);
-      if (text != null) result.add(text);
     }
   }
 
@@ -104,19 +114,6 @@ List<({String text, Color? color})> _widgetTexts(InlineSpan span) {
   return result;
 }
 
-({String text, Color? color})? _textFromWidget(Widget widget) {
-  if (widget is Text) {
-    return (
-      text: widget.data ?? widget.textSpan?.toPlainText() ?? '',
-      color: widget.style?.color,
-    );
-  }
-  if (widget is GestureDetector && widget.child != null) {
-    return _textFromWidget(widget.child!);
-  }
-  return null;
-}
-
-Color? _colorFor(List<({String text, Color? color})> items, String text) {
+Color? _colorFor(List<_TappableTextProbe> items, String text) {
   return items.firstWhere((item) => item.text == text).color;
 }
