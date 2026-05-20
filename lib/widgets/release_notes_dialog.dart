@@ -3,10 +3,23 @@ import 'package:flutter/material.dart';
 import '../services/app_version.dart';
 import '../services/changelog_service.dart';
 
-class ReleaseNotesDialog extends StatelessWidget {
+class ReleaseNotesDialog extends StatefulWidget {
   const ReleaseNotesDialog({super.key, required this.notes});
 
   final ReleaseNotes notes;
+
+  @override
+  State<ReleaseNotesDialog> createState() => _ReleaseNotesDialogState();
+}
+
+class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
+  late final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +29,7 @@ class ReleaseNotesDialog extends StatelessWidget {
       title: const Text('Flow Read ${FlowReadVersion.shortDisplay}'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460, maxHeight: 420),
-        child: notes.isEmpty
+        child: widget.notes.isEmpty
             ? Text(
                 '暂无更新内容',
                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -24,13 +37,16 @@ class ReleaseNotesDialog extends StatelessWidget {
                 ),
               )
             : Scrollbar(
+                controller: _scrollController,
                 thumbVisibility: true,
                 child: SingleChildScrollView(
+                  controller: _scrollController,
+                  primary: false,
                   padding: const EdgeInsets.only(right: 12),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: notes.sections
+                    children: widget.notes.sections
                         .map((section) => _ReleaseNotesSectionView(section))
                         .toList(),
                   ),
