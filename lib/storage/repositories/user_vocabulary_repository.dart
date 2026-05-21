@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 
 import '../../models/user_vocabulary.dart';
 import '../hive_box_names.dart';
+import 'hive_repository_box.dart';
 
 abstract class UserVocabularyRepository {
   Future<void> init();
@@ -23,7 +24,7 @@ class HiveUserVocabularyRepository implements UserVocabularyRepository {
 
   @override
   Future<void> init() async {
-    _box ??= Hive.box<String>(HiveBoxNames.userVocabulary);
+    _box ??= requireOpenHiveBox<String>(HiveBoxNames.userVocabulary);
   }
 
   @override
@@ -64,9 +65,7 @@ class HiveUserVocabularyRepository implements UserVocabularyRepository {
   }
 
   @override
-  Future<void> close() async {
-    await _storage.close();
-  }
+  Future<void> close() async {}
 
   String _encodeStatus(UserWordStatus status) {
     return status == UserWordStatus.learning ? 'learning' : 'known';

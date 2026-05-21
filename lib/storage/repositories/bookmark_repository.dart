@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 
 import '../hive_box_names.dart';
+import 'hive_repository_box.dart';
 
 abstract class BookmarkRepository {
   Future<void> init();
@@ -31,8 +32,8 @@ class HiveBookmarkRepository implements BookmarkRepository {
 
   @override
   Future<void> init() async {
-    _wordBox ??= Hive.box<String>(HiveBoxNames.wordBookmarks);
-    _readingBox ??= Hive.box<String>(HiveBoxNames.readingBookmarks);
+    _wordBox ??= requireOpenHiveBox<String>(HiveBoxNames.wordBookmarks);
+    _readingBox ??= requireOpenHiveBox<String>(HiveBoxNames.readingBookmarks);
   }
 
   @override
@@ -69,8 +70,5 @@ class HiveBookmarkRepository implements BookmarkRepository {
   }
 
   @override
-  Future<void> close() async {
-    await _wordStorage.close();
-    await _readingStorage.close();
-  }
+  Future<void> close() async {}
 }

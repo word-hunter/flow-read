@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 
 import '../../models/book_metadata.dart';
 import '../hive_box_names.dart';
+import 'hive_repository_box.dart';
 
 abstract class BookMetadataRepository {
   Future<void> init();
@@ -23,10 +24,7 @@ class HiveBookMetadataRepository implements BookMetadataRepository {
 
   @override
   Future<void> init() async {
-    if (_box != null) return;
-    _box = Hive.isBoxOpen(HiveBoxNames.books)
-        ? Hive.box<BookMetadata>(HiveBoxNames.books)
-        : await Hive.openBox<BookMetadata>(HiveBoxNames.books);
+    _box ??= requireOpenHiveBox<BookMetadata>(HiveBoxNames.books);
   }
 
   @override
@@ -46,7 +44,5 @@ class HiveBookMetadataRepository implements BookMetadataRepository {
   }
 
   @override
-  Future<void> close() async {
-    await _storage.close();
-  }
+  Future<void> close() async {}
 }

@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 
 import '../hive_box_names.dart';
+import 'hive_repository_box.dart';
 
 abstract class ReadingTimeRepository {
   Future<void> init();
@@ -18,7 +19,7 @@ class HiveReadingTimeRepository implements ReadingTimeRepository {
 
   @override
   Future<void> init() async {
-    _box ??= Hive.box<int>(HiveBoxNames.readingTime);
+    _box ??= requireOpenHiveBox<int>(HiveBoxNames.readingTime);
   }
 
   @override
@@ -32,7 +33,5 @@ class HiveReadingTimeRepository implements ReadingTimeRepository {
   }
 
   @override
-  Future<void> close() async {
-    await _storage.close();
-  }
+  Future<void> close() async {}
 }

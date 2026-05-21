@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 
 import '../../models/word_level.dart';
 import '../hive_box_names.dart';
+import 'hive_repository_box.dart';
 
 abstract class WordLevelRepository {
   Future<void> init();
@@ -33,12 +34,8 @@ class HiveWordLevelRepository implements WordLevelRepository {
 
   @override
   Future<void> init() async {
-    _wordBox ??= Hive.isBoxOpen(HiveBoxNames.wordLevels)
-        ? Hive.box<WordLevelInfo>(HiveBoxNames.wordLevels)
-        : await Hive.openBox<WordLevelInfo>(HiveBoxNames.wordLevels);
-    _metaBox ??= Hive.isBoxOpen(HiveBoxNames.settings)
-        ? Hive.box<dynamic>(HiveBoxNames.settings)
-        : await Hive.openBox<dynamic>(HiveBoxNames.settings);
+    _wordBox ??= requireOpenHiveBox<WordLevelInfo>(HiveBoxNames.wordLevels);
+    _metaBox ??= requireOpenHiveBox<dynamic>(HiveBoxNames.settings);
   }
 
   @override
@@ -61,8 +58,5 @@ class HiveWordLevelRepository implements WordLevelRepository {
   }
 
   @override
-  Future<void> close() async {
-    await _wordStorage.close();
-    await _metaStorage.close();
-  }
+  Future<void> close() async {}
 }

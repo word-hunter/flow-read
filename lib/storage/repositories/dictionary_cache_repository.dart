@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 
 import '../hive_box_names.dart';
+import 'hive_repository_box.dart';
 
 abstract class DictionaryCacheRepository {
   Future<void> init();
@@ -24,10 +25,7 @@ class HiveDictionaryCacheRepository implements DictionaryCacheRepository {
 
   @override
   Future<void> init() async {
-    if (_box != null) return;
-    _box = Hive.isBoxOpen(HiveBoxNames.dictionaryCache)
-        ? Hive.box<String>(HiveBoxNames.dictionaryCache)
-        : await Hive.openBox<String>(HiveBoxNames.dictionaryCache);
+    _box ??= requireOpenHiveBox<String>(HiveBoxNames.dictionaryCache);
   }
 
   @override

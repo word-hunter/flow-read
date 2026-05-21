@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 
 import '../../models/learning_item.dart';
 import '../hive_box_names.dart';
+import 'hive_repository_box.dart';
 
 abstract class LearningItemRepository {
   Future<void> init();
@@ -27,7 +28,7 @@ class HiveLearningItemRepository implements LearningItemRepository {
 
   @override
   Future<void> init() async {
-    _box ??= Hive.box<LearningItem>(HiveBoxNames.learningItems);
+    _box ??= requireOpenHiveBox<LearningItem>(HiveBoxNames.learningItems);
   }
 
   @override
@@ -63,7 +64,5 @@ class HiveLearningItemRepository implements LearningItemRepository {
   }
 
   @override
-  Future<void> close() async {
-    await _storage.close();
-  }
+  Future<void> close() async {}
 }

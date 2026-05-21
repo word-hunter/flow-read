@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 
 import '../hive_box_names.dart';
+import 'hive_repository_box.dart';
 
 abstract class WordContextRepository {
   Future<void> init();
@@ -18,7 +19,7 @@ class HiveWordContextRepository implements WordContextRepository {
 
   @override
   Future<void> init() async {
-    _box ??= Hive.box<String>(HiveBoxNames.wordContexts);
+    _box ??= requireOpenHiveBox<String>(HiveBoxNames.wordContexts);
   }
 
   @override

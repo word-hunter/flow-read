@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 
 import '../hive_box_names.dart';
+import 'hive_repository_box.dart';
 
 abstract class ReadingConfigRepository {
   Future<void> init();
@@ -19,7 +20,7 @@ class HiveReadingConfigRepository implements ReadingConfigRepository {
 
   @override
   Future<void> init() async {
-    _box ??= Hive.box<String>(HiveBoxNames.readingConfig);
+    _box ??= requireOpenHiveBox<String>(HiveBoxNames.readingConfig);
   }
 
   @override
@@ -33,7 +34,5 @@ class HiveReadingConfigRepository implements ReadingConfigRepository {
   }
 
   @override
-  Future<void> close() async {
-    await _storage.close();
-  }
+  Future<void> close() async {}
 }

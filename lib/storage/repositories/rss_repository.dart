@@ -4,6 +4,7 @@ import 'package:hive/hive.dart';
 
 import '../../models/rss_models.dart';
 import '../hive_box_names.dart';
+import 'hive_repository_box.dart';
 
 abstract class RssRepository {
   Future<void> init();
@@ -42,14 +43,10 @@ class HiveRssRepository implements RssRepository {
 
   @override
   Future<void> init() async {
-    _feedBox ??= Hive.isBoxOpen(HiveBoxNames.rssSubscriptions)
-        ? Hive.box<RssFeedSubscription>(HiveBoxNames.rssSubscriptions)
-        : await Hive.openBox<RssFeedSubscription>(
-            HiveBoxNames.rssSubscriptions,
-          );
-    _metaBox ??= Hive.isBoxOpen(HiveBoxNames.settings)
-        ? Hive.box<dynamic>(HiveBoxNames.settings)
-        : await Hive.openBox<dynamic>(HiveBoxNames.settings);
+    _feedBox ??= requireOpenHiveBox<RssFeedSubscription>(
+      HiveBoxNames.rssSubscriptions,
+    );
+    _metaBox ??= requireOpenHiveBox<dynamic>(HiveBoxNames.settings);
   }
 
   @override
@@ -122,10 +119,7 @@ class HiveRssRepository implements RssRepository {
   }
 
   @override
-  Future<void> close() async {
-    await _feedStorage.close();
-    await _metaStorage.close();
-  }
+  Future<void> close() async {}
 
   dynamic _keyForUrl(String url) {
     for (final key in _feedStorage.keys) {

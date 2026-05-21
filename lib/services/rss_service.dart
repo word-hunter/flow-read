@@ -8,9 +8,17 @@ import 'package:xml/xml.dart';
 import '../models/rss_models.dart';
 import '../storage/repositories/rss_repository.dart';
 
+typedef RssHttpGet =
+    Future<http.Response> Function(Uri uri, {Map<String, String>? headers});
+
 class RssService {
-  RssService({RssRepository? repository})
-    : _repository = repository ?? HiveRssRepository();
+  RssService({
+    RssRepository? repository,
+    RssHttpGet? httpGet,
+    DateTime Function()? clock,
+  }) : _repository = repository ?? HiveRssRepository(),
+       _httpGet = httpGet ?? http.get,
+       _clock = clock ?? DateTime.now;
 
   static const _requestHeaders = {
     'Accept':
@@ -18,6 +26,8 @@ class RssService {
     'User-Agent': 'FlowRead/1.0 RSS Reader',
   };
   final RssRepository _repository;
+  final RssHttpGet _httpGet;
+  final DateTime Function() _clock;
   final Map<String, List<RssArticle>> _articleCache = {};
   final Set<String> _readArticleIds = {};
 
@@ -50,7 +60,7 @@ class RssService {
       title: info['title'] ?? normalizedUrl,
       description: info['description'],
       imageUrl: info['imageUrl'],
-      lastFetchedAt: DateTime.now(),
+      lastFetchedAt: _clock(),
     );
     await _repository.addSubscription(sub);
     return sub;
@@ -91,7 +101,7 @@ class RssService {
           ? nextDescription
           : info['description'];
       imageUrl = info['imageUrl'];
-      lastFetchedAt = DateTime.now();
+      lastFetchedAt = _clock();
     }
 
     final updated = RssFeedSubscription(
@@ -205,9 +215,10 @@ class RssService {
   }
 
   Future<XmlDocument> _fetchFeedDocument(String url) async {
-    final response = await http
-        .get(Uri.parse(url), headers: _requestHeaders)
-        .timeout(const Duration(seconds: 15));
+    final response = await _httpGet(
+      Uri.parse(url),
+      headers: _requestHeaders,
+    ).timeout(const Duration(seconds: 15));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw StateError('RSS 源响应异常: HTTP ${response.statusCode}');
     }
@@ -468,6 +479,6 @@ class RssService {
   }
 
   Future<void> _updateLastFetched(String url) async {
-    await _repository.updateLastFetched(url, DateTime.now());
+    await _repository.updateLastFetched(url, _clock());
   }
 }
