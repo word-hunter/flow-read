@@ -10,6 +10,7 @@ import '../services/word_level_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
 import 'dictionary_detail_view.dart';
+import 'pronunciation_button.dart';
 
 typedef WordTapCallback = void Function(String word, String contextText);
 
@@ -855,11 +856,19 @@ Widget _buildPopupHeader(ReadingProvider provider, ThemeData theme) {
             height: 18,
             child: CircularProgressIndicator(strokeWidth: 2),
           )
-        else
+        else ...[
+          if (provider.canPronounceWords)
+            PronunciationButton(
+              word: provider.selectedWord!,
+              onSpeakWord: provider.speakWord,
+              buttonSize: 32,
+              iconSize: 18,
+            ),
           IconButton(
             icon: const Icon(Icons.close, size: 18),
             onPressed: provider.clearWordLookup,
           ),
+        ],
       ],
     ),
   );

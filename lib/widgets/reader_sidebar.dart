@@ -5,6 +5,7 @@ import '../models/user_vocabulary.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
 import 'dictionary_detail_view.dart';
+import 'pronunciation_button.dart';
 import 'reader_text_view.dart' show WordTapCallback;
 
 Color _sidebarLevelColor(String level) {
@@ -374,6 +375,13 @@ class ReaderSidebar extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
+              if (provider.canPronounceWords)
+                PronunciationButton(
+                  word: provider.selectedWord!,
+                  onSpeakWord: provider.speakWord,
+                  buttonSize: 32,
+                  iconSize: 18,
+                ),
               IconButton(
                 icon: const Icon(Icons.close, size: 18),
                 onPressed: provider.clearWordLookup,

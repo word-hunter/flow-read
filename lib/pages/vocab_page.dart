@@ -6,6 +6,7 @@ import '../models/user_vocabulary.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/dictionary_detail_view.dart';
+import '../widgets/pronunciation_button.dart';
 
 class VocabPage extends StatefulWidget {
   const VocabPage({super.key});
@@ -246,6 +247,13 @@ class _VocabPageState extends State<VocabPage> {
                     ),
                   ),
                 ),
+                if (provider.canPronounceWords)
+                  PronunciationButton(
+                    word: word,
+                    onSpeakWord: provider.speakWord,
+                    buttonSize: 32,
+                    iconSize: 18,
+                  ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 20),
                   onPressed: provider.clearWordLookup,

@@ -30,6 +30,7 @@ import '../services/book_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/epub_service.dart';
 import '../services/learning_item_service.dart';
+import '../services/pronunciation_service.dart';
 import '../services/reading_config_service.dart';
 import '../services/reading_time_service.dart';
 import '../services/sentence_analyzer.dart';
@@ -62,6 +63,7 @@ class ReadingProvider extends ChangeNotifier {
   WordLevelService? _wordLevelService;
   WordContextService? _wordContextService;
   LearningItemService? _learningItemService;
+  PronunciationService? _pronunciationService;
 
   // ============================================================
   // Core reading state
@@ -353,6 +355,7 @@ class ReadingProvider extends ChangeNotifier {
       _learningItemService?.allItems ?? const [];
   int get learningItemCount => _learningItemService?.count ?? 0;
   bool get canCreateLearningItems => _learningItemService != null;
+  bool get canPronounceWords => _pronunciationService != null;
 
   // ============================================================
   // Dependency injection
@@ -377,6 +380,8 @@ class ReadingProvider extends ChangeNotifier {
       _wordContextService = service;
   void setLearningItemService(LearningItemService service) =>
       _learningItemService = service;
+  void setPronunciationService(PronunciationService service) =>
+      _pronunciationService = service;
 
   // ============================================================
   // Initialisation
@@ -401,6 +406,10 @@ class ReadingProvider extends ChangeNotifier {
 
   List<WordContextExample> importedExamplesFor(String word) {
     return _wordContextService?.examplesFor(word) ?? const [];
+  }
+
+  Future<void> speakWord(String word) async {
+    await _pronunciationService?.speakWord(word);
   }
 
   // ============================================================
@@ -1397,6 +1406,7 @@ class ReadingProvider extends ChangeNotifier {
     _difficultyRefreshTimer?.cancel();
     _searchController.removeListener(notifyListeners);
     _searchController.dispose();
+    _pronunciationService?.dispose();
     super.dispose();
   }
 }

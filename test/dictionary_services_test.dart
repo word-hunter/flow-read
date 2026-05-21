@@ -10,6 +10,7 @@ import 'package:flow_read/services/dictionary/dictionary_manager_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_repository.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_config.dart';
 import 'package:flow_read/services/dictionary/longman_repository.dart';
+import 'package:flow_read/services/pronunciation_service.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/dictionary/word_repository.dart';
 import 'package:flow_read/services/dictionary/wordnet_repository.dart';
@@ -447,6 +448,48 @@ void main() {
     );
     expect(phoneticText.style?.fontStyle, FontStyle.normal);
   });
+
+  testWidgets('DictionaryDetailView exposes local pronunciation action', (
+    tester,
+  ) async {
+    var spokenWord = '';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DictionaryDetailView(
+            word: 'flow',
+            entry: const DictionaryEntry(
+              word: 'flow',
+              meanings: [
+                Meaning(partOfSpeech: 'verb', definitions: ['move steadily']),
+              ],
+            ),
+            primaryDefinition: null,
+            isLoading: false,
+            onSpeakWord: (word) async {
+              spokenWord = word;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('播放发音'));
+    await tester.pump();
+
+    expect(spokenWord, 'flow');
+  });
+
+  test('ReadingProvider delegates word pronunciation to service', () async {
+    final pronunciation = _FakePronunciationService();
+    final provider = ReadingProvider()..setPronunciationService(pronunciation);
+
+    await provider.speakWord('flow');
+
+    expect(pronunciation.spokenWords, ['flow']);
+    provider.dispose();
+  });
 }
 
 class _CountingRepository implements WordRepository {
@@ -503,4 +546,19 @@ class _MemoryDictionaryCacheRepository implements DictionaryCacheRepository {
   Future<void> clear() async {
     _storage.clear();
   }
+}
+
+class _FakePronunciationService implements PronunciationService {
+  final spokenWords = <String>[];
+
+  @override
+  Future<void> speakWord(String word) async {
+    spokenWords.add(word);
+  }
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  void dispose() {}
 }

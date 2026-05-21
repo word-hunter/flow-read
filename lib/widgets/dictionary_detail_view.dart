@@ -5,6 +5,7 @@ import '../models/word_level.dart';
 import '../providers/reading_provider.dart';
 import '../services/dictionary/word_repository.dart';
 import 'imported_word_examples.dart';
+import 'pronunciation_button.dart';
 
 class DictionaryDetailView extends StatelessWidget {
   final String word;
@@ -16,6 +17,7 @@ class DictionaryDetailView extends StatelessWidget {
   final LevelKey? level;
   final bool showWordHeader;
   final bool showContext;
+  final SpeakWordCallback? onSpeakWord;
 
   const DictionaryDetailView({
     super.key,
@@ -28,6 +30,7 @@ class DictionaryDetailView extends StatelessWidget {
     this.level,
     this.showWordHeader = true,
     this.showContext = false,
+    this.onSpeakWord,
   });
 
   factory DictionaryDetailView.fromProvider({
@@ -54,6 +57,7 @@ class DictionaryDetailView extends StatelessWidget {
       level: level,
       showWordHeader: showWordHeader,
       showContext: showContext,
+      onSpeakWord: provider.canPronounceWords ? provider.speakWord : null,
     );
   }
 
@@ -80,7 +84,12 @@ class DictionaryDetailView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showWordHeader) ...[
-          _WordHeader(word: word, entry: entry, level: level),
+          _WordHeader(
+            word: word,
+            entry: entry,
+            level: level,
+            onSpeakWord: onSpeakWord,
+          ),
           const SizedBox(height: 16),
         ],
         if (!hasContent)
@@ -126,8 +135,14 @@ class _WordHeader extends StatelessWidget {
   final String word;
   final DictionaryEntry? entry;
   final LevelKey? level;
+  final SpeakWordCallback? onSpeakWord;
 
-  const _WordHeader({required this.word, required this.entry, this.level});
+  const _WordHeader({
+    required this.word,
+    required this.entry,
+    required this.level,
+    required this.onSpeakWord,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -138,14 +153,25 @@ class _WordHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          word,
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            fontFamily: 'Serif',
-            color: theme.colorScheme.onSurface,
-            height: 1.05,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                word,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  fontFamily: 'Serif',
+                  color: theme.colorScheme.onSurface,
+                  height: 1.05,
+                ),
+              ),
+            ),
+            if (onSpeakWord != null) ...[
+              const SizedBox(width: 8),
+              PronunciationButton(word: word, onSpeakWord: onSpeakWord),
+            ],
+          ],
         ),
         if (phonetic != null && phonetic.isNotEmpty) ...[
           const SizedBox(height: 6),
