@@ -197,7 +197,7 @@ void main() {
 
     setUp(() async {
       tempDir = await initHiveTestStorage('flow_read_dictionary_manager_test_');
-      await openSettingsTestBox();
+      await openFlowReadTestBoxes();
     });
 
     tearDown(() async {
@@ -546,6 +546,9 @@ class _MemoryDictionaryCacheRepository implements DictionaryCacheRepository {
   Future<void> clear() async {
     _storage.clear();
   }
+
+  @override
+  Future<void> close() async {}
 }
 
 class _FakePronunciationService implements PronunciationService {

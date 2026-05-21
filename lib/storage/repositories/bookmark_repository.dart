@@ -23,11 +23,12 @@ class HiveBookmarkRepository implements BookmarkRepository {
   Box<String>? _readingBox;
 
   Box<String> get _wordStorage {
-    return _wordBox ?? Hive.box<String>(HiveBoxNames.wordBookmarks);
+    return _wordBox ?? requireOpenHiveBox<String>(HiveBoxNames.wordBookmarks);
   }
 
   Box<String> get _readingStorage {
-    return _readingBox ?? Hive.box<String>(HiveBoxNames.readingBookmarks);
+    return _readingBox ??
+        requireOpenHiveBox<String>(HiveBoxNames.readingBookmarks);
   }
 
   @override

@@ -34,11 +34,11 @@ class HiveRssRepository implements RssRepository {
 
   Box<RssFeedSubscription> get _feedStorage {
     return _feedBox ??
-        Hive.box<RssFeedSubscription>(HiveBoxNames.rssSubscriptions);
+        requireOpenHiveBox<RssFeedSubscription>(HiveBoxNames.rssSubscriptions);
   }
 
   Box<dynamic> get _metaStorage {
-    return _metaBox ?? Hive.box<dynamic>(HiveBoxNames.settings);
+    return _metaBox ?? requireOpenHiveBox<dynamic>(HiveBoxNames.settings);
   }
 
   @override

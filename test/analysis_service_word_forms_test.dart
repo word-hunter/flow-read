@@ -13,9 +13,7 @@ void main() {
 
   setUp(() async {
     tempDir = await initHiveTestStorage('flow_read_word_forms_test_');
-    await openUserVocabularyTestBox();
-    await openWordLevelsTestBox();
-    await openSettingsTestBox();
+    await openFlowReadTestBoxes();
     await settingsBox().put('word_levels_imported', 'true');
     await wordLevelsBox().addAll([
       const WordLevelInfo(

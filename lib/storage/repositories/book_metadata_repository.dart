@@ -19,7 +19,7 @@ class HiveBookMetadataRepository implements BookMetadataRepository {
   Box<BookMetadata>? _box;
 
   Box<BookMetadata> get _storage {
-    return _box ?? Hive.box<BookMetadata>(HiveBoxNames.books);
+    return _box ?? requireOpenHiveBox<BookMetadata>(HiveBoxNames.books);
   }
 
   @override

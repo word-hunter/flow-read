@@ -23,7 +23,7 @@ class HiveLearningItemRepository implements LearningItemRepository {
   Box<LearningItem>? _box;
 
   Box<LearningItem> get _storage {
-    return _box ?? Hive.box<LearningItem>(HiveBoxNames.learningItems);
+    return _box ?? requireOpenHiveBox<LearningItem>(HiveBoxNames.learningItems);
   }
 
   @override

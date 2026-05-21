@@ -19,7 +19,7 @@ void main() {
 
   setUp(() async {
     tempDir = await initHiveTestStorage('flow_read_learning_item_test_');
-    await openLearningItemsTestBox();
+    await openFlowReadTestBoxes();
     service = LearningItemService();
     await service.init();
   });

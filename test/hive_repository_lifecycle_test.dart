@@ -59,8 +59,16 @@ void main() {
       await _initAndClose(wordLevelRepository.init, wordLevelRepository.close);
       final rssRepository = HiveRssRepository();
       await _initAndClose(rssRepository.init, rssRepository.close);
-      await HiveDictionaryCacheRepository().init();
-      await HiveWordContextRepository().init();
+      final dictionaryCacheRepository = HiveDictionaryCacheRepository();
+      await _initAndClose(
+        dictionaryCacheRepository.init,
+        dictionaryCacheRepository.close,
+      );
+      final wordContextRepository = HiveWordContextRepository();
+      await _initAndClose(
+        wordContextRepository.init,
+        wordContextRepository.close,
+      );
 
       for (final boxName in HiveBoxNames.bootstrapBoxes) {
         expect(Hive.isBoxOpen(boxName), isTrue, reason: boxName);

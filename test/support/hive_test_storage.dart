@@ -29,22 +29,6 @@ Future<void> disposeHiveTestStorage(Directory tempDir) async {
   }
 }
 
-Future<Box<dynamic>> openSettingsTestBox() {
-  return Hive.openBox<dynamic>(HiveBoxNames.settings);
-}
-
-Future<Box<String>> openUserVocabularyTestBox() {
-  return Hive.openBox<String>(HiveBoxNames.userVocabulary);
-}
-
-Future<Box<WordLevelInfo>> openWordLevelsTestBox() {
-  return Hive.openBox<WordLevelInfo>(HiveBoxNames.wordLevels);
-}
-
-Future<Box<LearningItem>> openLearningItemsTestBox() {
-  return Hive.openBox<LearningItem>(HiveBoxNames.learningItems);
-}
-
 Future<void> openFlowReadTestBoxes() {
   return openFlowReadHiveBoxes();
 }

@@ -10,7 +10,7 @@ void main() {
 
   setUp(() async {
     tempDir = await initHiveTestStorage('flow_read_reading_goal_test_');
-    await openSettingsTestBox();
+    await openFlowReadTestBoxes();
   });
 
   tearDown(() async {

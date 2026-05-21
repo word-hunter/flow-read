@@ -20,7 +20,7 @@ class HiveUserVocabularyRepository implements UserVocabularyRepository {
   Box<String>? _box;
 
   Box<String> get _storage =>
-      _box ?? Hive.box<String>(HiveBoxNames.userVocabulary);
+      _box ?? requireOpenHiveBox<String>(HiveBoxNames.userVocabulary);
 
   @override
   Future<void> init() async {

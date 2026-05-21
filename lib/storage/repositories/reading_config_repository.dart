@@ -16,7 +16,7 @@ class HiveReadingConfigRepository implements ReadingConfigRepository {
   Box<String>? _box;
 
   Box<String> get _storage =>
-      _box ?? Hive.box<String>(HiveBoxNames.readingConfig);
+      _box ?? requireOpenHiveBox<String>(HiveBoxNames.readingConfig);
 
   @override
   Future<void> init() async {

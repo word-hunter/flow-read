@@ -15,7 +15,8 @@ class HiveReadingTimeRepository implements ReadingTimeRepository {
 
   Box<int>? _box;
 
-  Box<int> get _storage => _box ?? Hive.box<int>(HiveBoxNames.readingTime);
+  Box<int> get _storage =>
+      _box ?? requireOpenHiveBox<int>(HiveBoxNames.readingTime);
 
   @override
   Future<void> init() async {

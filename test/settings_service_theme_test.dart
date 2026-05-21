@@ -12,7 +12,7 @@ void main() {
 
   setUp(() async {
     tempDir = await initHiveTestStorage('flow_read_theme_settings_test_');
-    await openSettingsTestBox();
+    await openFlowReadTestBoxes();
   });
 
   tearDown(() async {

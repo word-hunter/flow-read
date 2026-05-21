@@ -16,7 +16,7 @@ void main() {
 
   setUp(() async {
     tempDir = await initHiveTestStorage('flow_read_agent_test_');
-    await openSettingsTestBox();
+    await openFlowReadTestBoxes();
     settings = SettingsService();
     await settings.init();
     await settings.setAIProvider('openai_compatible');

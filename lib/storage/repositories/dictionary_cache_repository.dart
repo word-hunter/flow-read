@@ -12,6 +12,7 @@ abstract class DictionaryCacheRepository {
   Iterable<dynamic> get keys;
   Future<void> delete(dynamic key);
   Future<void> clear();
+  Future<void> close();
 }
 
 class HiveDictionaryCacheRepository implements DictionaryCacheRepository {
@@ -20,7 +21,7 @@ class HiveDictionaryCacheRepository implements DictionaryCacheRepository {
   Box<String>? _box;
 
   Box<String> get _storage {
-    return _box ?? Hive.box<String>(HiveBoxNames.dictionaryCache);
+    return _box ?? requireOpenHiveBox<String>(HiveBoxNames.dictionaryCache);
   }
 
   @override
@@ -54,4 +55,7 @@ class HiveDictionaryCacheRepository implements DictionaryCacheRepository {
   Future<void> clear() async {
     await _storage.clear();
   }
+
+  @override
+  Future<void> close() async {}
 }

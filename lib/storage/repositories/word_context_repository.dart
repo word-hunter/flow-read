@@ -7,6 +7,7 @@ abstract class WordContextRepository {
   Future<void> init();
   String? getEncodedExamples(String word);
   Future<void> putEncodedExamples(String word, String encodedExamples);
+  Future<void> close();
 }
 
 class HiveWordContextRepository implements WordContextRepository {
@@ -15,7 +16,7 @@ class HiveWordContextRepository implements WordContextRepository {
   Box<String>? _box;
 
   Box<String> get _storage =>
-      _box ?? Hive.box<String>(HiveBoxNames.wordContexts);
+      _box ?? requireOpenHiveBox<String>(HiveBoxNames.wordContexts);
 
   @override
   Future<void> init() async {
@@ -31,4 +32,7 @@ class HiveWordContextRepository implements WordContextRepository {
   Future<void> putEncodedExamples(String word, String encodedExamples) async {
     await _storage.put(word, encodedExamples);
   }
+
+  @override
+  Future<void> close() async {}
 }

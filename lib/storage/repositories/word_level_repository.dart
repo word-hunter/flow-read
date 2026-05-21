@@ -25,11 +25,12 @@ class HiveWordLevelRepository implements WordLevelRepository {
   Box<dynamic>? _metaBox;
 
   Box<WordLevelInfo> get _wordStorage {
-    return _wordBox ?? Hive.box<WordLevelInfo>(HiveBoxNames.wordLevels);
+    return _wordBox ??
+        requireOpenHiveBox<WordLevelInfo>(HiveBoxNames.wordLevels);
   }
 
   Box<dynamic> get _metaStorage {
-    return _metaBox ?? Hive.box<dynamic>(HiveBoxNames.settings);
+    return _metaBox ?? requireOpenHiveBox<dynamic>(HiveBoxNames.settings);
   }
 
   @override

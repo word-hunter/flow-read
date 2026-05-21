@@ -40,7 +40,7 @@ void main() {
   });
 
   test('storage migrations persist the current schema version', () async {
-    await openSettingsTestBox();
+    await openFlowReadTestBoxes();
 
     await runStorageMigrations();
 

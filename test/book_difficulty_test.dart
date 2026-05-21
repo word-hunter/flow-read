@@ -14,7 +14,7 @@ void main() {
 
   setUp(() async {
     tempDir = await initHiveTestStorage('flow_read_book_difficulty_test_');
-    await openUserVocabularyTestBox();
+    await openFlowReadTestBoxes();
   });
 
   tearDown(() async {
