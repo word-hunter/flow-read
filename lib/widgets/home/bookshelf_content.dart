@@ -7,6 +7,7 @@ import '../../providers/reading_provider.dart';
 import '../../services/settings_service.dart';
 import 'featured_book_card.dart';
 import 'book_shelf_row.dart';
+import 'today_review_card.dart';
 
 enum _BookSortMode { recent, title, author, progress, difficulty }
 
@@ -75,6 +76,15 @@ class _BookshelfContentState extends State<BookshelfContent> {
           if (provider.isLoadingBookDifficulties) ...[
             const SizedBox(height: 14),
             _buildDifficultyLoadingBanner(theme, provider),
+          ],
+          if (settings.reviewFeatureEnabled &&
+              provider.learningItemCount > 0) ...[
+            const SizedBox(height: 14),
+            TodayReviewCard(
+              dueCount: provider.todayReviewDueCount,
+              totalLearningItems: provider.learningItemCount,
+              onStart: () => Navigator.pushNamed(context, '/spaced_review'),
+            ),
           ],
           const SizedBox(height: 28),
           if (featuredBook != null) ...[

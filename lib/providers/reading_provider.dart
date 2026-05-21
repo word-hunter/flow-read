@@ -32,6 +32,7 @@ import '../services/epub_service.dart';
 import '../services/learning_item_service.dart';
 import '../services/pronunciation_service.dart';
 import '../services/reading_config_service.dart';
+import '../services/review_schedule_service.dart';
 import '../services/reading_time_service.dart';
 import '../services/sentence_analyzer.dart';
 import '../services/settings_service.dart';
@@ -63,6 +64,7 @@ class ReadingProvider extends ChangeNotifier {
   WordLevelService? _wordLevelService;
   WordContextService? _wordContextService;
   LearningItemService? _learningItemService;
+  ReviewScheduleService? _reviewScheduleService;
   PronunciationService? _pronunciationService;
 
   // ============================================================
@@ -119,6 +121,7 @@ class ReadingProvider extends ChangeNotifier {
   // Full-book search state
   // ============================================================
   final ReadingSearchController _searchController = ReadingSearchController();
+  String _sourceHighlightQuery = '';
 
   // ============================================================
   // AI state
@@ -302,6 +305,7 @@ class ReadingProvider extends ChangeNotifier {
   bool get isSearching => _searchController.isSearching;
   bool get searchStoppedAtLimit => _searchController.stoppedAtLimit;
   ReadingSearchResult? get activeSearchResult => _searchController.activeResult;
+  String get sourceHighlightQuery => _sourceHighlightQuery;
 
   // -- Reading config (delegated to ReadingConfigService) --
   double get fontSize => _readingConfig?.fontSize ?? 16.0;
@@ -354,6 +358,9 @@ class ReadingProvider extends ChangeNotifier {
   List<LearningItem> get learningItems =>
       _learningItemService?.allItems ?? const [];
   int get learningItemCount => _learningItemService?.count ?? 0;
+  int get todayReviewDueCount => _reviewScheduleService?.dueCount() ?? 0;
+  List<LearningReviewCard> get todayReviewCards =>
+      _reviewScheduleService?.buildSessionCards() ?? const [];
   bool get canCreateLearningItems => _learningItemService != null;
   bool get canPronounceWords => _pronunciationService != null;
 
@@ -380,6 +387,8 @@ class ReadingProvider extends ChangeNotifier {
       _wordContextService = service;
   void setLearningItemService(LearningItemService service) =>
       _learningItemService = service;
+  void setReviewScheduleService(ReviewScheduleService service) =>
+      _reviewScheduleService = service;
   void setPronunciationService(PronunciationService service) =>
       _pronunciationService = service;
 
@@ -581,6 +590,7 @@ class ReadingProvider extends ChangeNotifier {
     if (index < 0 || index >= _book!.chapters.length) return;
     _currentChapter = index;
     _readingProgress = 0.0;
+    _sourceHighlightQuery = '';
     _saveCurrentProgress();
     notifyListeners();
     await _analyzeCurrentChapter();
@@ -1092,8 +1102,54 @@ class ReadingProvider extends ChangeNotifier {
     return result;
   }
 
+  Future<LearningItemSaveResult?> addPracticeMistakeLearningItem(
+    PracticeQuestion question,
+    String selectedAnswer,
+  ) async {
+    final service = _learningItemService;
+    if (service == null || question.question.trim().isEmpty) return null;
+
+    final result = await service.saveDraft(
+      LearningItemDraft.questionMistake(
+        question: question.question,
+        correctAnswer: question.answer,
+        selectedAnswer: selectedAnswer,
+        sourceExcerpt: question.sourceExcerpt,
+        explanation: question.answerExplanation,
+        source: _currentLearningItemSource(),
+        metadata: {
+          'questionType': question.type,
+          'difficulty': question.difficulty,
+        },
+      ),
+    );
+    notifyListeners();
+    return result;
+  }
+
+  Future<void> recordLearningReview(
+    String itemId,
+    LearningReviewResult result,
+  ) async {
+    await _reviewScheduleService?.recordReview(itemId, result);
+    notifyListeners();
+  }
+
   Future<void> deleteLearningItem(String id) async {
     await _learningItemService?.delete(id);
+    notifyListeners();
+  }
+
+  void highlightSourceExcerpt(String excerpt) {
+    final normalized = excerpt.trim();
+    if (normalized.isEmpty) return;
+    _sourceHighlightQuery = normalized;
+    notifyListeners();
+  }
+
+  void clearSourceHighlight() {
+    if (_sourceHighlightQuery.isEmpty) return;
+    _sourceHighlightQuery = '';
     notifyListeners();
   }
 
@@ -1378,6 +1434,7 @@ class ReadingProvider extends ChangeNotifier {
 
   void _resetSearchState() {
     _searchController.reset();
+    _sourceHighlightQuery = '';
   }
 
   LearningItemSource _currentLearningItemSource() {

@@ -479,6 +479,7 @@ class _AIReview extends StatefulWidget {
 class _AIReviewState extends State<_AIReview> {
   final Map<int, int?> _selectedAnswers = {};
   final Map<int, bool> _showAnswers = {};
+  final Map<int, PracticeAnswerRecord> _answerRecords = {};
 
   @override
   Widget build(BuildContext context) {
@@ -533,8 +534,11 @@ class _AIReviewState extends State<_AIReview> {
   Widget _buildAICard(PracticeQuestion q, int index, ThemeData theme) {
     final selected = _selectedAnswers[index];
     final showAnswer = _showAnswers[index] ?? false;
-    final isCorrect =
-        selected != null && q.distractors[selected].text == q.answer;
+    final options = q.answerOptions;
+    final selectedText = selected == null || selected >= options.length
+        ? ''
+        : options[selected].text;
+    final isCorrect = selectedText == q.answer;
 
     final typeIcons = {
       'detail': Icons.info_outline,
@@ -632,12 +636,16 @@ class _AIReviewState extends State<_AIReview> {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            if (q.sourceExcerpt.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _SourceExcerptBox(
+                text: q.sourceExcerpt,
+                onOpen: () => _showSourceInReader(q),
+              ),
+            ],
             const SizedBox(height: 12),
-            ...List.generate(4, (i) {
-              final isDistractor = i < q.distractors.length;
-              final text = isDistractor ? q.distractors[i].text : '';
-              if (!isDistractor) return const SizedBox.shrink();
-
+            ...List.generate(options.length, (i) {
+              final text = options[i].text;
               final isSelected = selected == i;
               final showResult = showAnswer;
 
@@ -731,7 +739,7 @@ class _AIReviewState extends State<_AIReview> {
               Center(
                 child: FilledButton.icon(
                   onPressed: selected != null
-                      ? () => setState(() => _showAnswers[index] = true)
+                      ? () => _submitAnswer(q, index, selected)
                       : null,
                   icon: const Icon(Icons.check, size: 18),
                   label: const Text('提交'),
@@ -784,12 +792,22 @@ class _AIReviewState extends State<_AIReview> {
                     if (selected != null && !isCorrect) ...[
                       const SizedBox(height: 8),
                       Text(
-                        q.distractors[selected].whyWrong,
+                        options[selected].whyWrong,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AppColors.familiarityLow.withValues(
                             alpha: 0.8,
                           ),
                           height: 1.4,
+                        ),
+                      ),
+                    ],
+                    if (_answerRecords[index] != null && !isCorrect) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '已加入今日复习',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: AppColors.familiarityLow,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -799,6 +817,106 @@ class _AIReviewState extends State<_AIReview> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _submitAnswer(
+    PracticeQuestion question,
+    int index,
+    int selectedIndex,
+  ) async {
+    if (_showAnswers[index] == true) return;
+    final options = question.answerOptions;
+    if (selectedIndex < 0 || selectedIndex >= options.length) return;
+
+    final selectedAnswer = options[selectedIndex].text;
+    final isCorrect = selectedAnswer == question.answer;
+    setState(() {
+      _showAnswers[index] = true;
+      _answerRecords[index] = PracticeAnswerRecord(
+        question: question.question,
+        selectedAnswer: selectedAnswer,
+        correctAnswer: question.answer,
+        isCorrect: isCorrect,
+        answeredAt: DateTime.now(),
+      );
+    });
+
+    if (isCorrect) return;
+    await context.read<ReadingProvider>().addPracticeMistakeLearningItem(
+      question,
+      selectedAnswer,
+    );
+  }
+
+  void _showSourceInReader(PracticeQuestion question) {
+    context.read<ReadingProvider>().highlightSourceExcerpt(
+      question.sourceExcerpt,
+    );
+    Navigator.pop(context);
+  }
+}
+
+class _SourceExcerptBox extends StatelessWidget {
+  final String text;
+  final VoidCallback onOpen;
+
+  const _SourceExcerptBox({required this.text, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.format_quote,
+                size: 16,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '原文依据',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: onOpen,
+                icon: const Icon(Icons.open_in_new, size: 14),
+                label: const Text('查看'),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            text,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.45,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
       ),
     );
   }

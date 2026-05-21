@@ -511,32 +511,15 @@ class SettingsExperimentalFeaturesSection extends StatelessWidget {
   const SettingsExperimentalFeaturesSection({
     super.key,
     required this.settings,
-    required this.onSetAllFeatures,
   });
 
   final SettingsService settings;
-  final ValueChanged<bool> onSetAllFeatures;
 
   @override
   Widget build(BuildContext context) {
-    final testingEnabled = settings.enabledExperimentalFeatures.isNotEmpty;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SettingsCard(
-          icon: Icons.science_outlined,
-          title: '开启测试功能',
-          child: SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.tune_outlined),
-            title: const Text('开启测试功能'),
-            subtitle: Text(testingEnabled ? '测试项列表已启用' : '关闭后隐藏测试入口'),
-            value: testingEnabled,
-            onChanged: onSetAllFeatures,
-          ),
-        ),
-        const SizedBox(height: 16),
         SettingsCard(
           icon: Icons.list_alt_outlined,
           title: '测试项列表',
@@ -547,7 +530,6 @@ class SettingsExperimentalFeaturesSection extends StatelessWidget {
                 title: 'RSS 入口',
                 subtitle: '在首页显示 RSS 订阅与最新内容入口',
                 value: settings.rssFeatureEnabled,
-                enabled: testingEnabled,
                 onChanged: settings.setRssFeatureEnabled,
               ),
               const Divider(height: 1),
@@ -556,8 +538,15 @@ class SettingsExperimentalFeaturesSection extends StatelessWidget {
                 title: '浏览器入口',
                 subtitle: '在首页显示网页阅读、单词标记与 AI 助手入口',
                 value: settings.browserFeatureEnabled,
-                enabled: testingEnabled,
                 onChanged: settings.setBrowserFeatureEnabled,
+              ),
+              const Divider(height: 1),
+              _ExperimentalFeatureTile(
+                icon: Icons.replay_outlined,
+                title: '轻量复习',
+                subtitle: '显示首页今日复习和训练页复习入口',
+                value: settings.reviewFeatureEnabled,
+                onChanged: settings.setReviewFeatureEnabled,
               ),
             ],
           ),
@@ -1397,7 +1386,6 @@ class _ExperimentalFeatureTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.value,
-    required this.enabled,
     required this.onChanged,
   });
 
@@ -1405,7 +1393,6 @@ class _ExperimentalFeatureTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool value;
-  final bool enabled;
   final ValueChanged<bool> onChanged;
 
   @override
@@ -1416,7 +1403,7 @@ class _ExperimentalFeatureTile extends StatelessWidget {
       title: Text(title),
       subtitle: Text(subtitle),
       value: value,
-      onChanged: enabled ? onChanged : null,
+      onChanged: onChanged,
     );
   }
 }

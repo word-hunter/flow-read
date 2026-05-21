@@ -39,13 +39,19 @@ class LearningItemAdapter extends TypeAdapter<LearningItem> {
               ?.map((key, value) => MapEntry(key.toString(), value.toString()))
               .cast<String, String>() ??
           const {},
+      nextReviewAt:
+          (fields[15] as DateTime?) ??
+          (fields[11] as DateTime?) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      reviewCount: fields[16] as int? ?? 0,
+      lastResult: learningReviewResultFromName(fields[17] as String?),
     );
   }
 
   @override
   void write(BinaryWriter writer, LearningItem obj) {
     writer
-      ..writeByte(15)
+      ..writeByte(18)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -75,7 +81,13 @@ class LearningItemAdapter extends TypeAdapter<LearningItem> {
       ..writeByte(13)
       ..write(obj.tags)
       ..writeByte(14)
-      ..write(obj.metadata);
+      ..write(obj.metadata)
+      ..writeByte(15)
+      ..write(obj.nextReviewAt)
+      ..writeByte(16)
+      ..write(obj.reviewCount)
+      ..writeByte(17)
+      ..write(obj.lastResult.name);
   }
 
   @override

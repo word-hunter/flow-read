@@ -13,6 +13,15 @@ LearningItemType learningItemTypeFromName(String? value) {
   return LearningItemType.word;
 }
 
+enum LearningReviewResult { newItem, remembered, missed }
+
+LearningReviewResult learningReviewResultFromName(String? value) {
+  for (final result in LearningReviewResult.values) {
+    if (result.name == value) return result;
+  }
+  return LearningReviewResult.newItem;
+}
+
 extension LearningItemTypeLabel on LearningItemType {
   String get label {
     return switch (this) {
@@ -72,6 +81,15 @@ class LearningItem {
   @HiveField(14)
   final Map<String, String> metadata;
 
+  @HiveField(15)
+  final DateTime nextReviewAt;
+
+  @HiveField(16)
+  final int reviewCount;
+
+  @HiveField(17)
+  final LearningReviewResult lastResult;
+
   const LearningItem({
     required this.id,
     required this.type,
@@ -88,7 +106,10 @@ class LearningItem {
     required this.updatedAt,
     this.tags = const [],
     this.metadata = const {},
-  });
+    DateTime? nextReviewAt,
+    this.reviewCount = 0,
+    this.lastResult = LearningReviewResult.newItem,
+  }) : nextReviewAt = nextReviewAt ?? createdAt;
 
   bool matchesIdentity({
     required String bookId,
@@ -118,6 +139,9 @@ class LearningItem {
     DateTime? updatedAt,
     List<String>? tags,
     Map<String, String>? metadata,
+    DateTime? nextReviewAt,
+    int? reviewCount,
+    LearningReviewResult? lastResult,
   }) {
     return LearningItem(
       id: id ?? this.id,
@@ -135,6 +159,9 @@ class LearningItem {
       updatedAt: updatedAt ?? this.updatedAt,
       tags: tags ?? this.tags,
       metadata: metadata ?? this.metadata,
+      nextReviewAt: nextReviewAt ?? this.nextReviewAt,
+      reviewCount: reviewCount ?? this.reviewCount,
+      lastResult: lastResult ?? this.lastResult,
     );
   }
 
@@ -155,10 +182,19 @@ class LearningItem {
       'updatedAt': updatedAt.toIso8601String(),
       'tags': tags,
       'metadata': metadata,
+      'nextReviewAt': nextReviewAt.toIso8601String(),
+      'reviewCount': reviewCount,
+      'lastResult': lastResult.name,
     };
   }
 
   factory LearningItem.fromJson(Map<String, dynamic> json) {
+    final createdAt =
+        DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+    final updatedAt =
+        DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
     return LearningItem(
       id: json['id'] as String,
       type: learningItemTypeFromName(json['type'] as String?),
@@ -171,12 +207,8 @@ class LearningItem {
       bookId: json['bookId'] as String? ?? '',
       chapterIndex: json['chapterIndex'] as int? ?? -1,
       chapterTitle: json['chapterTitle'] as String? ?? '',
-      createdAt:
-          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0),
-      updatedAt:
-          DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
       tags:
           (json['tags'] as List<dynamic>?)
               ?.map((value) => value.toString())
@@ -188,6 +220,10 @@ class LearningItem {
               ?.map((key, value) => MapEntry(key.toString(), value.toString()))
               .cast<String, String>() ??
           const {},
+      nextReviewAt:
+          DateTime.tryParse(json['nextReviewAt'] as String? ?? '') ?? createdAt,
+      reviewCount: json['reviewCount'] as int? ?? 0,
+      lastResult: learningReviewResultFromName(json['lastResult'] as String?),
     );
   }
 }
@@ -333,6 +369,33 @@ class LearningItemDraft {
       sourceText: selectedText,
       source: source,
       tags: const ['ai', 'expression'],
+    );
+  }
+
+  factory LearningItemDraft.questionMistake({
+    required String question,
+    required String correctAnswer,
+    required String selectedAnswer,
+    required String sourceExcerpt,
+    required String explanation,
+    required LearningItemSource source,
+    Map<String, String> metadata = const {},
+  }) {
+    return LearningItemDraft(
+      type: LearningItemType.questionMistake,
+      canonicalKey: question,
+      title: _preview(question),
+      content: question,
+      answer: correctAnswer,
+      note: explanation,
+      sourceText: sourceExcerpt,
+      source: source,
+      tags: const ['practice', 'mistake'],
+      metadata: {
+        ...metadata,
+        if (selectedAnswer.trim().isNotEmpty)
+          'selectedAnswer': selectedAnswer.trim(),
+      },
     );
   }
 

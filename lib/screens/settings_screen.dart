@@ -301,11 +301,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onImportWordHunter: () => unawaited(_importWordHunterBackup()),
               ),
               SettingsSection.experiments =>
-                SettingsExperimentalFeaturesSection(
-                  settings: settings,
-                  onSetAllFeatures: (enabled) =>
-                      unawaited(_setAllExperimentalFeatures(settings, enabled)),
-                ),
+                SettingsExperimentalFeaturesSection(settings: settings),
               SettingsSection.about => SettingsAboutSection(
                 onShowReleaseNotes: () => unawaited(_showCurrentReleaseNotes()),
                 onCheckForUpdates: () => unawaited(_checkForUpdates()),
@@ -443,14 +439,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) {
       _showSnackBar('词典缓存已清理');
     }
-  }
-
-  Future<void> _setAllExperimentalFeatures(
-    SettingsService settings,
-    bool enabled,
-  ) async {
-    await settings.setRssFeatureEnabled(enabled);
-    await settings.setBrowserFeatureEnabled(enabled);
   }
 
   Future<void> _chooseBackupFolder() async {

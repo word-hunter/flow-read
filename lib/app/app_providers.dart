@@ -16,6 +16,7 @@ import '../services/dictionary/dictionary_source_config.dart';
 import '../services/dictionary/longman_repository.dart';
 import '../services/dictionary/wordnet_repository.dart';
 import '../services/learning_item_service.dart';
+import '../services/review_schedule_service.dart';
 import '../services/llm_client.dart';
 import '../services/pronunciation_service.dart';
 import '../services/reading_config_service.dart';
@@ -122,6 +123,7 @@ ReadingProvider _createReadingProvider(SettingsService settings) {
   final learningItemService = LearningItemService();
   learningItemService.init();
   provider.setLearningItemService(learningItemService);
+  provider.setReviewScheduleService(ReviewScheduleService(learningItemService));
 
   provider.setPronunciationService(FlutterTtsPronunciationService());
 

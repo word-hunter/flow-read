@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/reading_provider.dart';
+import '../services/settings_service.dart';
 
 class TrainingPage extends StatelessWidget {
   const TrainingPage({super.key});
@@ -33,6 +34,7 @@ class TrainingPage extends StatelessWidget {
       description: 'Review learned vocabulary',
       color: Color(0xFF27AE60),
       route: '/spaced_review',
+      requiresReviewFeature: true,
     ),
   ];
 
@@ -93,6 +95,13 @@ class TrainingPage extends StatelessWidget {
   }
 
   Widget _buildTrainingGrid(BuildContext context, ThemeData theme) {
+    final settings = context.watch<SettingsService>();
+    final visibleTypes = _trainingTypes
+        .where(
+          (type) =>
+              !type.requiresReviewFeature || settings.reviewFeatureEnabled,
+        )
+        .toList(growable: false);
     return Padding(
       padding: const EdgeInsets.all(20),
       child: GridView.count(
@@ -100,7 +109,7 @@ class TrainingPage extends StatelessWidget {
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
         childAspectRatio: 1.1,
-        children: _trainingTypes
+        children: visibleTypes
             .map((type) => _buildTrainingCard(context, type, theme))
             .toList(),
       ),
@@ -168,6 +177,13 @@ class TrainingPage extends StatelessWidget {
 
   void _navigateToTraining(BuildContext context, _TrainingType type) {
     final provider = context.read<ReadingProvider>();
+    if (type.requiresReviewFeature &&
+        !context.read<SettingsService>().reviewFeatureEnabled) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请先在设置中开启轻量复习测试功能')));
+      return;
+    }
     if (!provider.hasBook && !provider.hasBeenOpened) {
       ScaffoldMessenger.of(
         context,
@@ -184,6 +200,7 @@ class _TrainingType {
   final String description;
   final Color color;
   final String route;
+  final bool requiresReviewFeature;
 
   const _TrainingType({
     required this.icon,
@@ -191,5 +208,6 @@ class _TrainingType {
     required this.description,
     required this.color,
     required this.route,
+    this.requiresReviewFeature = false,
   });
 }

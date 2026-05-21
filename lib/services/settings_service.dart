@@ -78,9 +78,11 @@ class SettingsService extends ChangeNotifier {
   static const dailyReadingGoalStepMinutes = 15;
   static const experimentalFeatureRss = 'rss';
   static const experimentalFeatureBrowser = 'browser';
+  static const experimentalFeatureReview = 'review';
   static const supportedExperimentalFeatureIds = <String>{
     experimentalFeatureRss,
     experimentalFeatureBrowser,
+    experimentalFeatureReview,
   };
   static const _dailyReadingGoalMinutesKey = 'dailyReadingGoalMinutes';
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
@@ -167,6 +169,8 @@ class SettingsService extends ChangeNotifier {
       isExperimentalFeatureEnabled(experimentalFeatureRss);
   bool get browserFeatureEnabled =>
       isExperimentalFeatureEnabled(experimentalFeatureBrowser);
+  bool get reviewFeatureEnabled =>
+      isExperimentalFeatureEnabled(experimentalFeatureReview);
 
   Future<void> init() async {
     _box = Hive.box(HiveBoxNames.settings);
@@ -480,6 +484,10 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setBrowserFeatureEnabled(bool enabled) {
     return setExperimentalFeatureEnabled(experimentalFeatureBrowser, enabled);
+  }
+
+  Future<void> setReviewFeatureEnabled(bool enabled) {
+    return setExperimentalFeatureEnabled(experimentalFeatureReview, enabled);
   }
 
   Future<void> setDictionarySourceEnabled(

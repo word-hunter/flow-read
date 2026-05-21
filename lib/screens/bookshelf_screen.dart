@@ -8,7 +8,9 @@ import '../models/book_metadata.dart';
 import '../providers/reading_provider.dart';
 import '../services/app_links.dart';
 import '../services/external_url_launcher.dart';
+import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
+import '../widgets/home/today_review_card.dart';
 
 const _logoAsset = 'assets/brand/flow_read_logo.png';
 
@@ -152,10 +154,19 @@ Widget _buildBookListWithDifficultyStatus(
   required bool isNarrow,
   bool isGrid = false,
 }) {
+  final settings = context.watch<SettingsService>();
   return Column(
     children: [
       if (provider.isLoadingBookDifficulties)
         _buildDifficultyLoadingBanner(theme, provider),
+      if (settings.reviewFeatureEnabled && provider.learningItemCount > 0) ...[
+        const SizedBox(height: 12),
+        TodayReviewCard(
+          dueCount: provider.todayReviewDueCount,
+          totalLearningItems: provider.learningItemCount,
+          onStart: () => Navigator.pushNamed(context, '/spaced_review'),
+        ),
+      ],
       Expanded(
         child: _buildBookList(
           context,

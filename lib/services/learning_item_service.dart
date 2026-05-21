@@ -23,6 +23,10 @@ class LearningItemService {
 
   int get count => _repository.length;
 
+  LearningItem? getById(String id) {
+    return _repository.get(id);
+  }
+
   LearningItem? findDuplicate({
     required String bookId,
     required int chapterIndex,
@@ -94,6 +98,10 @@ class LearningItemService {
     );
     await _repository.put(item.id, item);
     return LearningItemSaveResult(item: item, created: true);
+  }
+
+  Future<void> saveItem(LearningItem item) async {
+    await _repository.put(item.id, item);
   }
 
   Future<void> delete(String id) async {

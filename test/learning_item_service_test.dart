@@ -43,6 +43,9 @@ void main() {
     expect(result.item.canonicalKey, 'flow');
     expect(result.item.bookId, 'book-1');
     expect(result.item.chapterIndex, 2);
+    expect(result.item.nextReviewAt, result.item.createdAt);
+    expect(result.item.reviewCount, 0);
+    expect(result.item.lastResult, LearningReviewResult.newItem);
     expect(service.allItems.single.answer, 'movement');
   });
 

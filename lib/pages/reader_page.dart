@@ -277,6 +277,7 @@ class _ReaderPageState extends State<ReaderPage> {
   Future<void> _showSearchSheet() async {
     if (_searchSheetOpen) return;
 
+    context.read<ReadingProvider>().clearSourceHighlight();
     setState(() {
       _searchSheetOpen = true;
       _searchShowingAll = false;
@@ -727,7 +728,7 @@ class _ReaderPageState extends State<ReaderPage> {
     bool isFirstBlock = false,
   }) {
     final provider = context.read<ReadingProvider>();
-    final searchQuery = _isSearchPanelVisible ? provider.searchQuery : '';
+    final searchQuery = _effectiveHighlightQuery(provider);
 
     if (isFirstBlock &&
         searchQuery.isEmpty &&
@@ -758,6 +759,12 @@ class _ReaderPageState extends State<ReaderPage> {
       searchQuery: searchQuery,
       wordLevelService: provider.wordLevelService,
     );
+  }
+
+  String _effectiveHighlightQuery(ReadingProvider provider) {
+    return _isSearchPanelVisible
+        ? provider.searchQuery
+        : provider.sourceHighlightQuery;
   }
 
   Widget _buildTitleBlock(AnalysisResult result, ThemeData theme) {
@@ -802,7 +809,7 @@ class _ReaderPageState extends State<ReaderPage> {
   }) {
     final provider = context.read<ReadingProvider>();
     final baseStyle = _buildBaseTextStyle(theme, provider);
-    final searchQuery = _isSearchPanelVisible ? provider.searchQuery : '';
+    final searchQuery = _effectiveHighlightQuery(provider);
 
     if (isFirstParagraph && paragraph.isNotEmpty && searchQuery.isEmpty) {
       return Padding(

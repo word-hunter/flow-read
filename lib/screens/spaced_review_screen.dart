@@ -1,7 +1,9 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../models/learning_item.dart';
 import '../providers/reading_provider.dart';
+import '../services/review_schedule_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
 
@@ -13,183 +15,93 @@ class SpacedReviewScreen extends StatefulWidget {
 }
 
 class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
-  List<_FillBlank> _items = [];
+  late final List<LearningReviewCard> _cards;
+  final TextEditingController _answerController = TextEditingController();
   int _currentIndex = 0;
-  int _correctCount = 0;
-  int? _selectedAnswer;
-  bool _showResult = false;
+  int _rememberedCount = 0;
+  bool _showAnswer = false;
   bool _allDone = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _generateItems();
+    _cards = context.read<ReadingProvider>().todayReviewCards;
+    _answerController.addListener(_onInputChanged);
   }
 
-  void _generateItems() {
-    final provider = context.read<ReadingProvider>();
-    final result = provider.result;
-    if (result == null) return;
-
-    final vocab = result.vocabulary;
-    final text = result.passageText;
-
-    _items = [];
-    final rng = Random(AppConstants.quizSeed);
-    final shuffled = List.of(vocab)..shuffle(rng);
-    final count = min(shuffled.length, AppConstants.quizItemCount);
-
-    for (int i = 0; i < count; i++) {
-      final word = shuffled[i];
-      final wordLower = word.word.toLowerCase();
-
-      final regex = RegExp(
-        r'\b' + RegExp.escape(word.word) + r'\b',
-        caseSensitive: false,
-      );
-      final match = regex.firstMatch(text);
-      if (match == null) continue;
-
-      final start = max(0, match.start - 60);
-      final end = min(text.length, match.end + 60);
-      var contextText = text.substring(start, end).trim();
-      if (start > 0) contextText = '...$contextText';
-      if (end < text.length) contextText = '$contextText...';
-
-      final blankContext = contextText.replaceFirst(
-        RegExp(r'\b' + RegExp.escape(word.word) + r'\b', caseSensitive: false),
-        '______',
-      );
-
-      final wrongOptions = shuffled
-          .where((v) => v.word.toLowerCase() != wordLower)
-          .take(3)
-          .map((v) => v.word)
-          .toList();
-
-      _items.add(
-        _FillBlank(
-          word: word.word,
-          context: contextText,
-          blankSentence: blankContext,
-          options: [word.word, ...wrongOptions]..shuffle(rng),
-        ),
-      );
-    }
-
-    for (final item in _items) {
-      item.correctIndex = item.options.indexOf(item.word);
-    }
-
-    if (_items.isEmpty) return;
-    setState(() {});
+  @override
+  void dispose() {
+    _answerController
+      ..removeListener(_onInputChanged)
+      ..dispose();
+    super.dispose();
   }
 
-  void _selectAnswer(int optionIndex) {
-    if (_showResult) return;
-    setState(() {
-      _selectedAnswer = optionIndex;
-      _showResult = true;
-      if (optionIndex == _items[_currentIndex].correctIndex) _correctCount++;
-    });
-  }
-
-  void _nextQuestion() {
-    if (_currentIndex < _items.length - 1) {
-      setState(() {
-        _currentIndex++;
-        _selectedAnswer = null;
-        _showResult = false;
-      });
-    } else {
-      setState(() => _allDone = true);
-    }
+  void _onInputChanged() {
+    if (!_showAnswer && mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_items.isEmpty) return _buildEmptyState();
+    if (_cards.isEmpty) return _buildEmptyState();
     if (_allDone) return _buildDoneState();
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= AppConstants.layoutBreakpoint;
-        final item = _items[_currentIndex];
-        final accuracy = _currentIndex > 0
-            ? (_correctCount * 100.0 / _currentIndex).round()
-            : 100;
-
+        final card = _cards[_currentIndex];
         return Scaffold(
-          appBar: AppBar(
+          appBar: _ReviewAppBar(
             title: Text(
-              isWide
-                  ? '间隔复习 · ${_currentIndex + 1} / ${_items.length}'
-                  : '${_currentIndex + 1} of ${_items.length}',
+              '今日复习 · ${_currentIndex + 1} / ${_cards.length}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            leading: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(context),
-            ),
+            onClose: () => Navigator.pop(context),
           ),
-          body: isWide
-              ? _buildWideBody(item, accuracy)
-              : _buildNarrowBody(item),
+          body: isWide ? _buildWideBody(card) : _buildNarrowBody(card),
         );
       },
     );
   }
 
   Widget _buildEmptyState() {
-    return Scaffold(
-      appBar: AppBar(title: const Text('间隔复习')),
-      body: Center(
-        child: Text(
-          '暂无复习内容',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDoneState() {
     final theme = Theme.of(context);
-    final accuracy = _items.isNotEmpty
-        ? (_correctCount * 100 / _items.length).round()
-        : 0;
     return Scaffold(
-      appBar: AppBar(title: const Text('复习完成')),
+      appBar: _ReviewAppBar(
+        title: const Text('今日复习'),
+        onClose: () => Navigator.pop(context),
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.emoji_events,
-                size: 72,
-                color: theme.colorScheme.primary.withValues(alpha: 0.5),
+                Icons.check_circle_outline,
+                size: 56,
+                color: theme.colorScheme.primary.withValues(alpha: 0.55),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Text(
-                '复习完成!',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+                '暂无今日复习',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
-                '正确率: $accuracy% ($_correctCount / ${_items.length})',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.primary,
+                '查词、AI 解析和章节错题会按复习间隔出现在这里。',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
               FilledButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('返回阅读'),
+                child: const Text('返回'),
               ),
             ],
           ),
@@ -198,43 +110,402 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
     );
   }
 
-  Widget _buildNarrowBody(_FillBlank item) {
+  Widget _buildDoneState() {
     final theme = Theme.of(context);
+    final accuracy = _cards.isEmpty
+        ? 0
+        : (_rememberedCount * 100 / _cards.length).round();
+    return Scaffold(
+      appBar: _ReviewAppBar(
+        title: const Text('复习完成'),
+        onClose: () => Navigator.pop(context),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.emoji_events_outlined,
+                size: 64,
+                color: theme.colorScheme.primary.withValues(alpha: 0.6),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                '复习完成',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '记住 $accuracy% ($_rememberedCount / ${_cards.length})',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 26),
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('返回首页'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWideBody(LearningReviewCard card) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        SizedBox(width: 280, child: _buildQueue(theme)),
+        VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
+        Expanded(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(32),
+              child: SizedBox(width: 620, child: _buildReviewCard(card)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNarrowBody(LearningReviewCard card) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
+      padding: const EdgeInsets.all(20),
+      child: _buildReviewCard(card),
+    );
+  }
+
+  Widget _buildQueue(ThemeData theme) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _cards.length,
+      itemBuilder: (context, index) {
+        final card = _cards[index];
+        final isActive = index == _currentIndex;
+        final isDone = index < _currentIndex;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.32)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isDone ? Icons.check_circle : _typeIcon(card.type),
+                  size: 17,
+                  color: isDone
+                      ? AppColors.correct
+                      : isActive
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    card.item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                      color: isActive
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildReviewCard(LearningReviewCard card) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTypeChip(theme, card.type),
+            const SizedBox(height: 18),
+            _buildStudyGoal(theme, card),
+            const SizedBox(height: 18),
+            _buildPrompt(theme, card),
+            if (!_showAnswer) ...[
+              const SizedBox(height: 16),
+              _buildInput(theme, card),
+            ],
+            if (_showAnswer) ...[
+              const SizedBox(height: 20),
+              _buildAnswer(theme, card),
+              if (card.sourceText.trim().isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildSource(theme, card.sourceText),
+              ],
+            ],
+            const SizedBox(height: 24),
+            _buildActions(card),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypeChip(ThemeData theme, LearningReviewCardType type) {
+    final color = type == LearningReviewCardType.questionMistake
+        ? theme.colorScheme.error
+        : theme.colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: _currentIndex / _items.length,
-              minHeight: 4,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                theme.colorScheme.primary,
+          Icon(_typeIcon(type), size: 15, color: color),
+          const SizedBox(width: 6),
+          Text(
+            type.label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudyGoal(ThemeData theme, LearningReviewCard card) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.school_outlined,
+            size: 18,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '学习点',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  card.studyGoal,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrompt(ThemeData theme, LearningReviewCard card) {
+    final title = switch (card.type) {
+      LearningReviewCardType.wordMeaning => '回忆含义',
+      LearningReviewCardType.fillBlank => '补全原句',
+      LearningReviewCardType.questionMistake => '回顾错题',
+    };
+    final isFillBlank = card.type == LearningReviewCardType.fillBlank;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          card.prompt,
+          style:
+              (isFillBlank
+                      ? theme.textTheme.headlineSmall
+                      : theme.textTheme.titleLarge)
+                  ?.copyWith(
+                    fontFamily: isFillBlank ? 'Serif' : null,
+                    height: isFillBlank ? 1.65 : 1.35,
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
+                  ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInput(ThemeData theme, LearningReviewCard card) {
+    final maxLines = card.type == LearningReviewCardType.questionMistake
+        ? 3
+        : 1;
+    final hintText = switch (card.type) {
+      LearningReviewCardType.wordMeaning => '输入你回忆出的含义',
+      LearningReviewCardType.fillBlank => '输入空缺处的原文',
+      LearningReviewCardType.questionMistake => '输入你现在的答案',
+    };
+
+    return TextField(
+      controller: _answerController,
+      maxLines: maxLines,
+      minLines: 1,
+      textInputAction: maxLines == 1
+          ? TextInputAction.done
+          : TextInputAction.newline,
+      onSubmitted: maxLines == 1 && _answerController.text.trim().isNotEmpty
+          ? (_) => _revealAnswer()
+          : null,
+      decoration: InputDecoration(
+        labelText: '你的答案',
+        hintText: hintText,
+        filled: true,
+        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.24,
+        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSource(ThemeData theme, String source) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '原文依据',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            source,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.45,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnswer(ThemeData theme, LearningReviewCard card) {
+    final explanation = card.explanation.trim();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '答案',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            card.answer,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.w700,
+              height: 1.4,
+            ),
+          ),
+          if (explanation.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              '说明',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer.withValues(
+                  alpha: 0.86,
+                ),
+                fontWeight: FontWeight.w700,
               ),
             ),
-          ),
-          const SizedBox(height: 32),
-          _buildContextCard(theme, item.context),
-          const SizedBox(height: 24),
-          Text(
-            item.blankSentence,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              height: 1.8,
-              fontFamily: 'Serif',
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ..._buildOptionCards(theme, item),
-          if (_showResult) ...[
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _nextQuestion,
-                child: Text(_currentIndex < _items.length - 1 ? '下一题' : '完成'),
+            const SizedBox(height: 4),
+            Text(
+              explanation,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer.withValues(
+                  alpha: 0.78,
+                ),
+                height: 1.45,
               ),
             ),
           ],
@@ -243,313 +514,119 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
     );
   }
 
-  Widget _buildWideBody(_FillBlank item, int accuracy) {
-    final theme = Theme.of(context);
+  Widget _buildActions(LearningReviewCard card) {
+    if (!_showAnswer) {
+      final canSubmit = _answerController.text.trim().isNotEmpty;
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _isSaving ? null : _revealAnswer,
+              icon: const Icon(Icons.visibility_outlined, size: 18),
+              label: const Text('看答案'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _isSaving || !canSubmit ? null : _revealAnswer,
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('提交'),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
-        SizedBox(width: 300, child: _buildSidebar(accuracy)),
-        VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
         Expanded(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(40),
-              child: SizedBox(
-                width: 560,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _buildContextCard(theme, item.context),
-                    const SizedBox(height: 28),
-                    Text(
-                      item.blankSentence,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        height: 1.8,
-                        fontFamily: 'Serif',
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 36),
-                    ..._buildOptionCards(
-                      theme,
-                      item,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'Serif',
-                        color: theme.colorScheme.onSurface,
-                      ),
-                      centered: true,
-                    ),
-                    if (_showResult) ...[
-                      const SizedBox(height: 28),
-                      SizedBox(
-                        width: 200,
-                        child: FilledButton(
-                          onPressed: _nextQuestion,
-                          child: Text(
-                            _currentIndex < _items.length - 1 ? '下一题' : '完成复习',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+          child: OutlinedButton.icon(
+            onPressed: _isSaving
+                ? null
+                : () => _finishCard(LearningReviewResult.missed),
+            icon: const Icon(Icons.replay, size: 18),
+            label: const Text('没记住'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: _isSaving
+                ? null
+                : () => _finishCard(LearningReviewResult.remembered),
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('记住了'),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildContextCard(ThemeData theme, String context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.15),
-        ),
-      ),
-      child: Text(
-        context,
-        textAlign: TextAlign.center,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          fontStyle: FontStyle.italic,
-          height: 1.5,
-          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-        ),
-      ),
-    );
+  void _revealAnswer() {
+    if (_showAnswer) return;
+    setState(() => _showAnswer = true);
   }
 
-  List<Widget> _buildOptionCards(
-    ThemeData theme,
-    _FillBlank item, {
-    TextStyle? style,
-    bool centered = false,
-  }) {
-    return List.generate(item.options.length, (index) {
-      final isCorrect = index == item.correctIndex;
-      final isSelectedWrong =
-          _showResult && _selectedAnswer == index && !isCorrect;
+  IconData _typeIcon(LearningReviewCardType type) {
+    return switch (type) {
+      LearningReviewCardType.wordMeaning => Icons.translate,
+      LearningReviewCardType.fillBlank => Icons.short_text,
+      LearningReviewCardType.questionMistake => Icons.quiz_outlined,
+    };
+  }
 
-      Color? bgColor;
-      Color? borderColor;
-      Widget? trailing;
-
-      if (_showResult) {
-        if (isCorrect) {
-          bgColor = AppColors.correct.withValues(alpha: 0.1);
-          borderColor = AppColors.correct.withValues(alpha: 0.4);
-          trailing = Icon(Icons.check_circle, color: AppColors.correct);
-        } else if (isSelectedWrong) {
-          bgColor = AppColors.incorrect.withValues(alpha: 0.1);
-          borderColor = AppColors.incorrect.withValues(alpha: 0.4);
-          trailing = Icon(Icons.cancel, color: AppColors.incorrect);
-        }
+  Future<void> _finishCard(LearningReviewResult result) async {
+    if (_isSaving) return;
+    final card = _cards[_currentIndex];
+    setState(() => _isSaving = true);
+    await context.read<ReadingProvider>().recordLearningReview(
+      card.item.id,
+      result,
+    );
+    if (!mounted) return;
+    _answerController.clear();
+    setState(() {
+      if (result == LearningReviewResult.remembered) _rememberedCount++;
+      _isSaving = false;
+      _showAnswer = false;
+      if (_currentIndex < _cards.length - 1) {
+        _currentIndex++;
+      } else {
+        _allDone = true;
       }
-
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: _ReviewOption(
-          text: item.options[index],
-          theme: theme,
-          bgColor: bgColor,
-          borderColor:
-              borderColor ??
-              theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          trailing: trailing,
-          onTap: _showResult ? null : () => _selectAnswer(index),
-          style: style,
-          centered: centered,
-        ),
-      );
     });
   }
-
-  Widget _buildSidebar(int accuracy) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '复习队列',
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...List.generate(_items.length, (index) {
-            final isActive = index == _currentIndex;
-            final isDone = index < _currentIndex;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? theme.colorScheme.primaryContainer.withValues(
-                          alpha: 0.3,
-                        )
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      isDone ? Icons.check_circle : Icons.circle_outlined,
-                      size: 16,
-                      color: isDone
-                          ? AppColors.correct
-                          : isActive
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant.withValues(
-                              alpha: 0.3,
-                            ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _items[index].word,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: isActive
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                          color: isActive
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-          Divider(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'SRS 统计',
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildStatRow('当前正确率', '$accuracy%'),
-          const SizedBox(height: 6),
-          _buildStatRow('已复习', '$_currentIndex'),
-          const SizedBox(height: 6),
-          _buildStatRow('剩余', '${_items.length - _currentIndex}'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatRow(String label, String value) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        Text(
-          value,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.primary,
-          ),
-        ),
-      ],
-    );
-  }
 }
 
-class _FillBlank {
-  final String word;
-  final String context;
-  final String blankSentence;
-  final List<String> options;
-  late int correctIndex;
+class _ReviewAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final Widget title;
+  final VoidCallback onClose;
 
-  _FillBlank({
-    required this.word,
-    required this.context,
-    required this.blankSentence,
-    required this.options,
-  });
-}
+  const _ReviewAppBar({required this.title, required this.onClose});
 
-class _ReviewOption extends StatelessWidget {
-  final String text;
-  final ThemeData theme;
-  final Color? bgColor;
-  final Color borderColor;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-  final TextStyle? style;
-  final bool centered;
+  static double get _topInset => AppConstants.immersiveTitleBarTopInset;
 
-  const _ReviewOption({
-    required this.text,
-    required this.theme,
-    this.bgColor,
-    required this.borderColor,
-    this.trailing,
-    this.onTap,
-    this.style,
-    this.centered = false,
-  });
+  @override
+  Size get preferredSize => Size.fromHeight(kToolbarHeight + _topInset);
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Material(
-        color: bgColor ?? Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: borderColor),
-            ),
-            child: Row(
-              mainAxisAlignment: centered
-                  ? MainAxisAlignment.center
-                  : MainAxisAlignment.start,
-              children: [
-                if (trailing != null) ...[trailing!, const SizedBox(width: 8)],
-                Text(
-                  text,
-                  style:
-                      style ??
-                      theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'Serif',
-                        color: theme.colorScheme.onSurface,
-                      ),
-                ),
-              ],
-            ),
-          ),
+    return AppBar(
+      toolbarHeight: preferredSize.height,
+      titleSpacing: 0,
+      leadingWidth: 72,
+      leading: Padding(
+        padding: EdgeInsets.only(top: _topInset),
+        child: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: onClose,
+          tooltip: '关闭',
         ),
+      ),
+      title: Padding(
+        padding: EdgeInsets.only(top: _topInset),
+        child: title,
       ),
     );
   }

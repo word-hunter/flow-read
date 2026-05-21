@@ -191,7 +191,7 @@ $vocabList
     {
       "type": "detail|vocabulary|inference|grammar",
       "question": "Question in English",
-      "source": "The original English sentence that contains the answer",
+      "source_excerpt": "The original English sentence or short excerpt that contains the answer",
       "answer": "The correct answer in English",
       "answer_explanation": "Explanation of why this is correct (Chinese)",
       "distractors": [
@@ -212,9 +212,9 @@ $vocabList
 
 ## Rules
 - Each type (detail, vocabulary, inference, grammar) must have at least 1 question
-- Total questions: at least 4, at most 8
+- Total questions: at least 3, at most 5
 - Every distractor must have a why_wrong explanation
-- source must be a real sentence from the chapter text
+- source_excerpt must be a real sentence or short excerpt from the chapter text
 - Do NOT create questions about things not in the text''';
   }
 
