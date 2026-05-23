@@ -44,6 +44,51 @@ void main() {
     expect(find.textContaining('第二章顶部标记00'), findsOneWidget);
   });
 
+  testWidgets('restores saved reading scroll position when reopening', (
+    tester,
+  ) async {
+    final provider = _FakeReadingProvider(initialProgress: 0.6);
+    final settings = SettingsService();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('位置 1 / 2 · 60%'), findsOneWidget);
+    expect(find.textContaining('第一章顶部标记00'), findsNothing);
+  });
+
+  testWidgets('uses saved scroll offset when reopening', (tester) async {
+    final provider = _FakeReadingProvider(
+      initialProgress: 0.12,
+      initialScrollOffset: 900,
+    );
+    final settings = SettingsService();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, -1));
+    await tester.pump();
+
+    expect(provider.readingScrollOffset, greaterThan(800));
+  });
+
   testWidgets('supports arrow keys for scrolling and chapter navigation', (
     tester,
   ) async {
@@ -202,7 +247,13 @@ void main() {
 }
 
 class _FakeReadingProvider extends ReadingProvider {
-  _FakeReadingProvider({bool isReading = false}) : _isReading = isReading;
+  _FakeReadingProvider({
+    bool isReading = false,
+    double initialProgress = 0.0,
+    double? initialScrollOffset,
+  }) : _isReading = isReading,
+       _readingProgress = initialProgress.clamp(0.0, 1.0),
+       _readingScrollOffset = initialScrollOffset;
 
   final bool _isReading;
   final Book _book = Book(
@@ -225,6 +276,7 @@ class _FakeReadingProvider extends ReadingProvider {
   int _goalSeconds = 3600;
   int _currentChapter = 0;
   double _readingProgress = 0.0;
+  double? _readingScrollOffset;
 
   void setDailyGoalState({
     required int todaySeconds,
@@ -248,6 +300,9 @@ class _FakeReadingProvider extends ReadingProvider {
 
   @override
   double get readingProgress => _readingProgress;
+
+  @override
+  double? get readingScrollOffset => _readingScrollOffset;
 
   @override
   bool get hasBook => true;
@@ -283,12 +338,16 @@ class _FakeReadingProvider extends ReadingProvider {
   Future<void> goToChapter(int index) async {
     _currentChapter = index;
     _readingProgress = 0.0;
+    _readingScrollOffset = 0.0;
     notifyListeners();
   }
 
   @override
-  void updateReadingProgress(double progress) {
+  void updateReadingProgress(double progress, {double? scrollOffset}) {
     _readingProgress = progress.clamp(0.0, 1.0);
+    if (scrollOffset != null) {
+      _readingScrollOffset = scrollOffset;
+    }
   }
 
   @override

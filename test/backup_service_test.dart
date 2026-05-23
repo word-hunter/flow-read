@@ -43,6 +43,7 @@ void main() {
       totalChapters: 3,
       currentChapter: 1,
       chapterProgress: 0.4,
+      chapterScrollOffset: 320,
       lastReadAt: DateTime.utc(2026, 5, 15, 8, 30),
       difficultyStudyWords: const ['flow', 'reading'],
       difficultyRatingJson: const BookDifficultyRating(
@@ -143,6 +144,7 @@ void main() {
 
     final restoredBook = booksBox().get('book-1');
     expect(restoredBook?.title, 'Test Book');
+    expect(restoredBook?.chapterScrollOffset, 320);
     expect(restoredBook?.difficultyStudyWords, ['flow', 'reading']);
     expect(restoredBook?.difficultyRating?.level, BookDifficultyLevel.l2);
     expect(restoredBook?.difficultyVocabularySignature, 'vocab-v1');

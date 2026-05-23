@@ -99,14 +99,16 @@ class BookService {
   Future<void> updateProgress(
     String id,
     int currentChapter,
-    double chapterProgress,
-  ) async {
+    double chapterProgress, {
+    double? chapterScrollOffset,
+  }) async {
     final meta = _repository.get(id);
     if (meta == null) return;
 
     final updated = meta.copyWith(
       currentChapter: currentChapter,
       chapterProgress: chapterProgress,
+      chapterScrollOffset: chapterScrollOffset,
       lastReadAt: _clock(),
     );
 

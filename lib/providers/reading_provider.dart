@@ -75,6 +75,7 @@ class ReadingProvider extends ChangeNotifier {
   AnalysisResult? _result;
   int _currentChapter = 0;
   double _readingProgress = 0.0;
+  double? _readingScrollOffset;
   bool _isReading = false;
   bool _hasBeenOpened = false;
   final Map<String, AggregatedVocabulary> _allVocab = {};
@@ -152,6 +153,7 @@ class ReadingProvider extends ChangeNotifier {
   AnalysisResult? get result => _result;
   int get currentChapter => _currentChapter;
   double get readingProgress => _readingProgress;
+  double? get readingScrollOffset => _readingScrollOffset;
   bool get isReading => _isReading;
   bool get hasBook => _book != null;
   int get chapterCount => _book?.chapters.length ?? 0;
@@ -463,6 +465,7 @@ class ReadingProvider extends ChangeNotifier {
       _activeBookId = bookId;
       _currentChapter = 0;
       _readingProgress = 0.0;
+      _readingScrollOffset = 0.0;
       _hasBeenOpened = false;
       _allVocab.clear();
       await _refreshAndPersistCurrentBookDifficulty();
@@ -499,6 +502,7 @@ class ReadingProvider extends ChangeNotifier {
       _activeBookId = bookId;
       _currentChapter = meta.currentChapter.clamp(0, book.chapters.length - 1);
       _readingProgress = meta.chapterProgress;
+      _readingScrollOffset = meta.chapterScrollOffset;
       _allVocab.clear();
       await _refreshAndPersistCurrentBookDifficulty();
       _resetSearchState();
@@ -531,6 +535,7 @@ class ReadingProvider extends ChangeNotifier {
       _result = null;
       _currentChapter = 0;
       _readingProgress = 0.0;
+      _readingScrollOffset = null;
       _hasBeenOpened = false;
       _allVocab.clear();
       _currentBookStudyWords = {};
@@ -590,14 +595,18 @@ class ReadingProvider extends ChangeNotifier {
     if (index < 0 || index >= _book!.chapters.length) return;
     _currentChapter = index;
     _readingProgress = 0.0;
+    _readingScrollOffset = 0.0;
     _sourceHighlightQuery = '';
     _saveCurrentProgress();
     notifyListeners();
     await _analyzeCurrentChapter();
   }
 
-  void updateReadingProgress(double progress) {
+  void updateReadingProgress(double progress, {double? scrollOffset}) {
     _readingProgress = progress.clamp(0.0, 1.0);
+    if (scrollOffset != null) {
+      _readingScrollOffset = scrollOffset < 0 ? 0.0 : scrollOffset;
+    }
   }
 
   // ============================================================
@@ -1211,6 +1220,7 @@ class ReadingProvider extends ChangeNotifier {
       goToChapter(bookmark.chapterIndex);
     }
     _readingProgress = bookmark.progress;
+    _readingScrollOffset = null;
     notifyListeners();
   }
 
@@ -1429,6 +1439,7 @@ class ReadingProvider extends ChangeNotifier {
       _activeBookId!,
       _currentChapter,
       _readingProgress,
+      chapterScrollOffset: _readingScrollOffset,
     );
   }
 

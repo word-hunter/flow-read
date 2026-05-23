@@ -48,6 +48,9 @@ class BookMetadata {
   @HiveField(13)
   final DateTime? difficultyComputedAt;
 
+  @HiveField(14)
+  final double? chapterScrollOffset;
+
   const BookMetadata({
     required this.id,
     required this.title,
@@ -63,6 +66,7 @@ class BookMetadata {
     this.difficultyRatingJson,
     this.difficultyVocabularySignature,
     this.difficultyComputedAt,
+    this.chapterScrollOffset,
   });
 
   BookDifficultyRating? get difficultyRating {
@@ -90,6 +94,7 @@ class BookMetadata {
     Map<String, dynamic>? difficultyRatingJson,
     String? difficultyVocabularySignature,
     DateTime? difficultyComputedAt,
+    double? chapterScrollOffset,
   }) {
     return BookMetadata(
       id: id ?? this.id,
@@ -107,6 +112,7 @@ class BookMetadata {
       difficultyVocabularySignature:
           difficultyVocabularySignature ?? this.difficultyVocabularySignature,
       difficultyComputedAt: difficultyComputedAt ?? this.difficultyComputedAt,
+      chapterScrollOffset: chapterScrollOffset ?? this.chapterScrollOffset,
     );
   }
 
@@ -125,6 +131,7 @@ class BookMetadata {
     'difficultyRating': difficultyRatingJson,
     'difficultyVocabularySignature': difficultyVocabularySignature,
     'difficultyComputedAt': difficultyComputedAt?.toIso8601String(),
+    'chapterScrollOffset': chapterScrollOffset,
   };
 
   factory BookMetadata.fromJson(Map<String, dynamic> json) {
@@ -157,6 +164,7 @@ class BookMetadata {
       difficultyComputedAt: rawDifficultyComputedAt is String
           ? DateTime.tryParse(rawDifficultyComputedAt)
           : null,
+      chapterScrollOffset: (json['chapterScrollOffset'] as num?)?.toDouble(),
     );
   }
 }

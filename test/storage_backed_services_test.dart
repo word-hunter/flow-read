@@ -169,7 +169,7 @@ void main() {
       );
       await service.renameBook('book-1', 'Flow Updated');
       now = DateTime.utc(2026, 5, 19, 12);
-      await service.updateProgress('book-1', 1, 0.5);
+      await service.updateProgress('book-1', 1, 0.5, chapterScrollOffset: 420);
 
       final reloaded = BookService(
         documentsDirectoryProvider: () async {
@@ -182,6 +182,7 @@ void main() {
       expect(book.title, 'Flow Updated');
       expect(book.currentChapter, 1);
       expect(book.chapterProgress, 0.5);
+      expect(book.chapterScrollOffset, 420);
       expect(book.globalProgress, 0.375);
       expect(book.lastReadAt, now);
       expect(book.difficultyStudyWords, ['flow', 'reading']);

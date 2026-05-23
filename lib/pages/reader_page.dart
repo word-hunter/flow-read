@@ -30,6 +30,8 @@ class ReaderPage extends StatefulWidget {
 
 class _ReaderPageState extends State<ReaderPage> {
   static const double _keyboardLineScrollDelta = 92;
+  static const int _maxViewportRestorePasses = 10;
+  static const double _viewportRestorePixelTolerance = 0.5;
 
   final ScrollController _scrollController = ScrollController();
   final FocusNode _readerFocusNode = FocusNode(
@@ -40,7 +42,10 @@ class _ReaderPageState extends State<ReaderPage> {
   final Map<int, GlobalKey> _contentKeys = {};
   ReadingProvider? _readingProvider;
   String? _lastReaderLocationKey;
-  bool _scrollResetQueued = false;
+  String? _lastReaderViewportKey;
+  bool _hadReaderResult = false;
+  bool _scrollViewportSyncQueued = false;
+  bool _isRestoringViewport = false;
   String _sidebarSelectedText = '';
   String _sidebarAnalyzerName = 'AI';
   _ReaderSidebarMode _sidebarMode = _ReaderSidebarMode.word;
@@ -50,6 +55,9 @@ class _ReaderPageState extends State<ReaderPage> {
   bool _dailyGoalPromptShown = false;
   bool _wasDailyGoalReached = false;
   Timer? _dailyGoalCheckTimer;
+  double _pendingScrollProgress = 0.0;
+  double? _pendingScrollOffset;
+  int _viewportRestorePass = 0;
   double _layoutWidth = 0;
   double _displayProgress = 0.0;
   int _visibleContentCount = 0;
@@ -72,8 +80,17 @@ class _ReaderPageState extends State<ReaderPage> {
     _readingProvider?.removeListener(_onReadingProviderChanged);
     _readingProvider = provider;
     _lastReaderLocationKey = _readerLocationKey(provider);
+    _lastReaderViewportKey = _readerViewportKey(provider);
+    _hadReaderResult = provider.result != null;
     provider.addListener(_onReadingProviderChanged);
     _syncDailyGoalWatcher(provider);
+    if (_hadReaderResult) {
+      _queueViewportSync(
+        progress: provider.readingProgress,
+        scrollOffset: provider.readingScrollOffset,
+        locationChanged: false,
+      );
+    }
   }
 
   @override
@@ -98,36 +115,106 @@ class _ReaderPageState extends State<ReaderPage> {
     return '$bookKey:${provider.currentChapter}';
   }
 
+  String _readerViewportKey(ReadingProvider provider) {
+    final progress = provider.readingProgress.clamp(0.0, 1.0);
+    final scrollOffset = provider.readingScrollOffset;
+    final offsetKey = scrollOffset == null
+        ? 'ratio'
+        : scrollOffset.toStringAsFixed(1);
+    return '${_readerLocationKey(provider)}:${progress.toStringAsFixed(4)}:$offsetKey';
+  }
+
   void _onReadingProviderChanged() {
     final provider = _readingProvider;
     if (provider == null) return;
     _syncDailyGoalWatcher(provider);
 
+    final hasResult = provider.result != null;
+    final resultBecameReady = !_hadReaderResult && hasResult;
+    _hadReaderResult = hasResult;
+
     final nextLocationKey = _readerLocationKey(provider);
-    if (_lastReaderLocationKey == null) {
+    final nextViewportKey = _readerViewportKey(provider);
+    if (_lastReaderLocationKey == null || _lastReaderViewportKey == null) {
       _lastReaderLocationKey = nextLocationKey;
+      _lastReaderViewportKey = nextViewportKey;
+      if (hasResult) {
+        _queueViewportSync(
+          progress: provider.readingProgress,
+          scrollOffset: provider.readingScrollOffset,
+          locationChanged: false,
+        );
+      }
       return;
     }
-    if (_lastReaderLocationKey == nextLocationKey) return;
+    final locationChanged = _lastReaderLocationKey != nextLocationKey;
+    final viewportChanged = _lastReaderViewportKey != nextViewportKey;
+    if (!locationChanged && !viewportChanged && !resultBecameReady) return;
 
     _lastReaderLocationKey = nextLocationKey;
-    _queueScrollToTopForNewLocation();
+    _lastReaderViewportKey = nextViewportKey;
+    if (hasResult) {
+      _queueViewportSync(
+        progress: provider.readingProgress,
+        scrollOffset: provider.readingScrollOffset,
+        locationChanged: locationChanged,
+      );
+    }
   }
 
-  void _queueScrollToTopForNewLocation() {
-    if (mounted) {
-      setState(() {
-        _displayProgress = 0.0;
-        _contentKeys.clear();
-      });
+  void _queueViewportSync({
+    required double progress,
+    required double? scrollOffset,
+    required bool locationChanged,
+  }) {
+    _pendingScrollProgress = progress.clamp(0.0, 1.0);
+    _pendingScrollOffset = scrollOffset;
+    _displayProgress = _pendingScrollProgress;
+    _viewportRestorePass = 0;
+    if (locationChanged) {
+      _contentKeys.clear();
     }
 
-    if (_scrollResetQueued) return;
-    _scrollResetQueued = true;
+    _isRestoringViewport = true;
+    _scheduleViewportSyncPass();
+  }
+
+  void _scheduleViewportSyncPass() {
+    if (_scrollViewportSyncQueued) return;
+    _scrollViewportSyncQueued = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollResetQueued = false;
-      if (!mounted || !_scrollController.hasClients) return;
-      _scrollController.jumpTo(_scrollController.position.minScrollExtent);
+      _scrollViewportSyncQueued = false;
+      if (!mounted) return;
+      if (!_scrollController.hasClients) {
+        _isRestoringViewport = false;
+        return;
+      }
+
+      final position = _scrollController.position;
+      final savedOffset = _pendingScrollOffset;
+      final target = savedOffset == null
+          ? (position.maxScrollExtent <= position.minScrollExtent
+                ? position.minScrollExtent
+                : (position.maxScrollExtent * _pendingScrollProgress)
+                      .clamp(position.minScrollExtent, position.maxScrollExtent)
+                      .toDouble())
+          : (savedOffset < position.minScrollExtent
+                ? position.minScrollExtent
+                : savedOffset);
+      final needsJump =
+          (position.pixels - target).abs() > _viewportRestorePixelTolerance;
+
+      if (needsJump) {
+        _scrollController.jumpTo(target);
+      }
+
+      if (needsJump && _viewportRestorePass < _maxViewportRestorePasses) {
+        _viewportRestorePass += 1;
+        _scheduleViewportSyncPass();
+        return;
+      }
+
+      _isRestoringViewport = false;
     });
   }
 
@@ -135,9 +222,18 @@ class _ReaderPageState extends State<ReaderPage> {
     if (!_scrollController.hasClients) return;
     final maxScroll = _scrollController.position.maxScrollExtent;
     if (maxScroll <= 0) return;
+    if (_isRestoringViewport) {
+      _displayProgress = _pendingScrollProgress;
+      return;
+    }
     final progress = (_scrollController.offset / maxScroll).clamp(0.0, 1.0);
     _displayProgress = progress;
-    context.read<ReadingProvider>().updateReadingProgress(progress);
+    final provider = context.read<ReadingProvider>();
+    provider.updateReadingProgress(
+      progress,
+      scrollOffset: _scrollController.offset,
+    );
+    _lastReaderViewportKey = _readerViewportKey(provider);
     _checkDailyReadingGoal();
     setState(() {});
   }

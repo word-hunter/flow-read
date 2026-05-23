@@ -31,13 +31,14 @@ class BookMetadataAdapter extends TypeAdapter<BookMetadata> {
       ),
       difficultyVocabularySignature: fields[12] as String?,
       difficultyComputedAt: fields[13] as DateTime?,
+      chapterScrollOffset: (fields[14] as num?)?.toDouble(),
     );
   }
 
   @override
   void write(BinaryWriter writer, BookMetadata obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -65,7 +66,9 @@ class BookMetadataAdapter extends TypeAdapter<BookMetadata> {
       ..writeByte(12)
       ..write(obj.difficultyVocabularySignature)
       ..writeByte(13)
-      ..write(obj.difficultyComputedAt);
+      ..write(obj.difficultyComputedAt)
+      ..writeByte(14)
+      ..write(obj.chapterScrollOffset);
   }
 
   @override
