@@ -58,9 +58,14 @@ dart run tool/release.dart package-local
 
 If FVM is unavailable, use the matching local Flutter SDK.
 
-The local package command verifies app metadata and creates a zip under
-`dist/`. Confirm the built app displays the expected version in both the About
-surface and Settings.
+The local package command verifies both macOS bundle metadata and Flutter
+runtime version markers, then creates a zip under `dist/`.
+
+Before manually launching the app, quit any already running Flow Read process,
+especially local Debug builds. Debug/Profile builds use a separate bundle
+identifier, but an old process can still make visual verification misleading.
+Confirm the built app displays the expected version in both the About surface
+and Settings.
 
 ## macOS Entitlements
 
@@ -93,8 +98,9 @@ git tag v0.0.3-alpha
 git push origin v0.0.3-alpha
 ```
 
-GitHub Actions builds the macOS artifact, validates release metadata, exports
-release notes, and creates the GitHub Release.
+GitHub Actions builds the macOS artifact, validates release metadata, verifies
+the built app bundle and runtime version markers, exports release notes, and
+creates the GitHub Release.
 
 ## Post-Publish Verification
 
@@ -103,7 +109,8 @@ release notes, and creates the GitHub Release.
    flag, and macOS zip asset.
 3. Download the asset and verify it extracts.
 4. Record the SHA-256 digest in the release notes or release metadata.
-5. Launch the built app and verify About/Settings show the released version.
+5. Quit any local Debug/Profile Flow Read instance.
+6. Launch the built app and verify About/Settings show the released version.
 
 ## Rollback
 

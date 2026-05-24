@@ -70,17 +70,8 @@ jobs:
       - name: Build macOS app
         run: flutter build macos --release --build-name "${{ steps.flutter_build.outputs.name }}" --build-number "${{ steps.flutter_build.outputs.number }}"
 
-      - name: Verify macOS bundle version
-        shell: bash
-        run: |
-          app_plist="build/macos/Build/Products/Release/FlowRead.app/Contents/Info.plist"
-          actual_name="$(plutil -extract CFBundleShortVersionString raw "$app_plist")"
-          actual_number="$(plutil -extract CFBundleVersion raw "$app_plist")"
-
-          if [[ "$actual_name" != "${{ steps.flutter_build.outputs.name }}" || "$actual_number" != "${{ steps.flutter_build.outputs.number }}" ]]; then
-            echo "Built app version mismatch: expected ${{ steps.flutter_build.outputs.name }} (${{ steps.flutter_build.outputs.number }}), got $actual_name ($actual_number)." >&2
-            exit 1
-          fi
+      - name: Verify macOS app
+        run: dart run tool/release.dart verify-macos-app build/macos/Build/Products/Release/FlowRead.app --version "${{ steps.version.outputs.name }}"
 
       - name: Package app
         shell: bash

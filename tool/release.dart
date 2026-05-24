@@ -28,6 +28,8 @@ Future<void> main(List<String> args) async {
         _notes(args.skip(1).toList());
       case 'bump':
         _bump(args.skip(1).toList());
+      case 'verify-macos-app':
+        await _verifyMacosAppCommand(args.skip(1).toList());
       case 'package-local':
         await _packageLocal(args.skip(1).toList());
       default:
@@ -76,10 +78,7 @@ Future<void> _packageLocal(List<String> args) async {
   await _buildMacosApp(version, configuration);
 
   final appPath = _macosAppPath(configuration);
-  if (!Directory(appPath).existsSync()) {
-    throw ReleaseException('Build did not produce $appPath.');
-  }
-  await _verifyMacosBundleVersion(appPath, version);
+  await _verifyMacosApp(appPath, version);
 
   final entitlements = await _runCommandCapture('codesign', [
     '-d',
@@ -169,6 +168,22 @@ void _notes(List<String> args) {
   final changelog = _readRequiredFile(_changelogPath);
   stdout.write(
     _extractChangelogSection(changelog, _normalizeReleaseName(version)),
+  );
+}
+
+Future<void> _verifyMacosAppCommand(List<String> args) async {
+  if (args.isEmpty) {
+    throw UsageException('Missing macOS app path.');
+  }
+
+  final appPath = args.first;
+  final options = _Options(args.skip(1).toList());
+  final version = _readVersion();
+  _validateReleaseMetadata(version, expected: options.value('version'));
+
+  await _verifyMacosApp(appPath, version);
+  stdout.writeln(
+    'macOS app is valid for ${version.releaseName} (${version.full}).',
   );
 }
 
@@ -466,6 +481,83 @@ Future<void> _verifyMacosBundleVersion(
   }
 }
 
+Future<void> _verifyMacosApp(String appPath, AppVersion version) async {
+  if (!Directory(appPath).existsSync()) {
+    throw ReleaseException('Build did not produce $appPath.');
+  }
+  await _verifyMacosBundleVersion(appPath, version);
+  await _verifyMacosRuntimeVersion(appPath, version);
+}
+
+Future<void> _verifyMacosRuntimeVersion(
+  String appPath,
+  AppVersion version,
+) async {
+  final appFrameworkPath = _joinPath(
+    _joinPath(
+      _joinPath(_joinPath(appPath, 'Contents'), 'Frameworks'),
+      'App.framework',
+    ),
+    'Versions',
+  );
+  final candidates = [
+    _joinPath(_joinPath(appFrameworkPath, 'A'), 'App'),
+    _joinPath(
+      _joinPath(
+        _joinPath(_joinPath(appFrameworkPath, 'A'), 'Resources'),
+        'flutter_assets',
+      ),
+      'kernel_blob.bin',
+    ),
+  ].map(File.new).where((file) => file.existsSync()).toList();
+
+  if (candidates.isEmpty) {
+    throw ReleaseException(
+      'Built app runtime version check failed: App.framework payload was not found.',
+    );
+  }
+
+  final expectedMarkers = [
+    'Flow Read ${version.shortDisplay}',
+    'FlowRead/${version.releaseName}',
+  ];
+  final missingMarkers = expectedMarkers
+      .where(
+        (marker) => !candidates.any(
+          (file) => _fileContainsBytes(file, marker.codeUnits),
+        ),
+      )
+      .toList();
+
+  if (missingMarkers.isNotEmpty) {
+    throw ReleaseException(
+      'Built app runtime version mismatch: missing '
+      '${missingMarkers.map((marker) => '"$marker"').join(', ')}.',
+    );
+  }
+}
+
+bool _fileContainsBytes(File file, List<int> needle) {
+  final bytes = file.readAsBytesSync();
+  if (needle.isEmpty || needle.length > bytes.length) {
+    return false;
+  }
+
+  for (var i = 0; i <= bytes.length - needle.length; i += 1) {
+    var matched = true;
+    for (var j = 0; j < needle.length; j += 1) {
+      if (bytes[i + j] != needle[j]) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) {
+      return true;
+    }
+  }
+  return false;
+}
+
 Future<String> _readPlistValue(String plistPath, String key) async {
   final output = await _runCommandCapture('plutil', [
     '-extract',
@@ -499,7 +591,7 @@ Future<void> _verifyArchive(String zipPath, AppVersion version) async {
         'Archive check failed: $_appBundleName was not found after extraction.',
       );
     }
-    await _verifyMacosBundleVersion(extractedApp.path, version);
+    await _verifyMacosApp(extractedApp.path, version);
   } finally {
     if (tempDir.existsSync()) {
       tempDir.deleteSync(recursive: true);
@@ -610,6 +702,7 @@ Usage:
   dart run tool/release.dart check [--tag v1.2.3 | --version 1.2.3]
   dart run tool/release.dart notes [--version 1.2.3]
   dart run tool/release.dart bump <major|minor|patch> [--build 12] [--channel alpha] [--date YYYY-MM-DD]
+  dart run tool/release.dart verify-macos-app <FlowRead.app> [--version 1.2.3]
   dart run tool/release.dart package-local [--configuration release|debug] [--output-dir dist] [--skip-pub-get] [--skip-tests] [--skip-archive-check]
 ''');
 }
