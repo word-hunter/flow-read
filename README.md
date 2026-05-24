@@ -1,99 +1,35 @@
 # Flow Read
 
 <p align="center">
-  <img src="assets/brand/flow_read_logo.png" alt="Flow Read logo" width="160">
+  <img src="assets/brand/flow_read_logo.png" alt="Flow Read logo" width="140">
 </p>
 
-英文阅读 + 词汇学习一体化的 Flutter 桌面/移动端应用。
+Flow Read 是一款面向英语阅读和词汇积累的应用，把书架、EPUB 阅读、查词、生词复习和阅读进度放在同一个安静的工作流里。
 
-## 功能
+## 应用截图
 
-- **EPUB 阅读器** — 导入 `.epub` 电子书，支持字体大小/字体/行高/阅读主题（亮色/暗色/护眼黄）调节，章节导航，阅读进度追踪，书签管理
-- **生词标记与释义** — 自动标记生词，点击查词（WordNet / 内置词典 / Collins / Longman 多源回退），宽屏支持右侧固定释义栏，切换生词不打断阅读
-- **AI 辅助** — 单词 AI 详解、选句翻译/句式分析、章节 AI 总结、AI 练习题生成（均支持缓存）
-- **RSS 订阅** — 支持 RSS 2.0 / Atom 格式，添加/删除订阅源，已读未读标记，宽窄屏自适应布局
-- **词汇管理** — 全书生词聚合、搜索排序、已知/学习中/未知分级、生词本
-- **阅读统计** — 总阅读时长、书籍数量、词汇量、AI 使用次数统计
-- **训练与复习** — 词汇训练、间隔复习
-- **响应式布局** — 宽屏侧边栏导航 / 窄屏底部导航自动切换
+<p align="center">
+  <img src="assets/app-snapshot-1.png" alt="Flow Read 书架截图" width="920">
+</p>
 
-## 技术栈
+## 核心体验
 
-| 类别 | 依赖 |
-|------|------|
-| 框架 | Flutter (Dart) |
-| 状态管理 | provider |
-| 电子书解析 | epubx |
-| 持久化 | hive + hive_flutter |
-| 文件导入 | file_picker |
-| 网络请求 | http |
-| HTML 解析 | html |
-| RSS / XML 解析 | xml（epubx 传递依赖） |
-| UI | Material Design 3 |
+- **继续阅读**：从书架直接回到上次章节，阅读进度、预计剩余时间和阅读目标一目了然。
+- **EPUB 书库**：导入英文电子书，按最近阅读、进度和书籍信息快速管理。
+- **阅读难度提示**：为书籍展示阅读等级，帮助判断是否适合当前词汇水平。
+- **阅读中查词**：点击单词即可查看释义，宽屏下可固定在侧栏，减少阅读中断。
+- **生词与复习**：自动汇总阅读中遇到的词，支持掌握状态管理和集中训练。
+- **AI 辅助阅读**：按需开启单词详解、句子分析、章节总结和练习题生成。
 
-## 运行
+## 本地运行
 
-项目通过 `.fvmrc` 锁定 Flutter SDK 版本。建议本地安装 FVM 后使用以下命令：
+项目使用 Flutter。仓库通过 `.fvmrc` 固定 SDK 版本，推荐使用 FVM：
 
 ```bash
 fvm flutter pub get
 fvm flutter run
 ```
 
-如果不使用 FVM，请确认 `flutter --version` 与 `.fvmrc` 中的版本一致。
+如果不使用 FVM，请确认本地 `flutter --version` 与 `.fvmrc` 中的版本一致。
 
-## 依赖升级
-
-依赖和 SDK 升级由 Renovate 检测并创建 PR，GitHub Actions 会对升级 PR 执行 `dart analyze`、`flutter test` 和 macOS debug build。Flutter/Dart SDK 升级应作为独立 PR 人工确认，不随功能开发自动变更应用版本号。
-
-## 发布
-
-构建版本保存在 `pubspec.yaml` 的 `version: MAJOR.MINOR.PATCH+BUILD`，应用内展示版本由 `lib/services/app_version.dart` 提供，发布校验会确保两者一致。`CHANGELOG.md` 记录每个发布版本的用户可见变更。
-
-常用命令：
-
-```bash
-dart run tool/release.dart current
-dart run tool/release.dart bump patch
-dart run tool/release.dart check
-dart run tool/release.dart notes
-dart run tool/release.dart package-local
-```
-
-本地打包测试：
-
-```bash
-dart run tool/release.dart package-local
-```
-
-该命令只使用当前版本号，不会更新 `pubspec.yaml`、`lib/services/app_version.dart` 或 `CHANGELOG.md`。默认流程会依次执行依赖安装、测试、macOS release 构建、签名权限检查、zip 打包和解压校验，产物位于 `dist/flow_read-macos-<版本>-release-local.zip`。如果只想快速验证打包流程，可以执行：
-
-```bash
-dart run tool/release.dart package-local --skip-tests
-```
-
-发布步骤：
-
-1. 在 `CHANGELOG.md` 的 `Unreleased` 区块补充本次变更。
-2. 只有在准备发布并明确要更新版本时，执行 `dart run tool/release.dart bump patch`，按需要将 `patch` 替换为 `minor` 或 `major`。
-3. 提交 `pubspec.yaml`、`lib/services/app_version.dart` 和 `CHANGELOG.md`。
-4. 创建并推送标签，例如 `git tag v0.0.1-alpha && git push origin v0.0.1-alpha`。
-5. GitHub Actions 会构建 macOS release 包，并用对应 changelog 区块创建 GitHub Release。
-
-## 项目结构
-
-```
-lib/
-├── main.dart                  # 入口，Provider 注册，路由表
-├── models/                    # 数据模型（Hive 持久化）
-├── providers/                 # 状态管理（ChangeNotifier）
-├── services/                  # 业务逻辑与持久化
-├── screens/                   # 全屏页面
-├── pages/                     # 阅读器子页面
-├── widgets/                   # 可复用组件
-│   ├── home/                  # 首页相关组件
-│   ├── reader/                # 阅读器相关组件
-│   └── rss/                   # RSS 相关组件
-├── theme/                     # 主题与常量
-└── utils/                     # 工具函数
-```
+更多维护流程以仓库内脚本和项目说明为准。
