@@ -2,6 +2,15 @@
 
 Thanks for working on Flow Read.
 
+## Issue-Only Policy
+
+This project currently accepts contributions through GitHub Issues only. Pull
+requests are disabled and are not accepted.
+
+Use issues to report bugs, request features, propose changes, or share
+implementation notes. Please include enough context for maintainers to reproduce
+or evaluate the request.
+
 ## Setup
 
 Flow Read is a Flutter app pinned by `.fvmrc`. Prefer FVM:
@@ -15,8 +24,8 @@ If FVM is unavailable, use a local Flutter SDK that matches `.fvmrc`.
 
 ## Checks
 
-Use focused checks while developing, then run the broader checks before a pull
-request:
+Use focused checks while developing, then run broader checks before sharing
+local implementation notes in an issue:
 
 ```bash
 fvm dart analyze
