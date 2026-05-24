@@ -17,6 +17,7 @@ import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
 import '../models/bookmarked_word.dart';
 import '../models/learning_item.dart';
+import '../models/learning_analytics.dart';
 import '../models/reading_search_result.dart';
 import '../models/reading_bookmark.dart';
 import '../models/sentence_breakdown.dart';
@@ -30,6 +31,7 @@ import '../services/book_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/epub_service.dart';
 import '../services/learning_item_service.dart';
+import '../services/learning_analytics_service.dart';
 import '../services/pronunciation_service.dart';
 import '../services/reading_config_service.dart';
 import '../services/review_schedule_service.dart';
@@ -64,6 +66,7 @@ class ReadingProvider extends ChangeNotifier {
   WordLevelService? _wordLevelService;
   WordContextService? _wordContextService;
   LearningItemService? _learningItemService;
+  LearningAnalyticsService? _learningAnalyticsService;
   ReviewScheduleService? _reviewScheduleService;
   PronunciationService? _pronunciationService;
 
@@ -331,6 +334,12 @@ class ReadingProvider extends ChangeNotifier {
     return readingTimeSeconds;
   }
 
+  int get weekReadingTimeSeconds => _readingTime?.secondsForWeek() ?? 0;
+
+  int get readingGoalReachedDaysThisWeek {
+    return _readingTime?.goalReachedDaysForWeek(dailyReadingGoalSeconds) ?? 0;
+  }
+
   // -- AI --
   AITextAnalysis? get aiTextAnalysis => _aiTextAnalysis;
   bool get isAnalyzingText => _isAnalyzingText;
@@ -366,6 +375,40 @@ class ReadingProvider extends ChangeNotifier {
   bool get canCreateLearningItems => _learningItemService != null;
   bool get canPronounceWords => _pronunciationService != null;
 
+  ChapterLearningReport? get currentChapterLearningReport {
+    final book = _book;
+    final bookId = _activeBookId;
+    final analytics = _learningAnalyticsService;
+    if (book == null ||
+        book.chapters.isEmpty ||
+        bookId == null ||
+        analytics == null) {
+      return null;
+    }
+    return analytics.buildChapterReport(
+      bookId: bookId,
+      book: book,
+      chapterIndex: _currentChapter,
+      chapterProgress: _readingProgress,
+      analysis: _result,
+      readingTime: _readingTime,
+      userVocabulary: _userVocab,
+      learningItems: learningItems,
+      dueReviewCount: todayReviewDueCount,
+    );
+  }
+
+  WeeklyLearningSummary? get weeklyLearningSummary {
+    final analytics = _learningAnalyticsService;
+    if (analytics == null) return null;
+    return analytics.buildWeeklySummary(
+      readingTime: _readingTime,
+      dailyGoalSeconds: dailyReadingGoalSeconds,
+      learningItems: learningItems,
+      dueReviewCount: todayReviewDueCount,
+    );
+  }
+
   // ============================================================
   // Dependency injection
   // ============================================================
@@ -389,6 +432,8 @@ class ReadingProvider extends ChangeNotifier {
       _wordContextService = service;
   void setLearningItemService(LearningItemService service) =>
       _learningItemService = service;
+  void setLearningAnalyticsService(LearningAnalyticsService service) =>
+      _learningAnalyticsService = service;
   void setReviewScheduleService(ReviewScheduleService service) =>
       _reviewScheduleService = service;
   void setPronunciationService(PronunciationService service) =>
@@ -406,6 +451,7 @@ class ReadingProvider extends ChangeNotifier {
     await _userVocab?.init();
     await _wordContextService?.init();
     await _learningItemService?.init();
+    await _learningAnalyticsService?.init();
     _loadCachedBookDifficultyInputs();
     if (_book != null) {
       await _refreshAndPersistCurrentBookDifficulty();
@@ -579,7 +625,7 @@ class ReadingProvider extends ChangeNotifier {
   void enterReader() {
     _isReading = true;
     _hasBeenOpened = true;
-    _readingTime?.start(_activeBookId);
+    _readingTime?.start(_activeBookId, _currentChapter);
     notifyListeners();
   }
 
@@ -593,6 +639,9 @@ class ReadingProvider extends ChangeNotifier {
   Future<void> goToChapter(int index) async {
     if (_book == null || index == _currentChapter) return;
     if (index < 0 || index >= _book!.chapters.length) return;
+    if (_isReading) {
+      await _readingTime?.switchTarget(_activeBookId, index);
+    }
     _currentChapter = index;
     _readingProgress = 0.0;
     _readingScrollOffset = 0.0;
@@ -863,13 +912,26 @@ class ReadingProvider extends ChangeNotifier {
   // Word lookup
   // ============================================================
 
-  Future<void> lookupWord(String word, {String? contextText}) async {
+  Future<void> lookupWord(
+    String word, {
+    String? contextText,
+    bool trackReadingLookup = false,
+  }) async {
     _selectedWord = word;
     _selectedWordTranslation = null;
     _selectedWordContext = _normalizeLookupContext(contextText);
     _selectedWordEntry = null;
     _isLoadingWord = true;
     notifyListeners();
+
+    final activeBookId = _activeBookId;
+    if (trackReadingLookup && activeBookId != null && _book != null) {
+      await _learningAnalyticsService?.recordLookup(
+        bookId: activeBookId,
+        chapterIndex: _currentChapter,
+        word: word,
+      );
+    }
 
     final entry = await _wordRepo.lookup(word);
     _selectedWordEntry = entry;

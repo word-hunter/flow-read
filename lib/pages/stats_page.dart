@@ -1,20 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/book_difficulty.dart';
+import '../models/learning_analytics.dart';
 import '../providers/reading_provider.dart';
 import '../widgets/reading_desk/donut_chart_painter.dart';
 
-class StatsPage extends StatefulWidget {
+class StatsPage extends StatelessWidget {
   const StatsPage({super.key});
-
-  @override
-  State<StatsPage> createState() => _StatsPageState();
-}
-
-class _StatsPageState extends State<StatsPage> {
-  String _selectedPeriod = 'This Week';
-
-  static const _periods = ['Today', 'This Week', 'This Month', 'All Time'];
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +16,8 @@ class _StatsPageState extends State<StatsPage> {
     final userVocab = provider.userVocabulary;
     final allVocab = provider.getAllVocabulary();
     final bookDifficulty = provider.currentBookDifficulty;
+    final chapterReport = provider.currentChapterLearningReport;
+    final weeklySummary = provider.weeklyLearningSummary;
 
     final knownCount = userVocab?.knownWords.length ?? 0;
     final learningCount = userVocab?.learningWords.length ?? 0;
@@ -30,52 +25,11 @@ class _StatsPageState extends State<StatsPage> {
         .where((v) => provider.getWordStatus(v.word) == null)
         .length;
     final total = knownCount + learningCount + newCount;
-
-    final donutSegments = <DonutSegment>[];
-    if (knownCount > 0) {
-      donutSegments.add(
-        DonutSegment(
-          label: 'Mastered',
-          value: knownCount.toDouble(),
-          color: const Color(0xFF2979FF),
-        ),
-      );
-    }
-    if (learningCount > 0) {
-      donutSegments.add(
-        DonutSegment(
-          label: 'Learning',
-          value: learningCount.toDouble(),
-          color: const Color(0xFF66BB6A),
-        ),
-      );
-    }
-    if (newCount > 0) {
-      donutSegments.add(
-        DonutSegment(
-          label: 'New',
-          value: newCount.toDouble(),
-          color: const Color(0xFFFFCA28),
-        ),
-      );
-    }
-
-    if (donutSegments.isEmpty) {
-      donutSegments.addAll([
-        const DonutSegment(
-          label: 'Mastered',
-          value: 0.0,
-          color: Color(0xFF2979FF),
-        ),
-        const DonutSegment(
-          label: 'Learning',
-          value: 0.0,
-          color: Color(0xFF66BB6A),
-        ),
-        const DonutSegment(label: 'New', value: 1.0, color: Color(0xFFFFCA28)),
-      ]);
-    }
-
+    final donutSegments = _buildDonutSegments(
+      knownCount: knownCount,
+      learningCount: learningCount,
+      newCount: newCount,
+    );
     final centerPercent = total > 0 ? (knownCount * 100 / total).round() : 0;
 
     return Container(
@@ -96,16 +50,36 @@ class _StatsPageState extends State<StatsPage> {
           children: [
             _buildHeader(theme),
             Expanded(
-              child: _buildContent(
-                knownCount,
-                learningCount,
-                newCount,
-                total,
-                donutSegments,
-                centerPercent,
-                bookDifficulty,
-                provider,
-                theme,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (chapterReport != null) ...[
+                      _buildChapterReportCard(context, chapterReport),
+                      const SizedBox(height: 14),
+                    ],
+                    if (weeklySummary != null) ...[
+                      _buildWeeklySummaryCard(context, weeklySummary),
+                      const SizedBox(height: 14),
+                    ],
+                    if (bookDifficulty != null) ...[
+                      _buildBookDifficultyCard(bookDifficulty, theme),
+                      const SizedBox(height: 14),
+                    ],
+                    _buildVocabularyStructureCard(
+                      context: context,
+                      knownCount: knownCount,
+                      learningCount: learningCount,
+                      newCount: newCount,
+                      total: total,
+                      segments: donutSegments,
+                      centerPercent: centerPercent,
+                    ),
+                    const SizedBox(height: 14),
+                    _buildStatGrid(context, knownCount, provider),
+                  ],
+                ),
               ),
             ),
           ],
@@ -116,7 +90,7 @@ class _StatsPageState extends State<StatsPage> {
 
   Widget _buildHeader(ThemeData theme) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(color: theme.colorScheme.outlineVariant),
@@ -124,47 +98,13 @@ class _StatsPageState extends State<StatsPage> {
       ),
       child: Row(
         children: [
-          Icon(Icons.bar_chart, size: 20, color: theme.colorScheme.primary),
+          Icon(Icons.insights, size: 20, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
           Text(
-            'Learning Stats',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+            '学习报告',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: theme.colorScheme.outlineVariant),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedPeriod,
-                isDense: true,
-                icon: Icon(
-                  Icons.arrow_drop_down,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w500,
-                ),
-                items: _periods
-                    .map(
-                      (p) => DropdownMenuItem<String>(value: p, child: Text(p)),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) setState(() => _selectedPeriod = value);
-                },
-              ),
             ),
           ),
         ],
@@ -172,36 +112,143 @@ class _StatsPageState extends State<StatsPage> {
     );
   }
 
-  Widget _buildContent(
-    int knownCount,
-    int learningCount,
-    int newCount,
-    int total,
-    List<DonutSegment> segments,
-    int centerPercent,
-    BookDifficultyRating? bookDifficulty,
-    ReadingProvider provider,
-    ThemeData theme,
+  Widget _buildChapterReportCard(
+    BuildContext context,
+    ChapterLearningReport report,
   ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+    final theme = Theme.of(context);
+    return _Panel(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (bookDifficulty != null) ...[
-            _buildBookDifficultyCard(bookDifficulty, theme),
-            const SizedBox(height: 16),
-          ],
-          _buildDonutChart(
-            knownCount,
-            learningCount,
-            newCount,
-            total,
-            segments,
-            centerPercent,
-            theme,
+          _PanelHeader(
+            icon: Icons.auto_stories_outlined,
+            title: '本章学习报告',
+            subtitle:
+                '第 ${report.chapterIndex + 1}/${report.chapterCount} 章 · ${report.chapterTitle}',
           ),
-          const SizedBox(height: 16),
-          _buildStatGrid(knownCount, provider, theme),
+          const SizedBox(height: 14),
+          _MetricGrid(
+            metrics: [
+              _MetricData(
+                icon: Icons.flag_outlined,
+                label: '已读',
+                value: '${(report.chapterProgress * 100).round()}%',
+              ),
+              _MetricData(
+                icon: Icons.timer_outlined,
+                label: '阅读',
+                value: _durationText(report.readingTimeSeconds),
+              ),
+              _MetricData(
+                icon: Icons.search_outlined,
+                label: '查词',
+                value: '${report.lookupCount} 次',
+              ),
+              _MetricData(
+                icon: Icons.notes_outlined,
+                label: '词数',
+                value: '${report.wordCount}',
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _InsightRow(
+            icon: _trendIcon(report.lookupDependency.direction),
+            title: '查词依赖',
+            body: _lookupDependencyText(report),
+            color: _trendColor(theme, report.lookupDependency.direction),
+          ),
+          const SizedBox(height: 10),
+          _InsightRow(
+            icon: Icons.school_outlined,
+            title: '掌握了什么',
+            body: _masteryText(report),
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.42),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.arrow_forward,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    report.nextStep,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeeklySummaryCard(
+    BuildContext context,
+    WeeklyLearningSummary summary,
+  ) {
+    final theme = Theme.of(context);
+    return _Panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _PanelHeader(
+            icon: Icons.calendar_month_outlined,
+            title: '本周阅读 / 复习',
+            subtitle:
+                '${summary.goalReachedDays} 天达成每日目标 · 当前 ${summary.dueReviewCount} 条待复习',
+          ),
+          const SizedBox(height: 14),
+          _MetricGrid(
+            metrics: [
+              _MetricData(
+                icon: Icons.schedule_outlined,
+                label: '本周阅读',
+                value: _durationText(summary.readingSeconds),
+              ),
+              _MetricData(
+                icon: Icons.track_changes_outlined,
+                label: '周目标',
+                value: '${summary.goalProgressPercent}%',
+              ),
+              _MetricData(
+                icon: Icons.search_outlined,
+                label: '本周查词',
+                value: '${summary.lookupCount} 次',
+              ),
+              _MetricData(
+                icon: Icons.fact_check_outlined,
+                label: '本周复习',
+                value: '${summary.reviewedCount} 条',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '重复查词 ${summary.repeatedLookupCount} 次；复习记住 ${summary.rememberedCount} 条，需回看 ${summary.missedCount} 条。',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.35,
+            ),
+          ),
         ],
       ),
     );
@@ -216,13 +263,7 @@ class _StatsPageState extends State<StatsPage> {
         ? rating.weightedNewWordCount.toStringAsFixed(0)
         : rating.weightedNewWordCount.toStringAsFixed(1);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
+    return _Panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -307,7 +348,7 @@ class _StatsPageState extends State<StatsPage> {
               ),
               _DifficultyChip(
                 icon: Icons.done_outline,
-                label: '用户已掌握 ${rating.userKnownWordCount}',
+                label: '已掌握 ${rating.userKnownWordCount}',
               ),
               _DifficultyChip(
                 icon: Icons.monitor_weight_outlined,
@@ -321,94 +362,106 @@ class _StatsPageState extends State<StatsPage> {
     );
   }
 
-  Widget _buildDonutChart(
-    int knownCount,
-    int learningCount,
-    int newCount,
-    int total,
-    List<DonutSegment> segments,
-    int centerPercent,
-    ThemeData theme,
-  ) {
+  Widget _buildVocabularyStructureCard({
+    required BuildContext context,
+    required int knownCount,
+    required int learningCount,
+    required int newCount,
+    required int total,
+    required List<DonutSegment> segments,
+    required int centerPercent,
+  }) {
+    final theme = Theme.of(context);
     final legendItems = [
       _LegendItem(
-        label: 'Mastered',
+        label: '已掌握',
         color: const Color(0xFF2979FF),
         value: total > 0 ? '${(knownCount * 100 / total).round()}%' : '0%',
       ),
       _LegendItem(
-        label: 'Learning',
+        label: '学习中',
         color: const Color(0xFF66BB6A),
         value: total > 0 ? '${(learningCount * 100 / total).round()}%' : '0%',
       ),
       _LegendItem(
-        label: 'New',
+        label: '新词',
         color: const Color(0xFFFFCA28),
         value: total > 0 ? '${(newCount * 100 / total).round()}%' : '0%',
       ),
     ];
 
-    return SizedBox(
-      height: 160,
-      child: Row(
+    return _Panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 3,
-            child: CustomPaint(
-              painter: DonutChartPainter(
-                segments: segments,
-                strokeWidth: 18,
-                centerValue: '$centerPercent%',
-                centerLabel: 'Mastered',
-                centerValueColor: theme.colorScheme.onSurface,
-                centerLabelColor: theme.colorScheme.onSurfaceVariant,
-              ),
-              size: const Size(160, 160),
-            ),
+          const _PanelHeader(
+            icon: Icons.donut_large_outlined,
+            title: '词汇结构',
+            subtitle: '按当前书籍和已沉淀词汇状态统计',
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 2,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: legendItems
-                  .map(
-                    (item) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: item.color,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              item.label,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            item.value,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 160,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: CustomPaint(
+                    painter: DonutChartPainter(
+                      segments: segments,
+                      strokeWidth: 18,
+                      centerValue: '$centerPercent%',
+                      centerLabel: '已掌握',
+                      centerValueColor: theme.colorScheme.onSurface,
+                      centerLabelColor: theme.colorScheme.onSurfaceVariant,
                     ),
-                  )
-                  .toList(),
+                    size: const Size(160, 160),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: legendItems
+                        .map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: item.color,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    item.label,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  item.value,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -417,46 +470,123 @@ class _StatsPageState extends State<StatsPage> {
   }
 
   Widget _buildStatGrid(
+    BuildContext context,
     int knownCount,
     ReadingProvider provider,
-    ThemeData theme,
   ) {
-    final bookmarkCount = provider.bookmarkedWords.length;
-
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 1.3,
-      children: [
-        _StatItem(
-          icon: Icons.menu_book,
-          label: 'Words Mastered',
-          value: '$knownCount',
-          color: const Color(0xFF2979FF),
-        ).build(context, theme),
-        _StatItem(
+    return _MetricGrid(
+      metrics: [
+        _MetricData(icon: Icons.menu_book, label: '总掌握词', value: '$knownCount'),
+        _MetricData(
           icon: Icons.school,
-          label: 'Total Vocabulary',
+          label: '当前词汇',
           value: '${provider.totalVocabularyCount}',
-          color: const Color(0xFF7B1FA2),
-        ).build(context, theme),
-        _StatItem(
+        ),
+        _MetricData(
           icon: Icons.bookmark,
-          label: 'Bookmarks',
-          value: '$bookmarkCount',
-          color: const Color(0xFF27AE60),
-        ).build(context, theme),
-        _StatItem(
+          label: '书签',
+          value: '${provider.bookmarkedWords.length}',
+        ),
+        _MetricData(
           icon: Icons.menu_book_outlined,
           label: '目录项',
           value: '${provider.chapterCount}',
-          color: const Color(0xFFE67E22),
-        ).build(context, theme),
+        ),
       ],
     );
+  }
+
+  List<DonutSegment> _buildDonutSegments({
+    required int knownCount,
+    required int learningCount,
+    required int newCount,
+  }) {
+    final segments = <DonutSegment>[];
+    if (knownCount > 0) {
+      segments.add(
+        DonutSegment(
+          label: '已掌握',
+          value: knownCount.toDouble(),
+          color: const Color(0xFF2979FF),
+        ),
+      );
+    }
+    if (learningCount > 0) {
+      segments.add(
+        DonutSegment(
+          label: '学习中',
+          value: learningCount.toDouble(),
+          color: const Color(0xFF66BB6A),
+        ),
+      );
+    }
+    if (newCount > 0) {
+      segments.add(
+        DonutSegment(
+          label: '新词',
+          value: newCount.toDouble(),
+          color: const Color(0xFFFFCA28),
+        ),
+      );
+    }
+
+    if (segments.isEmpty) {
+      segments.add(
+        const DonutSegment(label: '新词', value: 1, color: Color(0xFFFFCA28)),
+      );
+    }
+    return segments;
+  }
+
+  String _lookupDependencyText(ChapterLearningReport report) {
+    final current = report.lookupPerThousandWords.toStringAsFixed(1);
+    final comparison = report.lookupDependency;
+    if (comparison.direction == LookupDependencyDirection.noData) {
+      return '本章 $current 次/千词；继续读下一章后可比较趋势。';
+    }
+    final previous = comparison.previousPerThousandWords.toStringAsFixed(1);
+    if (comparison.direction == LookupDependencyDirection.lower) {
+      return '本章 $current 次/千词，上一章 $previous，下降 ${comparison.changePercent.abs()}%。';
+    }
+    if (comparison.direction == LookupDependencyDirection.higher) {
+      return '本章 $current 次/千词，上一章 $previous，上升 ${comparison.changePercent.abs()}%。';
+    }
+    return '本章 $current 次/千词，和上一章 $previous 接近。';
+  }
+
+  String _masteryText(ChapterLearningReport report) {
+    final parts = [
+      '已掌握 ${report.masteredWordCount}',
+      '学习中 ${report.learningWordCount}',
+      '新词 ${report.newWordCount}',
+      '卡片 ${report.learningItemCount}',
+    ];
+    final examples = [
+      ...report.masteredWords,
+      ...report.learningWords,
+    ].take(4).join('、');
+    if (examples.isNotEmpty) {
+      parts.add('可回忆：$examples');
+    }
+    return parts.join(' · ');
+  }
+
+  IconData _trendIcon(LookupDependencyDirection direction) {
+    return switch (direction) {
+      LookupDependencyDirection.lower => Icons.trending_down,
+      LookupDependencyDirection.higher => Icons.trending_up,
+      LookupDependencyDirection.steady => Icons.trending_flat,
+      LookupDependencyDirection.noData => Icons.query_stats,
+    };
+  }
+
+  Color _trendColor(ThemeData theme, LookupDependencyDirection direction) {
+    return switch (direction) {
+      LookupDependencyDirection.lower => const Color(0xFF2E7D32),
+      LookupDependencyDirection.higher => const Color(0xFFC62828),
+      LookupDependencyDirection.steady => theme.colorScheme.primary,
+      LookupDependencyDirection.noData => theme.colorScheme.onSurfaceVariant,
+    };
   }
 
   Color _difficultyColor(BookDifficultyLevel level) {
@@ -473,70 +603,225 @@ class _StatsPageState extends State<StatsPage> {
         return const Color(0xFFC62828);
     }
   }
+
+  static String _durationText(int seconds) {
+    if (seconds <= 0) return '0 分钟';
+    if (seconds < 60) return '$seconds 秒';
+    final minutes = seconds ~/ 60;
+    if (minutes < 60) return '$minutes 分钟';
+    final hours = minutes ~/ 60;
+    final remain = minutes % 60;
+    return remain > 0 ? '$hours 小时 $remain 分' : '$hours 小时';
+  }
 }
 
-class _LegendItem {
-  final String label;
-  final Color color;
-  final String value;
-  const _LegendItem({
-    required this.label,
-    required this.color,
-    required this.value,
+class _Panel extends StatelessWidget {
+  final Widget child;
+
+  const _Panel({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _PanelHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _PanelHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: theme.colorScheme.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class _StatItem {
+class _MetricGrid extends StatelessWidget {
+  final List<_MetricData> metrics;
+
+  const _MetricGrid({required this.metrics});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 560 ? 4 : 2;
+        const spacing = 10.0;
+        final tileWidth =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final metric in metrics)
+              SizedBox(
+                width: tileWidth,
+                child: _MetricTile(metric: metric),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _MetricData {
   final IconData icon;
   final String label;
   final String value;
-  final Color color;
-  const _StatItem({
+
+  const _MetricData({
     required this.icon,
     required this.label,
     required this.value,
-    required this.color,
   });
+}
 
-  Widget build(BuildContext context, ThemeData theme) {
+class _MetricTile extends StatelessWidget {
+  final _MetricData metric;
+
+  const _MetricTile({required this.metric});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(14),
+      constraints: const BoxConstraints(minHeight: 82),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.65),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const Spacer(),
+          Icon(metric.icon, size: 18, color: theme.colorScheme.primary),
+          const SizedBox(height: 12),
           Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+            metric.value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
               color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 2),
           Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
+            metric.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _InsightRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String body;
+  final Color color;
+
+  const _InsightRow({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                body,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -551,13 +836,11 @@ class _DifficultyChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.72),
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
-        ),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -567,7 +850,7 @@ class _DifficultyChip extends StatelessWidget {
           Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurface,
+              color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -575,4 +858,16 @@ class _DifficultyChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _LegendItem {
+  final String label;
+  final Color color;
+  final String value;
+
+  const _LegendItem({
+    required this.label,
+    required this.color,
+    required this.value,
+  });
 }

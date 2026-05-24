@@ -74,28 +74,35 @@ void main() {
     expect(reloaded.theme, 'sepia');
   });
 
-  test('reading time accumulates global and per-book seconds', () async {
-    var now = DateTime.utc(2026, 5, 19, 8);
-    final service = ReadingTimeService(clock: () => now);
-    await service.init();
+  test(
+    'reading time accumulates global, weekly, book, and chapter seconds',
+    () async {
+      var now = DateTime.utc(2026, 5, 19, 8);
+      final service = ReadingTimeService(clock: () => now);
+      await service.init();
 
-    service.start('book-1');
-    now = now.add(const Duration(seconds: 125));
-    expect(service.todaySeconds, 125);
-    await service.stop();
+      service.start('book-1', 2);
+      now = now.add(const Duration(seconds: 125));
+      expect(service.todaySeconds, 125);
+      await service.stop();
 
-    expect(service.totalSeconds, 125);
-    expect(service.secondsForBook('book-1'), 125);
-    expect(service.todaySeconds, 125);
-    expect(service.displayText, '2 分钟');
+      expect(service.totalSeconds, 125);
+      expect(service.secondsForBook('book-1'), 125);
+      expect(service.secondsForChapter('book-1', 2), 125);
+      expect(service.todaySeconds, 125);
+      expect(service.secondsForWeek(now), 125);
+      expect(service.displayText, '2 分钟');
 
-    final reloaded = ReadingTimeService(clock: () => now);
-    await reloaded.init();
+      final reloaded = ReadingTimeService(clock: () => now);
+      await reloaded.init();
 
-    expect(reloaded.totalSeconds, 125);
-    expect(reloaded.secondsForBook('book-1'), 125);
-    expect(reloaded.todaySeconds, 125);
-  });
+      expect(reloaded.totalSeconds, 125);
+      expect(reloaded.secondsForBook('book-1'), 125);
+      expect(reloaded.secondsForChapter('book-1', 2), 125);
+      expect(reloaded.todaySeconds, 125);
+      expect(reloaded.secondsForWeek(now), 125);
+    },
+  );
 
   test('word context examples are merged and deduplicated', () async {
     final service = WordContextService();

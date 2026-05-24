@@ -290,7 +290,11 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _onWordTapped(String word, String contextText) {
-    context.read<ReadingProvider>().lookupWord(word, contextText: contextText);
+    context.read<ReadingProvider>().lookupWord(
+      word,
+      contextText: contextText,
+      trackReadingLookup: true,
+    );
     if (_isWideScreen) {
       setState(() {
         _sidebarMode = _ReaderSidebarMode.word;

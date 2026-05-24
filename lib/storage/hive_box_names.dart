@@ -13,6 +13,7 @@ class HiveBoxNames {
   static const rssSubscriptions = 'rss_subscriptions';
   static const wordContexts = 'word_contexts';
   static const learningItems = 'learning_items';
+  static const learningAnalytics = 'learning_analytics';
 
   static const bootstrapBoxes = <String>[
     books,
@@ -27,6 +28,7 @@ class HiveBoxNames {
     rssSubscriptions,
     wordContexts,
     learningItems,
+    learningAnalytics,
   ];
 
   static const backupIncludedBoxes = <String>[
@@ -41,5 +43,6 @@ class HiveBoxNames {
     rssSubscriptions,
     wordContexts,
     learningItems,
+    learningAnalytics,
   ];
 }

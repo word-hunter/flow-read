@@ -66,3 +66,7 @@ Box<String> wordContextsBox() {
 Box<LearningItem> learningItemsBox() {
   return Hive.box<LearningItem>(HiveBoxNames.learningItems);
 }
+
+Box<int> learningAnalyticsBox() {
+  return Hive.box<int>(HiveBoxNames.learningAnalytics);
+}

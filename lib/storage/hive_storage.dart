@@ -45,6 +45,7 @@ Future<void> openFlowReadHiveBoxes() async {
     Hive.openBox<RssFeedSubscription>(HiveBoxNames.rssSubscriptions),
     Hive.openBox<String>(HiveBoxNames.wordContexts),
     Hive.openBox<LearningItem>(HiveBoxNames.learningItems),
+    Hive.openBox<int>(HiveBoxNames.learningAnalytics),
   ]);
 }
 

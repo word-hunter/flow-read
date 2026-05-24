@@ -9,6 +9,7 @@ class ReadingTimeService {
 
   static const _globalKey = '_global_';
   static const _dailyKeyPrefix = '_daily_';
+  static const _chapterKeyPrefix = '_chapter_';
 
   final ReadingTimeRepository _repository;
   final DateTime Function() _clock;
@@ -16,6 +17,7 @@ class ReadingTimeService {
   int _totalSeconds = 0;
   DateTime? _startTime;
   String? _activeBookId;
+  int? _activeChapterIndex;
 
   int get totalSeconds => _totalSeconds;
   int get todaySeconds {
@@ -24,6 +26,10 @@ class ReadingTimeService {
   }
 
   int secondsForBook(String bookId) => _repository.secondsFor(bookId);
+
+  int secondsForChapter(String bookId, int chapterIndex) {
+    return _repository.secondsFor(_chapterKey(bookId, chapterIndex));
+  }
 
   String get displayText {
     if (_totalSeconds < 60) return '$_totalSeconds 秒';
@@ -39,9 +45,20 @@ class ReadingTimeService {
     _totalSeconds = _repository.secondsFor(_globalKey);
   }
 
-  void start([String? bookId]) {
+  void start([String? bookId, int? chapterIndex]) {
     _startTime = _clock();
     _activeBookId = bookId;
+    _activeChapterIndex = chapterIndex;
+  }
+
+  Future<void> switchTarget(String? bookId, int? chapterIndex) async {
+    if (_startTime == null) {
+      _activeBookId = bookId;
+      _activeChapterIndex = chapterIndex;
+      return;
+    }
+    await stop();
+    start(bookId, chapterIndex);
   }
 
   Future<void> stop() async {
@@ -55,9 +72,15 @@ class ReadingTimeService {
     if (bookId != null) {
       await _repository.putSeconds(bookId, secondsForBook(bookId) + elapsed);
     }
+    final chapterIndex = _activeChapterIndex;
+    if (bookId != null && chapterIndex != null) {
+      final key = _chapterKey(bookId, chapterIndex);
+      await _repository.putSeconds(key, _repository.secondsFor(key) + elapsed);
+    }
     await _putDailyElapsed(startTime, stopTime);
     _startTime = null;
     _activeBookId = null;
+    _activeChapterIndex = null;
   }
 
   Future<void> close() async {
@@ -65,6 +88,41 @@ class ReadingTimeService {
   }
 
   int secondsForDate(DateTime date) => _repository.secondsFor(_dailyKey(date));
+
+  int secondsForWeek([DateTime? date]) {
+    final target = date ?? _clock();
+    final start = weekStartFor(target);
+    var total = 0;
+    for (var i = 0; i < 7; i += 1) {
+      final day = start.add(Duration(days: i));
+      total += secondsForDate(day);
+      total += _activeSecondsForDate(day);
+    }
+    return total;
+  }
+
+  int goalReachedDaysForWeek(int dailyGoalSeconds, [DateTime? date]) {
+    if (dailyGoalSeconds <= 0) return 0;
+    final target = date ?? _clock();
+    final start = weekStartFor(target);
+    var reached = 0;
+    for (var i = 0; i < 7; i += 1) {
+      if (secondsForDate(start.add(Duration(days: i))) >= dailyGoalSeconds) {
+        reached += 1;
+      }
+    }
+    if (todaySeconds >= dailyGoalSeconds &&
+        _sameDay(target, _clock()) &&
+        secondsForDate(target) < dailyGoalSeconds) {
+      reached += 1;
+    }
+    return reached.clamp(0, 7).toInt();
+  }
+
+  static DateTime weekStartFor(DateTime date) {
+    final day = DateTime(date.year, date.month, date.day);
+    return day.subtract(Duration(days: day.weekday - DateTime.monday));
+  }
 
   int _activeSecondsForDate(DateTime date) {
     final start = _startTime;
@@ -105,5 +163,13 @@ class ReadingTimeService {
   String _dailyKey(DateTime date) {
     String two(int n) => n.toString().padLeft(2, '0');
     return '$_dailyKeyPrefix${date.year}-${two(date.month)}-${two(date.day)}';
+  }
+
+  String _chapterKey(String bookId, int chapterIndex) {
+    return '$_chapterKeyPrefix${Uri.encodeComponent(bookId)}_$chapterIndex';
+  }
+
+  bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 }

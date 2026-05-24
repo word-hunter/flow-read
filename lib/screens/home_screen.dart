@@ -195,7 +195,7 @@ class _WideHomeLayout extends StatelessWidget {
           HomeSidebar(
             currentTab: provider.currentTab,
             onTabChanged: provider.switchTab,
-            readingTimeSeconds: provider.readingTimeSeconds,
+            readingTimeSeconds: provider.weekReadingTimeSeconds,
             dailyReadingGoalSeconds: settings.dailyReadingGoalSeconds,
             onSettingsTap: () =>
                 Navigator.pushNamed(context, SettingsScreen.routeName),
