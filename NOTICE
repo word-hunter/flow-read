@@ -1,0 +1,54 @@
+Flow Read
+Copyright (c) 2026 word-hunter
+
+Flow Read is licensed under the MIT License. See LICENSE.
+
+Third-party software dependencies
+---------------------------------
+
+Flow Read is built with Flutter and Dart and uses third-party packages listed
+in pubspec.yaml and pubspec.lock. Those dependencies remain under their own
+licenses. Review the package metadata from pub.dev and the generated Flutter
+license registry before redistributing a release build.
+
+Bundled lexical data
+--------------------
+
+The files under assets/wordnet/ are generated from an English WordNet 2025 JSON
+source. Open English WordNet is published by the Global WordNet Association and
+is released under the Creative Commons Attribution 4.0 International License
+(CC BY 4.0):
+
+https://github.com/globalwordnet/english-wordnet
+
+Open English WordNet incorporates and extends WordNet material. Preserve the
+upstream attribution and any WordNet copyright/license terms required by the
+exact source archive used for the bundled generated files:
+
+https://wordnet.princeton.edu/license-and-commercial-use
+
+The source archive is not committed to this repository. Before a stable
+release, verify the exact upstream archive and keep the required upstream
+license and attribution with the release artifacts.
+
+The files under assets/dict/ contain an English word-form mapping used by the
+local reader and vocabulary features. Before a stable release, verify the
+source and redistribution terms for the exact dictionary source used to build
+this asset.
+
+Project media
+-------------
+
+The files under assets/brand/ and the app screenshots used in README.md are
+project assets unless a separate source is documented. Do not add third-party
+images to these directories without recording their license and attribution in
+this file.
+
+Online dictionary sources
+-------------------------
+
+Flow Read can request dictionary content from external online services or
+websites such as dictionaryapi.dev, Collins, and Longman when those sources are
+enabled. These services and websites are not bundled with Flow Read and are
+subject to their own terms. Online sources must remain optional and must keep a
+local/offline fallback available for the reader.
