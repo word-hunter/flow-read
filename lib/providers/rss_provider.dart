@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/rss_models.dart';
+import '../services/app_logger.dart';
 import '../services/rss_service.dart';
 
 class RssProvider extends ChangeNotifier {
@@ -70,9 +71,15 @@ class RssProvider extends ChangeNotifier {
       _selectedFeedUrl = sub.url;
       _articleQuery = '';
       await fetchArticlesForSelectedFeed();
-    } catch (e) {
-      debugPrint('RSS add feed failed for $url: $e');
-      _errorMessage = '添加订阅失败: $e';
+    } catch (error, stackTrace) {
+      AppLogger.instance.event(
+        'rss.add_feed_failed',
+        level: AppLogLevel.warning,
+        source: 'rss_provider',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _errorMessage = '添加订阅失败: $error';
     }
     _isLoading = false;
     notifyListeners();
@@ -103,9 +110,15 @@ class RssProvider extends ChangeNotifier {
       } else if (_selectedFeedUrl == null) {
         await fetchArticlesForSelectedFeed();
       }
-    } catch (e) {
-      debugPrint('RSS update feed failed for $url: $e');
-      _errorMessage = '更新订阅失败: $e';
+    } catch (error, stackTrace) {
+      AppLogger.instance.event(
+        'rss.update_feed_failed',
+        level: AppLogLevel.warning,
+        source: 'rss_provider',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _errorMessage = '更新订阅失败: $error';
     }
     _isLoading = false;
     notifyListeners();
@@ -156,9 +169,16 @@ class RssProvider extends ChangeNotifier {
       _articles = _selectedFeedUrl == null
           ? await _service.fetchLatestArticles()
           : await _service.fetchArticles(_selectedFeedUrl!);
-    } catch (e) {
-      debugPrint('RSS fetch articles failed: $e');
-      _errorMessage = '获取文章失败: $e';
+    } catch (error, stackTrace) {
+      AppLogger.instance.event(
+        'rss.fetch_articles_failed',
+        level: AppLogLevel.warning,
+        source: 'rss_provider',
+        metadata: {'mode': _selectedFeedUrl == null ? 'latest' : 'feed'},
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _errorMessage = '获取文章失败: $error';
     }
     _isFetchingArticles = false;
     notifyListeners();

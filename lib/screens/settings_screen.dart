@@ -13,6 +13,7 @@ import '../services/backup_service.dart';
 import '../services/changelog_service.dart';
 import '../services/dictionary/dictionary_cache_service.dart';
 import '../services/external_url_launcher.dart';
+import '../services/log_folder_opener.dart';
 import '../services/llm_client.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
@@ -48,6 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final BackupFolderAccess _backupFolderAccess = const BackupFolderAccess();
   final AppUpdateService _appUpdateService = AppUpdateService();
   final ExternalUrlLauncher _externalUrlLauncher = const ExternalUrlLauncher();
+  final LogFolderOpener _logFolderOpener = LogFolderOpener();
 
   static const _desktopBreakpoint = 760.0;
 
@@ -319,6 +321,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onOpenUpdateReleasePage: _availableUpdate == null
                     ? null
                     : () => unawaited(_openAvailableUpdateReleasePage()),
+                onOpenLogsFolder: () => unawaited(_openLogsFolder()),
                 onOpenRepository: () => unawaited(_openRepositoryUrl()),
                 onOpenIssueFeedback: () => unawaited(_openIssueFeedbackUrl()),
               ),
@@ -675,6 +678,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _openIssueFeedbackUrl() async {
     await _openExternalUrl(AppLinks.issueFeedbackUrl);
+  }
+
+  Future<void> _openLogsFolder() async {
+    try {
+      await _logFolderOpener.openLogsFolder();
+    } catch (error) {
+      if (!mounted) return;
+      if (error is LogFolderOpenException) {
+        _showSnackBar(error.message);
+        return;
+      }
+      _showSnackBar('打开日志文件夹失败');
+    }
   }
 
   Future<void> _openExternalUrl(Uri uri) async {

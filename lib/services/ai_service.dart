@@ -1,11 +1,10 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
-
 import '../models/ai_text_analysis.dart';
 import '../models/ai_summary.dart';
 import '../models/ai_practice_questions.dart';
 import '../models/word_analysis.dart';
+import 'app_logger.dart';
 import 'llm_client.dart';
 import 'prompt_registry.dart';
 
@@ -132,27 +131,25 @@ class AIService {
     for (final note in result.structureNotes) {
       if (note.source.isNotEmpty &&
           !originalText.toLowerCase().contains(note.source.toLowerCase())) {
-        debugPrint('[AI] Structure source not found in text: "${note.source}"');
+        _logMissingAiSource('structure', note.source.length, originalText);
       }
     }
     for (final point in result.grammarPoints) {
       if (point.source.isNotEmpty &&
           !originalText.toLowerCase().contains(point.source.toLowerCase())) {
-        debugPrint('[AI] Grammar source not found in text: "${point.source}"');
+        _logMissingAiSource('grammar', point.source.length, originalText);
       }
     }
     for (final note in result.vocabularyNotes) {
       if (note.word.isNotEmpty &&
           !originalText.toLowerCase().contains(note.word.toLowerCase())) {
-        debugPrint('[AI] Word not found in text: "${note.word}"');
+        _logMissingAiSource('vocabulary', note.word.length, originalText);
       }
     }
     for (final note in result.expressionNotes) {
       if (note.source.isNotEmpty &&
           !originalText.toLowerCase().contains(note.source.toLowerCase())) {
-        debugPrint(
-          '[AI] Expression source not found in text: "${note.source}"',
-        );
+        _logMissingAiSource('expression', note.source.length, originalText);
       }
     }
   }
@@ -160,12 +157,16 @@ class AIService {
   void _validateSummary(AISummary summary, String originalText) {
     for (final event in summary.events) {
       if (event.source.isNotEmpty && !originalText.contains(event.source)) {
-        debugPrint('[AI] Event source not found: "${event.source}"');
+        _logMissingAiSource('summary_event', event.source.length, originalText);
       }
     }
     for (final cd in summary.characterDevelopments) {
       if (cd.source.isNotEmpty && !originalText.contains(cd.source)) {
-        debugPrint('[AI] Character source not found: "${cd.source}"');
+        _logMissingAiSource(
+          'character_development',
+          cd.source.length,
+          originalText,
+        );
       }
     }
   }
@@ -174,9 +175,30 @@ class AIService {
     for (final question in practice.questions) {
       if (question.source.isNotEmpty &&
           !originalText.contains(question.source)) {
-        debugPrint('[AI] Question source not found: "${question.source}"');
+        _logMissingAiSource(
+          'practice_question',
+          question.source.length,
+          originalText,
+        );
       }
     }
+  }
+
+  void _logMissingAiSource(
+    String field,
+    int sourceLength,
+    String originalText,
+  ) {
+    AppLogger.instance.event(
+      'ai.validation_source_missing',
+      level: AppLogLevel.debug,
+      source: 'ai_service',
+      metadata: {
+        'field': field,
+        'sourceLength': sourceLength,
+        'originalTextLength': originalText.length,
+      },
+    );
   }
 
   Map<String, dynamic> _extractJson(String response) {

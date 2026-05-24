@@ -86,6 +86,8 @@ class MainFlutterWindow: NSWindow, NSDraggingDestination {
       switch call.method {
       case "openExternalUrl":
         Self.openExternalUrl(arguments: call.arguments, result: result)
+      case "openPath":
+        Self.openPath(arguments: call.arguments, result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -114,6 +116,29 @@ class MainFlutterWindow: NSWindow, NSDraggingDestination {
         code: "OPEN_URL_FAILED",
         message: "Failed to open URL.",
         details: urlString))
+    }
+  }
+
+  private static func openPath(arguments: Any?, result: @escaping FlutterResult) {
+    guard let args = arguments as? [String: Any],
+      let path = args["path"] as? String,
+      !path.isEmpty
+    else {
+      result(FlutterError(
+        code: "INVALID_PATH",
+        message: "Path is required.",
+        details: nil))
+      return
+    }
+
+    let url = URL(fileURLWithPath: path)
+    if NSWorkspace.shared.open(url) {
+      result(nil)
+    } else {
+      result(FlutterError(
+        code: "OPEN_PATH_FAILED",
+        message: "Failed to open path.",
+        details: nil))
     }
   }
 

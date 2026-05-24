@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +13,7 @@ import 'screens/review_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/spaced_review_screen.dart';
 import 'screens/syntax_screen.dart';
+import 'services/app_logger.dart';
 import 'services/settings_service.dart';
 import 'storage/hive_storage.dart';
 import 'theme/app_theme.dart';
@@ -19,8 +22,56 @@ import 'widgets/release_notes_gate.dart';
 import 'widgets/theme_transition.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const FlowReadBootstrapApp());
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      await _initializeLogging();
+      _installGlobalErrorLogging();
+      runApp(const FlowReadBootstrapApp());
+    },
+    (error, stackTrace) {
+      AppLogger.instance.event(
+        'zone.unhandled_error',
+        level: AppLogLevel.fatal,
+        source: 'main',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    },
+  );
+}
+
+Future<void> _initializeLogging() async {
+  try {
+    await AppLogger.instance.init();
+    AppLogger.instance.event('app.start', source: 'main');
+  } catch (_) {
+    // Logging must never prevent the app from opening.
+  }
+}
+
+void _installGlobalErrorLogging() {
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    AppLogger.instance.event(
+      'flutter.error',
+      level: AppLogLevel.fatal,
+      source: 'flutter',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
+  };
+
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    AppLogger.instance.event(
+      'platform.unhandled_error',
+      level: AppLogLevel.fatal,
+      source: 'platform_dispatcher',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return true;
+  };
 }
 
 class FlowReadBootstrapApp extends StatefulWidget {
@@ -36,13 +87,33 @@ class _FlowReadBootstrapAppState extends State<FlowReadBootstrapApp> {
   @override
   void initState() {
     super.initState();
-    _bootstrapFuture = bootstrapStorage();
+    _bootstrapFuture = _bootstrapStorageWithLogging();
   }
 
   void _retry() {
     setState(() {
-      _bootstrapFuture = bootstrapStorage();
+      _bootstrapFuture = _bootstrapStorageWithLogging();
     });
+  }
+
+  Future<void> _bootstrapStorageWithLogging() async {
+    AppLogger.instance.event('storage.bootstrap_started', source: 'storage');
+    try {
+      await bootstrapStorage();
+      AppLogger.instance.event(
+        'storage.bootstrap_succeeded',
+        source: 'storage',
+      );
+    } catch (error, stackTrace) {
+      AppLogger.instance.event(
+        'storage.bootstrap_failed',
+        level: AppLogLevel.fatal,
+        source: 'storage',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
   }
 
   @override

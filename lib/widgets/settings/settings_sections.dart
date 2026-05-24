@@ -788,6 +788,7 @@ class SettingsAboutSection extends StatelessWidget {
     required this.availableUpdate,
     required this.onDownloadUpdate,
     required this.onOpenUpdateReleasePage,
+    required this.onOpenLogsFolder,
     required this.onOpenRepository,
     required this.onOpenIssueFeedback,
   });
@@ -802,6 +803,7 @@ class SettingsAboutSection extends StatelessWidget {
   final AppUpdateInfo? availableUpdate;
   final VoidCallback? onDownloadUpdate;
   final VoidCallback? onOpenUpdateReleasePage;
+  final VoidCallback onOpenLogsFolder;
   final VoidCallback onOpenRepository;
   final VoidCallback onOpenIssueFeedback;
 
@@ -937,6 +939,28 @@ class SettingsAboutSection extends StatelessWidget {
                   ),
                 ],
               ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          icon: Icons.plagiarism_outlined,
+          title: '诊断日志',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '本地日志默认脱敏，保留最近 14 天。',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: onOpenLogsFolder,
+                icon: const Icon(Icons.folder_open_outlined),
+                label: const Text('打开日志文件夹'),
+              ),
             ],
           ),
         ),

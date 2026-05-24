@@ -119,6 +119,13 @@ void main() {
     expect(find.text('GitHub 仓库'), findsOneWidget);
     expect(find.text('反馈问题'), findsOneWidget);
     expect(find.text('检查更新'), findsOneWidget);
+    await tester.drag(
+      find.byKey(const ValueKey('settings-section-about')),
+      const Offset(0, -300),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('诊断日志'), findsOneWidget);
+    expect(find.text('打开日志文件夹'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
