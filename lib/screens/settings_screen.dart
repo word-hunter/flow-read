@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/reading_provider.dart';
 import '../providers/rss_provider.dart';
+import '../services/ai_cache_service.dart';
 import '../services/app_update_service.dart';
 import '../services/app_links.dart';
 import '../services/backup_folder_access.dart';
@@ -45,6 +46,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _updateFallbackActionLabel;
   Uri? _updateFallbackUrl;
   AppUpdateInfo? _availableUpdate;
+  int? _aiCacheEntryCount;
+  int? _dictionaryCacheEntryCount;
+  bool _cacheStatsLoading = true;
   SettingsSection _selectedSection = SettingsSection.appearance;
   final BackupFolderAccess _backupFolderAccess = const BackupFolderAccess();
   final AppUpdateService _appUpdateService = AppUpdateService();
@@ -52,6 +56,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final LogFolderOpener _logFolderOpener = LogFolderOpener();
 
   static const _desktopBreakpoint = 760.0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refreshCacheStats());
+  }
 
   @override
   void dispose() {
@@ -262,6 +272,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               SettingsSection.dictionary => SettingsDictionarySection(
                 settings: settings,
                 onClearCache: () => unawaited(_clearDictionaryCache()),
+                cacheEntryCount: _dictionaryCacheEntryCount,
+                cacheStatsLoading: _cacheStatsLoading,
               ),
               SettingsSection.ai => SettingsAISection(
                 settings: settings,
@@ -292,6 +304,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTestConnection: () => unawaited(_testConnection(settings)),
                 onClearConfig: () => unawaited(_clearAIConfig(settings)),
                 onClearCache: _showClearCacheDialog,
+                aiCacheEntryCount: _aiCacheEntryCount,
+                cacheStatsLoading: _cacheStatsLoading,
               ),
               SettingsSection.backup => SettingsBackupSection(
                 settings: settings,
@@ -352,6 +366,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  Future<void> _refreshCacheStats() async {
+    if (mounted) {
+      setState(() => _cacheStatsLoading = true);
+    }
+
+    int? aiCacheCount;
+    int? dictionaryCacheCount;
+
+    try {
+      final aiCache = AICacheService();
+      await aiCache.init();
+      aiCacheCount = await aiCache.getCacheCount();
+    } catch (_) {
+      aiCacheCount = null;
+    }
+
+    try {
+      final dictionaryCache = DictionaryCacheService();
+      await dictionaryCache.init();
+      dictionaryCacheCount = dictionaryCache.entryCount;
+    } catch (_) {
+      dictionaryCacheCount = null;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _aiCacheEntryCount = aiCacheCount;
+      _dictionaryCacheEntryCount = dictionaryCacheCount;
+      _cacheStatsLoading = false;
+    });
+  }
+
   Future<void> _clearAIConfig(SettingsService settings) async {
     final confirmed =
         await showDialog<bool>(
@@ -393,7 +439,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('清除 AI 缓存'),
-        content: const Text('将清除所有章节总结和练习题缓存。'),
+        content: const Text('将清除所有章节总结和练习题缓存。书籍、生词、书签、阅读进度和 AI 配置不会被删除。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -403,6 +449,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               Navigator.pop(dialogContext);
               await context.read<ReadingProvider>().clearAICache();
+              await _refreshCacheStats();
               if (mounted) {
                 _showSnackBar('AI 缓存已清除');
               }
@@ -420,7 +467,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('清理词典缓存'),
-            content: const Text('将删除 Collins、Longman 等在线词典的本地缓存。'),
+            content: const Text(
+              '将删除 Collins、Longman 等在线词典查询缓存。生词本、学习记录、书签和阅读进度不会被删除。',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
@@ -439,6 +488,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final cache = DictionaryCacheService();
     await cache.init();
     await cache.clear();
+    await _refreshCacheStats();
     if (mounted) {
       _showSnackBar('词典缓存已清理');
     }

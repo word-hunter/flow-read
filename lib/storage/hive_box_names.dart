@@ -39,7 +39,6 @@ class HiveBoxNames {
     readingBookmarks,
     readingConfig,
     readingTime,
-    dictionaryCache,
     rssSubscriptions,
     wordContexts,
     learningItems,

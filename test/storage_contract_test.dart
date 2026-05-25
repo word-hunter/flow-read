@@ -35,6 +35,10 @@ void main() {
       HiveBoxNames.backupIncludedBoxes,
       isNot(contains(HiveBoxNames.wordLevels)),
     );
+    expect(
+      HiveBoxNames.backupIncludedBoxes,
+      isNot(contains(HiveBoxNames.dictionaryCache)),
+    );
 
     expect(HiveTypeIds.reserved, hasLength(7));
   });

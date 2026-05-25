@@ -264,6 +264,7 @@ void main() {
 
       expect(cache.get('Collins', 'flow'), '<html>flow</html>');
       expect(cache.hasWord('Collins', 'flow'), isTrue);
+      expect(cache.entryCount, 1);
 
       for (var index = 0; index < 501; index += 1) {
         await cache.set('Longman', 'word$index', 'entry$index');
@@ -271,10 +272,12 @@ void main() {
 
       expect(cache.hasWord('Collins', 'flow'), isFalse);
       expect(cache.hasWord('Longman', 'word500'), isTrue);
+      expect(cache.entryCount, 500);
 
       await cache.clear();
 
       expect(cache.hasWord('Longman', 'word500'), isFalse);
+      expect(cache.entryCount, 0);
     },
   );
 

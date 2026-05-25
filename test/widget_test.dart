@@ -56,6 +56,12 @@ void main() {
     expect(find.text('每日 1 小时'), findsOneWidget);
     expect(find.text('周目标 6 小时'), findsOneWidget);
 
+    await tester.tap(find.text('词典').first);
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('缓存'), findsOneWidget);
+    expect(find.text('清理词典缓存'), findsOneWidget);
+    expect(find.text('只会删除在线词典查询结果，不会删除生词本、学习记录、书签或阅读进度。'), findsOneWidget);
+
     await tester.tap(find.text('AI 设置'));
     await tester.pump(const Duration(milliseconds: 250));
     expect(find.text('服务商'), findsWidgets);
@@ -65,6 +71,10 @@ void main() {
     expect(find.text('测试连接'), findsOneWidget);
     expect(find.text('清除配置'), findsOneWidget);
     expect(find.text('清除 AI 缓存'), findsOneWidget);
+    expect(
+      find.text('清理后只会重新生成 AI 内容，不会删除书籍、生词、书签、阅读进度或 AI 配置。'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('备份与同步').first);
     await tester.pump(const Duration(milliseconds: 300));

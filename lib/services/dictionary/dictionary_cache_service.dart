@@ -19,6 +19,8 @@ class DictionaryCacheService {
     return _repository.get(_cacheKey(source, word));
   }
 
+  int get entryCount => _initialized ? _repository.length : 0;
+
   Future<void> set(String source, String word, String content) async {
     if (!_initialized) return;
 

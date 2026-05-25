@@ -285,6 +285,8 @@ class SettingsAISection extends StatelessWidget {
     required this.onTestConnection,
     required this.onClearConfig,
     required this.onClearCache,
+    required this.aiCacheEntryCount,
+    required this.cacheStatsLoading,
   });
 
   final SettingsService settings;
@@ -302,6 +304,8 @@ class SettingsAISection extends StatelessWidget {
   final VoidCallback onTestConnection;
   final VoidCallback onClearConfig;
   final VoidCallback onClearCache;
+  final int? aiCacheEntryCount;
+  final bool cacheStatsLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -414,11 +418,6 @@ class SettingsAISection extends StatelessWidget {
                       foregroundColor: theme.colorScheme.error,
                     ),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: onClearCache,
-                    icon: const Icon(Icons.delete_sweep_outlined),
-                    label: const Text('清除 AI 缓存'),
-                  ),
                 ],
               ),
               if (connectionResult != null) ...[
@@ -436,8 +435,54 @@ class SettingsAISection extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          icon: Icons.delete_sweep_outlined,
+          title: '缓存',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SettingsStatusLine(
+                icon: Icons.auto_stories_outlined,
+                text: _formatCacheCount(
+                  count: aiCacheEntryCount,
+                  loading: cacheStatsLoading,
+                  loadedLabel: '章节总结与练习题缓存',
+                  unit: '个文件',
+                ),
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 8),
+              SettingsStatusLine(
+                icon: Icons.info_outline,
+                text: '清理后只会重新生成 AI 内容，不会删除书籍、生词、书签、阅读进度或 AI 配置。',
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: onClearCache,
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  label: const Text('清除 AI 缓存'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
+  }
+
+  static String _formatCacheCount({
+    required int? count,
+    required bool loading,
+    required String loadedLabel,
+    required String unit,
+  }) {
+    if (loading) return '正在统计缓存...';
+    if (count == null) return '缓存数量暂无法统计';
+    return '$loadedLabel：$count $unit';
   }
 }
 
@@ -446,10 +491,14 @@ class SettingsDictionarySection extends StatelessWidget {
     super.key,
     required this.settings,
     required this.onClearCache,
+    required this.cacheEntryCount,
+    required this.cacheStatsLoading,
   });
 
   final SettingsService settings;
   final VoidCallback onClearCache;
+  final int? cacheEntryCount;
+  final bool cacheStatsLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -493,17 +542,46 @@ class SettingsDictionarySection extends StatelessWidget {
         SettingsCard(
           icon: Icons.delete_sweep_outlined,
           title: '缓存',
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: onClearCache,
-              icon: const Icon(Icons.cleaning_services_outlined),
-              label: const Text('清理词典缓存'),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SettingsStatusLine(
+                icon: Icons.storage_outlined,
+                text: _formatCacheCount(
+                  count: cacheEntryCount,
+                  loading: cacheStatsLoading,
+                ),
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 8),
+              SettingsStatusLine(
+                icon: Icons.info_outline,
+                text: '只会删除在线词典查询结果，不会删除生词本、学习记录、书签或阅读进度。',
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: onClearCache,
+                  icon: const Icon(Icons.cleaning_services_outlined),
+                  label: const Text('清理词典缓存'),
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
+  }
+
+  static String _formatCacheCount({
+    required int? count,
+    required bool loading,
+  }) {
+    if (loading) return '正在统计缓存...';
+    if (count == null) return '缓存数量暂无法统计';
+    return '在线词典缓存：$count 条';
   }
 }
 

@@ -107,10 +107,11 @@ void main() {
       createdAt: DateTime.utc(2026, 5, 15, 9),
     );
 
+    final boxes = payload['boxes'] as Map<String, dynamic>;
+    expect(boxes, isNot(containsPair(HiveBoxNames.dictionaryCache, anything)));
+
     final settingsEntries =
-        (payload['boxes']
-                as Map<String, dynamic>)[HiveBoxNames.settings]['entries']
-            as List<dynamic>;
+        boxes[HiveBoxNames.settings]['entries'] as List<dynamic>;
     final settingKeys = settingsEntries
         .map((entry) => entry['key']['value'] as String)
         .toSet();
@@ -151,7 +152,7 @@ void main() {
     expect(userVocabularyBox().get('flow'), 'known');
     expect(readingConfigBox().get('fontSize'), '18.0');
     expect(readingTimeBox().get('_global_'), 120);
-    expect(dictionaryCacheBox().get('flow'), '{"word":"flow"}');
+    expect(dictionaryCacheBox().get('flow'), isNull);
     expect(
       wordContextsBox().get('flow'),
       '[{"word":"flow","text":"A steady flow of ideas."}]',
