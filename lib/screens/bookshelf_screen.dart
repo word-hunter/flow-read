@@ -7,6 +7,7 @@ import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
 import '../providers/reading_provider.dart';
 import '../services/app_links.dart';
+import '../services/epub_import_source.dart';
 import '../services/external_url_launcher.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
@@ -685,13 +686,21 @@ Future<void> _importEpub(BuildContext context, ReadingProvider provider) async {
   final result = await FilePicker.pickFiles(
     type: FileType.custom,
     allowedExtensions: ['epub'],
+    withReadStream: true,
   );
 
-  if (result != null && result.files.single.path != null) {
-    if (context.mounted) {
-      await provider.importBook(result.files.single.path!);
-    }
+  final file = result?.files.single;
+  if (file == null || !context.mounted) return;
+
+  final source = EpubImportSource.tryFromPlatformFile(file);
+  if (source == null) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('无法读取 EPUB 文件')));
+    return;
   }
+
+  await provider.importBookFromSource(source);
 }
 
 void _showAbout(BuildContext context) {

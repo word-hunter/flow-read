@@ -13,6 +13,7 @@ import 'package:flow_read/models/word_context_example.dart';
 import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/bookmark_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_cache_service.dart';
+import 'package:flow_read/services/epub_import_source.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
 import 'package:flow_read/services/rss_service.dart';
@@ -154,8 +155,16 @@ void main() {
         ),
       );
       await service.saveCover('book-1', Uint8List.fromList([1, 2, 3]));
-      final sourceFile = File('${documentsDir.path}/books/book-1.epub');
-      await sourceFile.writeAsString('epub');
+      final sourcePath = await service.saveSource(
+        'book-1',
+        EpubImportSource.bytes(
+          Uint8List.fromList([4, 5, 6]),
+          fileName: 'flow.epub',
+        ),
+      );
+      final sourceFile = File(sourcePath);
+      expect(sourcePath, '${documentsDir.path}/books/book-1.epub');
+      expect(await sourceFile.readAsBytes(), Uint8List.fromList([4, 5, 6]));
 
       await service.updateDifficultyCache(
         id: 'book-1',

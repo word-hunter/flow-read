@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/book_metadata.dart';
 import '../models/book_difficulty.dart';
 import '../storage/repositories/book_metadata_repository.dart';
+import 'epub_import_source.dart';
 
 class BookService {
   BookService({
@@ -35,9 +36,42 @@ class BookService {
     }
   }
 
-  String _coverFilePath(String bookId) => '$_booksDir/${bookId}_cover.png';
+  String get _requiredBooksDir {
+    final booksDir = _booksDir;
+    if (booksDir == null) {
+      throw StateError('BookService.init must be called before file access.');
+    }
+    return booksDir;
+  }
 
-  String _sourceFilePath(String bookId) => '$_booksDir/$bookId.epub';
+  String _coverFilePath(String bookId) =>
+      '$_requiredBooksDir/${bookId}_cover.png';
+
+  String _sourceFilePath(String bookId) => '$_requiredBooksDir/$bookId.epub';
+
+  Future<String> saveSource(String bookId, EpubImportSource source) async {
+    final path = _sourceFilePath(bookId);
+    final tempPath = '$path.importing';
+    final tempFile = File(tempPath);
+    if (await tempFile.exists()) {
+      await tempFile.delete();
+    }
+
+    try {
+      await source.writeTo(tempPath);
+      final targetFile = File(path);
+      if (await targetFile.exists()) {
+        await targetFile.delete();
+      }
+      await tempFile.rename(path);
+      return path;
+    } catch (_) {
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+      rethrow;
+    }
+  }
 
   Future<String?> saveCover(String bookId, Uint8List bytes) async {
     final path = _coverFilePath(bookId);

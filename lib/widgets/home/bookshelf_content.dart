@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../models/book_metadata.dart';
 import '../../providers/reading_provider.dart';
+import '../../services/epub_import_source.dart';
 import '../../services/settings_service.dart';
 import 'featured_book_card.dart';
 import 'book_shelf_row.dart';
@@ -582,9 +583,19 @@ class _BookshelfContentState extends State<BookshelfContent> {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['epub'],
+      withReadStream: true,
     );
-    if (result != null && result.files.single.path != null) {
-      await provider.importBook(result.files.single.path!);
+    final file = result?.files.single;
+    if (file == null || !mounted) return;
+
+    final source = EpubImportSource.tryFromPlatformFile(file);
+    if (source == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('无法读取 EPUB 文件')));
+      return;
     }
+
+    await provider.importBookFromSource(source);
   }
 }

@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../controllers/reading_search_controller.dart';
 import '../models/aggregated_vocabulary.dart';
@@ -30,6 +28,7 @@ import '../services/analysis_service.dart';
 import '../services/book_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/epub_service.dart';
+import '../services/epub_import_source.dart';
 import '../services/learning_item_service.dart';
 import '../services/learning_analytics_service.dart';
 import '../services/pronunciation_service.dart';
@@ -473,21 +472,28 @@ class ReadingProvider extends ChangeNotifier {
   // Book import / management
   // ============================================================
 
-  Future<void> importBook(String filePath) async {
+  Future<void> importBook(String filePath) {
+    return importBookFromSource(EpubImportSource.path(filePath));
+  }
+
+  Future<void> importBookFromBytes({
+    required Uint8List bytes,
+    required String fileName,
+  }) {
+    return importBookFromSource(
+      EpubImportSource.bytes(bytes, fileName: fileName),
+    );
+  }
+
+  Future<void> importBookFromSource(EpubImportSource source) async {
     _isLoading = true;
     _errorMessage = null;
     _importStage = '正在读取 EPUB 文件...';
     notifyListeners();
 
     try {
-      final originalFile = File(filePath);
-      final bookId = _generateBookId(originalFile.uri.pathSegments.last);
-      final dir = await getApplicationDocumentsDirectory();
-      final booksDir = Directory('${dir.path}/books');
-      if (!await booksDir.exists()) await booksDir.create(recursive: true);
-      final copiedPath = '${booksDir.path}/$bookId.epub';
-      await originalFile.copy(copiedPath);
-
+      final bookId = _generateBookId(source.fileName);
+      final copiedPath = await _bookService.saveSource(bookId, source);
       final book = await EpubService.parseFile(copiedPath);
 
       String? coverPath;
