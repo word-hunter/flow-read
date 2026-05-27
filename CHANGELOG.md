@@ -10,6 +10,25 @@ This project follows a simple semantic versioning flow:
 
 ## [Unreleased]
 
+## [1.1.0-alpha] - 2026-05-27
+
+### Added
+
+- support auto-download and one-click install for macOS updates
+- 备份格式迁移至 .flow.bak zip 容器
+- 细化缓存信息展示
+
+### Fixed
+
+- 修复备份恢复可能存在的报错
+- support stream based epub imports
+- 防止旧调试包干扰版本验收
+
+### Changed
+
+- 新增备份格式迁移 ADR 和项目术语表
+- 更新公开贡献说明
+
 ## [1.0.0] - 2026-05-24
 
 ### Milestone
