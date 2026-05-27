@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/epub_import_source.dart';
@@ -90,6 +92,163 @@ void main() {
         await File(provider.allBooks.single.sourcePath).readAsBytes(),
         bytes,
       );
+    },
+  );
+
+  test('reloads restored progress for the previously active book id', () async {
+    final provider = ReadingProvider()
+      ..setBookService(
+        BookService(documentsDirectoryProvider: () async => documentsDir),
+      );
+    await provider.init();
+    await provider.importBookFromBytes(
+      bytes: _buildEpub(),
+      fileName: 'same.epub',
+    );
+
+    final imported = provider.allBooks.single;
+    await booksBox().put(
+      imported.id,
+      imported.copyWith(chapterProgress: 0.42, chapterScrollOffset: 260),
+    );
+
+    await provider.reloadAfterBackupRestore();
+    expect(provider.activeBookId, isNull);
+    expect(provider.book, isNull);
+
+    await provider.switchToBook(imported.id);
+
+    expect(provider.errorMessage, isNull);
+    expect(provider.activeBookId, imported.id);
+    expect(provider.readingProgress, moreOrLessEquals(0.42));
+    expect(provider.readingScrollOffset, 260);
+  });
+
+  test(
+    'relinks a restored missing book when importing the same EPUB',
+    () async {
+      final provider = ReadingProvider()
+        ..setBookService(
+          BookService(documentsDirectoryProvider: () async => documentsDir),
+        );
+      await provider.init();
+      await booksBox().put(
+        'restored-book',
+        const BookMetadata(
+          id: 'restored-book',
+          title: 'Fixture Book',
+          author: 'Fixture Author',
+          sourcePath: '/missing/fixture.epub',
+          totalChapters: 1,
+          currentChapter: 0,
+          chapterProgress: 0.42,
+          chapterScrollOffset: 260,
+        ),
+      );
+      await provider.reloadAfterBackupRestore();
+
+      await provider.importBookFromBytes(
+        bytes: _buildEpub(),
+        fileName: 'same.epub',
+      );
+
+      expect(provider.allBooks, hasLength(1));
+      expect(provider.allBooks.single.id, 'restored-book');
+      expect(provider.activeBookId, 'restored-book');
+      expect(provider.readingProgress, moreOrLessEquals(0.42));
+      expect(provider.readingScrollOffset, 260);
+      expect(await File(provider.allBooks.single.sourcePath).exists(), isTrue);
+    },
+  );
+
+  test(
+    'reports an open failure when the restored source file is missing',
+    () async {
+      final provider = ReadingProvider()
+        ..setBookService(
+          BookService(documentsDirectoryProvider: () async => documentsDir),
+        );
+      await provider.init();
+      await booksBox().put(
+        'missing-book',
+        const BookMetadata(
+          id: 'missing-book',
+          title: 'Missing Book',
+          author: 'Author',
+          sourcePath: '/missing/restored.epub',
+          totalChapters: 1,
+        ),
+      );
+      await provider.reloadAfterBackupRestore();
+
+      final opened = await provider.switchToBook('missing-book');
+
+      expect(opened, isFalse);
+      expect(provider.isReading, isFalse);
+      expect(provider.book, isNull);
+      expect(provider.errorMessage, contains('打开书籍失败'));
+    },
+  );
+
+  test(
+    'returns a placeholder cover before book file storage is ready',
+    () async {
+      final directoryReady = Completer<Directory>();
+      final provider = ReadingProvider()
+        ..setBookService(
+          BookService(documentsDirectoryProvider: () => directoryReady.future),
+        );
+      await booksBox().put(
+        'early-book',
+        const BookMetadata(
+          id: 'early-book',
+          title: 'Early Book',
+          author: 'Author',
+          sourcePath: '/tmp/early.epub',
+          totalChapters: 1,
+        ),
+      );
+
+      final initFuture = provider.init();
+
+      expect(provider.allBooks.single.id, 'early-book');
+      expect(provider.getCoverBytes('early-book'), isNull);
+
+      directoryReady.complete(documentsDir);
+      await initFuture;
+    },
+  );
+
+  test(
+    'does not repeat difficulty parsing for a missing restored source',
+    () async {
+      final provider = ReadingProvider()
+        ..setBookService(
+          BookService(documentsDirectoryProvider: () async => documentsDir),
+        );
+      await provider.init();
+      await booksBox().put(
+        'missing-source',
+        const BookMetadata(
+          id: 'missing-source',
+          title: 'Missing Source',
+          author: 'Author',
+          sourcePath: '/missing/book.epub',
+          totalChapters: 1,
+        ),
+      );
+      await provider.reloadAfterBackupRestore();
+
+      var notifications = 0;
+      provider.addListener(() => notifications += 1);
+
+      await provider.ensureBookDifficulties(provider.allBooks);
+      final afterFirstAttempt = notifications;
+      await provider.ensureBookDifficulties(provider.allBooks);
+
+      expect(afterFirstAttempt, greaterThan(0));
+      expect(notifications, afterFirstAttempt);
+      expect(provider.isLoadingBookDifficulties, isFalse);
     },
   );
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -25,6 +26,7 @@ import '../models/word_analysis.dart';
 import '../services/ai_cache_service.dart';
 import '../services/ai_service.dart';
 import '../services/analysis_service.dart';
+import '../services/app_logger.dart';
 import '../services/book_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/epub_service.dart';
@@ -85,6 +87,7 @@ class ReadingProvider extends ChangeNotifier {
   BookDifficultyRating? _currentBookDifficulty;
   final Map<String, Set<String>> _bookStudyWordsById = {};
   final Map<String, BookDifficultyRating> _bookDifficultyById = {};
+  final Map<String, String> _bookDifficultyFailureKeys = {};
   final Set<String> _loadingBookDifficultyIds = {};
   final Set<String> _pendingDifficultyRefreshBookIds = {};
   Timer? _difficultyRefreshTimer;
@@ -240,6 +243,9 @@ class ReadingProvider extends ChangeNotifier {
           _loadingBookDifficultyIds.contains(book.id)) {
         continue;
       }
+      if (_bookDifficultyFailureKeys[book.id] == _difficultyFailureKey(book)) {
+        continue;
+      }
       hydratedFromCache =
           await _tryUseCachedDifficulty(book) || hydratedFromCache;
     }
@@ -250,7 +256,9 @@ class ReadingProvider extends ChangeNotifier {
         .where(
           (book) =>
               !_bookDifficultyById.containsKey(book.id) &&
-              !_loadingBookDifficultyIds.contains(book.id),
+              !_loadingBookDifficultyIds.contains(book.id) &&
+              _bookDifficultyFailureKeys[book.id] !=
+                  _difficultyFailureKey(book),
         )
         .toList(growable: false);
     if (pending.isEmpty) return;
@@ -272,9 +280,11 @@ class ReadingProvider extends ChangeNotifier {
           _userVocab,
         );
         await _persistBookDifficulty(meta.id, studyWords, rating);
+        _bookDifficultyFailureKeys.remove(meta.id);
       } catch (_) {
         _bookDifficultyById.remove(meta.id);
         _bookStudyWordsById.remove(meta.id);
+        _bookDifficultyFailureKeys[meta.id] = _difficultyFailureKey(meta);
       } finally {
         _loadingBookDifficultyIds.remove(meta.id);
         notifyListeners();
@@ -460,6 +470,45 @@ class ReadingProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> reloadAfterBackupRestore() async {
+    _readingTime?.stop();
+    _difficultyRefreshTimer?.cancel();
+    _difficultyRefreshTimer = null;
+    _pendingDifficultyRefreshBookIds.clear();
+    _loadingBookDifficultyIds.clear();
+    _bookDifficultyFailureKeys.clear();
+    _isRefreshingBookDifficulties = false;
+
+    _book = null;
+    _activeBookId = null;
+    _result = null;
+    _currentChapter = 0;
+    _readingProgress = 0.0;
+    _readingScrollOffset = null;
+    _isReading = false;
+    _hasBeenOpened = false;
+    _allVocab.clear();
+    _currentBookStudyWords = {};
+    _currentBookDifficulty = null;
+    _bookmarkedWords.clear();
+    _readingBookmarks.clear();
+    _selectedWord = null;
+    _selectedWordTranslation = null;
+    _selectedWordContext = null;
+    _selectedWordEntry = null;
+    _selectedText = null;
+    _selectedAnalysis = null;
+    _selectedBreakdowns = null;
+    _aiTextAnalysis = null;
+    _aiTranslation = null;
+    _aiSummary = null;
+    _aiPractice = null;
+    _aiWordAnalysis = null;
+    _resetSearchState();
+
+    await init();
+  }
+
   List<WordContextExample> importedExamplesFor(String word) {
     return _wordContextService?.examplesFor(word) ?? const [];
   }
@@ -493,31 +542,58 @@ class ReadingProvider extends ChangeNotifier {
 
     try {
       final bookId = _generateBookId(source.fileName);
-      final copiedPath = await _bookService.saveSource(bookId, source);
+      var effectiveBookId = bookId;
+      var copiedPath = await _bookService.saveSource(bookId, source);
       final book = await EpubService.parseFile(copiedPath);
+      final restoredMeta = await _findMissingSourceRepairCandidate(book);
+      if (restoredMeta != null) {
+        effectiveBookId = restoredMeta.id;
+        copiedPath = await _bookService.replaceSourceFile(
+          effectiveBookId,
+          copiedPath,
+        );
+      }
 
       String? coverPath;
       if (book.coverBytes != null) {
-        coverPath = await _bookService.saveCover(bookId, book.coverBytes!);
+        coverPath = await _bookService.saveCover(
+          effectiveBookId,
+          book.coverBytes!,
+        );
       }
 
-      await _bookService.addBook(
-        BookMetadata(
-          id: bookId,
-          title: book.title,
-          author: book.author,
-          sourcePath: copiedPath,
-          coverPath: coverPath,
-          totalChapters: book.chapters.length,
-          lastReadAt: DateTime.now(),
-        ),
-      );
+      final metadata = restoredMeta == null
+          ? BookMetadata(
+              id: effectiveBookId,
+              title: book.title,
+              author: book.author,
+              sourcePath: copiedPath,
+              coverPath: coverPath,
+              totalChapters: book.chapters.length,
+              lastReadAt: DateTime.now(),
+            )
+          : restoredMeta.copyWith(
+              title: book.title,
+              author: book.author,
+              sourcePath: copiedPath,
+              coverPath: coverPath ?? restoredMeta.coverPath,
+              totalChapters: book.chapters.length,
+              currentChapter: _clampChapterIndex(
+                restoredMeta.currentChapter,
+                book.chapters.length,
+              ),
+            );
+
+      await _bookService.addBook(metadata);
+      _bookDifficultyFailureKeys.remove(effectiveBookId);
 
       _book = book;
-      _activeBookId = bookId;
-      _currentChapter = 0;
-      _readingProgress = 0.0;
-      _readingScrollOffset = 0.0;
+      _activeBookId = effectiveBookId;
+      _currentChapter = restoredMeta == null ? 0 : metadata.currentChapter;
+      _readingProgress = restoredMeta == null ? 0.0 : metadata.chapterProgress;
+      _readingScrollOffset = restoredMeta == null
+          ? 0.0
+          : metadata.chapterScrollOffset;
       _hasBeenOpened = false;
       _allVocab.clear();
       await _refreshAndPersistCurrentBookDifficulty();
@@ -536,12 +612,22 @@ class ReadingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> switchToBook(String bookId) async {
-    if (bookId == _activeBookId && _book != null) return;
+  Future<bool> switchToBook(String bookId) async {
+    if (bookId == _activeBookId && _book != null) return true;
     _saveCurrentProgress();
 
     final meta = _bookService.books.where((b) => b.id == bookId).firstOrNull;
-    if (meta == null) return;
+    if (meta == null) {
+      _errorMessage = '打开书籍失败：书架中找不到这本书。';
+      AppLogger.instance.event(
+        'reader.open_missing_metadata',
+        level: AppLogLevel.warning,
+        source: 'reader',
+        metadata: {'bookId': bookId},
+      );
+      notifyListeners();
+      return false;
+    }
 
     _isLoading = true;
     _errorMessage = null;
@@ -562,12 +648,27 @@ class ReadingProvider extends ChangeNotifier {
       _loadBookmarks(bookId);
 
       await _analyzeCurrentChapter();
-    } catch (e) {
-      _errorMessage = 'Failed to load book: $e';
+      return true;
+    } catch (e, stackTrace) {
+      _errorMessage = '打开书籍失败：无法读取书籍文件。请确认备份中包含该书，或重新导入 EPUB。';
+      AppLogger.instance.event(
+        'reader.open_failed',
+        level: AppLogLevel.error,
+        source: 'reader',
+        metadata: {
+          'bookId': bookId,
+          'title': meta.title,
+          'sourcePath': meta.sourcePath,
+        },
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    } finally {
+      _isLoading = false;
+      _importStage = '';
+      notifyListeners();
     }
-    _isLoading = false;
-    _importStage = '';
-    notifyListeners();
   }
 
   Future<void> removeBook(String bookId) async {
@@ -629,6 +730,16 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   void enterReader() {
+    if (_book == null || _activeBookId == null) {
+      _errorMessage = '打开书籍失败：书籍尚未加载完成。';
+      AppLogger.instance.event(
+        'reader.enter_without_book',
+        level: AppLogLevel.warning,
+        source: 'reader',
+      );
+      notifyListeners();
+      return;
+    }
     _isReading = true;
     _hasBeenOpened = true;
     _readingTime?.start(_activeBookId, _currentChapter);
@@ -688,6 +799,7 @@ class ReadingProvider extends ChangeNotifier {
     final bookIds = _bookService.books.map((book) => book.id).toSet();
     _bookStudyWordsById.removeWhere((id, _) => !bookIds.contains(id));
     _bookDifficultyById.removeWhere((id, _) => !bookIds.contains(id));
+    _bookDifficultyFailureKeys.removeWhere((id, _) => !bookIds.contains(id));
 
     for (final meta in _bookService.books) {
       _usePersistedDifficulty(meta);
@@ -703,6 +815,7 @@ class ReadingProvider extends ChangeNotifier {
     final rating = meta.difficultyRating;
     if (rating != null) {
       _bookDifficultyById[meta.id] = rating;
+      _bookDifficultyFailureKeys.remove(meta.id);
     }
     if (meta.id == _activeBookId) {
       _currentBookStudyWords = _bookStudyWordsById[meta.id] ?? {};
@@ -726,6 +839,10 @@ class ReadingProvider extends ChangeNotifier {
 
   bool _isDifficultyCacheStale(BookMetadata meta) {
     return meta.difficultyVocabularySignature != _vocabularySignature;
+  }
+
+  String _difficultyFailureKey(BookMetadata meta) {
+    return '${meta.sourcePath}|$_vocabularySignature';
   }
 
   Future<void> _refreshAndPersistCurrentBookDifficulty() async {
@@ -1527,6 +1644,35 @@ class ReadingProvider extends ChangeNotifier {
   String _generateBookId(String fileName) {
     final ts = DateTime.now().millisecondsSinceEpoch;
     return '${fileName}_${ts}_${Random().nextInt(9999)}';
+  }
+
+  Future<BookMetadata?> _findMissingSourceRepairCandidate(Book book) async {
+    final title = _normalizeBookIdentity(book.title);
+    if (title.isEmpty) return null;
+    final author = _normalizeBookIdentity(book.author);
+    final matches = <BookMetadata>[];
+
+    for (final meta in _bookService.books) {
+      if (await File(meta.sourcePath).exists()) continue;
+      if (_normalizeBookIdentity(meta.title) != title) continue;
+
+      final metaAuthor = _normalizeBookIdentity(meta.author);
+      if (author.isNotEmpty && metaAuthor.isNotEmpty && author != metaAuthor) {
+        continue;
+      }
+      matches.add(meta);
+    }
+
+    return matches.length == 1 ? matches.single : null;
+  }
+
+  String _normalizeBookIdentity(String value) {
+    return value.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+  }
+
+  int _clampChapterIndex(int chapterIndex, int chapterCount) {
+    if (chapterCount <= 0) return 0;
+    return chapterIndex.clamp(0, chapterCount - 1).toInt();
   }
 
   String _canonicalWord(String word) {

@@ -718,7 +718,7 @@ class SettingsBackupSection extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                     secondary: const Icon(Icons.check_circle_outline),
                     title: const Text('应用数据'),
-                    subtitle: const Text('书架、词汇、书签、RSS 和阅读进度'),
+                    subtitle: const Text('书籍文件、封面、词汇、书签、RSS 和阅读进度'),
                     value: true,
                     onChanged: null,
                     controlAffinity: ListTileControlAffinity.leading,

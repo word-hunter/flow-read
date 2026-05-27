@@ -562,7 +562,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       await backup.importBackupFile(path);
-      await readingProvider.init();
+      await readingProvider.reloadAfterBackupRestore();
       await rssProvider.init();
       if (!mounted) return;
       _showSnackBar('备份已导入');

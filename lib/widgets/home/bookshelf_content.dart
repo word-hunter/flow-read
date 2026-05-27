@@ -495,10 +495,16 @@ class _BookshelfContentState extends State<BookshelfContent> {
   }
 
   void _openBook(ReadingProvider provider, String bookId) async {
-    await provider.switchToBook(bookId);
-    if (mounted) {
-      provider.enterReader();
+    final opened = await provider.switchToBook(bookId);
+    if (!mounted) return;
+    if (!opened) {
+      final message = provider.errorMessage ?? '打开书籍失败';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+      return;
     }
+    provider.enterReader();
   }
 
   Future<void> _confirmRemoveBook(

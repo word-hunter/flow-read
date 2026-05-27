@@ -14,6 +14,7 @@ import 'support/hive_test_storage.dart';
 
 void main() {
   late Directory tempDir;
+  late Directory documentsDir;
   late SettingsService settings;
   late BackupService backup;
 
@@ -23,10 +24,14 @@ void main() {
       hivePathSuffix: 'hive',
     );
     await openFlowReadTestBoxes();
+    documentsDir = await Directory('${tempDir.path}/documents').create();
 
     settings = SettingsService();
     await settings.init();
-    backup = BackupService(settings);
+    backup = BackupService(
+      settings,
+      documentsDirectoryProvider: () async => documentsDir,
+    );
   });
 
   tearDown(() async {
@@ -163,6 +168,55 @@ void main() {
     expect(settings.apiKeyFor('openai'), 'secret-key');
     expect(settings.backupFolderPath, '/private/backups');
     expect(settings.backupFolderBookmark, 'bookmark');
+  });
+
+  test('exports and restores book source and cover files', () async {
+    final sourceBytes = utf8.encode('epub bytes');
+    final coverBytes = <int>[0, 1, 2, 3, 4];
+    final sourceFile = File('${tempDir.path}/picked.epub');
+    final coverFile = File('${tempDir.path}/cover.png');
+    await sourceFile.writeAsBytes(sourceBytes);
+    await coverFile.writeAsBytes(coverBytes);
+
+    final book = BookMetadata(
+      id: 'book-file',
+      title: 'Restorable Book',
+      author: 'Author',
+      sourcePath: sourceFile.path,
+      coverPath: coverFile.path,
+      totalChapters: 2,
+      currentChapter: 1,
+      chapterProgress: 0.25,
+      chapterScrollOffset: 480,
+    );
+    await booksBox().put(book.id, book);
+
+    final payload = await backup.createBackupPayloadForExport(
+      createdAt: DateTime.utc(2026, 5, 16, 9),
+    );
+    final files = payload['files'] as Map<String, dynamic>;
+    final bookFiles = files['books'] as Map<String, dynamic>;
+    expect(bookFiles['book-file']['source']['data'], isA<String>());
+    expect(bookFiles['book-file']['cover']['data'], isA<String>());
+
+    await booksBox().clear();
+    await sourceFile.delete();
+    await coverFile.delete();
+
+    await backup.importBackupPayload(payload);
+
+    final restored = booksBox().get('book-file')!;
+    final restoredSource = File(restored.sourcePath);
+    final restoredCover = File(restored.coverPath!);
+    expect(restored.sourcePath, '${documentsDir.path}/books/book-file.epub');
+    expect(
+      restored.coverPath,
+      '${documentsDir.path}/books/book-file_cover.png',
+    );
+    expect(await restoredSource.readAsBytes(), sourceBytes);
+    expect(await restoredCover.readAsBytes(), coverBytes);
+    expect(restored.currentChapter, 1);
+    expect(restored.chapterScrollOffset, 480);
   });
 
   test('exportNow writes a backup file into the selected folder', () async {

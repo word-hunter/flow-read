@@ -73,6 +73,28 @@ class BookService {
     }
   }
 
+  Future<String> replaceSourceFile(String bookId, String sourcePath) async {
+    final path = _sourceFilePath(bookId);
+    if (sourcePath == path) return path;
+
+    final sourceFile = File(sourcePath);
+    final targetFile = File(path);
+    await targetFile.parent.create(recursive: true);
+    if (await targetFile.exists()) {
+      await targetFile.delete();
+    }
+
+    try {
+      await sourceFile.rename(path);
+    } on FileSystemException {
+      await sourceFile.copy(path);
+      if (await sourceFile.exists()) {
+        await sourceFile.delete();
+      }
+    }
+    return path;
+  }
+
   Future<String?> saveCover(String bookId, Uint8List bytes) async {
     final path = _coverFilePath(bookId);
     final file = File(path);
@@ -81,7 +103,10 @@ class BookService {
   }
 
   Uint8List? loadCover(String bookId) {
-    final path = _coverFilePath(bookId);
+    final booksDir = _booksDir;
+    if (booksDir == null) return null;
+
+    final path = '$booksDir/${bookId}_cover.png';
     final file = File(path);
     if (!file.existsSync()) return null;
     return file.readAsBytesSync();
