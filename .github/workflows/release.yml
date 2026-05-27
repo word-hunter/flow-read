@@ -92,4 +92,5 @@ jobs:
           name: Flow Read ${{ steps.version.outputs.name }}
           body_path: release_notes.md
           prerelease: ${{ contains(steps.version.outputs.name, '-') }}
+          draft: ${{ contains(steps.version.outputs.name, '-') }}
           files: dist/flow_read-macos-${{ steps.version.outputs.name }}.zip

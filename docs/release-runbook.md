@@ -102,11 +102,15 @@ GitHub Actions builds the macOS artifact, validates release metadata, verifies
 the built app bundle and runtime version markers, exports release notes, and
 creates the GitHub Release.
 
+Prereleases are created as drafts so the macOS zip can be uploaded before the
+release becomes immutable. After the workflow completes, open the draft release,
+confirm the asset is attached, then publish the draft manually.
+
 ## Post-Publish Verification
 
 1. Confirm the GitHub Actions release workflow completed.
-2. Confirm the GitHub Release has the expected tag, title, notes, prerelease
-   flag, and macOS zip asset.
+2. For prereleases, confirm the draft has the expected tag, title, notes,
+   prerelease flag, and macOS zip asset, then publish the draft.
 3. Download the asset and verify it extracts.
 4. Record the SHA-256 digest in the release notes or release metadata.
 5. Quit any local Debug/Profile Flow Read instance.
