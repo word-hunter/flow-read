@@ -23,6 +23,7 @@ class MainFlutterWindow: NSWindow, NSDraggingDestination {
     registerBackupFolderAccessChannel(flutterViewController: flutterViewController)
     registerFileDropChannel(flutterViewController: flutterViewController)
     registerExternalUrlChannel(flutterViewController: flutterViewController)
+    registerAppUpdateChannel(flutterViewController: flutterViewController)
     registerForDraggedTypes([.fileURL])
 
     super.awakeFromNib()
@@ -93,6 +94,50 @@ class MainFlutterWindow: NSWindow, NSDraggingDestination {
       }
     }
     externalUrlChannel = channel
+  }
+
+  private func registerAppUpdateChannel(flutterViewController: FlutterViewController) {
+    let channel = FlutterMethodChannel(
+      name: "flow_read/app_update",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "installUpdate":
+        Self.installUpdate(arguments: call.arguments, result: result)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func installUpdate(arguments: Any?, result: @escaping FlutterResult) {
+    guard let args = arguments as? [String: Any],
+          let appPath = args["appPath"] as? String,
+          !appPath.isEmpty
+    else {
+      result(FlutterError(
+        code: "INVALID_ARGS",
+        message: "appPath is required.",
+        details: nil))
+      return
+    }
+
+    let appURL = URL(fileURLWithPath: appPath)
+    let configuration = NSWorkspace.OpenConfiguration()
+
+    NSWorkspace.shared.open(appURL, configuration: configuration) { _, error in
+      if let error = error {
+        result(FlutterError(
+          code: "OPEN_FAILED",
+          message: "Failed to launch new app: \(error.localizedDescription)",
+          details: nil))
+        return
+      }
+      result(nil)
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        NSApp.terminate(nil)
+      }
+    }
   }
 
   private static func openExternalUrl(arguments: Any?, result: @escaping FlutterResult) {

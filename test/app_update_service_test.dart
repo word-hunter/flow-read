@@ -1,11 +1,38 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:flow_read/services/app_update_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+
+class _FakePathProviderPlatform extends PathProviderPlatform {
+  _FakePathProviderPlatform(this._tempPath);
+
+  final String _tempPath;
+
+  @override
+  Future<String?> getTemporaryPath() async => _tempPath;
+}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Directory tempDir;
+
+  setUpAll(() {
+    tempDir = Directory.systemTemp.createTempSync('flow_read_update_test_');
+    PathProviderPlatform.instance = _FakePathProviderPlatform(tempDir.path);
+  });
+
+  tearDownAll(() {
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
+  });
   test('finds newer matching prerelease with macOS zip asset', () async {
     final service = AppUpdateService(
       client: MockClient((request) async {
@@ -146,6 +173,156 @@ void main() {
       ),
     );
   });
+
+  group('downloadAndExtract', () {
+    test('extracts zip containing .app and returns app path', () async {
+      final zipBytes = _createAppZip();
+      final service = AppUpdateService(
+        client: MockClient((_) async {
+          return http.Response.bytes(zipBytes, 200,
+              headers: {'content-type': 'application/zip'});
+        }),
+      );
+
+      final update = AppUpdateInfo(
+        version: '1.0.0',
+        tagName: 'v1.0.0',
+        releasePageUrl: Uri.parse('https://github.com/test/releases/v1.0.0'),
+        isPrerelease: false,
+        publishedAt: DateTime(2026, 1, 1),
+        releaseNotes: 'Test',
+        assetName: 'FlowRead-macos-1.0.0.zip',
+        downloadUrl: Uri.parse('https://example.com/FlowRead-macos-1.0.0.zip'),
+      );
+
+      final appPath = await service.downloadAndExtract(update);
+
+      expect(appPath, endsWith('.app'));
+      expect(File('$appPath/Contents/Info.plist').existsSync(), isTrue);
+    });
+
+    test('throws when zip contains no .app bundle', () async {
+      final zipBytes = _createNonAppZip();
+      final service = AppUpdateService(
+        client: MockClient((_) async {
+          return http.Response.bytes(zipBytes, 200);
+        }),
+      );
+
+      final update = AppUpdateInfo(
+        version: '1.0.0',
+        tagName: 'v1.0.0',
+        releasePageUrl: Uri.parse('https://github.com/test/releases/v1.0.0'),
+        isPrerelease: false,
+        publishedAt: DateTime(2026, 1, 1),
+        releaseNotes: 'Test',
+        assetName: 'FlowRead-macos-1.0.0.zip',
+        downloadUrl: Uri.parse('https://example.com/FlowRead-macos-1.0.0.zip'),
+      );
+
+      expect(
+        service.downloadAndExtract(update),
+        throwsA(
+          isA<AppUpdateException>().having(
+            (error) => error.message,
+            'message',
+            contains('未找到可安装的应用'),
+          ),
+        ),
+      );
+    });
+
+    test('throws when downloadUrl is null', () async {
+      final service = AppUpdateService(
+        client: MockClient((_) async {
+          return http.Response('', 200);
+        }),
+      );
+
+      final update = AppUpdateInfo(
+        version: '1.0.0',
+        tagName: 'v1.0.0',
+        releasePageUrl: Uri.parse('https://github.com/test/releases/v1.0.0'),
+        isPrerelease: false,
+        publishedAt: DateTime(2026, 1, 1),
+        releaseNotes: 'Test',
+        assetName: null,
+        downloadUrl: null,
+      );
+
+      expect(
+        service.downloadAndExtract(update),
+        throwsA(
+          isA<AppUpdateException>().having(
+            (error) => error.message,
+            'message',
+            contains('没有可下载的资源文件'),
+          ),
+        ),
+      );
+    });
+
+    test('calls onProgress with expected phases', () async {
+      final zipBytes = _createAppZip();
+      final service = AppUpdateService(
+        client: MockClient((_) async {
+          return http.Response.bytes(zipBytes, 200);
+        }),
+      );
+
+      final update = AppUpdateInfo(
+        version: '1.0.0',
+        tagName: 'v1.0.0',
+        releasePageUrl: Uri.parse('https://github.com/test/releases/v1.0.0'),
+        isPrerelease: false,
+        publishedAt: DateTime(2026, 1, 1),
+        releaseNotes: 'Test',
+        assetName: 'FlowRead-macos-1.0.0.zip',
+        downloadUrl: Uri.parse('https://example.com/FlowRead-macos-1.0.0.zip'),
+      );
+
+      final phases = <AppUpdatePhase>[];
+      final progressValues = <double>[];
+
+      await service.downloadAndExtract(
+        update,
+        onProgress: (phase, progress) {
+          phases.add(phase);
+          progressValues.add(progress);
+        },
+      );
+
+      expect(phases.length, greaterThanOrEqualTo(3));
+      expect(phases, contains(AppUpdatePhase.downloading));
+      expect(phases, contains(AppUpdatePhase.extracting));
+      expect(phases, contains(AppUpdatePhase.complete));
+      expect(progressValues.last, 1.0);
+    });
+
+    test('throws AppUpdateException on HTTP error', () async {
+      final service = AppUpdateService(
+        client: MockClient((_) async {
+          return http.Response('Server Error', 500);
+        }),
+      );
+
+      final update = AppUpdateInfo(
+        version: '1.0.0',
+        tagName: 'v1.0.0',
+        releasePageUrl: Uri.parse('https://github.com/test/releases/v1.0.0'),
+        isPrerelease: false,
+        publishedAt: DateTime(2026, 1, 1),
+        releaseNotes: 'Test',
+        assetName: 'FlowRead-macos-1.0.0.zip',
+        downloadUrl: Uri.parse('https://example.com/FlowRead-macos-1.0.0.zip'),
+      );
+
+      expect(
+        service.downloadAndExtract(update),
+        throwsA(isA<AppUpdateException>()),
+      );
+    });
+  });
 }
 
 Map<String, dynamic> _release({
@@ -168,4 +345,26 @@ Map<String, dynamic> _release({
       {'name': assetName, 'browser_download_url': downloadUrl},
     ],
   };
+}
+
+Uint8List _createAppZip() {
+  final archive = Archive();
+  final infoPlist = ArchiveFile(
+    'FlowRead.app/Contents/Info.plist',
+    0,
+    Uint8List(0),
+  );
+  archive.addFile(infoPlist);
+  return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
+}
+
+Uint8List _createNonAppZip() {
+  final archive = Archive();
+  final textFile = ArchiveFile(
+    'random/notes.txt',
+    5,
+    'hello'.codeUnits,
+  );
+  archive.addFile(textFile);
+  return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
 }

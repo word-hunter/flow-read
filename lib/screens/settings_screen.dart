@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/reading_provider.dart';
 import '../providers/rss_provider.dart';
 import '../services/ai_cache_service.dart';
+import '../services/app_update_installer.dart';
 import '../services/app_update_service.dart';
 import '../services/app_links.dart';
 import '../services/backup_folder_access.dart';
@@ -39,19 +40,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _obscureKey = true;
   bool _testingConnection = false;
   bool _importingWordHunter = false;
-  bool _checkingForUpdate = false;
   String? _connectionResult;
+  bool _checkingForUpdate = false;
   String? _updateStatusMessage;
   bool _updateStatusIsError = false;
   String? _updateFallbackActionLabel;
   Uri? _updateFallbackUrl;
   AppUpdateInfo? _availableUpdate;
+  bool _downloadingUpdate = false;
+  double _downloadProgress = 0;
+  String? _extractedAppPath;
+  bool _installingUpdate = false;
   int? _aiCacheEntryCount;
   int? _dictionaryCacheEntryCount;
   bool _cacheStatsLoading = true;
   SettingsSection _selectedSection = SettingsSection.appearance;
   final BackupFolderAccess _backupFolderAccess = const BackupFolderAccess();
   final AppUpdateService _appUpdateService = AppUpdateService();
+  final AppUpdateInstaller _updateInstaller = AppUpdateInstaller();
   final ExternalUrlLauncher _externalUrlLauncher = const ExternalUrlLauncher();
   final LogFolderOpener _logFolderOpener = LogFolderOpener();
 
@@ -331,7 +337,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 availableUpdate: _availableUpdate,
                 onDownloadUpdate: _availableUpdate == null
                     ? null
-                    : () => unawaited(_openAvailableUpdateDownload()),
+                    : () => unawaited(_startDownloadUpdate()),
+                downloadingUpdate: _downloadingUpdate,
+                downloadProgress: _downloadProgress,
+                installedAppPath: _extractedAppPath,
+                installingUpdate: _installingUpdate,
+                onInstallUpdate: _extractedAppPath == null
+                    ? null
+                    : () => unawaited(_installUpdate()),
                 onOpenUpdateReleasePage: _availableUpdate == null
                     ? null
                     : () => unawaited(_openAvailableUpdateReleasePage()),
@@ -713,10 +726,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _openExternalUrl(url);
   }
 
-  Future<void> _openAvailableUpdateDownload() async {
+  Future<void> _startDownloadUpdate() async {
     final update = _availableUpdate;
-    if (update == null) return;
-    await _openExternalUrl(update.downloadUrl ?? update.releasePageUrl);
+    if (update == null || _downloadingUpdate) return;
+
+    setState(() {
+      _downloadingUpdate = true;
+      _downloadProgress = 0;
+      _updateStatusMessage = null;
+      _extractedAppPath = null;
+    });
+
+    try {
+      final appPath =
+          await _appUpdateService.downloadAndExtract(update, onProgress: (
+            phase,
+            progress,
+          ) {
+            if (!mounted) return;
+            setState(() {
+              _downloadProgress = progress;
+            });
+          });
+      if (!mounted) return;
+
+      setState(() {
+        _downloadingUpdate = false;
+        _downloadProgress = 1;
+        _extractedAppPath = appPath;
+        _updateStatusMessage = '已准备好安装 Flow Read ${update.version}';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _downloadingUpdate = false;
+        _downloadProgress = 0;
+        _extractedAppPath = null;
+        _updateStatusIsError = true;
+        _updateStatusMessage = _friendlyUpdateError(error);
+      });
+    }
+  }
+
+  Future<void> _installUpdate() async {
+    final appPath = _extractedAppPath;
+    if (appPath == null || _installingUpdate) return;
+
+    setState(() {
+      _installingUpdate = true;
+    });
+
+    try {
+      await _updateInstaller.installUpdate(appPath);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _installingUpdate = false;
+        _updateStatusIsError = true;
+        _updateStatusMessage = _friendlyUpdateError(error);
+      });
+    }
   }
 
   Future<void> _openAvailableUpdateReleasePage() async {
@@ -757,6 +826,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String _friendlyUpdateError(Object error) {
     if (error is AppUpdateException) return error.message;
+    if (error is AppUpdateInstallException) return error.message;
     if (error is ExternalUrlOpenException) return error.message;
     return '检查更新失败，请稍后重试';
   }

@@ -1,9 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 import 'app_links.dart';
 import 'app_version.dart';
+
+enum AppUpdatePhase { downloading, extracting, complete, }
 
 class AppUpdateInfo {
   const AppUpdateInfo({
@@ -103,6 +109,139 @@ class AppUpdateService {
 
     updates.sort((a, b) => b.version.compareTo(a.version));
     return updates.firstOrNull?.info;
+  }
+
+  Future<File> downloadZip(
+    AppUpdateInfo update, {
+    void Function(AppUpdatePhase phase, double progress)? onProgress,
+  }) async {
+    final downloadUrl = update.downloadUrl;
+    if (downloadUrl == null) {
+      throw AppUpdateException('该版本没有可下载的资源文件');
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final downloadDir = Directory(
+      '${tempDir.path}/flow_read_update_${update.version}',
+    );
+    if (downloadDir.existsSync()) {
+      downloadDir.deleteSync(recursive: true);
+    }
+    downloadDir.createSync(recursive: true);
+
+    final zipPath = '${downloadDir.path}/${update.assetName ?? 'update.zip'}';
+    final zipFile = File(zipPath);
+    final request = http.Request('GET', downloadUrl);
+    request.headers.addAll(_headers);
+
+    final streamedResponse = await _client.send(request);
+    if (streamedResponse.statusCode < 200 ||
+        streamedResponse.statusCode >= 300) {
+      _cleanupDir(downloadDir);
+      throw _responseException(
+        http.Response(
+          await streamedResponse.stream.bytesToString(),
+          streamedResponse.statusCode,
+        ),
+      );
+    }
+
+    final totalBytes = streamedResponse.contentLength ?? 0;
+    var receivedBytes = 0;
+
+    onProgress?.call(AppUpdatePhase.downloading, 0);
+
+    final sink = zipFile.openWrite();
+    try {
+      await for (final chunk in streamedResponse.stream) {
+        sink.add(chunk);
+        receivedBytes += chunk.length;
+        if (totalBytes > 0) {
+          onProgress?.call(
+            AppUpdatePhase.downloading,
+            receivedBytes / totalBytes,
+          );
+        }
+      }
+    } finally {
+      await sink.close();
+    }
+
+    return zipFile;
+  }
+
+  Future<String> extractAndFindApp(File zipFile, String extractDir) async {
+    final bytes = await zipFile.readAsBytes();
+    final archive = ZipDecoder().decodeBytes(bytes);
+
+    final outDir = Directory(extractDir);
+    for (final file in archive.files) {
+      if (file.isFile && file.name.isNotEmpty) {
+        final outPath = '${outDir.path}/${file.name}';
+        final outFile = File(outPath);
+        outFile.parent.createSync(recursive: true);
+        outFile.writeAsBytesSync(file.content as List<int>);
+      }
+    }
+
+    return _findAppBundle(extractDir);
+  }
+
+  Future<String> downloadAndExtract(
+    AppUpdateInfo update, {
+    void Function(AppUpdatePhase phase, double progress)? onProgress,
+  }) async {
+    final zipFile = await downloadZip(update, onProgress: onProgress);
+
+    onProgress?.call(AppUpdatePhase.extracting, 0);
+
+    final tempDir = await getTemporaryDirectory();
+    final extractDir =
+        '${tempDir.path}/flow_read_extracted_${update.version}';
+    final extractDirObj = Directory(extractDir);
+    if (extractDirObj.existsSync()) {
+      extractDirObj.deleteSync(recursive: true);
+    }
+    extractDirObj.createSync(recursive: true);
+
+    final appPath = await extractAndFindApp(zipFile, extractDir);
+    final appDir = Directory(appPath);
+    if (!appDir.existsSync()) {
+      throw AppUpdateException(
+        '下载的文件中未找到可安装的应用',
+        actionLabel: '打开发布页',
+        actionUrl: update.releasePageUrl,
+      );
+    }
+
+    onProgress?.call(AppUpdatePhase.complete, 1);
+
+    zipFile.parent.deleteSync(recursive: true);
+
+    return appPath;
+  }
+
+  static void _cleanupDir(Directory dir) {
+    try {
+      if (dir.existsSync()) {
+        dir.deleteSync(recursive: true);
+      }
+    } catch (_) {}
+  }
+
+  static String _findAppBundle(String rootPath) {
+    final dir = Directory(rootPath);
+    if (!dir.existsSync()) return '';
+
+    for (final entity in dir.listSync(recursive: true)) {
+      if (entity is Directory &&
+          entity.path.endsWith('.app') &&
+          File('${entity.path}/Contents/Info.plist').existsSync()) {
+        return entity.path;
+      }
+    }
+
+    return '';
   }
 
   void dispose() {

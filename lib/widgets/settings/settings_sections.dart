@@ -865,6 +865,11 @@ class SettingsAboutSection extends StatelessWidget {
     required this.onOpenUpdateFallback,
     required this.availableUpdate,
     required this.onDownloadUpdate,
+    this.downloadingUpdate = false,
+    this.downloadProgress = 0,
+    this.installedAppPath,
+    this.installingUpdate = false,
+    this.onInstallUpdate,
     required this.onOpenUpdateReleasePage,
     required this.onOpenLogsFolder,
     required this.onOpenRepository,
@@ -880,6 +885,11 @@ class SettingsAboutSection extends StatelessWidget {
   final VoidCallback? onOpenUpdateFallback;
   final AppUpdateInfo? availableUpdate;
   final VoidCallback? onDownloadUpdate;
+  final bool downloadingUpdate;
+  final double downloadProgress;
+  final String? installedAppPath;
+  final bool installingUpdate;
+  final VoidCallback? onInstallUpdate;
   final VoidCallback? onOpenUpdateReleasePage;
   final VoidCallback onOpenLogsFolder;
   final VoidCallback onOpenRepository;
@@ -1047,6 +1057,11 @@ class SettingsAboutSection extends StatelessWidget {
           _AvailableUpdateCard(
             update: availableUpdate!,
             onDownloadUpdate: onDownloadUpdate,
+            downloadingUpdate: downloadingUpdate,
+            downloadProgress: downloadProgress,
+            installedAppPath: installedAppPath,
+            installingUpdate: installingUpdate,
+            onInstallUpdate: onInstallUpdate,
             onOpenReleasePage: onOpenUpdateReleasePage,
           ),
         ],
@@ -1059,11 +1074,21 @@ class _AvailableUpdateCard extends StatelessWidget {
   const _AvailableUpdateCard({
     required this.update,
     required this.onDownloadUpdate,
+    this.downloadingUpdate = false,
+    this.downloadProgress = 0,
+    this.installedAppPath,
+    this.installingUpdate = false,
+    this.onInstallUpdate,
     required this.onOpenReleasePage,
   });
 
   final AppUpdateInfo update;
   final VoidCallback? onDownloadUpdate;
+  final bool downloadingUpdate;
+  final double downloadProgress;
+  final String? installedAppPath;
+  final bool installingUpdate;
+  final VoidCallback? onInstallUpdate;
   final VoidCallback? onOpenReleasePage;
 
   @override
@@ -1073,28 +1098,72 @@ class _AvailableUpdateCard extends StatelessWidget {
       color: theme.colorScheme.onSurfaceVariant,
     );
     final notes = update.releaseNotes.trim();
+    final readyToInstall = installedAppPath != null;
+    final colorScheme = theme.colorScheme;
 
     return SettingsCard(
       icon: Icons.download_for_offline_outlined,
-      title: '可用更新',
+      title: readyToInstall ? '安装更新' : '可用更新',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Flow Read ${update.version}',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(update.isPrerelease ? '预发布版本' : '正式版本', style: mutedStyle),
-          if (notes.isNotEmpty) ...[
-            const SizedBox(height: 12),
+          if (!readyToInstall && !downloadingUpdate) ...[
             Text(
-              notes,
-              maxLines: 6,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium,
+              'Flow Read ${update.version}',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              update.isPrerelease ? '预发布版本' : '正式版本',
+              style: mutedStyle,
+            ),
+            if (notes.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                notes,
+                maxLines: 6,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
+          ],
+          if (downloadingUpdate) ...[
+            Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    value: downloadProgress > 0 ? downloadProgress : null,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '正在下载... ${(downloadProgress * 100).toStringAsFixed(0)}%',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: downloadProgress > 0 ? downloadProgress : null,
+                minHeight: 6,
+              ),
+            ),
+          ],
+          if (readyToInstall) ...[
+            SettingsStatusLine(
+              icon: Icons.check_circle_outline,
+              text: '更新已就绪，点击「安装并重启」完成更新。',
+              color: colorScheme.primary,
             ),
           ],
           const SizedBox(height: 16),
@@ -1102,16 +1171,31 @@ class _AvailableUpdateCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: [
-              FilledButton.icon(
-                onPressed: onDownloadUpdate,
-                icon: Icon(
-                  update.hasDownloadAsset
-                      ? Icons.download_outlined
-                      : Icons.open_in_new,
+              if (!readyToInstall && !downloadingUpdate && onDownloadUpdate != null)
+                FilledButton.icon(
+                  onPressed: onDownloadUpdate,
+                  icon: Icon(
+                    update.hasDownloadAsset
+                        ? Icons.download_outlined
+                        : Icons.open_in_new,
+                  ),
+                  label: Text(
+                    update.hasDownloadAsset ? '下载更新' : '打开发布页',
+                  ),
                 ),
-                label: Text(update.hasDownloadAsset ? '下载更新' : '打开发布页'),
-              ),
-              if (update.hasDownloadAsset)
+              if (onInstallUpdate != null)
+                FilledButton.icon(
+                  onPressed: installingUpdate ? null : onInstallUpdate,
+                  icon: installingUpdate
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.restart_alt),
+                  label: Text(installingUpdate ? '安装中...' : '安装并重启'),
+                ),
+              if (!readyToInstall && !downloadingUpdate && update.hasDownloadAsset)
                 OutlinedButton.icon(
                   onPressed: onOpenReleasePage,
                   icon: const Icon(Icons.open_in_new),
@@ -1119,7 +1203,7 @@ class _AvailableUpdateCard extends StatelessWidget {
                 ),
             ],
           ),
-          if (update.assetName != null) ...[
+          if (!downloadingUpdate && update.assetName != null) ...[
             const SizedBox(height: 12),
             SettingsStatusLine(
               icon: Icons.inventory_2_outlined,
