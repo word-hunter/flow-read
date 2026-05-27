@@ -547,7 +547,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final result = await FilePicker.pickFiles(
       dialogTitle: '选择 FlowRead 备份',
       type: FileType.custom,
-      allowedExtensions: ['json'],
+      allowedExtensions: ['bak'],
       allowMultiple: false,
     );
     final path = result?.files.single.path;
@@ -561,6 +561,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final rssProvider = context.read<RssProvider>();
 
     try {
+      await backup.exportPreImportBackup();
       await backup.importBackupFile(path);
       await readingProvider.reloadAfterBackupRestore();
       await rssProvider.init();
@@ -613,7 +614,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('导入备份'),
-            content: const Text('导入后将替换当前书架、词汇、书签、RSS 和阅读数据。'),
+            content: const Text(
+              '导入前将自动备份当前数据。导入后将替换当前书架、词汇、书签、RSS 和阅读数据。',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),

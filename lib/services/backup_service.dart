@@ -12,6 +12,7 @@ import '../models/learning_item.dart';
 import '../models/rss_models.dart';
 import '../models/word_context_example.dart';
 import '../storage/hive_box_names.dart';
+import 'backup_archive.dart' as archive;
 import 'backup_folder_access.dart';
 import 'settings_service.dart';
 
@@ -35,6 +36,8 @@ class WordHunterImportResult {
     required this.exampleCount,
   });
 }
+
+enum _ImportStage { validating, stagingFiles, restoringBoxes, committingFiles }
 
 class BackupService extends ChangeNotifier {
   static const schemaVersion = 1;
@@ -97,18 +100,48 @@ class BackupService extends ChangeNotifier {
       );
       try {
         final createdAt = DateTime.now();
-        final payload = await createBackupPayloadForExport(
+        final bookFiles = await _collectBookFiles();
+        final dataPayload = _buildDataPayload();
+        final dataJson = const JsonEncoder().convert(dataPayload);
+        final bookIds = bookFiles.books.keys.toList();
+        final manifest = archive.buildManifest(
+          appId: appId,
+          formatVersion: archive.supportedManifestFormatVersion,
           createdAt: createdAt,
+          bookIds: bookIds,
+          bookHasCover: bookFiles.hasCover,
         );
-        final encoded = await compute(_encodeBackupPayload, payload);
-        final fileName = 'flow_read_backup_${_formatTimestamp(createdAt)}.json';
-        final file = File(
-          '${folderAccess.path}${Platform.pathSeparator}$fileName',
+        final manifestJson = const JsonEncoder().convert(manifest);
+
+        final entries = <String, Map<String, dynamic>>{};
+        for (final id in bookIds) {
+          final file = bookFiles.books[id]!;
+          entries[archive.bookSourceEntryPath(id)] = {
+            'bytes': file.sourceBytes,
+            'compress': false,
+          };
+          if (file.coverBytes != null) {
+            entries[archive.bookCoverEntryPath(id)] = {
+              'bytes': file.coverBytes!,
+              'compress': false,
+            };
+          }
+        }
+
+        final zipBytes = await compute(archive.encodeZipArchive, {
+          'manifestJson': manifestJson,
+          'dataJson': dataJson,
+          'entries': entries,
+        });
+
+        final filePath = await _writeBackupToFolder(
+          folderPath: folderAccess.path,
+          createdAt: createdAt,
+          zipBytes: zipBytes,
+          prefix: 'flow_read_backup',
         );
-        await file.parent.create(recursive: true);
-        await file.writeAsString(encoded, flush: true);
-        await settings.setLastBackup(createdAt, file.path);
-        return file.path;
+        await settings.setLastBackup(createdAt, filePath);
+        return filePath;
       } finally {
         await folderAccess.stopAccessing();
       }
@@ -122,27 +155,26 @@ class BackupService extends ChangeNotifier {
     }
   }
 
-  Map<String, dynamic> createBackupPayload({DateTime? createdAt}) {
-    final timestamp = createdAt ?? DateTime.now();
-    return {
-      'schemaVersion': schemaVersion,
-      'app': appId,
-      'createdAt': timestamp.toIso8601String(),
-      'boxes': {
-        for (final boxName in _includedBoxes) boxName: _snapshotBox(boxName),
-      },
-    };
-  }
-
-  Future<Map<String, dynamic>> createBackupPayloadForExport({
-    DateTime? createdAt,
-  }) async {
-    final payload = createBackupPayload(createdAt: createdAt);
-    final bookFiles = await _snapshotBookFiles();
-    if (bookFiles.isNotEmpty) {
-      payload['files'] = {'books': bookFiles};
+  Future<String?> exportPreImportBackup() async {
+    final configuredPath = settings.backupFolderPath.trim();
+    if (configuredPath.isNotEmpty) {
+      try {
+        return await exportNow(folderPath: configuredPath);
+      } catch (_) {
+        // Fallback to documents directory.
+      }
     }
-    return payload;
+
+    try {
+      final documentsDir = await _documentsDirectoryProvider();
+      final preImportDir = Directory(
+        '${documentsDir.path}${Platform.pathSeparator}backups'
+        '${Platform.pathSeparator}pre_import',
+      );
+      return await exportNow(folderPath: preImportDir.path);
+    } catch (e) {
+      return null;
+    }
   }
 
   Future<void> importBackupFile(String filePath) async {
@@ -150,13 +182,152 @@ class BackupService extends ChangeNotifier {
     if (!await file.exists()) {
       throw const BackupException('备份文件不存在');
     }
-    late Map<String, dynamic> decoded;
-    try {
-      decoded = await compute(_decodeBackupPayload, await file.readAsString());
-    } catch (_) {
-      throw const BackupException('备份文件格式无效');
+
+    final headerBytes = await file.openRead(0, 4).first;
+    if (headerBytes.length < 4 ||
+        !archive.isZipFileHeader(Uint8List.fromList(headerBytes))) {
+      throw const BackupException('不是 Flow Read 备份文件');
     }
-    await importBackupPayload(decoded);
+
+    final zipBytes = await file.readAsBytes();
+    if (zipBytes.isEmpty) {
+      throw const BackupException('备份文件为空');
+    }
+
+    final decoded = await compute(archive.decodeZipArchive, zipBytes);
+    final manifestJson = decoded['manifestJson'] as String;
+    final dataJson = decoded['dataJson'] as String;
+    final entryBytes = decoded['entryBytes'] as Map<String, dynamic>;
+
+    final manifest = jsonDecode(manifestJson) as Map<String, dynamic>;
+    final data = jsonDecode(dataJson) as Map<String, dynamic>;
+
+    archive.validateManifest(manifest, appId);
+    archive.validateDataSchema(data, schemaVersion);
+
+    final manifestIds = archive.manifestBookIds(manifest);
+    final boxes = data['boxes'] as Map<String, dynamic>;
+    final booksBox = boxes[HiveBoxNames.books] as Map<String, dynamic>?;
+    final bookEntries = booksBox?['entries'] as List<dynamic>? ?? [];
+    final dataBookIds = bookEntries
+        .whereType<Map>()
+        .map((e) => _decodeKey(e['key']).toString())
+        .toSet();
+
+    if (!setEquals(manifestIds, dataBookIds)) {
+      throw const BackupException('备份文件不完整：书籍索引与数据不一致');
+    }
+
+    final manifestBooks = manifest['books'] as Map<String, dynamic>;
+    for (final id in manifestIds) {
+      final bookEntry = manifestBooks[id] as Map<String, dynamic>;
+      final sourcePath = bookEntry['source'] as String;
+      final sourceBytes = entryBytes[sourcePath];
+      if (sourceBytes is! Uint8List || sourceBytes.isEmpty) {
+        throw BackupException('备份文件不完整，缺少书籍源文件：$id');
+      }
+      final coverPath = bookEntry['cover'];
+      if (coverPath is String) {
+        final coverBytes = entryBytes[coverPath];
+        if (coverBytes is! Uint8List || coverBytes.isEmpty) {
+          throw BackupException('备份文件不完整，缺少封面文件：$id');
+        }
+      }
+    }
+
+    final documentsDir = await _documentsDirectoryProvider();
+    final booksDir = Directory(
+      '${documentsDir.path}${Platform.pathSeparator}books',
+    );
+
+    var stage = _ImportStage.validating;
+
+    try {
+      stage = _ImportStage.stagingFiles;
+      await booksDir.create(recursive: true);
+
+      final stagingPaths = <String, ({String source, String? cover})>{};
+      for (final id in manifestIds) {
+        final bookEntry = manifestBooks[id] as Map<String, dynamic>;
+        final sourcePath = bookEntry['source'] as String;
+        final sourceBytes = entryBytes[sourcePath] as Uint8List;
+
+        final canonicalSource = _bookSourcePath(booksDir, id);
+        final stagingSource = '$canonicalSource.importing';
+        await File(stagingSource).parent.create(recursive: true);
+        await File(stagingSource).writeAsBytes(sourceBytes, flush: true);
+
+        String? stagingCover;
+        final coverPath = bookEntry['cover'];
+        if (coverPath is String) {
+          final coverBytes = entryBytes[coverPath] as Uint8List;
+          final canonicalCover = _bookCoverPath(booksDir, id);
+          stagingCover = '$canonicalCover.importing';
+          await File(stagingCover).parent.create(recursive: true);
+          await File(stagingCover).writeAsBytes(coverBytes, flush: true);
+        }
+
+        stagingPaths[id] = (
+          source: stagingSource,
+          cover: stagingCover,
+        );
+      }
+
+      stage = _ImportStage.restoringBoxes;
+      for (final boxName in _includedBoxes) {
+        final boxData = boxes[boxName];
+        if (boxData is Map<String, dynamic>) {
+          await _restoreBox(boxName, boxData);
+        }
+      }
+
+      stage = _ImportStage.committingFiles;
+      final booksBoxRef = Hive.box<BookMetadata>(HiveBoxNames.books);
+      for (final id in manifestIds) {
+        final canonicalSource = _bookSourcePath(booksDir, id);
+        final staging = stagingPaths[id]!;
+
+        final sourceFile = File(staging.source);
+        if (await sourceFile.exists()) {
+          final target = File(canonicalSource);
+          await _atomicRename(sourceFile, target);
+        }
+
+        if (staging.cover != null) {
+          final coverFile = File(staging.cover!);
+          if (await coverFile.exists()) {
+            final canonicalCover = _bookCoverPath(booksDir, id);
+            final target = File(canonicalCover);
+            await _atomicRename(coverFile, target);
+          }
+        }
+
+        final meta = booksBoxRef.get(id);
+        if (meta != null) {
+          await booksBoxRef.put(
+            id,
+            meta.copyWith(
+              sourcePath: canonicalSource,
+              coverPath: staging.cover != null
+                  ? _bookCoverPath(booksDir, id)
+                  : null,
+            ),
+          );
+        }
+      }
+
+      await _cleanupStaleImportingFiles(booksDir);
+      await settings.reloadFromStorage();
+    } catch (_) {
+      await _cleanupStaleImportingFiles(booksDir);
+      if (stage == _ImportStage.validating) {
+        throw const BackupException('导入失败，当前数据未更改。');
+      }
+      throw const BackupException(
+        '导入失败，当前数据可能已部分更改。\n'
+        '如需恢复，请使用上次导入前自动保存的备份。',
+      );
+    }
   }
 
   Future<WordHunterImportResult> importWordHunterBackupFile(
@@ -253,39 +424,13 @@ class BackupService extends ChangeNotifier {
     }
   }
 
-  Future<void> importBackupPayload(Map<String, dynamic> payload) async {
-    if (payload['app'] != appId) {
-      throw const BackupException('不是 FlowRead 备份文件');
-    }
-    final version = payload['schemaVersion'];
-    if (version is! int || version > schemaVersion) {
-      throw const BackupException('备份版本不兼容');
-    }
-    final boxes = payload['boxes'];
-    if (boxes is! Map<String, dynamic>) {
-      throw const BackupException('备份数据缺失');
-    }
-
-    _isSyncing = true;
-    _lastError = null;
-    notifyListeners();
-
-    try {
-      for (final boxName in _includedBoxes) {
-        final data = boxes[boxName];
-        if (data is Map<String, dynamic>) {
-          await _restoreBox(boxName, data);
-        }
-      }
-      await _restoreBookFiles(payload['files']);
-      await settings.reloadFromStorage();
-    } catch (e) {
-      _lastError = e.toString();
-      rethrow;
-    } finally {
-      _isSyncing = false;
-      notifyListeners();
-    }
+  Map<String, dynamic> _buildDataPayload() {
+    return archive.buildDataPayload(
+      schemaVersion: schemaVersion,
+      boxes: {
+        for (final boxName in _includedBoxes) boxName: _snapshotBox(boxName),
+      },
+    );
   }
 
   Map<String, dynamic> _snapshotBox(String boxName) {
@@ -304,102 +449,145 @@ class BackupService extends ChangeNotifier {
     return {'entries': entries};
   }
 
-  Future<Map<String, dynamic>> _snapshotBookFiles() async {
-    final files = <String, dynamic>{};
-    for (final meta in Hive.box<BookMetadata>(HiveBoxNames.books).values) {
-      final source = await _snapshotExistingFile(meta.sourcePath);
-      final coverPath = meta.coverPath;
-      final cover = coverPath == null
-          ? null
-          : await _snapshotExistingFile(coverPath);
-      if (source == null && cover == null) continue;
-      final bookFiles = <String, dynamic>{};
-      if (source != null) bookFiles['source'] = source;
-      if (cover != null) bookFiles['cover'] = cover;
-      files[meta.id] = bookFiles;
-    }
-    return files;
-  }
+  Future<_BookFilesCollection> _collectBookFiles() async {
+    final books = <String, _BookFile>{};
+    final hasCover = <String, bool>{};
+    var totalBytes = 0;
 
-  Future<Map<String, dynamic>?> _snapshotExistingFile(String path) async {
-    final file = File(path);
-    if (!await file.exists()) return null;
-    final bytes = await file.readAsBytes();
-    return {'data': await compute(_encodeFileBytes, bytes)};
-  }
-
-  Future<void> _restoreBookFiles(dynamic filesPayload) async {
-    final documentsDir = await _documentsDirectoryProvider();
-    final booksDir = Directory(
-      '${documentsDir.path}${Platform.pathSeparator}books',
-    );
-    await booksDir.create(recursive: true);
-
-    final booksPayload = filesPayload is Map
-        ? _asStringKeyMap(filesPayload)['books']
-        : null;
-    final bookFiles = booksPayload is Map
-        ? _asStringKeyMap(booksPayload)
-        : const <String, dynamic>{};
     final booksBox = Hive.box<BookMetadata>(HiveBoxNames.books);
+    for (final meta in booksBox.values) {
+      final sourceFile = File(meta.sourcePath);
+      if (!await sourceFile.exists()) {
+        throw BackupException('备份失败：《${meta.title}》的 EPUB 文件缺失，请重新导入该书后再备份。');
+      }
+      final sourceLen = await sourceFile.length();
+      if (sourceLen <= 0) {
+        throw BackupException('备份失败：《${meta.title}》的 EPUB 文件为空。');
+      }
+      totalBytes += sourceLen;
 
-    for (final key in booksBox.keys.toList()) {
-      final meta = booksBox.get(key);
-      if (meta == null) continue;
-
-      final canonicalSourcePath = _bookSourcePath(booksDir, meta.id);
-      final canonicalCoverPath = _bookCoverPath(booksDir, meta.id);
-      var nextSourcePath = meta.sourcePath;
-      var nextCoverPath = meta.coverPath;
-
-      final fileEntry = bookFiles[meta.id];
-      final fileMap = fileEntry is Map ? _asStringKeyMap(fileEntry) : null;
-      final restoredSource = await _restoreBookFile(
-        fileMap?['source'],
-        canonicalSourcePath,
-      );
-      if (restoredSource != null) {
-        nextSourcePath = restoredSource;
-      } else if (!await File(nextSourcePath).exists() &&
-          await File(canonicalSourcePath).exists()) {
-        nextSourcePath = canonicalSourcePath;
+      var coverBytes = Uint8List(0);
+      var hasValidCover = false;
+      final coverPath = meta.coverPath;
+      if (coverPath != null) {
+        final coverFile = File(coverPath);
+        if (await coverFile.exists()) {
+          final coverLen = await coverFile.length();
+          if (coverLen > 0) {
+            totalBytes += coverLen;
+            coverBytes = await coverFile.readAsBytes();
+            hasValidCover = true;
+          }
+        }
       }
 
-      final restoredCover = await _restoreBookFile(
-        fileMap?['cover'],
-        canonicalCoverPath,
-      );
-      if (restoredCover != null) {
-        nextCoverPath = restoredCover;
-      } else if ((nextCoverPath == null ||
-              !await File(nextCoverPath).exists()) &&
-          await File(canonicalCoverPath).exists()) {
-        nextCoverPath = canonicalCoverPath;
-      }
-
-      if (nextSourcePath != meta.sourcePath ||
-          nextCoverPath != meta.coverPath) {
-        await booksBox.put(
-          key,
-          meta.copyWith(sourcePath: nextSourcePath, coverPath: nextCoverPath),
+      if (totalBytes > archive.maxBackupBookBytes) {
+        throw const BackupException(
+          '备份内容较大，暂不支持一次性导出超过 500 MB 的书籍文件。',
         );
       }
+
+      books[meta.id] = _BookFile(
+        sourceBytes: await sourceFile.readAsBytes(),
+        coverBytes: hasValidCover ? coverBytes : null,
+      );
+      hasCover[meta.id] = hasValidCover;
+    }
+
+    return _BookFilesCollection(books: books, hasCover: hasCover);
+  }
+
+  Future<String> _writeBackupToFolder({
+    required String folderPath,
+    required DateTime createdAt,
+    required Uint8List zipBytes,
+    required String prefix,
+  }) async {
+    final dir = Directory(folderPath);
+    await dir.create(recursive: true);
+
+    final timestamp = _backupFilenameTimestamp(createdAt);
+
+    await _cleanupPartFiles(dir, prefix);
+
+    final finalPath =
+        '${dir.path}${Platform.pathSeparator}${prefix}_$timestamp.flow.bak';
+    final partPath = '$finalPath.part';
+
+    await File(partPath).writeAsBytes(zipBytes, flush: true);
+
+    try {
+      await File(partPath).rename(finalPath);
+    } catch (_) {
+      try {
+        if (await File(finalPath).exists()) {
+          await File(finalPath).delete();
+        }
+        await File(partPath).rename(finalPath);
+      } catch (_) {
+        await File(partPath).copy(finalPath);
+        await File(partPath).delete();
+      }
+    }
+
+    return finalPath;
+  }
+
+  Future<void> _cleanupPartFiles(Directory dir, String prefix) async {
+    try {
+      final entries = dir.listSync();
+      for (final entry in entries) {
+        if (entry is File &&
+            entry.path.endsWith('.flow.bak.part') &&
+            _pathBasename(entry.path).startsWith(prefix)) {
+          await entry.delete();
+        }
+      }
+    } catch (_) {
+      // Non-critical cleanup.
     }
   }
 
-  Future<String?> _restoreBookFile(
-    dynamic filePayload,
-    String targetPath,
-  ) async {
-    if (filePayload is! Map) return null;
-    final data = _asStringKeyMap(filePayload)['data'];
-    if (data is! String || data.isEmpty) return null;
+  Future<void> _cleanupStaleImportingFiles(Directory booksDir) async {
+    try {
+      final entries = booksDir.listSync();
+      for (final entry in entries) {
+        if (entry is File && entry.path.endsWith('.importing')) {
+          await entry.delete();
+        }
+      }
+    } catch (_) {
+      // Best-effort cleanup.
+    }
+  }
 
-    final bytes = await compute(_decodeFileBytes, data);
-    final file = File(targetPath);
-    await file.parent.create(recursive: true);
-    await file.writeAsBytes(bytes, flush: true);
-    return file.path;
+  Future<void> _atomicRename(File source, File target) async {
+    try {
+      await source.rename(target.path);
+    } catch (_) {
+      try {
+        if (await target.exists()) {
+          await target.delete();
+        }
+        await source.rename(target.path);
+      } catch (_) {
+        await source.copy(target.path);
+        await source.delete();
+      }
+    }
+  }
+
+  String _pathBasename(String path) {
+    final separator = Platform.pathSeparator;
+    final index = path.lastIndexOf(separator);
+    return index >= 0 ? path.substring(index + 1) : path;
+  }
+
+  String _backupFilenameTimestamp(DateTime value) {
+    final iso = value.toUtc().toIso8601String().split('.').first;
+    final d = iso.substring(0, 10).replaceAll('-', '');
+    final t = iso.substring(11, 19).replaceAll(':', '');
+    return '${d}_$t';
   }
 
   String _bookSourcePath(Directory booksDir, String bookId) {
@@ -423,7 +611,8 @@ class BackupService extends ChangeNotifier {
     for (final entry in entries) {
       if (entry is! Map) continue;
       final key = _decodeKey(entry['key']);
-      if (boxName == HiveBoxNames.settings && _localSettingKeys.contains(key)) {
+      if (boxName == HiveBoxNames.settings &&
+          _localSettingKeys.contains(key)) {
         continue;
       }
       final value = _decodeBoxValue(boxName, entry['value']);
@@ -433,7 +622,8 @@ class BackupService extends ChangeNotifier {
 
   bool _shouldSkipSettingInSnapshot(dynamic key) {
     if (_localSettingKeys.contains(key)) return true;
-    if (!settings.includeSecretsInBackup && _secretSettingKeys.contains(key)) {
+    if (!settings.includeSecretsInBackup &&
+        _secretSettingKeys.contains(key)) {
       return true;
     }
     return false;
@@ -671,7 +861,9 @@ class BackupService extends ChangeNotifier {
     if (value is DateTime) return value.toIso8601String();
     if (value is List) return value.map(_encodeJsonValue).toList();
     if (value is Map) {
-      return value.map((k, v) => MapEntry(k.toString(), _encodeJsonValue(v)));
+      return value.map(
+        (k, v) => MapEntry(k.toString(), _encodeJsonValue(v)),
+      );
     }
     return value.toString();
   }
@@ -709,7 +901,8 @@ class BackupService extends ChangeNotifier {
     _timer?.cancel();
     _timer = null;
 
-    if (!settings.backupEnabled || settings.backupFolderPath.trim().isEmpty) {
+    if (!settings.backupEnabled ||
+        settings.backupFolderPath.trim().isEmpty) {
       return;
     }
 
@@ -719,11 +912,6 @@ class BackupService extends ChangeNotifier {
         unawaited(exportNow());
       }
     });
-  }
-
-  String _formatTimestamp(DateTime value) {
-    final iso = value.toIso8601String().split('.').first;
-    return iso.replaceAll(':', '-');
   }
 
   String _describeExportError(Object error) {
@@ -754,31 +942,31 @@ class BackupService extends ChangeNotifier {
   }
 }
 
-String _encodeBackupPayload(Map<String, dynamic> payload) {
-  return const JsonEncoder.withIndent('  ').convert(payload);
+class _BookFile {
+  final Uint8List sourceBytes;
+  final Uint8List? coverBytes;
+
+  const _BookFile({required this.sourceBytes, this.coverBytes});
 }
 
-Map<String, dynamic> _decodeBackupPayload(String source) {
-  final decoded = jsonDecode(source);
-  if (decoded is! Map) {
-    throw const FormatException('根节点不是对象');
-  }
-  return _asStringKeyMap(decoded);
+class _BookFilesCollection {
+  final Map<String, _BookFile> books;
+  final Map<String, bool> hasCover;
+
+  const _BookFilesCollection({required this.books, required this.hasCover});
 }
-
-String _encodeFileBytes(Uint8List bytes) => base64Encode(bytes);
-
-Uint8List _decodeFileBytes(String data) => base64Decode(data);
 
 Map<String, dynamic> _parseWordHunterBackupSource(String source) {
   final decoded = jsonDecode(source);
   if (decoded is! Map) {
     throw const FormatException('根节点不是对象');
   }
-  return _asStringKeyMap(decoded);
+  return _asStringKeyMapStatic(decoded);
 }
 
-Map<String, dynamic> _normalizeWordHunterPayload(Map<String, dynamic> payload) {
+Map<String, dynamic> _normalizeWordHunterPayload(
+  Map<String, dynamic> payload,
+) {
   final knownWords = _extractWordSet(payload['known']);
   final contexts = _parseWordHunterContexts(payload['context']);
   final learningWordSet = {
@@ -854,7 +1042,7 @@ WordContextExample? _parseWordHunterExample(
   }
   if (value is! Map) return null;
 
-  final map = _asStringKeyMap(value);
+  final map = _asStringKeyMapStatic(value);
   final word = _normalizeWord((map['word'] ?? fallbackWord).toString());
   final text = _normalizeText(
     (map['text'] ?? map['sentence'] ?? map['context'] ?? '').toString(),
@@ -885,7 +1073,7 @@ DateTime? _parseWordHunterTimestamp(dynamic value) {
   return null;
 }
 
-Map<String, dynamic> _asStringKeyMap(Map value) {
+Map<String, dynamic> _asStringKeyMapStatic(Map value) {
   return value.map((k, v) => MapEntry(k.toString(), v));
 }
 

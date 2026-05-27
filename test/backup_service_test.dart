@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/models/rss_models.dart';
+import 'package:flow_read/services/backup_archive.dart' as archive;
 import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/storage/hive_box_names.dart';
@@ -13,6 +16,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/hive_test_storage.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late Directory tempDir;
   late Directory documentsDir;
   late SettingsService settings;
@@ -39,7 +44,7 @@ void main() {
     await disposeHiveTestStorage(tempDir);
   });
 
-  test('exports Hive data to JSON and imports it back', () async {
+  test('exports Hive data to .flow.bak and imports it back', () async {
     final book = BookMetadata(
       id: 'book-1',
       title: 'Test Book',
@@ -65,7 +70,14 @@ void main() {
       difficultyVocabularySignature: 'vocab-v1',
       difficultyComputedAt: DateTime.utc(2026, 5, 15, 8, 31),
     );
-    await booksBox().put(book.id, book);
+
+    final epubFile = File('${tempDir.path}/test.epub');
+    await epubFile.writeAsString('mock epub content');
+
+    await booksBox().put(
+      book.id,
+      book.copyWith(sourcePath: epubFile.path),
+    );
     await userVocabularyBox().put('flow', 'known');
     await readingConfigBox().put('fontSize', '18.0');
     await readingTimeBox().put('_global_', 120);
@@ -108,11 +120,42 @@ void main() {
     );
     await settingsBox().put('rss_read_articles', jsonEncode(['a1']));
 
-    final payload = backup.createBackupPayload(
-      createdAt: DateTime.utc(2026, 5, 15, 9),
+    await backup.exportNow(folderPath: '${tempDir.path}/backups');
+
+    final backupDir = Directory('${tempDir.path}/backups');
+    final bakFiles = backupDir
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.flow.bak'))
+        .toList();
+    expect(bakFiles, hasLength(1));
+
+    final bakFileBytes = await bakFiles.first.readAsBytes();
+    final zipArchive = ZipDecoder().decodeBytes(bakFileBytes);
+
+    final manifestEntry = zipArchive.findFile('manifest.json');
+    expect(manifestEntry, isNotNull);
+    final manifest =
+        jsonDecode(utf8.decode(manifestEntry!.content)) as Map<String, dynamic>;
+    expect(manifest['app'], BackupService.appId);
+    expect(manifest['formatVersion'], archive.supportedManifestFormatVersion);
+    expect(manifest['dataPath'], 'data/app.json');
+    expect(manifest['books'], isA<Map>());
+    expect(manifest['books']['book-1'], isNotNull);
+    expect(
+      manifest['books']['book-1']['source'],
+      archive.bookSourceEntryPath('book-1'),
     );
 
-    final boxes = payload['boxes'] as Map<String, dynamic>;
+    final dataEntry = zipArchive.findFile('data/app.json');
+    expect(dataEntry, isNotNull);
+    final data =
+        jsonDecode(utf8.decode(dataEntry!.content)) as Map<String, dynamic>;
+    expect(data['schemaVersion'], BackupService.schemaVersion);
+    expect(data['app'], isNull);
+    expect(data['createdAt'], isNull);
+    expect(data['files'], isNull);
+    final boxes = data['boxes'] as Map<String, dynamic>;
     expect(boxes, isNot(containsPair(HiveBoxNames.dictionaryCache, anything)));
 
     final settingsEntries =
@@ -126,16 +169,11 @@ void main() {
     expect(settingKeys, isNot(contains('backupFolderBookmark')));
     expect(settingKeys, contains('aiProviderId'));
 
-    await settings.setIncludeSecretsInBackup(true);
-    final payloadWithSecrets = backup.createBackupPayload(
-      createdAt: DateTime.utc(2026, 5, 15, 9),
+    final sourceEntry = zipArchive.findFile(
+      archive.bookSourceEntryPath('book-1'),
     );
-    final secretSettingKeys =
-        ((payloadWithSecrets['boxes']
-                    as Map<String, dynamic>)[HiveBoxNames.settings]['entries']
-                as List<dynamic>)
-            .map((entry) => entry['key']['value'] as String);
-    expect(secretSettingKeys, contains('aiApiKeys'));
+    expect(sourceEntry, isNotNull);
+    expect(utf8.decode(sourceEntry!.content), 'mock epub content');
 
     await booksBox().clear();
     await userVocabularyBox().clear();
@@ -146,7 +184,7 @@ void main() {
     await learningItemsBox().clear();
     await rssSubscriptionsBox().clear();
 
-    await backup.importBackupPayload(payload);
+    await backup.importBackupFile(bakFiles.first.path);
 
     final restoredBook = booksBox().get('book-1');
     expect(restoredBook?.title, 'Test Book');
@@ -172,7 +210,7 @@ void main() {
 
   test('exports and restores book source and cover files', () async {
     final sourceBytes = utf8.encode('epub bytes');
-    final coverBytes = <int>[0, 1, 2, 3, 4];
+    final coverBytes = Uint8List.fromList([0, 1, 2, 3, 4]);
     final sourceFile = File('${tempDir.path}/picked.epub');
     final coverFile = File('${tempDir.path}/cover.png');
     await sourceFile.writeAsBytes(sourceBytes);
@@ -191,19 +229,36 @@ void main() {
     );
     await booksBox().put(book.id, book);
 
-    final payload = await backup.createBackupPayloadForExport(
-      createdAt: DateTime.utc(2026, 5, 16, 9),
+    await backup.exportNow(folderPath: '${tempDir.path}/backups');
+
+    final backupDir = Directory('${tempDir.path}/backups');
+    final bakFiles = backupDir
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.flow.bak'))
+        .toList();
+    expect(bakFiles, hasLength(1));
+
+    final bakFileBytes = await bakFiles.first.readAsBytes();
+    final zipArchive = ZipDecoder().decodeBytes(bakFileBytes);
+
+    final sourceEntry = zipArchive.findFile(
+      archive.bookSourceEntryPath('book-file'),
     );
-    final files = payload['files'] as Map<String, dynamic>;
-    final bookFiles = files['books'] as Map<String, dynamic>;
-    expect(bookFiles['book-file']['source']['data'], isA<String>());
-    expect(bookFiles['book-file']['cover']['data'], isA<String>());
+    expect(sourceEntry, isNotNull);
+    expect(sourceEntry!.content, sourceBytes);
+
+    final coverEntry = zipArchive.findFile(
+      archive.bookCoverEntryPath('book-file'),
+    );
+    expect(coverEntry, isNotNull);
+    expect(coverEntry!.content, coverBytes);
 
     await booksBox().clear();
     await sourceFile.delete();
     await coverFile.delete();
 
-    await backup.importBackupPayload(payload);
+    await backup.importBackupFile(bakFiles.first.path);
 
     final restored = booksBox().get('book-file')!;
     final restoredSource = File(restored.sourcePath);
@@ -219,18 +274,45 @@ void main() {
     expect(restored.chapterScrollOffset, 480);
   });
 
-  test('exportNow writes a backup file into the selected folder', () async {
-    await settings.setBackupFolderPath('${tempDir.path}/backups');
+  test('exportNow writes a .flow.bak file into the selected folder', () async {
     await readingTimeBox().put('_global_', 30);
 
-    final path = await backup.exportNow();
+    final path = await backup.exportNow(
+      folderPath: '${tempDir.path}/backups',
+    );
     final file = File(path);
 
     expect(await file.exists(), isTrue);
-    final payload =
-        jsonDecode(await file.readAsString()) as Map<String, dynamic>;
-    expect(payload['app'], BackupService.appId);
-    expect(payload['schemaVersion'], BackupService.schemaVersion);
+    expect(file.path, endsWith('.flow.bak'));
+    expect(file.path, isNot(endsWith('.json')));
+
+    final bakFileBytes = await file.readAsBytes();
+    final zipArchive = ZipDecoder().decodeBytes(bakFileBytes);
+    final manifest = jsonDecode(
+      utf8.decode(zipArchive.findFile('manifest.json')!.content),
+    ) as Map<String, dynamic>;
+    expect(manifest['app'], BackupService.appId);
+    expect(manifest['formatVersion'], archive.supportedManifestFormatVersion);
+  });
+
+  test('export fails when a book source file is missing', () async {
+    final book = BookMetadata(
+      id: 'missing-source',
+      title: 'Missing Book',
+      author: 'Author',
+      sourcePath: '${tempDir.path}/nonexistent.epub',
+      totalChapters: 1,
+    );
+    await booksBox().put(book.id, book);
+
+    expect(
+      () => backup.exportNow(folderPath: '${tempDir.path}/backups'),
+      throwsA(isA<BackupException>().having(
+        (e) => e.message,
+        'message',
+        contains('缺失'),
+      )),
+    );
   });
 
   test(
