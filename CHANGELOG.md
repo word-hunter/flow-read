@@ -10,6 +10,12 @@ This project follows a simple semantic versioning flow:
 
 ## [Unreleased]
 
+## [1.1.1-alpha] - 2026-05-28
+
+### Fixed
+
+- 修复 alpha 版本在 GitHub Release 上传 macOS 安装包时可能被发布状态限制阻止的问题。
+
 ## [1.1.0-alpha] - 2026-05-27
 
 ### Added
