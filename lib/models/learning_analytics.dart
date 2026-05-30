@@ -41,6 +41,8 @@ class ChapterLearningReport {
   final int newWordCount;
   final int learningItemCount;
   final int dueReviewCount;
+  final int practiceAnsweredCount;
+  final int practiceCorrectCount;
   final List<String> masteredWords;
   final List<String> learningWords;
   final String nextStep;
@@ -61,10 +63,19 @@ class ChapterLearningReport {
     required this.newWordCount,
     required this.learningItemCount,
     required this.dueReviewCount,
+    required this.practiceAnsweredCount,
+    required this.practiceCorrectCount,
     required this.masteredWords,
     required this.learningWords,
     required this.nextStep,
   });
+
+  double get practiceAccuracy {
+    if (practiceAnsweredCount <= 0) return 0;
+    return practiceCorrectCount / practiceAnsweredCount;
+  }
+
+  int get practiceAccuracyPercent => (practiceAccuracy * 100).round();
 }
 
 class WeeklyLearningSummary {

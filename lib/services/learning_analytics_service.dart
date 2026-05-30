@@ -18,6 +18,8 @@ class LearningAnalyticsService {
   static const _lookupChapterWordPrefix = 'lookup.chapter_word';
   static const _lookupDayPrefix = 'lookup.day';
   static const _lookupDayWordPrefix = 'lookup.day_word';
+  static const _practiceChapterAnsweredPrefix = 'practice.chapter_answered';
+  static const _practiceChapterCorrectPrefix = 'practice.chapter_correct';
 
   final LearningAnalyticsRepository _repository;
   final DateTime Function() _clock;
@@ -61,6 +63,36 @@ class LearningAnalyticsService {
         .fold<int>(0, (sum, count) => sum + (count > 1 ? count - 1 : 0));
   }
 
+  Future<void> recordPracticeAnswer({
+    required String bookId,
+    required int chapterIndex,
+    required bool isCorrect,
+  }) async {
+    final normalizedBookId = bookId.trim();
+    if (normalizedBookId.isEmpty || chapterIndex < 0) return;
+
+    await _increment(
+      _chapterPracticeAnsweredKey(normalizedBookId, chapterIndex),
+    );
+    if (isCorrect) {
+      await _increment(
+        _chapterPracticeCorrectKey(normalizedBookId, chapterIndex),
+      );
+    }
+  }
+
+  int practiceAnsweredCountForChapter(String bookId, int chapterIndex) {
+    return _repository.countFor(
+      _chapterPracticeAnsweredKey(bookId, chapterIndex),
+    );
+  }
+
+  int practiceCorrectCountForChapter(String bookId, int chapterIndex) {
+    return _repository.countFor(
+      _chapterPracticeCorrectKey(bookId, chapterIndex),
+    );
+  }
+
   ChapterLearningReport buildChapterReport({
     required String bookId,
     required Book book,
@@ -83,6 +115,14 @@ class LearningAnalyticsService {
       safeChapterIndex,
     );
     final lookupPerThousand = _perThousand(lookupCount, wordCount);
+    final practiceAnsweredCount = practiceAnsweredCountForChapter(
+      bookId,
+      safeChapterIndex,
+    );
+    final practiceCorrectCount = practiceCorrectCountForChapter(
+      bookId,
+      safeChapterIndex,
+    );
     final comparison = _buildLookupComparison(
       book: book,
       bookId: bookId,
@@ -123,6 +163,8 @@ class LearningAnalyticsService {
       newWordCount: newWordCount,
       learningItemCount: chapterItems.length,
       dueReviewCount: dueReviewCount,
+      practiceAnsweredCount: practiceAnsweredCount,
+      practiceCorrectCount: practiceCorrectCount,
       masteredWords: knownWords,
       learningWords: learningWords,
       nextStep: '',
@@ -144,6 +186,8 @@ class LearningAnalyticsService {
       newWordCount: report.newWordCount,
       learningItemCount: report.learningItemCount,
       dueReviewCount: report.dueReviewCount,
+      practiceAnsweredCount: report.practiceAnsweredCount,
+      practiceCorrectCount: report.practiceCorrectCount,
       masteredWords: report.masteredWords,
       learningWords: report.learningWords,
       nextStep: _nextStep(report),
@@ -248,6 +292,9 @@ class LearningAnalyticsService {
     if (report.dueReviewCount > 0) {
       return '先完成 ${report.dueReviewCount} 条到期复习，再进入下一章。';
     }
+    if (report.practiceAnsweredCount >= 3 && report.practiceAccuracy < 0.7) {
+      return '回看本章练习错题，先用原文依据修正理解再继续读。';
+    }
     if (report.lookupDependency.direction == LookupDependencyDirection.higher &&
         report.lookupCount >= 3) {
       return '下一章先读完整段并猜词，再查影响理解的关键词。';
@@ -331,6 +378,14 @@ class LearningAnalyticsService {
 
   String _chapterWordPrefixFor(String bookId, int chapterIndex) {
     return '$_lookupChapterWordPrefix.${_escape(bookId)}.$chapterIndex.';
+  }
+
+  String _chapterPracticeAnsweredKey(String bookId, int chapterIndex) {
+    return '$_practiceChapterAnsweredPrefix.${_escape(bookId)}.$chapterIndex';
+  }
+
+  String _chapterPracticeCorrectKey(String bookId, int chapterIndex) {
+    return '$_practiceChapterCorrectPrefix.${_escape(bookId)}.$chapterIndex';
   }
 
   String _dayLookupKey(String day) => '$_lookupDayPrefix.$day';

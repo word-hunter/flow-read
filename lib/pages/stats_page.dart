@@ -146,6 +146,11 @@ class StatsPage extends StatelessWidget {
                 value: '${report.lookupCount} 次',
               ),
               _MetricData(
+                icon: Icons.fact_check_outlined,
+                label: '练习正确率',
+                value: _practiceAccuracyValue(report),
+              ),
+              _MetricData(
                 icon: Icons.notes_outlined,
                 label: '词数',
                 value: '${report.wordCount}',
@@ -166,6 +171,15 @@ class StatsPage extends StatelessWidget {
             body: _masteryText(report),
             color: theme.colorScheme.primary,
           ),
+          if (report.practiceAnsweredCount > 0) ...[
+            const SizedBox(height: 10),
+            _InsightRow(
+              icon: Icons.quiz_outlined,
+              title: '练习表现',
+              body: _practiceAccuracyText(report),
+              color: _practiceAccuracyColor(theme, report),
+            ),
+          ],
           const SizedBox(height: 10),
           Container(
             width: double.infinity,
@@ -569,6 +583,26 @@ class StatsPage extends StatelessWidget {
       parts.add('可回忆：$examples');
     }
     return parts.join(' · ');
+  }
+
+  String _practiceAccuracyValue(ChapterLearningReport report) {
+    if (report.practiceAnsweredCount == 0) return '未练习';
+    return '${report.practiceAccuracyPercent}%';
+  }
+
+  String _practiceAccuracyText(ChapterLearningReport report) {
+    final answered = report.practiceAnsweredCount;
+    final correct = report.practiceCorrectCount;
+    return '已提交 $answered 题，答对 $correct 题，正确率 ${report.practiceAccuracyPercent}%。';
+  }
+
+  Color _practiceAccuracyColor(ThemeData theme, ChapterLearningReport report) {
+    if (report.practiceAnsweredCount == 0) {
+      return theme.colorScheme.onSurfaceVariant;
+    }
+    if (report.practiceAccuracy >= 0.8) return const Color(0xFF2E7D32);
+    if (report.practiceAccuracy >= 0.6) return const Color(0xFFF9A825);
+    return const Color(0xFFC62828);
   }
 
   IconData _trendIcon(LookupDependencyDirection direction) {

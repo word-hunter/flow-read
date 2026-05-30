@@ -36,6 +36,16 @@ void main() {
         chapterIndex: 1,
         word: 'flow',
       );
+      await analytics.recordPracticeAnswer(
+        bookId: 'book-1',
+        chapterIndex: 1,
+        isCorrect: true,
+      );
+      await analytics.recordPracticeAnswer(
+        bookId: 'book-1',
+        chapterIndex: 1,
+        isCorrect: false,
+      );
 
       final report = analytics.buildChapterReport(
         bookId: 'book-1',
@@ -59,6 +69,9 @@ void main() {
       expect(report.masteredWordCount, 2);
       expect(report.learningWordCount, 1);
       expect(report.learningItemCount, 1);
+      expect(report.practiceAnsweredCount, 2);
+      expect(report.practiceCorrectCount, 1);
+      expect(report.practiceAccuracyPercent, 50);
       expect(report.nextStep, contains('复盘本章 1 个学习卡片'));
     },
   );

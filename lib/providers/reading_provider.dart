@@ -1445,6 +1445,18 @@ class ReadingProvider extends ChangeNotifier {
     return result;
   }
 
+  Future<void> recordPracticeAnswer({required bool isCorrect}) async {
+    final bookId = _activeBookId;
+    if (bookId == null) return;
+
+    await _learningAnalyticsService?.recordPracticeAnswer(
+      bookId: bookId,
+      chapterIndex: _currentChapter,
+      isCorrect: isCorrect,
+    );
+    notifyListeners();
+  }
+
   Future<void> recordLearningReview(
     String itemId,
     LearningReviewResult result,

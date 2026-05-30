@@ -832,6 +832,7 @@ class _AIReviewState extends State<_AIReview> {
 
     final selectedAnswer = options[selectedIndex].text;
     final isCorrect = selectedAnswer == question.answer;
+    final provider = context.read<ReadingProvider>();
     setState(() {
       _showAnswers[index] = true;
       _answerRecords[index] = PracticeAnswerRecord(
@@ -843,11 +844,9 @@ class _AIReviewState extends State<_AIReview> {
       );
     });
 
+    await provider.recordPracticeAnswer(isCorrect: isCorrect);
     if (isCorrect) return;
-    await context.read<ReadingProvider>().addPracticeMistakeLearningItem(
-      question,
-      selectedAnswer,
-    );
+    await provider.addPracticeMistakeLearningItem(question, selectedAnswer);
   }
 
   void _showSourceInReader(PracticeQuestion question) {
