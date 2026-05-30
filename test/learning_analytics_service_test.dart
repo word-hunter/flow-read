@@ -199,6 +199,9 @@ void main() {
     expect(summary.rememberedCount, 1);
     expect(summary.missedCount, 1);
     expect(summary.dueReviewCount, 2);
+    expect(summary.progressSummary, contains('30 分钟'));
+    expect(summary.weakPointSummary, contains('2 条待复习'));
+    expect(summary.nextStep, contains('先完成 2 条到期复习'));
   });
 }
 

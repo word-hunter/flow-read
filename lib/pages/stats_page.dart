@@ -265,12 +265,25 @@ class StatsPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            '重复查词 ${summary.repeatedLookupCount} 次；复习记住 ${summary.rememberedCount} 条，需回看 ${summary.missedCount} 条。',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              height: 1.35,
-            ),
+          _InsightRow(
+            icon: Icons.timeline_outlined,
+            title: '本周变化',
+            body: summary.progressSummary,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(height: 10),
+          _InsightRow(
+            icon: Icons.report_problem_outlined,
+            title: '本周薄弱点',
+            body: summary.weakPointSummary,
+            color: _weeklyWeakPointColor(theme, summary),
+          ),
+          const SizedBox(height: 10),
+          _InsightRow(
+            icon: Icons.arrow_forward,
+            title: '下一步',
+            body: summary.nextStep,
+            color: theme.colorScheme.primary,
           ),
         ],
       ),
@@ -641,6 +654,18 @@ class StatsPage extends StatelessWidget {
     if (report.practiceAccuracy >= 0.8) return const Color(0xFF2E7D32);
     if (report.practiceAccuracy >= 0.6) return const Color(0xFFF9A825);
     return const Color(0xFFC62828);
+  }
+
+  Color _weeklyWeakPointColor(ThemeData theme, WeeklyLearningSummary summary) {
+    if (summary.missedCount > summary.rememberedCount &&
+        summary.missedCount > 0) {
+      return const Color(0xFFC62828);
+    }
+    if (summary.repeatedLookupCount >= 3 || summary.lookupCount >= 10) {
+      return const Color(0xFFE67E22);
+    }
+    if (summary.dueReviewCount > 0) return const Color(0xFFF9A825);
+    return theme.colorScheme.primary;
   }
 
   IconData _trendIcon(LookupDependencyDirection direction) {

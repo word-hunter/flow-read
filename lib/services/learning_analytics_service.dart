@@ -228,22 +228,47 @@ class LearningAnalyticsService {
         .where((item) => item.lastResult == LearningReviewResult.missed)
         .length;
     final weeklyGoalSeconds = dailyGoalSeconds <= 0 ? 0 : dailyGoalSeconds * 6;
+    final readingSeconds = readingTime?.secondsForWeek(target) ?? 0;
+    final previousWeekStart = weekStart.subtract(const Duration(days: 7));
+    final previousReadingSeconds =
+        readingTime?.secondsForWeek(previousWeekStart) ?? 0;
+    final lookupCount = _lookupCountForWeek(weekStart);
+    final repeatedLookupCount = _repeatedLookupCountForWeek(weekStart);
 
     return WeeklyLearningSummary(
       weekStart: weekStart,
       weekEndExclusive: weekEnd,
-      readingSeconds: readingTime?.secondsForWeek(target) ?? 0,
+      readingSeconds: readingSeconds,
       dailyGoalSeconds: dailyGoalSeconds,
       weeklyGoalSeconds: weeklyGoalSeconds,
       goalReachedDays:
           readingTime?.goalReachedDaysForWeek(dailyGoalSeconds, target) ?? 0,
-      lookupCount: _lookupCountForWeek(weekStart),
-      repeatedLookupCount: _repeatedLookupCountForWeek(weekStart),
+      lookupCount: lookupCount,
+      repeatedLookupCount: repeatedLookupCount,
       reviewedCount: reviewed.length,
       rememberedCount: remembered,
       missedCount: missed,
       dueReviewCount: dueReviewCount,
       learningItemCount: learningItems.length,
+      progressSummary: _weeklyProgressSummary(
+        readingSeconds: readingSeconds,
+        previousReadingSeconds: previousReadingSeconds,
+      ),
+      weakPointSummary: _weeklyWeakPointSummary(
+        lookupCount: lookupCount,
+        repeatedLookupCount: repeatedLookupCount,
+        rememberedCount: remembered,
+        missedCount: missed,
+        dueReviewCount: dueReviewCount,
+      ),
+      nextStep: _weeklyNextStep(
+        readingSeconds: readingSeconds,
+        weeklyGoalSeconds: weeklyGoalSeconds,
+        dueReviewCount: dueReviewCount,
+        missedCount: missed,
+        repeatedLookupCount: repeatedLookupCount,
+        lookupCount: lookupCount,
+      ),
     );
   }
 
@@ -481,6 +506,84 @@ class LearningAnalyticsService {
           .fold<int>(0, (sum, count) => sum + (count > 1 ? count - 1 : 0));
     }
     return total;
+  }
+
+  String _weeklyProgressSummary({
+    required int readingSeconds,
+    required int previousReadingSeconds,
+  }) {
+    if (readingSeconds <= 0) {
+      return '本周还没有阅读记录，先安排一次 15 分钟阅读。';
+    }
+    final current = _durationPhrase(readingSeconds);
+    final delta = readingSeconds - previousReadingSeconds;
+    if (previousReadingSeconds <= 0) {
+      return '本周已阅读 $current，开始形成本周节奏。';
+    }
+    if (delta >= 10 * 60) {
+      return '本周已阅读 $current，比上周多 ${_durationPhrase(delta)}。';
+    }
+    if (delta <= -10 * 60) {
+      return '本周已阅读 $current，比上周少 ${_durationPhrase(delta.abs())}。';
+    }
+    return '本周已阅读 $current，和上周接近。';
+  }
+
+  String _weeklyWeakPointSummary({
+    required int lookupCount,
+    required int repeatedLookupCount,
+    required int rememberedCount,
+    required int missedCount,
+    required int dueReviewCount,
+  }) {
+    if (missedCount > rememberedCount && missedCount > 0) {
+      return '本周需回看的复习多于已记住内容，优先处理错题和遗忘卡片。';
+    }
+    if (repeatedLookupCount >= 3) {
+      return '本周重复查词 $repeatedLookupCount 次，说明部分词还没有进入可回忆状态。';
+    }
+    if (lookupCount >= 10) {
+      return '本周查词 $lookupCount 次，阅读阻力主要来自词汇密度。';
+    }
+    if (dueReviewCount > 0) {
+      return '当前还有 $dueReviewCount 条待复习，先清理积压可以降低后续阅读阻力。';
+    }
+    return '本周没有明显薄弱点，继续保持阅读和复习节奏。';
+  }
+
+  String _weeklyNextStep({
+    required int readingSeconds,
+    required int weeklyGoalSeconds,
+    required int dueReviewCount,
+    required int missedCount,
+    required int repeatedLookupCount,
+    required int lookupCount,
+  }) {
+    if (dueReviewCount > 0) {
+      return '先完成 $dueReviewCount 条到期复习，再安排下一次阅读。';
+    }
+    if (missedCount > 0) {
+      return '回看本周 $missedCount 条未记住内容，补上原文依据。';
+    }
+    if (weeklyGoalSeconds > 0 && readingSeconds < weeklyGoalSeconds) {
+      return '补一次 15-20 分钟阅读，把本周阅读目标推进到 100%。';
+    }
+    if (repeatedLookupCount > 0) {
+      return '把本周重复查过的词挑 3 个转成学习卡片。';
+    }
+    if (lookupCount > 0) {
+      return '从本周查词里挑最影响理解的词，做一次轻量复盘。';
+    }
+    return '继续下一章，保持阅读节奏。';
+  }
+
+  String _durationPhrase(int seconds) {
+    if (seconds < 60) return '$seconds 秒';
+    final minutes = seconds ~/ 60;
+    if (minutes < 60) return '$minutes 分钟';
+    final hours = minutes ~/ 60;
+    final remain = minutes % 60;
+    return remain > 0 ? '$hours 小时 $remain 分钟' : '$hours 小时';
   }
 
   int _wordCount(String text) => englishWordPattern.allMatches(text).length;

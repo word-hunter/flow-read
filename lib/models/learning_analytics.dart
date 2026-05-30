@@ -144,6 +144,9 @@ class WeeklyLearningSummary {
   final int missedCount;
   final int dueReviewCount;
   final int learningItemCount;
+  final String progressSummary;
+  final String weakPointSummary;
+  final String nextStep;
 
   const WeeklyLearningSummary({
     required this.weekStart,
@@ -159,6 +162,9 @@ class WeeklyLearningSummary {
     required this.missedCount,
     required this.dueReviewCount,
     required this.learningItemCount,
+    required this.progressSummary,
+    required this.weakPointSummary,
+    required this.nextStep,
   });
 
   double get goalProgress {
