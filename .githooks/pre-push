@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+echo "pre-push: running full Flutter test suite..."
+
+if command -v fvm >/dev/null 2>&1; then
+  fvm flutter test
+elif command -v flutter >/dev/null 2>&1; then
+  flutter test
+else
+  echo "pre-push: neither fvm nor flutter was found in PATH." >&2
+  exit 1
+fi
+
+echo "pre-push: tests passed."
