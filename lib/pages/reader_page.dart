@@ -8,6 +8,7 @@ import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
+import '../services/english_word_utils.dart';
 import '../theme/app_constants.dart';
 import '../widgets/ai_summary_view.dart';
 import '../widgets/bookmark_sheet.dart';
@@ -55,6 +56,8 @@ class _ReaderPageState extends State<ReaderPage> {
   bool _dailyGoalPromptShown = false;
   bool _wasDailyGoalReached = false;
   Timer? _dailyGoalCheckTimer;
+  Timer? _readingReminderHideTimer;
+  String? _readingReminderMessage;
   double _pendingScrollProgress = 0.0;
   double? _pendingScrollOffset;
   int _viewportRestorePass = 0;
@@ -96,6 +99,7 @@ class _ReaderPageState extends State<ReaderPage> {
   @override
   void dispose() {
     _dailyGoalCheckTimer?.cancel();
+    _readingReminderHideTimer?.cancel();
     _readingProvider?.removeListener(_onReadingProviderChanged);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
@@ -269,15 +273,23 @@ class _ReaderPageState extends State<ReaderPage> {
     _wasDailyGoalReached = true;
     _dailyGoalPromptShown = true;
     final goalText = _formatGoalDuration(provider.dailyReadingGoalSeconds);
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('今日阅读目标已达成：$goalText'),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+    _showReadingReminder('今日阅读目标已达成：$goalText');
+  }
+
+  void _showReadingReminder(String message) {
+    _readingReminderHideTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _readingReminderMessage = message);
+    _readingReminderHideTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _readingReminderMessage = null);
+    });
+  }
+
+  void _hideReadingReminder() {
+    _readingReminderHideTimer?.cancel();
+    _readingReminderHideTimer = null;
+    if (_readingReminderMessage == null || !mounted) return;
+    setState(() => _readingReminderMessage = null);
   }
 
   String _formatGoalDuration(int seconds) {
@@ -290,6 +302,7 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _onWordTapped(String word, String contextText) {
+    _hideReadingReminder();
     context.read<ReadingProvider>().lookupWord(
       word,
       contextText: contextText,
@@ -357,6 +370,7 @@ class _ReaderPageState extends State<ReaderPage> {
   void _showTocSheet() {
     final provider = context.read<ReadingProvider>();
     if (!provider.hasBook) return;
+    _hideReadingReminder();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -366,6 +380,7 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _showFontSettingsSheet() {
+    _hideReadingReminder();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -377,6 +392,7 @@ class _ReaderPageState extends State<ReaderPage> {
   Future<void> _showSearchSheet() async {
     if (_searchSheetOpen) return;
 
+    _hideReadingReminder();
     context.read<ReadingProvider>().clearSourceHighlight();
     setState(() {
       _searchSheetOpen = true;
@@ -550,6 +566,7 @@ class _ReaderPageState extends State<ReaderPage> {
   void _onBookmarkTap() {
     final provider = context.read<ReadingProvider>();
     if (provider.isCurrentPositionBookmarked()) {
+      _hideReadingReminder();
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -636,6 +653,7 @@ class _ReaderPageState extends State<ReaderPage> {
                   aiFeaturesEnabled: settings.aiFeaturesEnabled,
                 ),
                 _buildReadingProgressLine(theme, _displayProgress),
+                _buildReadingReminder(theme),
                 Expanded(
                   child: isWide
                       ? Row(
@@ -702,6 +720,46 @@ class _ReaderPageState extends State<ReaderPage> {
       minHeight: 2,
       backgroundColor: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
       valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+    );
+  }
+
+  Widget _buildReadingReminder(ThemeData theme) {
+    final message = _readingReminderMessage;
+    final visible = message != null && !_searchSheetOpen;
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      child: visible
+          ? Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.18),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 15,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        message,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : const SizedBox.shrink(),
     );
   }
 
@@ -802,11 +860,23 @@ class _ReaderPageState extends State<ReaderPage> {
     VoidCallback closeToolbar, {
     required bool aiFeaturesEnabled,
   }) {
+    final lookupWord = _lookupWordFromSelection(selectedText);
     return [
       SelectedTextAction.copy(
         context: context,
         selectedText: selectedText,
         closeToolbar: closeToolbar,
+      ),
+      SelectedTextAction(
+        icon: Icons.translate_rounded,
+        tooltip: '查词',
+        enabled: lookupWord != null,
+        onPressed: () {
+          final word = lookupWord;
+          if (word == null) return;
+          closeToolbar();
+          _onWordTapped(word, selectedText.trim());
+        },
       ),
       SelectedTextAction(
         icon: Icons.auto_awesome_rounded,
@@ -818,6 +888,22 @@ class _ReaderPageState extends State<ReaderPage> {
         },
       ),
     ];
+  }
+
+  String? _lookupWordFromSelection(String selectedText) {
+    final trimmed = selectedText.trim();
+    if (trimmed.isEmpty) return null;
+    final matches = englishWordPattern.allMatches(trimmed).toList();
+    if (matches.length != 1) return null;
+
+    final match = matches.single;
+    final before = trimmed.substring(0, match.start);
+    final after = trimmed.substring(match.end);
+    final punctuation = RegExp(r'''^[\s.,;:!?"'“”‘’()\[\]{}<>-]*$''');
+    if (!punctuation.hasMatch(before) || !punctuation.hasMatch(after)) {
+      return null;
+    }
+    return match.group(0);
   }
 
   Widget _buildContentBlock(

@@ -845,9 +845,142 @@ class EpubService {
 
     final resolvedPath = _resolveHref(baseDir, src);
     final bytes = _readFileBytes(archive, resolvedPath);
+    final dimensions = _imageDimensions(element, bytes);
     result.add(
-      ImageBlock(src: src, alt: element.attributes['alt'], bytes: bytes),
+      ImageBlock(
+        src: src,
+        alt: element.attributes['alt'],
+        bytes: bytes,
+        width: dimensions?.width,
+        height: dimensions?.height,
+      ),
     );
+  }
+
+  static ({int width, int height})? _imageDimensions(
+    dom.Element element,
+    Uint8List? bytes,
+  ) {
+    final attrWidth =
+        _parseImageDimension(element.attributes['width']) ??
+        _parseCssDimension(element.attributes['style'], 'width');
+    final attrHeight =
+        _parseImageDimension(element.attributes['height']) ??
+        _parseCssDimension(element.attributes['style'], 'height');
+    if (attrWidth != null && attrHeight != null) {
+      return (width: attrWidth, height: attrHeight);
+    }
+
+    final byteDimensions = _imageDimensionsFromBytes(bytes);
+    final width = attrWidth ?? byteDimensions?.width;
+    final height = attrHeight ?? byteDimensions?.height;
+    if (width == null || height == null) return null;
+    return (width: width, height: height);
+  }
+
+  static int? _parseCssDimension(String? style, String property) {
+    if (style == null || style.trim().isEmpty) return null;
+    final match = RegExp(
+      '(^|;)\\s*$property\\s*:\\s*([^;]+)',
+      caseSensitive: false,
+    ).firstMatch(style);
+    return _parseImageDimension(match?.group(2));
+  }
+
+  static int? _parseImageDimension(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty) return null;
+    final match = RegExp(r'^(\d+(?:\.\d+)?)(?:px)?$').firstMatch(text);
+    if (match == null) return null;
+    final parsed = double.tryParse(match.group(1)!);
+    if (parsed == null || parsed <= 0) return null;
+    return parsed.round();
+  }
+
+  static ({int width, int height})? _imageDimensionsFromBytes(
+    Uint8List? bytes,
+  ) {
+    if (bytes == null || bytes.length < 10) return null;
+    return _pngDimensions(bytes) ??
+        _jpegDimensions(bytes) ??
+        _gifDimensions(bytes);
+  }
+
+  static ({int width, int height})? _pngDimensions(Uint8List bytes) {
+    if (bytes.length < 24) return null;
+    const signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    for (var i = 0; i < signature.length; i += 1) {
+      if (bytes[i] != signature[i]) return null;
+    }
+    return (
+      width: _readUint32BigEndian(bytes, 16),
+      height: _readUint32BigEndian(bytes, 20),
+    );
+  }
+
+  static ({int width, int height})? _gifDimensions(Uint8List bytes) {
+    if (bytes.length < 10) return null;
+    final header = ascii.decode(bytes.sublist(0, 6), allowInvalid: true);
+    if (header != 'GIF87a' && header != 'GIF89a') return null;
+    return (
+      width: _readUint16LittleEndian(bytes, 6),
+      height: _readUint16LittleEndian(bytes, 8),
+    );
+  }
+
+  static ({int width, int height})? _jpegDimensions(Uint8List bytes) {
+    if (bytes.length < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8) {
+      return null;
+    }
+
+    var offset = 2;
+    while (offset + 9 < bytes.length) {
+      if (bytes[offset] != 0xFF) {
+        offset += 1;
+        continue;
+      }
+      var marker = bytes[offset + 1];
+      while (marker == 0xFF && offset + 2 < bytes.length) {
+        offset += 1;
+        marker = bytes[offset + 1];
+      }
+      if (marker == 0xD9 || marker == 0xDA) return null;
+      if (offset + 4 >= bytes.length) return null;
+      final segmentLength = _readUint16BigEndian(bytes, offset + 2);
+      if (segmentLength < 2 || offset + 2 + segmentLength > bytes.length) {
+        return null;
+      }
+      if (_isJpegStartOfFrame(marker)) {
+        return (
+          height: _readUint16BigEndian(bytes, offset + 5),
+          width: _readUint16BigEndian(bytes, offset + 7),
+        );
+      }
+      offset += 2 + segmentLength;
+    }
+    return null;
+  }
+
+  static bool _isJpegStartOfFrame(int marker) {
+    return (marker >= 0xC0 && marker <= 0xC3) ||
+        (marker >= 0xC5 && marker <= 0xC7) ||
+        (marker >= 0xC9 && marker <= 0xCB) ||
+        (marker >= 0xCD && marker <= 0xCF);
+  }
+
+  static int _readUint16BigEndian(Uint8List bytes, int offset) {
+    return (bytes[offset] << 8) | bytes[offset + 1];
+  }
+
+  static int _readUint16LittleEndian(Uint8List bytes, int offset) {
+    return bytes[offset] | (bytes[offset + 1] << 8);
+  }
+
+  static int _readUint32BigEndian(Uint8List bytes, int offset) {
+    return (bytes[offset] << 24) |
+        (bytes[offset + 1] << 16) |
+        (bytes[offset + 2] << 8) |
+        bytes[offset + 3];
   }
 
   static String? _imageSource(dom.Element element) {

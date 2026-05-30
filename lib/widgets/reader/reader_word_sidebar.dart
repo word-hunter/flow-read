@@ -7,6 +7,8 @@ import '../../theme/app_colors.dart';
 import '../dictionary_detail_view.dart';
 import '../pronunciation_button.dart';
 
+enum _WordAction { known, learning }
+
 class ReaderWordSidebar extends StatefulWidget {
   final VoidCallback? onClose;
 
@@ -295,66 +297,84 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
     UserWordStatus? status,
     bool isBookmarked,
   ) {
-    final isLearning = status == UserWordStatus.learning || isBookmarked;
+    final selected = _selectedWordAction(status, isBookmarked);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionLabel(theme, '操作'),
-        Row(
-          children: [
-            Expanded(
-              child: _statusButton(
-                theme: theme,
-                label: '已掌握',
-                icon: Icons.check_circle_outline,
-                color: AppColors.familiarityHigh,
-                selected: status == UserWordStatus.known,
-                onPressed: () => provider.markWordKnown(word),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<_WordAction>(
+            selected: selected == null ? const {} : {selected},
+            emptySelectionAllowed: true,
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) {
+              if (selection.isEmpty) {
+                _markWordUnknown(provider, word);
+                return;
+              }
+              _applyWordAction(provider, word, selection.single);
+            },
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: const WidgetStatePropertyAll(
+                EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              ),
+              textStyle: WidgetStatePropertyAll(
+                theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _statusButton(
-                theme: theme,
-                label: isLearning ? '已加入生词本' : '加入生词本',
-                icon: isLearning ? Icons.bookmark : Icons.bookmark_border,
-                color: AppColors.vocabLearning,
-                selected: isLearning,
-                onPressed: () => _addToLearning(provider, word),
+            segments: const [
+              ButtonSegment(
+                value: _WordAction.known,
+                icon: Icon(Icons.check_circle_outline, size: 17),
+                label: Text('已掌握'),
               ),
-            ),
-          ],
+              ButtonSegment(
+                value: _WordAction.learning,
+                icon: Icon(Icons.bookmark_border, size: 17),
+                label: Text('生词本'),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _statusButton({
-    required ThemeData theme,
-    required String label,
-    required IconData icon,
-    required Color color,
-    required bool selected,
-    required VoidCallback onPressed,
-  }) {
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(label),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: color,
-        backgroundColor: selected ? color.withValues(alpha: 0.10) : null,
-        side: BorderSide(
-          color: color.withValues(alpha: selected ? 0.65 : 0.35),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-        minimumSize: const Size(0, 40),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: theme.textTheme.labelLarge?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
+  _WordAction? _selectedWordAction(UserWordStatus? status, bool isBookmarked) {
+    if (status == UserWordStatus.known) return _WordAction.known;
+    if (status == UserWordStatus.learning || isBookmarked) {
+      return _WordAction.learning;
+    }
+    return null;
+  }
+
+  Future<void> _applyWordAction(
+    ReadingProvider provider,
+    String word,
+    _WordAction action,
+  ) async {
+    switch (action) {
+      case _WordAction.known:
+        await provider.markWordKnown(word);
+        break;
+      case _WordAction.learning:
+        await _addToLearning(provider, word);
+        break;
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _markWordUnknown(ReadingProvider provider, String word) async {
+    await provider.markWordUnknown(word);
+    if (provider.isBookmarked(word)) {
+      provider.removeBookmark(word);
+    }
+    if (mounted) setState(() {});
   }
 
   Future<void> _addToLearning(ReadingProvider provider, String word) async {

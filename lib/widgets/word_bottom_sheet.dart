@@ -204,14 +204,14 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
                     onPressed: () => provider.markWordLearning(word),
                   ),
                 ),
-              if (status != null)
+              if (status != null || isBookmarked)
                 Expanded(
                   child: _actionButton(
                     theme: theme,
                     label: 'Unknown',
                     icon: Icons.help_outline,
                     color: AppColors.familiarityLow,
-                    onPressed: () => provider.markWordUnknown(word),
+                    onPressed: () => _markWordUnknown(provider, word),
                   ),
                 ),
             ],
@@ -319,6 +319,14 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  Future<void> _markWordUnknown(ReadingProvider provider, String word) async {
+    await provider.markWordUnknown(word);
+    if (provider.isBookmarked(word)) {
+      provider.removeBookmark(word);
+    }
+    if (mounted) setState(() => _bookmarkAdded = false);
   }
 
   Widget _savedLearningItemHint(ThemeData theme) {

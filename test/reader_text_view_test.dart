@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/content_block.dart';
 import 'package:flow_read/services/settings_service.dart';
@@ -45,32 +48,35 @@ void main() {
     ),
   );
 
-  testWidgets(
-    'highlighted paragraph uses configured colors except known words',
-    (tester) async {
-      final theme = ThemeData();
+  testWidgets('known words stay visually plain but remain tappable', (
+    tester,
+  ) async {
+    final theme = ThemeData();
 
-      final span = buildHighlightedParagraph(
-        'known learning mystery',
-        result,
-        theme,
-        onWordTapped: (_, _) {},
-        colorSettings: colorSettings,
-      );
+    final span = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      theme,
+      onWordTapped: (_, _) {},
+      colorSettings: colorSettings,
+    );
 
-      final tappableTexts = _tappableTextSpans(span);
+    final tappableTexts = _tappableTextSpans(span);
 
-      expect(span.toPlainText(), 'known learning mystery');
-      expect(_hasWidgetSpan(span), isFalse);
-      expect(tappableTexts.map((item) => item.text), contains('learning'));
-      expect(tappableTexts.map((item) => item.text), contains('mystery'));
-      expect(tappableTexts.map((item) => item.text), isNot(contains('known')));
-      expect(_colorFor(tappableTexts, 'learning'), learningColor);
-      expect(_colorFor(tappableTexts, 'mystery'), unknownColor);
-    },
-  );
+    expect(span.toPlainText(), 'known learning mystery');
+    expect(_hasWidgetSpan(span), isFalse);
+    expect(tappableTexts.map((item) => item.text), contains('known'));
+    expect(tappableTexts.map((item) => item.text), contains('learning'));
+    expect(tappableTexts.map((item) => item.text), contains('mystery'));
+    expect(_colorFor(tappableTexts, 'known'), isNot(unknownColor));
+    expect(_colorFor(tappableTexts, 'known'), isNot(learningColor));
+    expect(_colorFor(tappableTexts, 'learning'), learningColor);
+    expect(_colorFor(tappableTexts, 'mystery'), unknownColor);
+  });
 
-  testWidgets('styled blocks do not highlight known words', (tester) async {
+  testWidgets('styled blocks keep known words plain but tappable', (
+    tester,
+  ) async {
     final theme = ThemeData();
     final block = TextBlock(
       type: BlockType.paragraph,
@@ -89,15 +95,17 @@ void main() {
 
     expect(span.toPlainText(), 'known learning mystery');
     expect(_hasWidgetSpan(span), isFalse);
+    expect(tappableTexts.map((item) => item.text), contains('known'));
     expect(tappableTexts.map((item) => item.text), contains('learning'));
     expect(tappableTexts.map((item) => item.text), contains('mystery'));
-    expect(tappableTexts.map((item) => item.text), isNot(contains('known')));
+    expect(_colorFor(tappableTexts, 'known'), isNot(unknownColor));
+    expect(_colorFor(tappableTexts, 'known'), isNot(learningColor));
     expect(_colorFor(tappableTexts, 'learning'), learningColor);
     expect(_colorFor(tappableTexts, 'mystery'), unknownColor);
   });
 
   testWidgets(
-    'common contractions with straight or curly apostrophes stay unhighlighted',
+    'common contractions with straight or curly apostrophes stay plain but tappable',
     (tester) async {
       final theme = ThemeData();
       const text =
@@ -142,8 +150,16 @@ void main() {
 
       expect(paragraphSpan.toPlainText(), text);
       expect(blockSpan.toPlainText(), text);
-      expect(_tappableTextSpans(paragraphSpan), isEmpty);
-      expect(_tappableTextSpans(blockSpan), isEmpty);
+      expect(_tappableTextSpans(paragraphSpan), isNotEmpty);
+      expect(_tappableTextSpans(blockSpan), isNotEmpty);
+      expect(
+        _tappableTextSpans(paragraphSpan).map((item) => item.text),
+        contains("didn't"),
+      );
+      expect(
+        _tappableTextSpans(blockSpan).map((item) => item.text),
+        contains("didn't"),
+      );
     },
   );
 
@@ -232,7 +248,43 @@ void main() {
     expect(tappedWord, 'mystery');
     expect(tappedContext, '...mystery...');
   });
+
+  testWidgets('EPUB image blocks fit the available text width', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 160,
+              child: buildBlockWidget(
+                ImageBlock(
+                  src: 'cover.gif',
+                  bytes: _transparentGif,
+                  width: 800,
+                  height: 400,
+                ),
+                result,
+                ThemeData(),
+                onWordTapped: (_, _) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+
+    final imageFrame = tester.renderObject<RenderBox>(find.byType(AspectRatio));
+    expect(imageFrame.size.width, closeTo(160, 0.1));
+    expect(imageFrame.size.height, closeTo(80, 0.1));
+  });
 }
+
+final Uint8List _transparentGif = Uint8List.fromList(
+  base64Decode('R0lGODlhAQABAPAAAP///wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw=='),
+);
 
 List<_TappableTextProbe> _tappableTextSpans(InlineSpan span) {
   final result = <_TappableTextProbe>[];

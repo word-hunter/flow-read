@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../models/analysis_result.dart';
@@ -66,6 +68,24 @@ TextSpan buildTappableWordSpan({
       decoration: TextDecoration.underline,
       decorationColor: color.withValues(alpha: 0.5),
     ),
+    mouseCursor: SystemMouseCursors.click,
+    recognizer: TapGestureRecognizer()
+      ..onTap = () => onWordTapped(word, contextText),
+  );
+}
+
+TextSpan buildPlainLookupWordSpan({
+  required String word,
+  required TextStyle textStyle,
+  required WordTapCallback onWordTapped,
+  required String contextText,
+  required ThemeData theme,
+  String? searchQuery,
+}) {
+  final isSearchMatch = _containsSearchMatch(word, searchQuery);
+  return TextSpan(
+    text: word,
+    style: isSearchMatch ? _withSearchHighlight(textStyle, theme) : textStyle,
     mouseCursor: SystemMouseCursors.click,
     recognizer: TapGestureRecognizer()
       ..onTap = () => onWordTapped(word, contextText),
@@ -317,17 +337,61 @@ Widget buildBlockWidget(
       if (block.bytes == null) {
         return const SizedBox.shrink();
       }
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 400),
-          child: Image.memory(
-            block.bytes!,
-            fit: BoxFit.contain,
-            errorBuilder: (_, e, s) => const SizedBox.shrink(),
-          ),
-        ),
-      );
+      return _EpubImageBlockView(block: block);
+  }
+}
+
+class _EpubImageBlockView extends StatelessWidget {
+  static const double _fallbackAspectRatio = 4 / 3;
+  static const double _maxImageHeight = 520;
+
+  final ImageBlock block;
+
+  const _EpubImageBlockView({required this.block});
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = block.bytes;
+    if (bytes == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final availableWidth =
+              constraints.hasBoundedWidth && constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : 720.0;
+          final maxHeight = math.min(
+            _maxImageHeight,
+            math.max(220.0, availableWidth * 1.25),
+          );
+          final aspectRatio = (block.aspectRatio ?? _fallbackAspectRatio)
+              .clamp(0.2, 6.0)
+              .toDouble();
+          final frameWidth = math.min(availableWidth, maxHeight * aspectRatio);
+
+          return Align(
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: frameWidth,
+              child: AspectRatio(
+                aspectRatio: aspectRatio,
+                child: Image.memory(
+                  bytes,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                  gaplessPlayback: true,
+                  filterQuality: FilterQuality.medium,
+                  semanticLabel: block.alt,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 }
 
@@ -456,8 +520,20 @@ class _HighlightBuilder {
       } else if (isKnown ||
           key.length < AppConstants.minWordLength ||
           _isCommonContraction(word, key)) {
-        spans.addAll(
-          _buildSearchHighlightedSpans(word, theme, searchQuery: searchQuery),
+        spans.add(
+          buildPlainLookupWordSpan(
+            word: word,
+            textStyle: theme.textTheme.bodyLarge!.copyWith(
+              height: lineHeight,
+              letterSpacing: 0.3,
+              fontFamily: fontFamily,
+              fontSize: fontSize,
+            ),
+            theme: theme,
+            searchQuery: searchQuery,
+            onWordTapped: onWordTapped,
+            contextText: paragraph,
+          ),
         );
       } else {
         final unknownColor =
@@ -627,12 +703,14 @@ class _StyledBlockBuilder {
       } else if (isKnown ||
           key.length < AppConstants.minWordLength ||
           _isCommonContraction(word, key)) {
-        spans.addAll(
-          _buildSearchHighlightedSpans(
-            word,
-            theme,
-            style: _textStyleFor(wordStyle),
+        spans.add(
+          buildPlainLookupWordSpan(
+            word: word,
+            textStyle: _textStyleFor(wordStyle),
+            theme: theme,
             searchQuery: searchQuery,
+            onWordTapped: onWordTapped,
+            contextText: fullText,
           ),
         );
       } else {

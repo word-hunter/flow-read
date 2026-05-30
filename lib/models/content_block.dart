@@ -6,10 +6,8 @@ class InlineStyle {
 
   const InlineStyle({this.bold = false, this.italic = false});
 
-  InlineStyle merge(InlineStyle other) => InlineStyle(
-        bold: bold || other.bold,
-        italic: italic || other.italic,
-      );
+  InlineStyle merge(InlineStyle other) =>
+      InlineStyle(bold: bold || other.bold, italic: italic || other.italic);
 
   static const normal = InlineStyle();
 }
@@ -45,6 +43,23 @@ class ImageBlock extends ContentBlock {
   final String src;
   final String? alt;
   final Uint8List? bytes;
+  final int? width;
+  final int? height;
 
-  ImageBlock({required this.src, this.alt, this.bytes});
+  ImageBlock({
+    required this.src,
+    this.alt,
+    this.bytes,
+    this.width,
+    this.height,
+  });
+
+  double? get aspectRatio {
+    final imageWidth = width;
+    final imageHeight = height;
+    if (imageWidth == null || imageHeight == null || imageHeight <= 0) {
+      return null;
+    }
+    return imageWidth / imageHeight;
+  }
 }

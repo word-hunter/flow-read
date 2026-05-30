@@ -817,7 +817,7 @@ void main() {
     expect(find.text('flow'), findsOneWidget);
   });
 
-  testWidgets('ReaderWordSidebar merges learning and bookmark action', (
+  testWidgets('ReaderWordSidebar can move a known word back to learning', (
     tester,
   ) async {
     final vocab = UserVocabularyService(
@@ -841,6 +841,7 @@ void main() {
     addTearDown(settings.dispose);
 
     await provider.lookupWord('flow');
+    await provider.markWordKnown('flow');
 
     await tester.pumpWidget(
       MultiProvider(
@@ -858,11 +859,13 @@ void main() {
     await tester.pump();
 
     expect(find.text('学习中'), findsNothing);
-    await tester.tap(find.text('加入生词本'));
+    expect(find.text('Unknown'), findsNothing);
+    expect(provider.getWordStatus('flow'), UserWordStatus.known);
+    await tester.tap(find.text('生词本'));
     await tester.pumpAndSettle();
 
     expect(provider.getWordStatus('flow'), UserWordStatus.learning);
-    expect(find.text('已加入生词本'), findsOneWidget);
+    expect(find.text('生词本'), findsOneWidget);
   });
 
   testWidgets('DictionaryDetailView handles mouse hover before word click', (
@@ -988,7 +991,7 @@ void main() {
           .dy;
       final contextTopBefore = tester.getTopLeft(find.text('原文语境')).dy;
       final learningActionBottomBefore = tester
-          .getBottomLeft(find.text('加入生词本'))
+          .getBottomLeft(find.text('生词本'))
           .dy;
 
       expect(find.text('操作'), findsOneWidget);
@@ -1007,7 +1010,7 @@ void main() {
 
       expect(tester.getTopLeft(find.text('原文语境')).dy, contextTopBefore);
       expect(
-        tester.getBottomLeft(find.text('加入生词本')).dy,
+        tester.getBottomLeft(find.text('生词本')).dy,
         learningActionBottomBefore,
       );
     },

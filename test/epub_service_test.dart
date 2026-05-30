@@ -24,7 +24,7 @@ void main() {
             </ul>
             <blockquote><p>Quoted line.</p></blockquote>
             <figure>
-              <img src="../Images/pic.png#cover" alt="Map" />
+              <img src="../Images/pic.png#cover" alt="Map" width="640" height="320" />
               <figcaption>Map caption</figcaption>
             </figure>
             <table>
@@ -77,6 +77,9 @@ void main() {
     expect(image.src, '../Images/pic.png');
     expect(image.alt, 'Map');
     expect(image.bytes, Uint8List.fromList([1, 2, 3, 4]));
+    expect(image.width, 640);
+    expect(image.height, 320);
+    expect(image.aspectRatio, 2);
   });
 
   test(
