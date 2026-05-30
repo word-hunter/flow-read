@@ -241,6 +241,50 @@ void main() {
       },
     );
 
+    test('source priority can be reordered and persists', () async {
+      final settings = SettingsService();
+      await settings.init();
+
+      await settings.moveDictionarySource(DictionarySourceType.collins, 1);
+
+      expect(settings.dictionarySources.map((config) => config.type).toList(), [
+        DictionarySourceType.wordNet,
+        DictionarySourceType.collins,
+        DictionarySourceType.dictionaryApi,
+        DictionarySourceType.longman,
+      ]);
+      expect(
+        settings.dictionarySources.map((config) => config.priority).toList(),
+        [0, 1, 2, 3],
+      );
+
+      final reloaded = SettingsService();
+      await reloaded.init();
+      expect(
+        reloaded.dictionarySources.map((config) => config.type).toList(),
+        settings.dictionarySources.map((config) => config.type).toList(),
+      );
+    });
+
+    test('WordNet fallback source stays enabled', () async {
+      final settings = SettingsService();
+      await settings.init();
+
+      await settings.setDictionarySourceEnabled(
+        DictionarySourceType.wordNet,
+        false,
+      );
+
+      expect(
+        settings.dictionarySources
+            .singleWhere(
+              (config) => config.type == DictionarySourceType.wordNet,
+            )
+            .enabled,
+        isTrue,
+      );
+    });
+
     test('enabled Collins source is queried before WordNet', () async {
       final settings = SettingsService();
       await settings.init();

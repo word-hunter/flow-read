@@ -4,6 +4,7 @@ import '../../services/app_links.dart';
 import '../../services/app_update_service.dart';
 import '../../services/app_version.dart';
 import '../../services/backup_service.dart';
+import '../../services/dictionary/dictionary_source_config.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_theme.dart';
 import '../theme_transition.dart';
@@ -517,18 +518,43 @@ class SettingsDictionarySection extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                secondary: const Icon(Icons.language_outlined),
-                title: const Text('Collins 在线词典'),
-                subtitle: Text(
-                  settings.collinsDictionaryEnabled ? '已启用' : '已停用',
+              for (var i = 0; i < settings.dictionarySources.length; i++) ...[
+                if (i > 0) const Divider(height: 24),
+                _DictionarySourceTile(
+                  config: settings.dictionarySources[i],
+                  position: i + 1,
+                  isFirst: i == 0,
+                  isLast: i == settings.dictionarySources.length - 1,
+                  onEnabledChanged:
+                      settings.dictionarySources[i].type ==
+                          DictionarySourceType.wordNet
+                      ? null
+                      : (enabled) {
+                          settings.setDictionarySourceEnabled(
+                            settings.dictionarySources[i].type,
+                            enabled,
+                          );
+                        },
+                  onMoveUp: i == 0
+                      ? null
+                      : () {
+                          settings.moveDictionarySource(
+                            settings.dictionarySources[i].type,
+                            -1,
+                          );
+                        },
+                  onMoveDown: i == settings.dictionarySources.length - 1
+                      ? null
+                      : () {
+                          settings.moveDictionarySource(
+                            settings.dictionarySources[i].type,
+                            1,
+                          );
+                        },
                 ),
-                value: settings.collinsDictionaryEnabled,
-                onChanged: settings.setCollinsDictionaryEnabled,
-              ),
+              ],
               if (enabledSources.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 SettingsStatusLine(
                   icon: Icons.low_priority_outlined,
                   text: '当前顺序：$enabledSources',
@@ -582,6 +608,158 @@ class SettingsDictionarySection extends StatelessWidget {
     if (loading) return '正在统计缓存...';
     if (count == null) return '缓存数量暂无法统计';
     return '在线词典缓存：$count 条';
+  }
+}
+
+class _DictionarySourceTile extends StatelessWidget {
+  const _DictionarySourceTile({
+    required this.config,
+    required this.position,
+    required this.isFirst,
+    required this.isLast,
+    required this.onEnabledChanged,
+    required this.onMoveUp,
+    required this.onMoveDown,
+  });
+
+  final DictionarySourceConfig config;
+  final int position;
+  final bool isFirst;
+  final bool isLast;
+  final ValueChanged<bool>? onEnabledChanged;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final status = config.type == DictionarySourceType.wordNet
+        ? '始终启用'
+        : config.enabled
+        ? '已启用'
+        : '已停用';
+    final sourceType = config.type.online ? '在线来源' : '本地兜底';
+    final meta = '$sourceType · $status · 第 $position 位';
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final info = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(_iconForSource(config.type), color: colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    config.type.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    meta,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+
+        final actions = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Tooltip(
+              message: '上移',
+              child: IconButton(
+                onPressed: isFirst ? null : onMoveUp,
+                icon: const Icon(Icons.keyboard_arrow_up),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            Tooltip(
+              message: '下移',
+              child: IconButton(
+                onPressed: isLast ? null : onMoveDown,
+                icon: const Icon(Icons.keyboard_arrow_down),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            Switch(value: config.enabled, onChanged: onEnabledChanged),
+          ],
+        );
+
+        if (constraints.maxWidth < 520) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: info),
+                  Switch(value: config.enabled, onChanged: onEnabledChanged),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Tooltip(
+                      message: '上移',
+                      child: IconButton(
+                        onPressed: isFirst ? null : onMoveUp,
+                        icon: const Icon(Icons.keyboard_arrow_up),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    Tooltip(
+                      message: '下移',
+                      child: IconButton(
+                        onPressed: isLast ? null : onMoveDown,
+                        icon: const Icon(Icons.keyboard_arrow_down),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: info),
+            const SizedBox(width: 12),
+            actions,
+          ],
+        );
+      },
+    );
+  }
+
+  IconData _iconForSource(DictionarySourceType type) {
+    switch (type) {
+      case DictionarySourceType.wordNet:
+        return Icons.auto_stories_outlined;
+      case DictionarySourceType.dictionaryApi:
+        return Icons.public_outlined;
+      case DictionarySourceType.collins:
+        return Icons.language_outlined;
+      case DictionarySourceType.longman:
+        return Icons.school_outlined;
+    }
   }
 }
 

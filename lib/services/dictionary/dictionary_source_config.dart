@@ -105,8 +105,22 @@ class DictionarySourceConfig {
     Iterable<DictionarySourceConfig> configs,
   ) {
     final byType = {for (final config in configs) config.type: config};
-    return [for (final fallback in defaults) byType[fallback.type] ?? fallback]
-      ..sort((a, b) => a.priority.compareTo(b.priority));
+    final defaultPriority = {
+      for (final config in defaults) config.type: config.priority,
+    };
+    final normalized =
+        [
+          for (final fallback in defaults)
+            _normalizeFallback(byType[fallback.type] ?? fallback),
+        ]..sort((a, b) {
+          final priority = a.priority.compareTo(b.priority);
+          if (priority != 0) return priority;
+          return defaultPriority[a.type]!.compareTo(defaultPriority[b.type]!);
+        });
+    return [
+      for (var i = 0; i < normalized.length; i++)
+        normalized[i].copyWith(priority: i),
+    ];
   }
 
   static List<DictionarySourceConfig> migrateLegacyOrder(
@@ -135,5 +149,14 @@ class DictionarySourceConfig {
       if (byType[item.type]?.priority != item.priority) return false;
     }
     return true;
+  }
+
+  static DictionarySourceConfig _normalizeFallback(
+    DictionarySourceConfig config,
+  ) {
+    if (config.type == DictionarySourceType.wordNet) {
+      return config.copyWith(enabled: true);
+    }
+    return config;
   }
 }

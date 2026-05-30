@@ -494,6 +494,7 @@ class SettingsService extends ChangeNotifier {
     DictionarySourceType type,
     bool enabled,
   ) async {
+    if (type == DictionarySourceType.wordNet && !enabled) return;
     _dictionarySources = DictionarySourceConfig.normalize(
       _dictionarySources.map(
         (config) =>
@@ -506,6 +507,31 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setCollinsDictionaryEnabled(bool enabled) {
     return setDictionarySourceEnabled(DictionarySourceType.collins, enabled);
+  }
+
+  Future<void> moveDictionarySource(
+    DictionarySourceType type,
+    int direction,
+  ) async {
+    if (direction == 0) return;
+    final sources = DictionarySourceConfig.normalize(_dictionarySources);
+    final currentIndex = sources.indexWhere((config) => config.type == type);
+    if (currentIndex < 0) return;
+
+    final targetIndex = (currentIndex + direction)
+        .clamp(0, sources.length - 1)
+        .toInt();
+    if (targetIndex == currentIndex) return;
+
+    final reordered = [...sources];
+    final moved = reordered.removeAt(currentIndex);
+    reordered.insert(targetIndex, moved);
+    _dictionarySources = [
+      for (var i = 0; i < reordered.length; i++)
+        reordered[i].copyWith(priority: i),
+    ];
+    await _writeDictionarySources(_dictionarySources);
+    notifyListeners();
   }
 
   Future<void> incrementAIUsage({

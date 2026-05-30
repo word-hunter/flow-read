@@ -1,10 +1,41 @@
 import 'package:flow_read/services/app_update_service.dart';
+import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/settings/settings_sections.dart';
 import 'package:flow_read/widgets/settings/update_check_result_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('dictionary section shows all source controls', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SettingsDictionarySection(
+              settings: SettingsService(),
+              onClearCache: () {},
+              cacheEntryCount: 12,
+              cacheStatsLoading: false,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Collins'), findsOneWidget);
+    expect(find.text('WordNet'), findsOneWidget);
+    expect(find.text('Dictionary API'), findsOneWidget);
+    expect(find.text('Longman'), findsOneWidget);
+    expect(find.text('本地兜底 · 始终启用 · 第 2 位'), findsOneWidget);
+    expect(find.text('在线词典缓存：12 条'), findsOneWidget);
+    expect(
+      find.text('当前顺序：Collins → WordNet → Dictionary API → Longman'),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.keyboard_arrow_up), findsNWidgets(4));
+    expect(find.byIcon(Icons.keyboard_arrow_down), findsNWidgets(4));
+  });
+
   testWidgets('about section keeps actions at the bottom', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
