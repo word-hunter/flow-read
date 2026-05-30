@@ -222,6 +222,109 @@ void main() {
     expect(darkWidgetText.color, searchHighlightForegroundFor(darkTheme));
   });
 
+  testWidgets('lookup highlight backgrounds every matching known word', (
+    tester,
+  ) async {
+    final theme = ThemeData();
+
+    final span = buildHighlightedParagraph(
+      'known learning mystery known',
+      result,
+      theme,
+      onWordTapped: (_, _) {},
+      colorSettings: colorSettings,
+      lookupHighlightWord: 'known',
+    );
+
+    final tappableTexts = _tappableTextSpans(span);
+    final knownSpans = tappableTexts.where((item) => item.text == 'known');
+
+    expect(knownSpans, hasLength(2));
+    expect(
+      knownSpans.map((item) => item.backgroundColor),
+      everyElement(lookupHighlightBackgroundFor(theme)),
+    );
+    expect(_backgroundFor(tappableTexts, 'learning'), isNull);
+    expect(_backgroundFor(tappableTexts, 'mystery'), isNull);
+  });
+
+  testWidgets('lookup highlight also applies to learning and unknown words', (
+    tester,
+  ) async {
+    final theme = ThemeData();
+
+    final learningSpan = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      theme,
+      onWordTapped: (_, _) {},
+      colorSettings: colorSettings,
+      lookupHighlightWord: 'learning',
+    );
+    final mysterySpan = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      theme,
+      onWordTapped: (_, _) {},
+      colorSettings: colorSettings,
+      lookupHighlightWord: 'mystery',
+    );
+
+    expect(
+      _backgroundFor(_tappableTextSpans(learningSpan), 'learning'),
+      lookupHighlightBackgroundFor(theme),
+    );
+    expect(
+      _backgroundFor(_tappableTextSpans(mysterySpan), 'mystery'),
+      lookupHighlightBackgroundFor(theme),
+    );
+  });
+
+  testWidgets('search highlight takes precedence over lookup highlight', (
+    tester,
+  ) async {
+    final theme = ThemeData();
+
+    final span = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      theme,
+      onWordTapped: (_, _) {},
+      colorSettings: colorSettings,
+      searchQuery: 'known',
+      lookupHighlightWord: 'known',
+    );
+
+    final style = _textSpanStyleFor(span, 'known');
+
+    expect(style?.backgroundColor, searchHighlightBackgroundFor(theme));
+    expect(style?.color, searchHighlightForegroundFor(theme));
+  });
+
+  testWidgets('styled blocks apply lookup highlight backgrounds', (
+    tester,
+  ) async {
+    final theme = ThemeData();
+    final block = TextBlock(
+      type: BlockType.paragraph,
+      spans: const [StyledText('known learning mystery')],
+    );
+
+    final span = buildStyledBlock(
+      block,
+      result,
+      theme,
+      onWordTapped: (_, _) {},
+      colorSettings: colorSettings,
+      lookupHighlightWord: 'mystery',
+    );
+
+    expect(
+      _backgroundFor(_tappableTextSpans(span), 'mystery'),
+      lookupHighlightBackgroundFor(theme),
+    );
+  });
+
   testWidgets('highlighted word text spans remain tappable', (tester) async {
     final theme = ThemeData();
     String? tappedWord;
@@ -310,6 +413,10 @@ List<_TappableTextProbe> _tappableTextSpans(InlineSpan span) {
 
 Color? _colorFor(List<_TappableTextProbe> items, String text) {
   return items.firstWhere((item) => item.text == text).color;
+}
+
+Color? _backgroundFor(List<_TappableTextProbe> items, String text) {
+  return items.firstWhere((item) => item.text == text).backgroundColor;
 }
 
 bool _hasWidgetSpan(InlineSpan span) {

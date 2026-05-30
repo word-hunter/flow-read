@@ -431,11 +431,12 @@ class _RssArticleListState extends State<RssArticleList> {
             text,
             result,
             theme,
-            onWordTapped: (word, _) => _showWordSheet(context, word),
+            onWordTapped: _showWordSheet,
             fontSize: 14,
             lineHeight: 1.7,
             fontFamily: 'Serif',
             colorSettings: settings.colors,
+            lookupHighlightWord: readingProvider.selectedWord,
             wordLevelService: readingProvider.wordLevelService,
           )
           as TextSpan,
@@ -443,13 +444,14 @@ class _RssArticleListState extends State<RssArticleList> {
     );
   }
 
-  void _showWordSheet(BuildContext context, String word) {
-    context.read<ReadingProvider>().lookupWord(word);
+  void _showWordSheet(String word, String contextText) {
+    final provider = context.read<ReadingProvider>();
+    provider.lookupWord(word, contextText: contextText);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (_) => WordBottomSheet(word: word),
-    );
+    ).whenComplete(provider.clearWordLookup);
   }
 
   String _formatDate(DateTime date) {

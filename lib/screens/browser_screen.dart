@@ -102,13 +102,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
   }
 
   void _onWordTapped(String word, String contextText) {
-    context.read<ReadingProvider>().lookupWord(word);
+    final provider = context.read<ReadingProvider>();
+    provider.lookupWord(word, contextText: contextText);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => WordBottomSheet(word: word),
-    );
+    ).whenComplete(provider.clearWordLookup);
   }
 
   void _analyzeSelected(String text) {
@@ -411,6 +412,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                         lineHeight: 1.75,
                         fontFamily: 'Serif',
                         colorSettings: settings.colors,
+                        lookupHighlightWord: readingProvider.selectedWord,
                         wordLevelService: readingProvider.wordLevelService,
                       ),
                       style: theme.textTheme.bodyLarge?.copyWith(

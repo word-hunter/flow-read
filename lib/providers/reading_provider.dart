@@ -122,6 +122,7 @@ class ReadingProvider extends ChangeNotifier {
   DictionaryLookupResult? _selectedWordLookupResult;
   final List<DictionaryLookupResult> _wordLookupHistory = [];
   bool _isLoadingWord = false;
+  int _wordLookupRequestVersion = 0;
 
   // ============================================================
   // Text selection / analysis state
@@ -1091,6 +1092,7 @@ class ReadingProvider extends ChangeNotifier {
     DictionaryLookupRequest request, {
     bool trackReadingLookup = false,
   }) async {
+    final requestVersion = ++_wordLookupRequestVersion;
     _selectedWord = request.displayWord;
     _selectedWordTranslation = null;
     _selectedWordContext = request.contextText;
@@ -1107,8 +1109,10 @@ class ReadingProvider extends ChangeNotifier {
         word: request.displayWord,
       );
     }
+    if (requestVersion != _wordLookupRequestVersion) return;
 
     final result = await _wordRepo.lookupRequest(request);
+    if (requestVersion != _wordLookupRequestVersion) return;
     _applyWordLookupResult(result);
     _isLoadingWord = false;
     notifyListeners();
@@ -1123,6 +1127,7 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   void clearWordLookup() {
+    _wordLookupRequestVersion += 1;
     _selectedWord = null;
     _selectedWordTranslation = null;
     _selectedWordContext = null;

@@ -55,6 +55,7 @@ TextSpan buildTappableWordSpan({
   required String contextText,
   required ThemeData theme,
   String? searchQuery,
+  bool isLookupHighlighted = false,
 }) {
   final isSearchMatch = _containsSearchMatch(word, searchQuery);
   return TextSpan(
@@ -64,6 +65,8 @@ TextSpan buildTappableWordSpan({
       color: isSearchMatch ? searchHighlightForegroundFor(theme) : color,
       backgroundColor: isSearchMatch
           ? searchHighlightBackgroundFor(theme)
+          : isLookupHighlighted
+          ? lookupHighlightBackgroundFor(theme)
           : textStyle.backgroundColor,
       decoration: TextDecoration.underline,
       decorationColor: color.withValues(alpha: 0.5),
@@ -81,11 +84,17 @@ TextSpan buildPlainLookupWordSpan({
   required String contextText,
   required ThemeData theme,
   String? searchQuery,
+  bool isLookupHighlighted = false,
 }) {
   final isSearchMatch = _containsSearchMatch(word, searchQuery);
+  final style = isSearchMatch
+      ? _withSearchHighlight(textStyle, theme)
+      : isLookupHighlighted
+      ? _withLookupHighlight(textStyle, theme)
+      : textStyle;
   return TextSpan(
     text: word,
-    style: isSearchMatch ? _withSearchHighlight(textStyle, theme) : textStyle,
+    style: style,
     mouseCursor: SystemMouseCursors.click,
     recognizer: TapGestureRecognizer()
       ..onTap = () => onWordTapped(word, contextText),
@@ -144,6 +153,13 @@ TextStyle _withSearchHighlight(TextStyle? style, ThemeData theme) {
   );
 }
 
+TextStyle _withLookupHighlight(TextStyle? style, ThemeData theme) {
+  final effectiveStyle = style ?? const TextStyle();
+  return effectiveStyle.copyWith(
+    backgroundColor: lookupHighlightBackgroundFor(theme),
+  );
+}
+
 bool _containsSearchMatch(String text, String? searchQuery) {
   final query = searchQuery?.trim();
   if (query == null || query.isEmpty) return false;
@@ -164,6 +180,11 @@ Color searchHighlightForegroundFor(ThemeData theme) {
   return const Color(0xFF261900);
 }
 
+Color lookupHighlightBackgroundFor(ThemeData theme) {
+  final opacity = theme.brightness == Brightness.dark ? 0.52 : 0.58;
+  return theme.colorScheme.primaryContainer.withValues(alpha: opacity);
+}
+
 InlineSpan buildHighlightedText(
   AnalysisResult result,
   ThemeData theme, {
@@ -173,6 +194,7 @@ InlineSpan buildHighlightedText(
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
+  String? lookupHighlightWord,
   WordLevelService? wordLevelService,
 }) {
   return _HighlightBuilder(
@@ -184,6 +206,7 @@ InlineSpan buildHighlightedText(
     fontFamily,
     colorSettings,
     searchQuery,
+    lookupHighlightWord,
     wordLevelService,
   ).build();
 }
@@ -198,6 +221,7 @@ InlineSpan buildHighlightedParagraph(
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
+  String? lookupHighlightWord,
   WordLevelService? wordLevelService,
 }) {
   return _HighlightBuilder(
@@ -209,6 +233,7 @@ InlineSpan buildHighlightedParagraph(
     fontFamily,
     colorSettings,
     searchQuery,
+    lookupHighlightWord,
     wordLevelService,
   ).buildParagraph(paragraph);
 }
@@ -223,6 +248,7 @@ InlineSpan buildStyledBlock(
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
+  String? lookupHighlightWord,
   WordLevelService? wordLevelService,
 }) {
   return _StyledBlockBuilder(
@@ -235,6 +261,7 @@ InlineSpan buildStyledBlock(
     fontFamily,
     colorSettings,
     searchQuery,
+    lookupHighlightWord,
     wordLevelService,
   ).build();
 }
@@ -250,6 +277,7 @@ Widget buildBlockWidget(
   String fontFamily = 'Serif',
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
+  String? lookupHighlightWord,
   WordLevelService? wordLevelService,
 }) {
   switch (block) {
@@ -274,6 +302,7 @@ Widget buildBlockWidget(
         fontFamily: fontFamily,
         colorSettings: colorSettings,
         searchQuery: searchQuery,
+        lookupHighlightWord: lookupHighlightWord,
         wordLevelService: wordLevelService,
       );
 
@@ -404,10 +433,12 @@ class _HighlightBuilder {
   final String fontFamily;
   final VocabularyColorSettings? colorSettings;
   final String? searchQuery;
+  final String? lookupHighlightWord;
   final WordLevelService? wordLevelService;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
   late final Set<String> learningSet;
+  late final String? lookupHighlightKey;
 
   _HighlightBuilder(
     this.result,
@@ -418,6 +449,7 @@ class _HighlightBuilder {
     this.fontFamily,
     this.colorSettings,
     this.searchQuery,
+    this.lookupHighlightWord,
     this.wordLevelService,
   ) {
     vocabWords = {};
@@ -426,6 +458,7 @@ class _HighlightBuilder {
     }
     knownSet = result.knownWords;
     learningSet = result.learningWords;
+    lookupHighlightKey = _lookupKeyFor(lookupHighlightWord);
   }
 
   Color _colorForVocab(String lower, Vocabulary vocab) {
@@ -450,6 +483,15 @@ class _HighlightBuilder {
         canonicalEnglishContraction(lower) ??
         lower;
   }
+
+  String? _lookupKeyFor(String? word) {
+    final trimmed = word?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    final key = _keyFor(trimmed);
+    return key.isEmpty ? null : key;
+  }
+
+  bool _isLookupHighlighted(String key) => lookupHighlightKey == key;
 
   InlineSpan build() {
     return buildParagraph(result.passageText);
@@ -479,6 +521,7 @@ class _HighlightBuilder {
       final isVocab = vocabWords.containsKey(key);
       final isKnown = knownSet.contains(key);
       final isLearning = !isVocab && learningSet.contains(key);
+      final isLookupHighlighted = _isLookupHighlighted(key);
 
       if (isVocab) {
         final vocab = vocabWords[key]!;
@@ -495,6 +538,7 @@ class _HighlightBuilder {
             ),
             theme: theme,
             searchQuery: searchQuery,
+            isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: vocab.context,
           ),
@@ -513,6 +557,7 @@ class _HighlightBuilder {
             ),
             theme: theme,
             searchQuery: searchQuery,
+            isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: '...$word...',
           ),
@@ -531,6 +576,7 @@ class _HighlightBuilder {
             ),
             theme: theme,
             searchQuery: searchQuery,
+            isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: paragraph,
           ),
@@ -550,6 +596,7 @@ class _HighlightBuilder {
             ),
             theme: theme,
             searchQuery: searchQuery,
+            isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: '...$word...',
           ),
@@ -584,10 +631,12 @@ class _StyledBlockBuilder {
   final String fontFamily;
   final VocabularyColorSettings? colorSettings;
   final String? searchQuery;
+  final String? lookupHighlightWord;
   final WordLevelService? wordLevelService;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
   late final Set<String> learningSet;
+  late final String? lookupHighlightKey;
 
   _StyledBlockBuilder(
     this.block,
@@ -599,6 +648,7 @@ class _StyledBlockBuilder {
     this.fontFamily,
     this.colorSettings,
     this.searchQuery,
+    this.lookupHighlightWord,
     this.wordLevelService,
   ) {
     vocabWords = {};
@@ -607,6 +657,7 @@ class _StyledBlockBuilder {
     }
     knownSet = result.knownWords;
     learningSet = result.learningWords;
+    lookupHighlightKey = _lookupKeyFor(lookupHighlightWord);
   }
 
   Color _colorForVocab(String lower, Vocabulary vocab) {
@@ -630,6 +681,15 @@ class _StyledBlockBuilder {
         canonicalEnglishContraction(lower) ??
         lower;
   }
+
+  String? _lookupKeyFor(String? word) {
+    final trimmed = word?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    final key = _keyFor(trimmed);
+    return key.isEmpty ? null : key;
+  }
+
+  bool _isLookupHighlighted(String key) => lookupHighlightKey == key;
 
   InlineSpan build() {
     final fullText = block.plainText;
@@ -672,6 +732,7 @@ class _StyledBlockBuilder {
       final isVocab = vocabWords.containsKey(key);
       final isKnown = knownSet.contains(key);
       final isLearning = !isVocab && learningSet.contains(key);
+      final isLookupHighlighted = _isLookupHighlighted(key);
 
       if (isVocab) {
         final vocab = vocabWords[key]!;
@@ -683,6 +744,7 @@ class _StyledBlockBuilder {
             textStyle: _textStyleFor(wordStyle),
             theme: theme,
             searchQuery: searchQuery,
+            isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: vocab.context,
           ),
@@ -696,6 +758,7 @@ class _StyledBlockBuilder {
             textStyle: _textStyleFor(wordStyle),
             theme: theme,
             searchQuery: searchQuery,
+            isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: '...$word...',
           ),
@@ -709,6 +772,7 @@ class _StyledBlockBuilder {
             textStyle: _textStyleFor(wordStyle),
             theme: theme,
             searchQuery: searchQuery,
+            isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: fullText,
           ),
@@ -723,6 +787,7 @@ class _StyledBlockBuilder {
             textStyle: _textStyleFor(wordStyle),
             theme: theme,
             searchQuery: searchQuery,
+            isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: '...$word...',
           ),

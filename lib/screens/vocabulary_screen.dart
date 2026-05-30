@@ -152,7 +152,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => WordBottomSheet(word: vocab.word),
-    );
+    ).whenComplete(provider.clearWordLookup);
   }
 
   Widget _buildSearchBar(ThemeData theme) {

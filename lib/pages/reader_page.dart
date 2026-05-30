@@ -301,7 +301,8 @@ class _ReaderPageState extends State<ReaderPage> {
 
   void _onWordTapped(String word, String contextText) {
     _hideReadingReminder();
-    context.read<ReadingProvider>().lookupWord(
+    final provider = context.read<ReadingProvider>();
+    provider.lookupWord(
       word,
       contextText: contextText,
       trackReadingLookup: true,
@@ -317,7 +318,7 @@ class _ReaderPageState extends State<ReaderPage> {
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (_) => WordBottomSheet(word: word),
-      );
+      ).whenComplete(provider.clearWordLookup);
     }
   }
 
@@ -344,6 +345,7 @@ class _ReaderPageState extends State<ReaderPage> {
     }
     provider.analyzeSelectedTextAI(selectedText, before, after);
     if (_isWideScreen) {
+      provider.clearWordLookup();
       setState(() {
         _sidebarMode = _ReaderSidebarMode.textAnalysis;
         _sidebarSelectedText = selectedText;
@@ -884,9 +886,13 @@ class _ReaderPageState extends State<ReaderPage> {
   }) {
     final provider = context.read<ReadingProvider>();
     final searchQuery = _effectiveHighlightQuery(provider);
+    final lookupHighlightWord = provider.selectedWord;
+    final hasLookupHighlight =
+        lookupHighlightWord != null && lookupHighlightWord.trim().isNotEmpty;
 
     if (isFirstBlock &&
         searchQuery.isEmpty &&
+        !hasLookupHighlight &&
         block is TextBlock &&
         block.type == BlockType.paragraph &&
         block.plainText.isNotEmpty) {
@@ -912,6 +918,7 @@ class _ReaderPageState extends State<ReaderPage> {
       fontFamily: provider.fontFamily,
       colorSettings: colorSettings,
       searchQuery: searchQuery,
+      lookupHighlightWord: lookupHighlightWord,
       wordLevelService: provider.wordLevelService,
     );
   }
@@ -965,8 +972,14 @@ class _ReaderPageState extends State<ReaderPage> {
     final provider = context.read<ReadingProvider>();
     final baseStyle = _buildBaseTextStyle(theme, provider);
     final searchQuery = _effectiveHighlightQuery(provider);
+    final lookupHighlightWord = provider.selectedWord;
+    final hasLookupHighlight =
+        lookupHighlightWord != null && lookupHighlightWord.trim().isNotEmpty;
 
-    if (isFirstParagraph && paragraph.isNotEmpty && searchQuery.isEmpty) {
+    if (isFirstParagraph &&
+        paragraph.isNotEmpty &&
+        searchQuery.isEmpty &&
+        !hasLookupHighlight) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: _buildDropCapParagraph(
@@ -992,6 +1005,7 @@ class _ReaderPageState extends State<ReaderPage> {
           fontFamily: provider.fontFamily,
           colorSettings: colorSettings,
           searchQuery: searchQuery,
+          lookupHighlightWord: lookupHighlightWord,
           wordLevelService: provider.wordLevelService,
         ),
         style: baseStyle,
@@ -1036,6 +1050,7 @@ class _ReaderPageState extends State<ReaderPage> {
               lineHeight: provider.lineHeight,
               fontFamily: provider.fontFamily,
               colorSettings: colorSettings,
+              lookupHighlightWord: provider.selectedWord,
               wordLevelService: provider.wordLevelService,
             ),
             style: baseStyle,
@@ -1192,12 +1207,19 @@ class _ReaderPageState extends State<ReaderPage> {
                   ? Icons.vertical_split
                   : Icons.vertical_split_outlined,
               tooltip: _sidebarOpen ? '收起侧栏' : '展开侧栏',
-              onPressed: () => setState(() {
-                if (!_sidebarOpen && _sidebarSelectedText.isEmpty) {
-                  _sidebarMode = _ReaderSidebarMode.word;
+              onPressed: () {
+                final closingWordSidebar =
+                    _sidebarOpen && _sidebarMode == _ReaderSidebarMode.word;
+                if (closingWordSidebar) {
+                  context.read<ReadingProvider>().clearWordLookup();
                 }
-                _sidebarOpen = !_sidebarOpen;
-              }),
+                setState(() {
+                  if (!_sidebarOpen && _sidebarSelectedText.isEmpty) {
+                    _sidebarMode = _ReaderSidebarMode.word;
+                  }
+                  _sidebarOpen = !_sidebarOpen;
+                });
+              },
             ),
           if (showSearch)
             _compactIconButton(
@@ -1277,7 +1299,10 @@ class _ReaderPageState extends State<ReaderPage> {
   Widget _buildReaderSidebar() {
     return switch (_sidebarMode) {
       _ReaderSidebarMode.word => ReaderWordSidebar(
-        onClose: () => setState(() => _sidebarOpen = false),
+        onClose: () {
+          context.read<ReadingProvider>().clearWordLookup();
+          setState(() => _sidebarOpen = false);
+        },
       ),
       _ReaderSidebarMode.textAnalysis => SelectedTextSheet(
         selectedText: _sidebarSelectedText,
