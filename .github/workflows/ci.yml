@@ -31,14 +31,22 @@ jobs:
       - name: Show Flutter version
         run: flutter --version
 
-      - name: Install dependencies
+      - name: Install app dependencies
         run: flutter pub get
+
+      - name: Install EPUB core dependencies
+        working-directory: packages/epub_reader_core
+        run: dart pub get
 
       - name: Analyze
         run: dart analyze
 
       - name: Test
         run: flutter test
+
+      - name: Test EPUB core
+        working-directory: packages/epub_reader_core
+        run: dart test
 
       - name: Check whitespace
         run: git diff --check
