@@ -170,11 +170,13 @@ class LearningAnalyticsService {
       practiceAnsweredCount: practiceAnsweredCount,
       practiceCorrectCount: practiceCorrectCount,
       weakPoints: const [],
+      nextActions: const [],
       masteredWords: knownWords,
       learningWords: learningWords,
       nextStep: '',
     );
 
+    final nextActions = _nextActions(report);
     return ChapterLearningReport(
       chapterTitle: report.chapterTitle,
       chapterIndex: report.chapterIndex,
@@ -194,9 +196,10 @@ class LearningAnalyticsService {
       practiceAnsweredCount: report.practiceAnsweredCount,
       practiceCorrectCount: report.practiceCorrectCount,
       weakPoints: _weakPoints(report, repeatedLookupWords),
+      nextActions: nextActions,
       masteredWords: report.masteredWords,
       learningWords: report.learningWords,
-      nextStep: _nextStep(report),
+      nextStep: _nextStep(nextActions),
     );
   }
 
@@ -290,31 +293,94 @@ class LearningAnalyticsService {
     );
   }
 
-  String _nextStep(ChapterLearningReport report) {
+  List<ChapterNextAction> _nextActions(ChapterLearningReport report) {
+    final actions = <ChapterNextAction>[];
     if (report.chapterProgress < 0.95) {
       final remain = ((1 - report.chapterProgress) * 100).round();
-      return '先读完本章剩余约 $remain%，再做复盘。';
+      actions.add(
+        ChapterNextAction(
+          type: ChapterNextActionType.finishChapter,
+          title: '读完本章',
+          detail: '先读完本章剩余约 $remain%，再做复盘。',
+          priority: 10,
+        ),
+      );
     }
     if (report.dueReviewCount > 0) {
-      return '先完成 ${report.dueReviewCount} 条到期复习，再进入下一章。';
+      actions.add(
+        ChapterNextAction(
+          type: ChapterNextActionType.reviewDueItems,
+          title: '完成到期复习',
+          detail: '先完成 ${report.dueReviewCount} 条到期复习，再进入下一章。',
+          priority: 20,
+        ),
+      );
     }
     if (report.practiceAnsweredCount >= 3 && report.practiceAccuracy < 0.7) {
-      return '回看本章练习错题，先用原文依据修正理解再继续读。';
+      actions.add(
+        ChapterNextAction(
+          type: ChapterNextActionType.reviewPracticeMistakes,
+          title: '回看练习错题',
+          detail: '回看本章练习错题，先用原文依据修正理解再继续读。',
+          priority: 30,
+        ),
+      );
     }
     if (report.lookupDependency.direction == LookupDependencyDirection.higher &&
         report.lookupCount >= 3) {
-      return '下一章先读完整段并猜词，再查影响理解的关键词。';
+      actions.add(
+        ChapterNextAction(
+          type: ChapterNextActionType.reduceLookupDependency,
+          title: '降低查词依赖',
+          detail: '下一章先读完整段并猜词，再查影响理解的关键词。',
+          priority: 40,
+        ),
+      );
     }
     if (report.newWordCount >= 12) {
-      return '从本章新词里挑 3-5 个高频词加入学习卡片。';
+      actions.add(
+        ChapterNextAction(
+          type: ChapterNextActionType.createVocabularyCards,
+          title: '精选新词',
+          detail: '从本章新词里挑 3-5 个高频词加入学习卡片。',
+          priority: 50,
+        ),
+      );
     }
     if (report.learningItemCount > 0) {
-      return '复盘本章 ${report.learningItemCount} 个学习卡片，确认能离开释义回忆原句。';
+      actions.add(
+        ChapterNextAction(
+          type: ChapterNextActionType.reviewLearningCards,
+          title: '复盘学习卡片',
+          detail: '复盘本章 ${report.learningItemCount} 个学习卡片，确认能离开释义回忆原句。',
+          priority: 60,
+        ),
+      );
     }
-    if (report.chapterIndex + 1 < report.chapterCount) {
-      return '进入下一章前，快速回忆本章事件和已掌握词。';
-    }
-    return '本书已到最后一章，适合做一次整书复盘。';
+
+    actions.add(
+      report.chapterIndex + 1 < report.chapterCount
+          ? const ChapterNextAction(
+              type: ChapterNextActionType.continueReading,
+              title: '继续阅读',
+              detail: '进入下一章前，快速回忆本章事件和已掌握词。',
+              priority: 90,
+            )
+          : const ChapterNextAction(
+              type: ChapterNextActionType.wholeBookReview,
+              title: '整书复盘',
+              detail: '本书已到最后一章，适合做一次整书复盘。',
+              priority: 90,
+            ),
+    );
+
+    actions.sort((a, b) => a.priority.compareTo(b.priority));
+    return actions;
+  }
+
+  String _nextStep(List<ChapterNextAction> actions) {
+    if (actions.isEmpty) return '';
+    return actions.first.detail;
   }
 
   List<ChapterWeakPoint> _weakPoints(

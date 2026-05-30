@@ -208,7 +208,7 @@ class StatsPage extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    report.nextStep,
+                    _nextActionText(report),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurface,
                       height: 1.35,
@@ -624,6 +624,14 @@ class StatsPage extends StatelessWidget {
     final answered = report.practiceAnsweredCount;
     final correct = report.practiceCorrectCount;
     return '已提交 $answered 题，答对 $correct 题，正确率 ${report.practiceAccuracyPercent}%。';
+  }
+
+  String _nextActionText(ChapterLearningReport report) {
+    if (report.nextActions.isEmpty) return report.nextStep;
+    return report.nextActions
+        .take(3)
+        .map((action) => '${action.title}：${action.detail}')
+        .join('\n');
   }
 
   Color _practiceAccuracyColor(ThemeData theme, ChapterLearningReport report) {

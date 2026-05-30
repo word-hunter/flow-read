@@ -9,6 +9,17 @@ enum ChapterWeakPointType {
   vocabularyLoad,
 }
 
+enum ChapterNextActionType {
+  finishChapter,
+  reviewDueItems,
+  reviewPracticeMistakes,
+  reduceLookupDependency,
+  createVocabularyCards,
+  reviewLearningCards,
+  continueReading,
+  wholeBookReview,
+}
+
 class ChapterWeakPoint {
   final ChapterWeakPointType type;
   final String title;
@@ -16,6 +27,20 @@ class ChapterWeakPoint {
   final int priority;
 
   const ChapterWeakPoint({
+    required this.type,
+    required this.title,
+    required this.detail,
+    required this.priority,
+  });
+}
+
+class ChapterNextAction {
+  final ChapterNextActionType type;
+  final String title;
+  final String detail;
+  final int priority;
+
+  const ChapterNextAction({
     required this.type,
     required this.title,
     required this.detail,
@@ -67,6 +92,7 @@ class ChapterLearningReport {
   final int practiceAnsweredCount;
   final int practiceCorrectCount;
   final List<ChapterWeakPoint> weakPoints;
+  final List<ChapterNextAction> nextActions;
   final List<String> masteredWords;
   final List<String> learningWords;
   final String nextStep;
@@ -90,6 +116,7 @@ class ChapterLearningReport {
     required this.practiceAnsweredCount,
     required this.practiceCorrectCount,
     required this.weakPoints,
+    required this.nextActions,
     required this.masteredWords,
     required this.learningWords,
     required this.nextStep,

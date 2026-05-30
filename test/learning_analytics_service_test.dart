@@ -72,6 +72,10 @@ void main() {
       expect(report.practiceAnsweredCount, 2);
       expect(report.practiceCorrectCount, 1);
       expect(report.practiceAccuracyPercent, 50);
+      expect(report.nextActions.map((action) => action.type), [
+        ChapterNextActionType.reviewLearningCards,
+        ChapterNextActionType.wholeBookReview,
+      ]);
       expect(report.nextStep, contains('复盘本章 1 个学习卡片'));
     },
   );
@@ -121,6 +125,11 @@ void main() {
       ChapterWeakPointType.repeatedLookups,
     ]);
     expect(report.weakPoints[2].detail, contains('current'));
+    expect(report.nextActions.map((action) => action.type), [
+      ChapterNextActionType.reviewPracticeMistakes,
+      ChapterNextActionType.reduceLookupDependency,
+      ChapterNextActionType.wholeBookReview,
+    ]);
     expect(report.nextStep, contains('回看本章练习错题'));
   });
 
