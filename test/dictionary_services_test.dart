@@ -9,6 +9,7 @@ import 'package:flow_read/services/dictionary/dictionary_cache_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_manager_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_repository.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_config.dart';
+import 'package:flow_read/services/dictionary/dictionary_source_test_service.dart';
 import 'package:flow_read/services/dictionary/longman_repository.dart';
 import 'package:flow_read/services/pronunciation_service.dart';
 import 'package:flow_read/services/settings_service.dart';
@@ -416,6 +417,52 @@ void main() {
         expect(provider.selectedWordTranslation, 'to move continuously');
         expect(provider.selectedWordEntry!.sourceName, 'Dictionary API');
         expect(provider.selectedWordEntry!.errorMessage, contains('WordNet'));
+      },
+    );
+  });
+
+  group('DictionarySourceTestService', () {
+    test(
+      'reports source hit, miss, and failure without real network',
+      () async {
+        final service = DictionarySourceTestService(
+          repositories: {
+            DictionarySourceType.wordNet: _CountingRepository(
+              const DictionaryEntry(
+                word: 'flow',
+                meanings: [
+                  Meaning(partOfSpeech: 'noun', definitions: ['movement']),
+                ],
+              ),
+            ),
+            DictionarySourceType.dictionaryApi: _CountingRepository(null),
+            DictionarySourceType.collins: const _ThrowingRepository(),
+          },
+        );
+
+        final results = await service.testSources(const [
+          DictionarySourceType.wordNet,
+          DictionarySourceType.dictionaryApi,
+          DictionarySourceType.collins,
+        ], ' Flow ');
+
+        expect(
+          results[DictionarySourceType.wordNet]!.status,
+          DictionarySourceTestStatus.hit,
+        );
+        expect(results[DictionarySourceType.wordNet]!.word, 'flow');
+        expect(
+          results[DictionarySourceType.dictionaryApi]!.status,
+          DictionarySourceTestStatus.noResult,
+        );
+        expect(
+          results[DictionarySourceType.collins]!.status,
+          DictionarySourceTestStatus.failed,
+        );
+        expect(
+          results[DictionarySourceType.collins]!.message,
+          contains('network down'),
+        );
       },
     );
   });

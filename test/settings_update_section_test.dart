@@ -1,4 +1,6 @@
 import 'package:flow_read/services/app_update_service.dart';
+import 'package:flow_read/services/dictionary/dictionary_source_config.dart';
+import 'package:flow_read/services/dictionary/dictionary_source_test_service.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/settings/settings_sections.dart';
 import 'package:flow_read/widgets/settings/update_check_result_dialog.dart';
@@ -13,6 +15,17 @@ void main() {
           body: SingleChildScrollView(
             child: SettingsDictionarySection(
               settings: SettingsService(),
+              testWordController: TextEditingController(text: 'flow'),
+              testingSources: false,
+              testResults: const {
+                DictionarySourceType.wordNet: DictionarySourceTestResult(
+                  type: DictionarySourceType.wordNet,
+                  word: 'flow',
+                  status: DictionarySourceTestStatus.hit,
+                  elapsed: Duration(milliseconds: 12),
+                ),
+              },
+              onTestSources: () {},
               onClearCache: () {},
               cacheEntryCount: 12,
               cacheStatsLoading: false,
@@ -27,6 +40,10 @@ void main() {
     expect(find.text('Dictionary API'), findsOneWidget);
     expect(find.text('Longman'), findsOneWidget);
     expect(find.text('本地兜底 · 始终启用 · 第 2 位'), findsOneWidget);
+    expect(find.text('测试单词'), findsOneWidget);
+    expect(find.text('测试来源'), findsOneWidget);
+    expect(find.text('命中 flow · 12 ms'), findsOneWidget);
+    expect(find.text('最近测试：1 / 1 个来源命中'), findsOneWidget);
     expect(find.text('在线词典缓存：12 条'), findsOneWidget);
     expect(
       find.text('当前顺序：Collins → WordNet → Dictionary API → Longman'),

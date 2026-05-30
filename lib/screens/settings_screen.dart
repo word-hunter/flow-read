@@ -14,6 +14,12 @@ import '../services/backup_folder_access.dart';
 import '../services/backup_service.dart';
 import '../services/changelog_service.dart';
 import '../services/dictionary/dictionary_cache_service.dart';
+import '../services/dictionary/collins_repository.dart';
+import '../services/dictionary/dictionary_repository.dart';
+import '../services/dictionary/dictionary_source_config.dart';
+import '../services/dictionary/dictionary_source_test_service.dart';
+import '../services/dictionary/longman_repository.dart';
+import '../services/dictionary/wordnet_repository.dart';
 import '../services/external_url_launcher.dart';
 import '../services/log_folder_opener.dart';
 import '../services/llm_client.dart';
@@ -48,11 +54,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _apiKeyController = TextEditingController();
   final _baseUrlController = TextEditingController();
   final _modelController = TextEditingController();
+  final _dictionaryTestWordController = TextEditingController(text: 'flow');
   String? _controllerProviderId;
   bool _obscureKey = true;
   bool _testingConnection = false;
+  bool _testingDictionarySources = false;
   bool _importingWordHunter = false;
   String? _connectionResult;
+  Map<DictionarySourceType, DictionarySourceTestResult>
+  _dictionarySourceTestResults = const {};
   bool _checkingForUpdate = false;
   String? _updateStatusMessage;
   bool _updateStatusIsError = false;
@@ -93,6 +103,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _apiKeyController.dispose();
     _baseUrlController.dispose();
     _modelController.dispose();
+    _dictionaryTestWordController.dispose();
     if (_ownsAppUpdateService) {
       _appUpdateService.dispose();
     }
@@ -298,6 +309,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               SettingsSection.dictionary => SettingsDictionarySection(
                 settings: settings,
+                testWordController: _dictionaryTestWordController,
+                testingSources: _testingDictionarySources,
+                testResults: _dictionarySourceTestResults,
+                onTestSources: () =>
+                    unawaited(_testDictionarySources(settings)),
                 onClearCache: () => unawaited(_clearDictionaryCache()),
                 cacheEntryCount: _dictionaryCacheEntryCount,
                 cacheStatsLoading: _cacheStatsLoading,
@@ -398,6 +414,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _testingConnection = false;
       _connectionResult = ok ? '连接成功' : '连接失败，请检查配置';
     });
+  }
+
+  Future<void> _testDictionarySources(SettingsService settings) async {
+    setState(() {
+      _testingDictionarySources = true;
+      _dictionarySourceTestResults = const {};
+    });
+
+    final word = _dictionaryTestWordController.text.trim().isEmpty
+        ? 'flow'
+        : _dictionaryTestWordController.text.trim();
+    if (_dictionaryTestWordController.text != word) {
+      _dictionaryTestWordController.text = word;
+    }
+
+    try {
+      final cache = DictionaryCacheService();
+      await cache.init();
+      final tester = DictionarySourceTestService(
+        repositories: {
+          DictionarySourceType.wordNet: WordNetRepository(),
+          DictionarySourceType.dictionaryApi: DictionaryRepository(),
+          DictionarySourceType.collins: CollinsRepository(cache),
+          DictionarySourceType.longman: LongmanRepository(cache),
+        },
+      );
+
+      final results = await tester.testSources(
+        settings.dictionarySources.map((config) => config.type),
+        word,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _dictionarySourceTestResults = results;
+        _testingDictionarySources = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _testingDictionarySources = false);
+      _showSnackBar('词典来源测试失败：$error');
+    }
   }
 
   Future<void> _refreshCacheStats() async {

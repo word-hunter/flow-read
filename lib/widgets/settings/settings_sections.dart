@@ -5,6 +5,7 @@ import '../../services/app_update_service.dart';
 import '../../services/app_version.dart';
 import '../../services/backup_service.dart';
 import '../../services/dictionary/dictionary_source_config.dart';
+import '../../services/dictionary/dictionary_source_test_service.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_theme.dart';
 import '../theme_transition.dart';
@@ -491,12 +492,20 @@ class SettingsDictionarySection extends StatelessWidget {
   const SettingsDictionarySection({
     super.key,
     required this.settings,
+    required this.testWordController,
+    required this.testingSources,
+    required this.testResults,
+    required this.onTestSources,
     required this.onClearCache,
     required this.cacheEntryCount,
     required this.cacheStatsLoading,
   });
 
   final SettingsService settings;
+  final TextEditingController testWordController;
+  final bool testingSources;
+  final Map<DictionarySourceType, DictionarySourceTestResult> testResults;
+  final VoidCallback onTestSources;
   final VoidCallback onClearCache;
   final int? cacheEntryCount;
   final bool cacheStatsLoading;
@@ -522,6 +531,7 @@ class SettingsDictionarySection extends StatelessWidget {
                 if (i > 0) const Divider(height: 24),
                 _DictionarySourceTile(
                   config: settings.dictionarySources[i],
+                  testResult: testResults[settings.dictionarySources[i].type],
                   position: i + 1,
                   isFirst: i == 0,
                   isLast: i == settings.dictionarySources.length - 1,
@@ -558,6 +568,54 @@ class SettingsDictionarySection extends StatelessWidget {
                 SettingsStatusLine(
                   icon: Icons.low_priority_outlined,
                   text: '当前顺序：$enabledSources',
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          icon: Icons.fact_check_outlined,
+          title: '测试',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ResponsiveSettingsGrid(
+                children: [
+                  TextField(
+                    controller: testWordController,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: '测试单词',
+                      prefixIcon: Icon(Icons.search_outlined, size: 20),
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) {
+                      if (!testingSources) onTestSources();
+                    },
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.icon(
+                      onPressed: testingSources ? null : onTestSources,
+                      icon: testingSources
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.wifi_find, size: 18),
+                      label: Text(testingSources ? '测试中...' : '测试来源'),
+                    ),
+                  ),
+                ],
+              ),
+              if (testResults.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SettingsStatusLine(
+                  icon: Icons.history_outlined,
+                  text: '最近测试：${_formatTestSummary(testResults.values)}',
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ],
@@ -609,11 +667,21 @@ class SettingsDictionarySection extends StatelessWidget {
     if (count == null) return '缓存数量暂无法统计';
     return '在线词典缓存：$count 条';
   }
+
+  static String _formatTestSummary(
+    Iterable<DictionarySourceTestResult> results,
+  ) {
+    final hits = results
+        .where((result) => result.status == DictionarySourceTestStatus.hit)
+        .length;
+    return '$hits / ${results.length} 个来源命中';
+  }
 }
 
 class _DictionarySourceTile extends StatelessWidget {
   const _DictionarySourceTile({
     required this.config,
+    required this.testResult,
     required this.position,
     required this.isFirst,
     required this.isLast,
@@ -623,6 +691,7 @@ class _DictionarySourceTile extends StatelessWidget {
   });
 
   final DictionarySourceConfig config;
+  final DictionarySourceTestResult? testResult;
   final int position;
   final bool isFirst;
   final bool isLast;
@@ -670,6 +739,10 @@ class _DictionarySourceTile extends StatelessWidget {
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  if (testResult != null) ...[
+                    const SizedBox(height: 6),
+                    _DictionarySourceTestStatusLine(result: testResult!),
+                  ],
                 ],
               ),
             ),
@@ -759,6 +832,58 @@ class _DictionarySourceTile extends StatelessWidget {
         return Icons.language_outlined;
       case DictionarySourceType.longman:
         return Icons.school_outlined;
+    }
+  }
+}
+
+class _DictionarySourceTestStatusLine extends StatelessWidget {
+  const _DictionarySourceTestStatusLine({required this.result});
+
+  final DictionarySourceTestResult result;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = switch (result.status) {
+      DictionarySourceTestStatus.hit => theme.colorScheme.tertiary,
+      DictionarySourceTestStatus.noResult => theme.colorScheme.onSurfaceVariant,
+      DictionarySourceTestStatus.failed => theme.colorScheme.error,
+    };
+    final icon = switch (result.status) {
+      DictionarySourceTestStatus.hit => Icons.check_circle_outline,
+      DictionarySourceTestStatus.noResult => Icons.help_outline,
+      DictionarySourceTestStatus.failed => Icons.error_outline,
+    };
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            _formatResult(),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(color: color),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatResult() {
+    final elapsed = '${result.elapsed.inMilliseconds} ms';
+    final cache = result.fromCache ? ' · 缓存' : '';
+    switch (result.status) {
+      case DictionarySourceTestStatus.hit:
+        return '命中 ${result.word} · $elapsed$cache';
+      case DictionarySourceTestStatus.noResult:
+        return '未命中或不可用 · $elapsed';
+      case DictionarySourceTestStatus.failed:
+        final message = result.message;
+        if (message == null || message.isEmpty) return '失败 · $elapsed';
+        return '失败 · $elapsed · $message';
     }
   }
 }
