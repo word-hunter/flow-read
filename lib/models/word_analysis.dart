@@ -30,6 +30,13 @@ class WordAnalysis {
     );
   }
 
+  factory WordAnalysis.fallback(String rawText) => WordAnalysis(
+    pronunciation: '',
+    meanings: [ContextualMeaning(meaning: rawText, explanation: '')],
+    usageTips: const [],
+    memoryTip: '',
+  );
+
   bool get isEmpty =>
       pronunciation.isEmpty &&
       meanings.isEmpty &&

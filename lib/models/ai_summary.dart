@@ -50,6 +50,13 @@ class AISummary {
     readingGuidance: '',
   );
 
+  factory AISummary.fallback(String rawText) => AISummary(
+    events: const [],
+    characterDevelopments: const [],
+    keyVocabulary: const [],
+    readingGuidance: rawText,
+  );
+
   bool get isEmpty =>
       events.isEmpty &&
       characterDevelopments.isEmpty &&

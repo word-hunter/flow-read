@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/ai_text_analysis.dart';
@@ -31,6 +33,7 @@ class SelectedTextSheet extends StatefulWidget {
 
 class _SelectedTextSheetState extends State<SelectedTextSheet> {
   final ScrollController _embeddedScrollController = ScrollController();
+  int? _hoveredStructureIndex;
 
   @override
   void dispose() {
@@ -56,7 +59,6 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
         child: Column(
           children: [
             _buildHeader(theme),
-            _buildSheetTitle(theme),
             Expanded(
               child: _buildAnalysisTab(theme, _embeddedScrollController),
             ),
@@ -96,6 +98,19 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
         padding: const EdgeInsets.fromLTRB(20, 12, 10, 0),
         child: Row(
           children: [
+            Icon(
+              Icons.account_tree_outlined,
+              size: 18,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '结构分析',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
             const Spacer(),
             IconButton(
               icon: const Icon(Icons.chevron_right, size: 20),
@@ -488,59 +503,307 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
     ThemeData theme,
     List<StructureNote> structureNotes,
   ) {
+    final sourceText = _structureDisplayText(structureNotes);
     return _buildAISection(
       theme,
       icon: Icons.schema_outlined,
       title: '结构',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: structureNotes.map((note) {
-          final role = note.role.trim();
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        note.source,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontFamily: 'Serif',
-                          height: 1.5,
-                          color: theme.colorScheme.onSurface,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    if (role.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        role,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.tertiary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  note.explanation,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    height: 1.5,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
+        children: [
+          _buildStructureSourceText(theme, sourceText, structureNotes),
+          const SizedBox(height: 12),
+          ...structureNotes.asMap().entries.map((entry) {
+            return _buildStructureExplanationItem(
+              theme,
+              entry.value,
+              entry.key,
+            );
+          }),
+        ],
       ),
     );
+  }
+
+  Widget _buildStructureSourceText(
+    ThemeData theme,
+    String sourceText,
+    List<StructureNote> structureNotes,
+  ) {
+    final baseStyle = theme.textTheme.bodyMedium?.copyWith(
+      fontFamily: 'Serif',
+      height: 1.7,
+      color: theme.colorScheme.onSurface,
+      fontWeight: FontWeight.w500,
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+        ),
+      ),
+      child: RichText(
+        key: const ValueKey('structure-source-text'),
+        text: TextSpan(
+          style: baseStyle,
+          children: _buildStructureSourceSpans(
+            theme,
+            sourceText,
+            structureNotes,
+            baseStyle,
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<TextSpan> _buildStructureSourceSpans(
+    ThemeData theme,
+    String sourceText,
+    List<StructureNote> structureNotes,
+    TextStyle? baseStyle,
+  ) {
+    if (sourceText.isEmpty) {
+      return const [];
+    }
+
+    final ranges = <_StructureTextRange>[];
+    for (var index = 0; index < structureNotes.length; index += 1) {
+      final range = _findStructureTextRange(
+        sourceText,
+        structureNotes[index].source,
+        index,
+      );
+      if (range != null) {
+        ranges.add(range);
+      }
+    }
+
+    ranges.sort((a, b) {
+      final startComparison = a.start.compareTo(b.start);
+      if (startComparison != 0) return startComparison;
+      return b.length.compareTo(a.length);
+    });
+
+    final visibleRanges = <_StructureTextRange>[];
+    var lastEnd = -1;
+    for (final range in ranges) {
+      if (range.start < lastEnd) continue;
+      visibleRanges.add(range);
+      lastEnd = range.end;
+    }
+
+    if (visibleRanges.isEmpty) {
+      return [TextSpan(text: sourceText, style: baseStyle)];
+    }
+
+    final spans = <TextSpan>[];
+    var cursor = 0;
+    for (final range in visibleRanges) {
+      if (range.start > cursor) {
+        spans.add(TextSpan(text: sourceText.substring(cursor, range.start)));
+      }
+
+      final isActive = _hoveredStructureIndex == range.noteIndex;
+      final accent = _structureAccentColor(theme, range.noteIndex);
+      spans.add(
+        TextSpan(
+          text: sourceText.substring(range.start, range.end),
+          style: baseStyle?.copyWith(
+            color: isActive ? accent : theme.colorScheme.onSurface,
+            fontWeight: isActive ? FontWeight.w800 : FontWeight.w700,
+            decoration: TextDecoration.underline,
+            decorationColor: accent.withValues(alpha: isActive ? 0.95 : 0.72),
+            decorationThickness: isActive ? 2.5 : 1.7,
+            backgroundColor: isActive ? accent.withValues(alpha: 0.14) : null,
+          ),
+        ),
+      );
+      cursor = range.end;
+    }
+
+    if (cursor < sourceText.length) {
+      spans.add(TextSpan(text: sourceText.substring(cursor)));
+    }
+
+    return spans;
+  }
+
+  Widget _buildStructureExplanationItem(
+    ThemeData theme,
+    StructureNote note,
+    int index,
+  ) {
+    final role = note.role.trim();
+    final source = note.source.trim();
+    final title = role.isNotEmpty ? role : source;
+    final isActive = _hoveredStructureIndex == index;
+    final accent = _structureAccentColor(theme, index);
+
+    return MouseRegion(
+      key: ValueKey('structure-explanation-$index'),
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => _setHoveredStructureIndex(index),
+      onExit: (_) {
+        if (_hoveredStructureIndex == index) {
+          _setHoveredStructureIndex(null);
+        }
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _setHoveredStructureIndex(isActive ? null : index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOut,
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          decoration: BoxDecoration(
+            color: isActive ? accent.withValues(alpha: 0.08) : null,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
+                width: 3,
+                height: 34,
+                margin: const EdgeInsets.only(top: 2, right: 10),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: isActive ? 0.9 : 0.45),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (title.isNotEmpty) ...[
+                      Text(
+                        title,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: accent,
+                          fontWeight: FontWeight.w800,
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    Text(
+                      note.explanation,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        height: 1.55,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _structureDisplayText(List<StructureNote> structureNotes) {
+    final selectedText = widget.selectedText.trim();
+    final source = selectedText.isNotEmpty
+        ? selectedText
+        : structureNotes
+              .map((note) => note.source.trim())
+              .where((text) => text.isNotEmpty)
+              .join(' ... ');
+
+    const maxLength = 520;
+    if (source.length <= maxLength) {
+      return source;
+    }
+
+    final ranges = structureNotes
+        .map((note) => _findStructureTextRange(source, note.source, 0))
+        .whereType<_StructureTextRange>()
+        .toList(growable: false);
+    if (ranges.isEmpty) {
+      return '${source.substring(0, maxLength).trimRight()}...';
+    }
+
+    final firstStart = ranges.map((range) => range.start).reduce(math.min);
+    final lastEnd = ranges.map((range) => range.end).reduce(math.max);
+    var start = math.max(0, firstStart - 90);
+    var end = math.min(source.length, lastEnd + 120);
+
+    if (end - start > maxLength) {
+      end = math.min(source.length, start + maxLength);
+    }
+
+    final prefix = start > 0 ? '...' : '';
+    final suffix = end < source.length ? '...' : '';
+    return '$prefix${source.substring(start, end).trim()}$suffix';
+  }
+
+  _StructureTextRange? _findStructureTextRange(
+    String text,
+    String source,
+    int noteIndex,
+  ) {
+    final target = source.trim();
+    if (target.isEmpty) return null;
+
+    final exactStart = text.indexOf(target);
+    if (exactStart >= 0) {
+      return _StructureTextRange(
+        start: exactStart,
+        end: exactStart + target.length,
+        noteIndex: noteIndex,
+      );
+    }
+
+    final lowerText = text.toLowerCase();
+    final lowerTarget = target.toLowerCase();
+    final caseInsensitiveStart = lowerText.indexOf(lowerTarget);
+    if (caseInsensitiveStart >= 0) {
+      return _StructureTextRange(
+        start: caseInsensitiveStart,
+        end: caseInsensitiveStart + target.length,
+        noteIndex: noteIndex,
+      );
+    }
+
+    final words = target
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .map(RegExp.escape)
+        .join(r'\s+');
+    if (words.isEmpty) return null;
+
+    final match = RegExp(words, caseSensitive: false).firstMatch(text);
+    if (match == null) return null;
+
+    return _StructureTextRange(
+      start: match.start,
+      end: match.end,
+      noteIndex: noteIndex,
+    );
+  }
+
+  void _setHoveredStructureIndex(int? index) {
+    if (_hoveredStructureIndex == index) return;
+    setState(() => _hoveredStructureIndex = index);
+  }
+
+  Color _structureAccentColor(ThemeData theme, int index) {
+    return switch (index % 3) {
+      0 => theme.colorScheme.primary,
+      1 => theme.colorScheme.tertiary,
+      _ => theme.colorScheme.secondary,
+    };
   }
 
   Widget _buildVocabularySection(
@@ -553,51 +816,61 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
       title: '词汇说明',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: vocabularyNotes.map((note) {
+        children: vocabularyNotes.asMap().entries.map((entry) {
+          final index = entry.key;
+          final note = entry.value;
           final pos = note.pos.trim();
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        note.word,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.onSurface,
+                            height: 1.35,
+                          ),
+                          children: [
+                            TextSpan(text: note.word),
+                            if (pos.isNotEmpty) ...[
+                              const TextSpan(text: '  '),
+                              TextSpan(
+                                text: pos,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.tertiary,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                    ),
-                    if (pos.isNotEmpty) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 4),
                       Text(
-                        pos,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.tertiary,
-                          fontWeight: FontWeight.w700,
+                        note.contextMeaning,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          height: 1.5,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
-                    const Spacer(),
-                    _buildInlineSaveButton(
-                      theme,
-                      onPressed: () => _saveLearningItem(
-                        context
-                            .read<ReadingProvider>()
-                            .addAIVocabularyLearningItem(note),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  note.contextMeaning,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    height: 1.5,
-                    color: theme.colorScheme.onSurfaceVariant,
+                const SizedBox(width: 12),
+                _buildInlineSaveButton(
+                  theme,
+                  key: ValueKey('vocabulary-save-$index'),
+                  onPressed: () => _saveLearningItem(
+                    context.read<ReadingProvider>().addAIVocabularyLearningItem(
+                      note,
+                    ),
                   ),
                 ),
               ],
@@ -674,12 +947,14 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
 
   Widget _buildInlineSaveButton(
     ThemeData theme, {
+    Key? key,
     required VoidCallback onPressed,
   }) {
     final provider = context.watch<ReadingProvider>();
     return Tooltip(
       message: '加入学习卡片',
       child: IconButton(
+        key: key,
         onPressed: provider.canCreateLearningItems ? onPressed : null,
         icon: const Icon(Icons.add_card_outlined, size: 18),
         visualDensity: VisualDensity.compact,
@@ -1224,4 +1499,18 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
         return const Color(0xFF95A5A6);
     }
   }
+}
+
+class _StructureTextRange {
+  const _StructureTextRange({
+    required this.start,
+    required this.end,
+    required this.noteIndex,
+  });
+
+  final int start;
+  final int end;
+  final int noteIndex;
+
+  int get length => end - start;
 }

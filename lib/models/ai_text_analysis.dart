@@ -44,6 +44,15 @@ class AITextAnalysis {
       expressionNotes.isEmpty &&
       readingTip.isEmpty;
 
+  factory AITextAnalysis.fallback(String rawText) {
+    return AITextAnalysis(
+      translation: rawText,
+      grammarPoints: const [],
+      vocabularyNotes: const [],
+      readingTip: '',
+    );
+  }
+
   static List<Map<String, dynamic>> _readList(dynamic value) {
     if (value is! List) return const [];
     return value

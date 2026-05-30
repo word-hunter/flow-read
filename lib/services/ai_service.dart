@@ -6,44 +6,75 @@ import '../models/ai_practice_questions.dart';
 import '../models/word_analysis.dart';
 import 'app_logger.dart';
 import 'llm_client.dart';
-import 'prompt_registry.dart';
+import 'prompt_builder.dart';
 
 class AIService {
   final LLMClient _client;
+  final PromptBuilder _promptBuilder;
 
-  AIService(this._client);
+  AIService(this._client, {PromptBuilder promptBuilder = const PromptBuilder()})
+    : _promptBuilder = promptBuilder;
+
+  int get promptVersion => PromptBuilder.currentPromptVersion;
 
   Future<AITextAnalysis> analyzeText({
     required String selectedText,
     required String contextBefore,
     required String contextAfter,
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
   }) async {
-    final systemPrompt = PromptRegistry.textAnalysisSystem;
-    final userPrompt = PromptRegistry.textAnalysisUser(
-      selectedText,
-      contextBefore,
-      contextAfter,
+    final prompt = _promptBuilder.buildTextAnalysis(
+      TextAnalysisPromptRequest(
+        selectedText: selectedText,
+        contextBefore: contextBefore,
+        contextAfter: contextAfter,
+        sourceLanguage:
+            sourceLanguage ??
+            SourceLanguage.inferFromText(
+              '$selectedText $contextBefore $contextAfter',
+            ),
+        outputLanguage: outputLanguage,
+        spoilerBoundary: spoilerBoundary ?? SpoilerBoundary.currentPassage(),
+      ),
     );
 
     final response = await _client.chat(
-      systemPrompt: systemPrompt,
-      userPrompt: userPrompt,
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.userPrompt,
       jsonMode: true,
     );
 
-    final json = _extractJson(response);
-    final result = AITextAnalysis.fromJson(json);
+    final result = _parseJsonOrFallback(
+      response,
+      AITextAnalysis.fromJson,
+      (raw) => AITextAnalysis.fallback(raw),
+      'text_analysis',
+    );
     _validateTextAnalysis(result, selectedText);
     return result;
   }
 
-  Future<String> translateText(String selectedText) async {
-    final systemPrompt = PromptRegistry.translationSystem;
-    final userPrompt = PromptRegistry.translationUser(selectedText);
+  Future<String> translateText(
+    String selectedText, {
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
+    final prompt = _promptBuilder.buildTranslation(
+      TranslationPromptRequest(
+        selectedText: selectedText,
+        sourceLanguage:
+            sourceLanguage ?? SourceLanguage.inferFromText(selectedText),
+        outputLanguage: outputLanguage,
+        spoilerBoundary: spoilerBoundary ?? SpoilerBoundary.currentPassage(),
+      ),
+    );
 
     final response = await _client.chat(
-      systemPrompt: systemPrompt,
-      userPrompt: userPrompt,
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.userPrompt,
     );
 
     return response.trim();
@@ -53,26 +84,38 @@ class AIService {
     required String chapterText,
     required List<String> vocabulary,
     required String language,
+    SourceLanguage? sourceLanguage,
+    SpoilerBoundary? spoilerBoundary,
   }) async* {
-    final systemPrompt = PromptRegistry.summarySystem(language);
-    final userPrompt = PromptRegistry.summaryUser(
-      chapterText,
-      vocabulary,
-      language,
+    final prompt = _promptBuilder.buildChapterSummary(
+      ChapterSummaryPromptRequest(
+        chapterText: chapterText,
+        vocabulary: vocabulary,
+        sourceLanguage:
+            sourceLanguage ?? SourceLanguage.inferFromText(chapterText),
+        outputLanguage: OutputLanguage.fromCode(language),
+        spoilerBoundary:
+            spoilerBoundary ??
+            SpoilerBoundary.chapter(bookId: 'current_book', chapterIndex: 0),
+      ),
     );
 
     final buffer = StringBuffer();
 
     await for (final chunk in _client.streamChat(
-      systemPrompt: systemPrompt,
-      userPrompt: userPrompt,
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.userPrompt,
       jsonMode: true,
     )) {
       buffer.write(chunk);
     }
 
-    final json = _extractJson(buffer.toString());
-    final summary = AISummary.fromJson(json);
+    final summary = _parseJsonOrFallback(
+      buffer.toString(),
+      AISummary.fromJson,
+      AISummary.fallback,
+      'chapter_summary',
+    );
     _validateSummary(summary, chapterText);
     yield summary;
   }
@@ -81,26 +124,44 @@ class AIService {
     required String chapterText,
     required List<String> vocabulary,
     required List<SummaryEvent> events,
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
   }) async* {
-    final systemPrompt = PromptRegistry.practiceSystem;
-    final userPrompt = PromptRegistry.practiceUser(
-      chapterText,
-      vocabulary,
-      events,
+    final prompt = _promptBuilder.buildPractice(
+      PracticePromptRequest(
+        chapterText: chapterText,
+        vocabulary: vocabulary,
+        events: events,
+        sourceLanguage:
+            sourceLanguage ?? SourceLanguage.inferFromText(chapterText),
+        outputLanguage: outputLanguage,
+        spoilerBoundary:
+            spoilerBoundary ??
+            SpoilerBoundary.chapter(
+              bookId: 'current_book',
+              chapterIndex: 0,
+              scope: AIContextScope.readSoFar,
+            ),
+      ),
     );
 
     final buffer = StringBuffer();
 
     await for (final chunk in _client.streamChat(
-      systemPrompt: systemPrompt,
-      userPrompt: userPrompt,
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.userPrompt,
       jsonMode: true,
     )) {
       buffer.write(chunk);
     }
 
-    final json = _extractJson(buffer.toString());
-    final practice = AIPracticeSet.fromJson(json);
+    final practice = _parseJsonOrFallback(
+      buffer.toString(),
+      AIPracticeSet.fromJson,
+      AIPracticeSet.fallback,
+      'practice',
+    );
     _validatePractice(practice, chapterText);
     yield practice;
   }
@@ -109,22 +170,35 @@ class AIService {
     required String word,
     required String sentence,
     required String chapterContext,
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
   }) async {
-    final systemPrompt = PromptRegistry.wordAnalysisSystem;
-    final userPrompt = PromptRegistry.wordAnalysisUser(
-      word,
-      sentence,
-      chapterContext,
+    final prompt = _promptBuilder.buildWordAnalysis(
+      WordAnalysisPromptRequest(
+        word: word,
+        sentence: sentence,
+        chapterContext: chapterContext,
+        sourceLanguage:
+            sourceLanguage ??
+            SourceLanguage.inferFromText('$sentence $chapterContext'),
+        outputLanguage: outputLanguage,
+        spoilerBoundary: spoilerBoundary ?? SpoilerBoundary.currentPassage(),
+      ),
     );
 
     final response = await _client.chat(
-      systemPrompt: systemPrompt,
-      userPrompt: userPrompt,
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.userPrompt,
       jsonMode: true,
     );
 
-    final json = _extractJson(response);
-    return WordAnalysis.fromJson(json);
+    return _parseJsonOrFallback(
+      response,
+      WordAnalysis.fromJson,
+      WordAnalysis.fallback,
+      'word_analysis',
+    );
   }
 
   void _validateTextAnalysis(AITextAnalysis result, String originalText) {
@@ -199,6 +273,56 @@ class AIService {
         'originalTextLength': originalText.length,
       },
     );
+  }
+
+  T _parseJsonOrFallback<T>(
+    String response,
+    T Function(Map<String, dynamic> json) parse,
+    T Function(String rawText) fallback,
+    String task,
+  ) {
+    try {
+      return parse(_extractJson(response));
+    } on FormatException catch (error) {
+      _logJsonFallback(task, response.length, error);
+      return fallback(_safeFallbackText(response));
+    } on TypeError catch (error) {
+      _logJsonFallback(task, response.length, error);
+      return fallback(_safeFallbackText(response));
+    }
+  }
+
+  void _logJsonFallback(String task, int responseLength, Object error) {
+    AppLogger.instance.event(
+      'ai.json_fallback',
+      level: AppLogLevel.warning,
+      source: 'ai_service',
+      metadata: {
+        'task': task,
+        'responseLength': responseLength,
+        'error': error.toString(),
+      },
+    );
+  }
+
+  String _safeFallbackText(String response) {
+    var content = response.trim();
+    if (content.startsWith('```json')) {
+      content = content.substring(7);
+    } else if (content.startsWith('```')) {
+      content = content.substring(3);
+    }
+    if (content.endsWith('```')) {
+      content = content.substring(0, content.length - 3);
+    }
+    content = content.trim();
+    if (content.length > 4000) {
+      content = '${content.substring(0, 4000)}...';
+    }
+    if (content.isEmpty) {
+      return 'AI 返回了非结构化内容，但没有可展示的文本。';
+    }
+    return 'AI 返回了非结构化内容，以下为原始文本：\n\n$content';
   }
 
   Map<String, dynamic> _extractJson(String response) {

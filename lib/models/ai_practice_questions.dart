@@ -20,6 +20,20 @@ class AIPracticeSet {
 
   factory AIPracticeSet.empty() => const AIPracticeSet(questions: []);
 
+  factory AIPracticeSet.fallback(String rawText) => AIPracticeSet(
+    questions: [
+      PracticeQuestion(
+        type: 'detail',
+        question: 'AI 返回了非结构化练习内容',
+        source: '',
+        answer: rawText,
+        answerExplanation: rawText,
+        distractors: const [],
+        difficulty: 'medium',
+      ),
+    ],
+  );
+
   bool get isEmpty => questions.isEmpty;
 }
 

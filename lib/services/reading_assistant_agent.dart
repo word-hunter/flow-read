@@ -1,6 +1,7 @@
 import '../models/ai_text_analysis.dart';
 import 'ai_service.dart';
 import 'llm_client.dart';
+import 'prompt_builder.dart';
 
 enum ReadingAssistantSurface { epub, rss, browser }
 
@@ -37,9 +38,16 @@ class ReadingAssistantContext {
 
 class ReadingAssistantAgent {
   final LLMClient _client;
-  late final AIService _aiService = AIService(_client);
+  final PromptBuilder _promptBuilder;
+  late final AIService _aiService = AIService(
+    _client,
+    promptBuilder: _promptBuilder,
+  );
 
-  ReadingAssistantAgent(this._client);
+  ReadingAssistantAgent(
+    this._client, {
+    PromptBuilder promptBuilder = const PromptBuilder(),
+  }) : _promptBuilder = promptBuilder;
 
   Future<String> translateSelection(String text) {
     return _aiService.translateText(text);
@@ -58,21 +66,20 @@ class ReadingAssistantAgent {
   }
 
   Future<String> summarize(ReadingAssistantContext context) {
+    final prompt = _promptBuilder.buildArticleSummary(
+      ArticlePromptRequest(
+        surfaceLabel: context.surfaceLabel,
+        title: context.title,
+        text: context.compactText,
+        url: context.url,
+        sourceLanguage: SourceLanguage.inferFromText(context.text),
+        outputLanguage: OutputLanguage.zhHans,
+        spoilerBoundary: SpoilerBoundary.currentPassage(),
+      ),
+    );
     return _client.chat(
-      systemPrompt: _systemPrompt,
-      userPrompt:
-          '''Summarize this ${context.surfaceLabel} reading context in Chinese.
-
-Title: ${context.title}
-URL: ${context.url ?? ''}
-
-Text:
-${context.compactText}
-
-Return:
-1. 3-5 bullet summary
-2. Important vocabulary or phrases
-3. One reading suggestion''',
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.userPrompt,
     );
   }
 
@@ -80,27 +87,21 @@ Return:
     required ReadingAssistantContext context,
     required String question,
   }) {
+    final prompt = _promptBuilder.buildArticleAnswer(
+      ArticlePromptRequest(
+        surfaceLabel: context.surfaceLabel,
+        title: context.title,
+        text: context.compactText,
+        url: context.url,
+        question: question,
+        sourceLanguage: SourceLanguage.inferFromText(context.text),
+        outputLanguage: OutputLanguage.zhHans,
+        spoilerBoundary: SpoilerBoundary.currentPassage(),
+      ),
+    );
     return _client.chat(
-      systemPrompt: _systemPrompt,
-      userPrompt:
-          '''Answer the user's question using only the reading context.
-
-Context type: ${context.surfaceLabel}
-Title: ${context.title}
-URL: ${context.url ?? ''}
-
-Reading context:
-${context.compactText}
-
-Question:
-$question
-
-Answer in Chinese. If the context does not contain enough evidence, say so.''',
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.userPrompt,
     );
   }
-
-  static const _systemPrompt =
-      'You are a reusable reading assistant embedded in a Flutter reading app. '
-      'You help Chinese speakers read English content across EPUB, RSS, and web pages. '
-      'Use only the provided context. Be concise and cite short source phrases when useful.';
 }

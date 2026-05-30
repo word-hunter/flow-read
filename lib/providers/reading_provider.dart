@@ -33,6 +33,7 @@ import '../services/epub_service.dart';
 import '../services/epub_import_source.dart';
 import '../services/learning_item_service.dart';
 import '../services/learning_analytics_service.dart';
+import '../services/prompt_builder.dart';
 import '../services/pronunciation_service.dart';
 import '../services/reading_config_service.dart';
 import '../services/review_schedule_service.dart';
@@ -1454,6 +1455,8 @@ class ReadingProvider extends ChangeNotifier {
         selectedText: text,
         contextBefore: before,
         contextAfter: after,
+        sourceLanguage: SourceLanguage.inferFromText('$text $before $after'),
+        spoilerBoundary: SpoilerBoundary.currentPassage(),
       );
       _settings?.incrementAIUsage(textAnalysis: true);
     } catch (e) {
@@ -1471,7 +1474,11 @@ class ReadingProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      _aiTranslation = await _aiService!.translateText(text);
+      _aiTranslation = await _aiService!.translateText(
+        text,
+        sourceLanguage: SourceLanguage.inferFromText(text),
+        spoilerBoundary: SpoilerBoundary.currentPassage(),
+      );
     } catch (e) {
       _errorMessage = '翻译失败: $e';
     }
@@ -1485,10 +1492,17 @@ class ReadingProvider extends ChangeNotifier {
     _aiSummary = null;
     notifyListeners();
     try {
+      final chapterText = _result!.passageText;
+      final sourceLanguage = SourceLanguage.inferFromText(chapterText);
+      final contentHash = AICacheService.contentHashFor(chapterText);
       final cacheJson = await _aiCache?.loadSummary(
         _activeBookId!,
         _currentChapter,
         _summaryLanguage,
+        contentHash: contentHash,
+        promptVersion: _aiService!.promptVersion,
+        sourceLanguage: sourceLanguage.code,
+        outputLanguage: _summaryLanguage,
       );
       if (cacheJson != null) {
         _aiSummary = AISummary.fromJson(
@@ -1499,9 +1513,14 @@ class ReadingProvider extends ChangeNotifier {
         return;
       }
       await for (final summary in _aiService!.generateSummary(
-        chapterText: _result!.passageText,
+        chapterText: chapterText,
         vocabulary: _result!.vocabulary.map((v) => v.word).toList(),
         language: _summaryLanguage,
+        sourceLanguage: sourceLanguage,
+        spoilerBoundary: SpoilerBoundary.chapter(
+          bookId: _activeBookId!,
+          chapterIndex: _currentChapter,
+        ),
       )) {
         _aiSummary = summary;
         _settings?.incrementAIUsage(chapterSummary: true);
@@ -1510,6 +1529,10 @@ class ReadingProvider extends ChangeNotifier {
           _currentChapter,
           _summaryLanguage,
           jsonEncode(summary.toJson()),
+          contentHash: contentHash,
+          promptVersion: _aiService!.promptVersion,
+          sourceLanguage: sourceLanguage.code,
+          outputLanguage: _summaryLanguage,
         );
       }
     } catch (e) {
@@ -1531,9 +1554,22 @@ class ReadingProvider extends ChangeNotifier {
     _aiPractice = null;
     notifyListeners();
     try {
+      final chapterText = _result!.passageText;
+      final sourceLanguage = SourceLanguage.inferFromText(chapterText);
+      final events = _aiSummary?.events ?? [];
+      final contentHash = AICacheService.contentHashFor(
+        jsonEncode({
+          'chapterText': chapterText,
+          'events': events.map((event) => event.toJson()).toList(),
+        }),
+      );
       final cacheJson = await _aiCache?.loadPractice(
         _activeBookId!,
         _currentChapter,
+        contentHash: contentHash,
+        promptVersion: _aiService!.promptVersion,
+        sourceLanguage: sourceLanguage.code,
+        outputLanguage: OutputLanguage.zhHans.code,
       );
       if (cacheJson != null) {
         _aiPractice = AIPracticeSet.fromJson(
@@ -1544,9 +1580,16 @@ class ReadingProvider extends ChangeNotifier {
         return;
       }
       await for (final practice in _aiService!.generatePractice(
-        chapterText: _result!.passageText,
+        chapterText: chapterText,
         vocabulary: _result!.vocabulary.map((v) => v.word).toList(),
-        events: _aiSummary?.events ?? [],
+        events: events,
+        sourceLanguage: sourceLanguage,
+        outputLanguage: OutputLanguage.zhHans,
+        spoilerBoundary: SpoilerBoundary.chapter(
+          bookId: _activeBookId!,
+          chapterIndex: _currentChapter,
+          scope: AIContextScope.readSoFar,
+        ),
       )) {
         _aiPractice = practice;
         _settings?.incrementAIUsage(practice: true);
@@ -1554,6 +1597,10 @@ class ReadingProvider extends ChangeNotifier {
           _activeBookId!,
           _currentChapter,
           jsonEncode(practice.toJson()),
+          contentHash: contentHash,
+          promptVersion: _aiService!.promptVersion,
+          sourceLanguage: sourceLanguage.code,
+          outputLanguage: OutputLanguage.zhHans.code,
         );
       }
     } catch (e) {
@@ -1573,6 +1620,10 @@ class ReadingProvider extends ChangeNotifier {
         word: word,
         sentence: sentence,
         chapterContext: _result!.passageText,
+        sourceLanguage: SourceLanguage.inferFromText(
+          '$sentence ${_result!.passageText}',
+        ),
+        spoilerBoundary: SpoilerBoundary.currentPassage(),
       );
       _settings?.incrementAIUsage(wordAnalysis: true);
     } catch (e) {

@@ -1,19 +1,31 @@
 import 'package:flow_read/models/ai_practice_questions.dart';
-import 'package:flow_read/services/prompt_registry.dart';
+import 'package:flow_read/services/prompt_builder.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
     'practice prompt asks for source excerpts and three to five questions',
     () {
-      final prompt = PromptRegistry.practiceUser(
-        'Alice stopped when she heard a sound.',
-        const ['stopped'],
-        const [],
+      final prompt = const PromptBuilder().buildPractice(
+        PracticePromptRequest(
+          chapterText: 'Alice stopped when she heard a sound.',
+          vocabulary: const ['stopped'],
+          events: const [],
+          sourceLanguage: SourceLanguage.english,
+          outputLanguage: OutputLanguage.zhHans,
+          spoilerBoundary: SpoilerBoundary.chapter(
+            bookId: 'book',
+            chapterIndex: 0,
+            scope: AIContextScope.readSoFar,
+          ),
+        ),
       );
 
-      expect(prompt, contains('"source_excerpt"'));
-      expect(prompt, contains('Total questions: at least 3, at most 5'));
+      expect(prompt.systemPrompt, contains('"source_excerpt"'));
+      expect(
+        prompt.systemPrompt,
+        contains('Total questions: at least 3, at most 5'),
+      );
     },
   );
 

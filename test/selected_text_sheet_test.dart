@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flow_read/models/ai_text_analysis.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/widgets/selected_text_sheet.dart';
@@ -18,6 +20,11 @@ void main() {
             role: 'main subject',
             explanation: '主语部分，说明动作发出者。',
           ),
+          StructureNote(
+            source: 'jumps over the lazy dog',
+            role: 'verb phrase with object',
+            explanation: '谓语动词短语，说明主语完成的动作。',
+          ),
         ],
         grammarPoints: [
           GrammarPoint(
@@ -28,6 +35,11 @@ void main() {
         ],
         vocabularyNotes: [
           VocabularyNote(word: 'quick', contextMeaning: '敏捷的，快速的', pos: 'adj.'),
+          VocabularyNote(
+            word: 'jumps over',
+            contextMeaning: '跳过，越过',
+            pos: 'phrasal verb',
+          ),
         ],
         expressionNotes: [
           ExpressionNote(
@@ -62,16 +74,107 @@ void main() {
     expect(find.text('译文'), findsOneWidget);
     expect(find.text('敏捷的狐狸跳过了懒狗。'), findsOneWidget);
     expect(find.text('结构'), findsOneWidget);
-    expect(find.text('The quick fox'), findsOneWidget);
+    expect(find.byKey(const ValueKey('structure-source-text')), findsOneWidget);
+    expect(find.text('main subject'), findsOneWidget);
     expect(find.text('语法要点'), findsOneWidget);
     expect(find.text('jumps over'), findsOneWidget);
     expect(find.text('词汇说明'), findsOneWidget);
-    expect(find.text('quick'), findsOneWidget);
+    expect(find.textContaining('quick', findRichText: true), findsWidgets);
     expect(find.text('表达'), findsOneWidget);
     expect(find.text('lazy dog'), findsOneWidget);
     expect(find.text('阅读提示'), findsOneWidget);
     expect(find.text('加入学习卡片'), findsOneWidget);
+
+    expect(
+      _spanForStructureSource(tester, 'The quick fox')?.style?.backgroundColor,
+      isNull,
+    );
+
+    final firstStructureExplanation = find.byKey(
+      const ValueKey('structure-explanation-0'),
+    );
+    await tester.ensureVisible(firstStructureExplanation);
+    await tester.pump();
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(
+      location: tester.getCenter(firstStructureExplanation),
+    );
+    await tester.pump();
+    await mouse.moveTo(tester.getCenter(firstStructureExplanation));
+    await tester.pump(const Duration(milliseconds: 150));
+
+    expect(
+      _spanForStructureSource(tester, 'The quick fox')?.style?.backgroundColor,
+      isNotNull,
+    );
+
+    final firstVocabularySave = tester.getTopRight(
+      find.byKey(const ValueKey('vocabulary-save-0')),
+    );
+    final secondVocabularySave = tester.getTopRight(
+      find.byKey(const ValueKey('vocabulary-save-1')),
+    );
+    expect(
+      (firstVocabularySave.dx - secondVocabularySave.dx).abs(),
+      lessThan(1),
+    );
   });
+
+  testWidgets('embedded title aligns with collapse button', (tester) async {
+    final provider = _SelectedTextReadingProvider(
+      aiTextAnalysis: const AITextAnalysis(
+        translation: '',
+        grammarPoints: [],
+        vocabularyNotes: [],
+        readingTip: '',
+      ),
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ReadingProvider>.value(
+        value: provider,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 420,
+              height: 600,
+              child: SelectedTextSheet(
+                selectedText: 'The quick fox jumps over the lazy dog.',
+                analysis: null,
+                embedded: true,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final titleCenter = tester.getCenter(find.text('结构分析'));
+    final collapseCenter = tester.getCenter(find.byIcon(Icons.chevron_right));
+    expect(titleCenter.dy, closeTo(collapseCenter.dy, 1));
+  });
+}
+
+TextSpan? _spanForStructureSource(WidgetTester tester, String source) {
+  final richText = tester.widget<RichText>(
+    find.byKey(const ValueKey('structure-source-text')),
+  );
+  return _findSpanContaining(richText.text, source);
+}
+
+TextSpan? _findSpanContaining(InlineSpan span, String source) {
+  if (span is! TextSpan) return null;
+  if ((span.text ?? '').contains(source)) return span;
+
+  final children = span.children;
+  if (children == null) return null;
+
+  for (final child in children) {
+    final match = _findSpanContaining(child, source);
+    if (match != null) return match;
+  }
+  return null;
 }
 
 class _SelectedTextReadingProvider extends ReadingProvider {
