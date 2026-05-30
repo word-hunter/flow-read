@@ -99,4 +99,39 @@ void main() {
       isNot(AICacheService.contentHashFor('other content')),
     );
   });
+
+  test('caches word analysis by upgraded key', () async {
+    await cache.saveWordAnalysis(
+      'book-one',
+      3,
+      '{"word":"quicken"}',
+      contentHash: 'word-hash',
+      promptVersion: 4,
+      sourceLanguage: 'en',
+      outputLanguage: 'zh-Hans',
+    );
+
+    expect(
+      await cache.loadWordAnalysis(
+        'book-one',
+        3,
+        contentHash: 'word-hash',
+        promptVersion: 4,
+        sourceLanguage: 'en',
+        outputLanguage: 'zh-Hans',
+      ),
+      '{"word":"quicken"}',
+    );
+    expect(
+      await cache.loadWordAnalysis(
+        'book-one',
+        3,
+        contentHash: 'word-hash',
+        promptVersion: 5,
+        sourceLanguage: 'en',
+        outputLanguage: 'zh-Hans',
+      ),
+      isNull,
+    );
+  });
 }

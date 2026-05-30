@@ -61,6 +61,53 @@ class Meaning {
   });
 }
 
+class DictionaryLookupRequest {
+  final String word;
+  final String? contextText;
+
+  const DictionaryLookupRequest({required this.word, this.contextText});
+
+  String get query => word.trim().toLowerCase();
+  String get displayWord {
+    final trimmed = word.trim();
+    return trimmed.isEmpty ? word : trimmed;
+  }
+}
+
+class DictionaryLookupResult {
+  final DictionaryLookupRequest request;
+  final DictionaryEntry? entry;
+  final String? primaryDefinition;
+
+  const DictionaryLookupResult({
+    required this.request,
+    required this.entry,
+    required this.primaryDefinition,
+  });
+
+  factory DictionaryLookupResult.fromEntry({
+    required DictionaryLookupRequest request,
+    required DictionaryEntry? entry,
+  }) {
+    return DictionaryLookupResult(
+      request: request,
+      entry: entry,
+      primaryDefinition: entry?.meanings
+          .expand((meaning) => meaning.definitions)
+          .firstOrNull,
+    );
+  }
+}
+
 abstract class WordRepository {
   Future<DictionaryEntry?> lookup(String word);
+}
+
+extension WordRepositoryLookupRequest on WordRepository {
+  Future<DictionaryLookupResult> lookupRequest(
+    DictionaryLookupRequest request,
+  ) async {
+    final entry = await lookup(request.query);
+    return DictionaryLookupResult.fromEntry(request: request, entry: entry);
+  }
 }

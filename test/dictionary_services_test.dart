@@ -1,7 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 
+import 'package:flutter/gestures.dart';
+import 'package:flow_read/models/analysis_result.dart';
+import 'package:flow_read/models/user_vocabulary.dart';
 import 'package:flow_read/models/word_context_example.dart';
+import 'package:flow_read/models/word_analysis.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/services/dictionary/collins_repository.dart';
 import 'package:flow_read/storage/repositories/dictionary_cache_repository.dart';
@@ -10,16 +15,25 @@ import 'package:flow_read/services/dictionary/dictionary_manager_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_repository.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_config.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_test_service.dart';
+import 'package:flow_read/services/ai_cache_service.dart';
+import 'package:flow_read/services/ai_service.dart';
 import 'package:flow_read/services/dictionary/longman_repository.dart';
+import 'package:flow_read/services/llm_client.dart';
 import 'package:flow_read/services/pronunciation_service.dart';
+import 'package:flow_read/services/prompt_builder.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/dictionary/word_repository.dart';
 import 'package:flow_read/services/dictionary/wordnet_repository.dart';
+import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
 import 'package:flow_read/widgets/dictionary_detail_view.dart';
+import 'package:flow_read/widgets/reader/reader_word_sidebar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:provider/provider.dart';
 
 import 'support/hive_test_storage.dart';
 
@@ -467,6 +481,45 @@ void main() {
     );
   });
 
+  test(
+    'ReadingProvider keeps history for related dictionary lookups',
+    () async {
+      final provider = ReadingProvider()
+        ..setWordRepository(
+          _MappedRepository({
+            'flow': const DictionaryEntry(
+              word: 'flow',
+              meanings: [
+                Meaning(partOfSpeech: 'noun', definitions: ['movement']),
+              ],
+              sourceName: 'Fixture',
+            ),
+            'movement': const DictionaryEntry(
+              word: 'movement',
+              meanings: [
+                Meaning(partOfSpeech: 'noun', definitions: ['act of moving']),
+              ],
+              sourceName: 'Fixture',
+            ),
+          }),
+        );
+
+      await provider.lookupWord('flow', contextText: 'ideas flow clearly');
+      await provider.lookupRelatedWord('movement');
+
+      expect(provider.selectedWord, 'movement');
+      expect(provider.selectedWordTranslation, 'act of moving');
+      expect(provider.canGoBackWordLookup, isTrue);
+
+      provider.goBackWordLookup();
+
+      expect(provider.selectedWord, 'flow');
+      expect(provider.selectedWordContext, 'ideas flow clearly');
+      expect(provider.selectedWordTranslation, 'movement');
+      expect(provider.canGoBackWordLookup, isFalse);
+    },
+  );
+
   testWidgets('DictionaryDetailView shows imported Word Hunter examples', (
     tester,
   ) async {
@@ -572,6 +625,488 @@ void main() {
     expect(spokenWord, 'flow');
   });
 
+  testWidgets('DictionaryDetailView lets definition words trigger lookup', (
+    tester,
+  ) async {
+    var lookupWord = '';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DictionaryDetailView(
+            word: 'flow',
+            entry: const DictionaryEntry(
+              word: 'flow',
+              meanings: [
+                Meaning(
+                  partOfSpeech: 'noun',
+                  definitions: ['continuous movement'],
+                ),
+              ],
+            ),
+            primaryDefinition: null,
+            isLoading: false,
+            onLookupWord: (word) => lookupWord = word,
+          ),
+        ),
+      ),
+    );
+
+    final movementSpan = _findTextSpan(tester, 'movement');
+    expect(movementSpan.style?.decoration, isNull);
+    (movementSpan.recognizer! as TapGestureRecognizer).onTap!();
+
+    expect(lookupWord, 'movement');
+  });
+
+  testWidgets('DictionaryDetailView handles real taps on definition words', (
+    tester,
+  ) async {
+    var lookupWord = '';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DictionaryDetailView(
+            word: 'flow',
+            entry: const DictionaryEntry(
+              word: 'flow',
+              meanings: [
+                Meaning(partOfSpeech: 'noun', definitions: ['movement']),
+              ],
+            ),
+            primaryDefinition: null,
+            isLoading: false,
+            onLookupWord: (word) => lookupWord = word,
+          ),
+        ),
+      ),
+    );
+
+    await _tapInlineText(tester, 'movement');
+    await tester.pump();
+
+    expect(lookupWord, 'movement');
+  });
+
+  testWidgets('ReaderWordSidebar mouse clicks continue dictionary lookup', (
+    tester,
+  ) async {
+    final provider = ReadingProvider()
+      ..setWordRepository(
+        _MappedRepository({
+          'flow': const DictionaryEntry(
+            word: 'flow',
+            meanings: [
+              Meaning(partOfSpeech: 'noun', definitions: ['movement']),
+            ],
+          ),
+          'movement': const DictionaryEntry(
+            word: 'movement',
+            meanings: [
+              Meaning(partOfSpeech: 'noun', definitions: ['act of moving']),
+            ],
+          ),
+          'moving': const DictionaryEntry(
+            word: 'moving',
+            meanings: [
+              Meaning(partOfSpeech: 'adjective', definitions: ['in motion']),
+            ],
+          ),
+        }),
+      );
+    final settings = SettingsService();
+    addTearDown(provider.dispose);
+    addTearDown(settings.dispose);
+
+    await provider.lookupWord('flow');
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 360,
+                height: 640,
+                child: ReaderWordSidebar(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await _mouseHoverAndTapInlineText(tester, 'movement');
+    await tester.pumpAndSettle();
+
+    expect(provider.selectedWord, 'movement');
+    expect(provider.selectedWordTranslation, 'act of moving');
+
+    await _mouseHoverAndTapInlineText(tester, 'moving');
+    await tester.pumpAndSettle();
+
+    expect(provider.selectedWord, 'moving');
+    expect(provider.selectedWordTranslation, 'in motion');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ReaderWordSidebar back action restores previous lookup', (
+    tester,
+  ) async {
+    final provider = ReadingProvider()
+      ..setWordRepository(
+        _MappedRepository({
+          'flow': const DictionaryEntry(
+            word: 'flow',
+            meanings: [
+              Meaning(partOfSpeech: 'noun', definitions: ['movement']),
+            ],
+          ),
+          'movement': const DictionaryEntry(
+            word: 'movement',
+            meanings: [
+              Meaning(partOfSpeech: 'noun', definitions: ['act of moving']),
+            ],
+          ),
+        }),
+      );
+    final settings = SettingsService();
+    addTearDown(provider.dispose);
+    addTearDown(settings.dispose);
+
+    await provider.lookupWord('flow');
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 360,
+                height: 640,
+                child: ReaderWordSidebar(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await _mouseHoverAndTapInlineText(tester, 'movement');
+    await tester.pumpAndSettle();
+    expect(provider.selectedWord, 'movement');
+
+    await _mouseHoverAndTapText(tester, '返回上一个词条');
+    await tester.pumpAndSettle();
+
+    expect(provider.selectedWord, 'flow');
+    expect(provider.selectedWordTranslation, 'movement');
+    expect(find.text('flow'), findsOneWidget);
+  });
+
+  testWidgets('ReaderWordSidebar merges learning and bookmark action', (
+    tester,
+  ) async {
+    final vocab = UserVocabularyService(
+      repository: _MemoryUserVocabularyRepository(),
+    );
+    await vocab.init();
+    final provider = ReadingProvider()
+      ..setUserVocabulary(vocab)
+      ..setWordRepository(
+        _MappedRepository({
+          'flow': const DictionaryEntry(
+            word: 'flow',
+            meanings: [
+              Meaning(partOfSpeech: 'noun', definitions: ['movement']),
+            ],
+          ),
+        }),
+      );
+    final settings = SettingsService();
+    addTearDown(provider.dispose);
+    addTearDown(settings.dispose);
+
+    await provider.lookupWord('flow');
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(width: 360, height: 640, child: ReaderWordSidebar()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('学习中'), findsNothing);
+    await tester.tap(find.text('加入生词本'));
+    await tester.pumpAndSettle();
+
+    expect(provider.getWordStatus('flow'), UserWordStatus.learning);
+    expect(find.text('已加入生词本'), findsOneWidget);
+  });
+
+  testWidgets('DictionaryDetailView handles mouse hover before word click', (
+    tester,
+  ) async {
+    var lookupWord = '';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DictionaryDetailView(
+            word: 'flow',
+            entry: const DictionaryEntry(
+              word: 'flow',
+              meanings: [
+                Meaning(partOfSpeech: 'noun', definitions: ['movement']),
+              ],
+            ),
+            primaryDefinition: null,
+            isLoading: false,
+            onLookupWord: (word) => lookupWord = word,
+          ),
+        ),
+      ),
+    );
+
+    await _mouseHoverAndTapInlineText(tester, 'movement');
+    await tester.pump();
+
+    expect(lookupWord, 'movement');
+  });
+
+  testWidgets('DictionaryDetailView shows a clear previous-entry action', (
+    tester,
+  ) async {
+    var wentBack = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DictionaryDetailView(
+            word: 'movement',
+            entry: const DictionaryEntry(
+              word: 'movement',
+              meanings: [
+                Meaning(partOfSpeech: 'noun', definitions: ['act of moving']),
+              ],
+            ),
+            primaryDefinition: 'act of moving',
+            isLoading: false,
+            canGoBack: true,
+            onGoBack: () => wentBack = true,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getTopLeft(find.byIcon(Icons.arrow_back)).dx,
+      lessThanOrEqualTo(tester.getTopLeft(find.text('movement')).dx),
+    );
+
+    await _mouseHoverAndTapText(tester, '返回上一个词条');
+    await tester.pump();
+
+    expect(wentBack, isTrue);
+  });
+
+  testWidgets(
+    'ReaderWordSidebar keeps learning actions outside dictionary scroll',
+    (tester) async {
+      final provider = ReadingProvider()
+        ..setWordRepository(
+          _MappedRepository({
+            'flow': DictionaryEntry(
+              word: 'flow',
+              meanings: [
+                Meaning(
+                  partOfSpeech: 'noun',
+                  definitions: List.generate(
+                    24,
+                    (index) =>
+                        'definition $index with enough detail to require scrolling',
+                  ),
+                ),
+              ],
+            ),
+          }),
+        );
+      final settings = SettingsService();
+      addTearDown(provider.dispose);
+      addTearDown(settings.dispose);
+
+      await provider.lookupWord(
+        'flow',
+        contextText: 'Ideas flow clearly in this paragraph.',
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 360,
+                  height: 640,
+                  child: ReaderWordSidebar(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final sidebarBottom = tester
+          .getBottomLeft(find.byType(ReaderWordSidebar))
+          .dy;
+      final contextTopBefore = tester.getTopLeft(find.text('原文语境')).dy;
+      final learningActionBottomBefore = tester
+          .getBottomLeft(find.text('加入生词本'))
+          .dy;
+
+      expect(find.text('操作'), findsOneWidget);
+      expect(find.text('学习状态'), findsNothing);
+      expect(find.text('学习中'), findsNothing);
+      expect(find.text('AI 详解这个词'), findsNothing);
+      expect(find.byIcon(Icons.auto_awesome_outlined), findsOneWidget);
+      expect(_hasTopShadow(tester), isTrue);
+      expect(learningActionBottomBefore, lessThanOrEqualTo(sidebarBottom));
+
+      await tester.drag(
+        find.byType(SingleChildScrollView).first,
+        const Offset(0, -260),
+      );
+      await tester.pump();
+
+      expect(tester.getTopLeft(find.text('原文语境')).dy, contextTopBefore);
+      expect(
+        tester.getBottomLeft(find.text('加入生词本')).dy,
+        learningActionBottomBefore,
+      );
+    },
+  );
+
+  testWidgets('ReaderWordSidebar AI context card supports IPA and speech', (
+    tester,
+  ) async {
+    final provider = _AIAnalysisReadingProvider();
+    final settings = _AIEnabledSettingsService();
+    addTearDown(provider.dispose);
+    addTearDown(settings.dispose);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(width: 360, height: 640, child: ReaderWordSidebar()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final aiButton = tester.widget<IconButton>(
+      find
+          .ancestor(
+            of: find.byIcon(Icons.auto_awesome_outlined),
+            matching: find.byType(IconButton),
+          )
+          .first,
+    );
+    expect(
+      aiButton.style?.overlayColor?.resolve({WidgetState.hovered}),
+      isNotNull,
+    );
+
+    await tester.tap(find.byIcon(Icons.auto_awesome_outlined));
+    await tester.pumpAndSettle();
+
+    final phoneticText = tester.widget<Text>(find.text('/ˈkwɪkənd/'));
+    expect(phoneticText.style?.fontFamily, 'Lucida Grande');
+    expect(
+      phoneticText.style?.fontFamilyFallback,
+      contains('Arial Unicode MS'),
+    );
+
+    await tester.tap(find.byTooltip('播放发音').last);
+    await tester.pumpAndSettle();
+
+    expect(provider.spokenWords, ['quicken']);
+  });
+
+  test('ReadingProvider reuses cached word AI analysis', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'flow_read_word_ai_cache_',
+    );
+    final settings = _AIEnabledSettingsService();
+    final aiService = _CountingAIService(settings);
+    final cache = AICacheService(
+      documentsDirectoryProvider: () async => tempDir,
+    );
+    await cache.init();
+    final provider = _AIWordCacheReadingProvider()
+      ..setSettings(settings)
+      ..setAIService(aiService)
+      ..setAICache(cache);
+
+    addTearDown(provider.dispose);
+    addTearDown(settings.dispose);
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    await provider.analyzeWordAI(
+      'quicken',
+      'The footsteps quickened in the hallway.',
+    );
+    final first = provider.aiWordAnalysis;
+
+    await provider.analyzeWordAI(
+      'quicken',
+      'The footsteps quickened in the hallway.',
+    );
+
+    expect(aiService.wordAnalysisCalls, 1);
+    expect(
+      provider.aiWordAnalysis?.meanings.single.meaning,
+      first?.meanings.single.meaning,
+    );
+    expect(provider.isAnalyzingWord, isFalse);
+  });
+
   test('ReadingProvider delegates word pronunciation to service', () async {
     final pronunciation = _FakePronunciationService();
     final provider = ReadingProvider()..setPronunciationService(pronunciation);
@@ -594,6 +1129,256 @@ class _CountingRepository implements WordRepository {
     calls += 1;
     return entry;
   }
+}
+
+class _MappedRepository implements WordRepository {
+  final Map<String, DictionaryEntry> entries;
+
+  _MappedRepository(this.entries);
+
+  @override
+  Future<DictionaryEntry?> lookup(String word) async {
+    return entries[word.toLowerCase().trim()];
+  }
+}
+
+class _MemoryUserVocabularyRepository implements UserVocabularyRepository {
+  final Map<String, UserWordStatus> _storage = {};
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  UserWordStatus? getStatus(String word) {
+    return _storage[word.toLowerCase().trim()];
+  }
+
+  @override
+  Set<String> wordsWithStatus(UserWordStatus status) {
+    return _storage.entries
+        .where((entry) => entry.value == status)
+        .map((entry) => entry.key)
+        .toSet();
+  }
+
+  @override
+  Map<String, UserWordStatus> get allWords => Map.unmodifiable(_storage);
+
+  @override
+  Future<void> setStatus(String word, UserWordStatus status) async {
+    _storage[word.toLowerCase().trim()] = status;
+  }
+
+  @override
+  Future<void> remove(String word) async {
+    _storage.remove(word.toLowerCase().trim());
+  }
+
+  @override
+  Future<void> close() async {}
+}
+
+class _AIEnabledSettingsService extends SettingsService {
+  @override
+  bool get aiFeaturesEnabled => true;
+
+  @override
+  String get aiFeatureDisabledReason => '';
+
+  @override
+  Future<void> incrementAIUsage({
+    bool chapterSummary = false,
+    bool textAnalysis = false,
+    bool practice = false,
+    bool wordAnalysis = false,
+  }) async {}
+}
+
+class _AIAnalysisReadingProvider extends ReadingProvider {
+  final spokenWords = <String>[];
+  WordAnalysis? _analysis;
+
+  @override
+  String? get selectedWord => 'quicken';
+
+  @override
+  String? get selectedWordTranslation => '加快，加速';
+
+  @override
+  String? get selectedWordContext =>
+      '...haunted house people’s footsteps quickened as they walked by...';
+
+  @override
+  DictionaryEntry? get selectedWordEntry => const DictionaryEntry(
+    word: 'quicken',
+    meanings: [
+      Meaning(partOfSpeech: 'verb', definitions: ['加快，加速']),
+    ],
+  );
+
+  @override
+  bool get aiFeaturesEnabled => true;
+
+  @override
+  bool get canPronounceWords => true;
+
+  @override
+  WordAnalysis? get aiWordAnalysis => _analysis;
+
+  @override
+  Future<void> analyzeWordAI(String word, String sentence) async {
+    _analysis = const WordAnalysis(
+      pronunciation: '/ˈkwɪkənd/',
+      meanings: [
+        ContextualMeaning(meaning: '加快，加速', explanation: '这里描述脚步在语境中变快。'),
+      ],
+      usageTips: ['常用于描述心跳、步伐、节奏等加快。'],
+      memoryTip: '',
+    );
+    notifyListeners();
+  }
+
+  @override
+  Future<void> speakWord(String word) async {
+    spokenWords.add(word);
+  }
+}
+
+class _AIWordCacheReadingProvider extends ReadingProvider {
+  @override
+  String? get activeBookId => 'book-one';
+
+  @override
+  int get currentChapter => 2;
+
+  @override
+  AnalysisResult? get result => const AnalysisResult(
+    passageText: 'The footsteps quickened in the hallway.',
+    title: 'Chapter',
+    vocabulary: [],
+    knownWords: {},
+    learningWords: {},
+    syntaxPatterns: [],
+    comprehension: Comprehension(
+      whatHappened: '',
+      whyHappened: '',
+      implicitMeaning: '',
+    ),
+    practice: [],
+    difficulty: Difficulty(vocab: 0, syntax: 0, inference: 0, explanation: ''),
+  );
+}
+
+class _CountingAIService extends AIService {
+  int wordAnalysisCalls = 0;
+
+  _CountingAIService(SettingsService settings) : super(LLMClient(settings));
+
+  @override
+  int get promptVersion => 99;
+
+  @override
+  Future<WordAnalysis> analyzeWord({
+    required String word,
+    required String sentence,
+    required String chapterContext,
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
+    wordAnalysisCalls += 1;
+    return WordAnalysis(
+      pronunciation: '/ˈkwɪkənd/',
+      meanings: [
+        ContextualMeaning(
+          meaning: 'cached meaning $wordAnalysisCalls',
+          explanation: sentence,
+        ),
+      ],
+      usageTips: const ['cache me'],
+      memoryTip: '',
+    );
+  }
+}
+
+bool _hasTopShadow(WidgetTester tester) {
+  for (final container in tester.widgetList<Container>(
+    find.byType(Container),
+  )) {
+    final decoration = container.decoration;
+    if (decoration is BoxDecoration &&
+        decoration.boxShadow?.any((shadow) => shadow.offset.dy < 0) == true) {
+      return true;
+    }
+  }
+  return false;
+}
+
+TextSpan _findTextSpan(WidgetTester tester, String text) {
+  for (final richText in tester.widgetList<RichText>(find.byType(RichText))) {
+    final span = _findSpan(richText.text, text);
+    if (span != null) return span;
+  }
+  throw StateError('Text span not found: $text');
+}
+
+TextSpan? _findSpan(InlineSpan span, String text) {
+  if (span is! TextSpan) return null;
+  if (span.text == text) return span;
+  final children = span.children;
+  if (children == null) return null;
+  for (final child in children) {
+    final found = _findSpan(child, text);
+    if (found != null) return found;
+  }
+  return null;
+}
+
+Future<void> _tapInlineText(WidgetTester tester, String text) async {
+  await tester.tapAt(_inlineTextCenter(tester, text));
+}
+
+Future<void> _mouseHoverAndTapInlineText(
+  WidgetTester tester,
+  String text,
+) async {
+  final target = _inlineTextCenter(tester, text);
+  await _mouseTapAt(tester, target);
+}
+
+Future<void> _mouseHoverAndTapText(WidgetTester tester, String text) async {
+  await _mouseTapAt(tester, tester.getCenter(find.text(text)));
+}
+
+Future<void> _mouseTapAt(WidgetTester tester, Offset target) async {
+  final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+  await gesture.addPointer(location: target);
+  await tester.pump();
+  await gesture.down(target);
+  await tester.pump();
+  await gesture.up();
+  await gesture.removePointer();
+}
+
+Offset _inlineTextCenter(WidgetTester tester, String text) {
+  final richTextFinder = find
+      .byWidgetPredicate(
+        (widget) =>
+            widget is RichText && widget.text.toPlainText().contains(text),
+      )
+      .first;
+  final renderParagraph = tester.renderObject<RenderParagraph>(richTextFinder);
+  final plainText = renderParagraph.text.toPlainText();
+  final start = plainText.indexOf(text);
+  final boxes = renderParagraph.getBoxesForSelection(
+    TextSelection(baseOffset: start, extentOffset: start + text.length),
+  );
+
+  if (boxes.isEmpty) {
+    throw StateError('Text selection box not found: $text');
+  }
+
+  return renderParagraph.localToGlobal(boxes.first.toRect().center);
 }
 
 class _ThrowingRepository implements WordRepository {

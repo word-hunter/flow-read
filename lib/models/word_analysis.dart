@@ -37,6 +37,13 @@ class WordAnalysis {
     memoryTip: '',
   );
 
+  Map<String, dynamic> toJson() => {
+    'pronunciation': pronunciation,
+    'meanings': meanings.map((meaning) => meaning.toJson()).toList(),
+    'usage_tips': usageTips,
+    'memory_tip': memoryTip,
+  };
+
   bool get isEmpty =>
       pronunciation.isEmpty &&
       meanings.isEmpty &&
@@ -56,4 +63,9 @@ class ContextualMeaning {
       explanation: json['explanation'] as String? ?? '',
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'meaning': meaning,
+    'explanation': explanation,
+  };
 }

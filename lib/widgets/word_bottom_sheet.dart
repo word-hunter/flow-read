@@ -19,14 +19,22 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
   bool _bookmarkAdded = false;
   bool _learningItemSaved = false;
   bool _showAIAnalysis = false;
+  String? _currentWord;
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ReadingProvider>();
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
-    final isBookmarked = provider.isBookmarked(widget.word) || _bookmarkAdded;
-    final status = provider.getWordStatus(widget.word);
+    final word = provider.selectedWord ?? widget.word;
+    if (_currentWord != word) {
+      _currentWord = word;
+      _bookmarkAdded = false;
+      _learningItemSaved = false;
+      _showAIAnalysis = false;
+    }
+    final isBookmarked = provider.isBookmarked(word) || _bookmarkAdded;
+    final status = provider.getWordStatus(word);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.45,
@@ -46,13 +54,14 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
                 child: SingleChildScrollView(
                   controller: scrollController,
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-                  child: _buildContent(provider),
+                  child: _buildContent(provider, word),
                 ),
               ),
               _buildBottomActions(
                 provider,
                 settings,
                 theme,
+                word,
                 status,
                 isBookmarked,
               ),
@@ -93,17 +102,15 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
     );
   }
 
-  Widget _buildContent(ReadingProvider provider) {
-    return DictionaryDetailView.fromProvider(
-      provider: provider,
-      word: widget.word,
-    );
+  Widget _buildContent(ReadingProvider provider, String word) {
+    return DictionaryDetailView.fromProvider(provider: provider, word: word);
   }
 
   Widget _buildBottomActions(
     ReadingProvider provider,
     SettingsService settings,
     ThemeData theme,
+    String word,
     UserWordStatus? status,
     bool isBookmarked,
   ) {
@@ -130,14 +137,14 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
                       setState(() => _showAIAnalysis = !_showAIAnalysis);
                       if (_showAIAnalysis) {
                         provider.analyzeWordAI(
-                          widget.word,
+                          word,
                           provider
                                   .selectedWordEntry
                                   ?.meanings
                                   .firstOrNull
                                   ?.definitions
                                   .firstOrNull ??
-                              widget.word,
+                              word,
                         );
                       }
                     },
@@ -184,7 +191,7 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
                     label: 'Known',
                     icon: Icons.check_circle_outline,
                     color: AppColors.familiarityHigh,
-                    onPressed: () => provider.markWordKnown(widget.word),
+                    onPressed: () => provider.markWordKnown(word),
                   ),
                 ),
               if (status != UserWordStatus.learning)
@@ -194,7 +201,7 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
                     label: 'Learning',
                     icon: Icons.school_outlined,
                     color: AppColors.vocabLearning,
-                    onPressed: () => provider.markWordLearning(widget.word),
+                    onPressed: () => provider.markWordLearning(word),
                   ),
                 ),
               if (status != null)
@@ -204,7 +211,7 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
                     label: 'Unknown',
                     icon: Icons.help_outline,
                     color: AppColors.familiarityLow,
-                    onPressed: () => provider.markWordUnknown(widget.word),
+                    onPressed: () => provider.markWordUnknown(word),
                   ),
                 ),
             ],
@@ -272,7 +279,7 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
                     onPressed: provider.selectedWordTranslation != null
                         ? () {
                             provider.addBookmark(
-                              widget.word,
+                              word,
                               provider.selectedWordTranslation!,
                             );
                             setState(() => _bookmarkAdded = true);

@@ -5,6 +5,7 @@ import '../../providers/reading_provider.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_colors.dart';
 import '../dictionary_detail_view.dart';
+import '../pronunciation_button.dart';
 
 class ReaderWordSidebar extends StatefulWidget {
   final VoidCallback? onClose;
@@ -47,10 +48,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
           Expanded(
             child: word == null
                 ? _buildEmptyState(theme)
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-                    child: _buildLearningPanel(provider, settings, theme, word),
-                  ),
+                : _buildLookupLayout(provider, settings, theme, word),
           ),
         ],
       ),
@@ -118,7 +116,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
     );
   }
 
-  Widget _buildLearningPanel(
+  Widget _buildLookupLayout(
     ReadingProvider provider,
     SettingsService settings,
     ThemeData theme,
@@ -127,19 +125,153 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
     final status = provider.getWordStatus(word);
     final isBookmarked = provider.isBookmarked(word);
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final persistentPanelMaxHeight = constraints.maxHeight * 0.54;
+
+        return Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
+                child: DictionaryDetailView.fromProvider(
+                  provider: provider,
+                  word: word,
+                ),
+              ),
+            ),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: persistentPanelMaxHeight),
+              child: _buildPersistentLearningPanel(
+                provider,
+                settings,
+                theme,
+                word,
+                status,
+                isBookmarked,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPersistentLearningPanel(
+    ReadingProvider provider,
+    SettingsService settings,
+    ThemeData theme,
+    String word,
+    UserWordStatus? status,
+    bool isBookmarked,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withValues(alpha: 0.10),
+            blurRadius: 14,
+            offset: const Offset(0, -5),
+          ),
+        ],
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.18),
+          ),
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildContextSection(provider, settings, theme, word),
+            const SizedBox(height: 16),
+            _buildLearningStatusSection(
+              provider,
+              theme,
+              word,
+              status,
+              isBookmarked,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContextSection(
+    ReadingProvider provider,
+    SettingsService settings,
+    ThemeData theme,
+    String word,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DictionaryDetailView.fromProvider(
-          provider: provider,
+        DictionaryContextBlock(
           word: word,
-          showContext: true,
+          contextText: provider.selectedWordContext,
+          trailing: _buildAIContextAction(provider, settings, theme, word),
         ),
-        const SizedBox(height: 22),
-        _buildLearningStatusSection(provider, theme, word, status),
-        const SizedBox(height: 22),
-        _buildOperationsSection(provider, settings, theme, word, isBookmarked),
+        if (_showAIAnalysis) ...[
+          const SizedBox(height: 10),
+          _buildAIAnalysisContent(provider, theme, word),
+        ],
       ],
+    );
+  }
+
+  Widget _buildAIContextAction(
+    ReadingProvider provider,
+    SettingsService settings,
+    ThemeData theme,
+    String word,
+  ) {
+    final canToggleAIAnalysis =
+        _showAIAnalysis ||
+        (settings.aiFeaturesEnabled && provider.aiFeaturesEnabled);
+    final disabledReason = settings.aiFeaturesEnabled
+        ? provider.aiFeatureDisabledReason
+        : settings.aiFeatureDisabledReason;
+    return IconButton(
+      tooltip: _showAIAnalysis
+          ? '收起 AI 详解'
+          : canToggleAIAnalysis
+          ? 'AI 详解语境'
+          : disabledReason,
+      onPressed: provider.isAnalyzingWord && !_showAIAnalysis
+          ? null
+          : canToggleAIAnalysis
+          ? () {
+              setState(() => _showAIAnalysis = !_showAIAnalysis);
+              if (_showAIAnalysis) {
+                provider.analyzeWordAI(word, _analysisContext(provider, word));
+              }
+            }
+          : null,
+      icon: Icon(
+        _showAIAnalysis ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+        size: 20,
+      ),
+      color: _showAIAnalysis
+          ? AppColors.vocabLearning
+          : theme.colorScheme.onSurfaceVariant,
+      selectedIcon: const Icon(Icons.auto_awesome, size: 20),
+      isSelected: _showAIAnalysis,
+      style: IconButton.styleFrom(
+        backgroundColor: _showAIAnalysis
+            ? AppColors.vocabLearning.withValues(alpha: 0.10)
+            : null,
+        hoverColor: AppColors.vocabLearning.withValues(alpha: 0.10),
+        disabledForegroundColor: theme.colorScheme.onSurfaceVariant.withValues(
+          alpha: 0.35,
+        ),
+      ),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
+      visualDensity: VisualDensity.compact,
     );
   }
 
@@ -161,11 +293,13 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
     ThemeData theme,
     String word,
     UserWordStatus? status,
+    bool isBookmarked,
   ) {
+    final isLearning = status == UserWordStatus.learning || isBookmarked;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionLabel(theme, '学习状态'),
+        _buildSectionLabel(theme, '操作'),
         Row(
           children: [
             Expanded(
@@ -182,11 +316,11 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
             Expanded(
               child: _statusButton(
                 theme: theme,
-                label: '学习中',
-                icon: Icons.school_outlined,
+                label: isLearning ? '已加入生词本' : '加入生词本',
+                icon: isLearning ? Icons.bookmark : Icons.bookmark_border,
                 color: AppColors.vocabLearning,
-                selected: status == UserWordStatus.learning,
-                onPressed: () => provider.markWordLearning(word),
+                selected: isLearning,
+                onPressed: () => _addToLearning(provider, word),
               ),
             ),
           ],
@@ -213,8 +347,8 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
         side: BorderSide(
           color: color.withValues(alpha: selected ? 0.65 : 0.35),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-        minimumSize: const Size(0, 44),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+        minimumSize: const Size(0, 40),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         textStyle: theme.textTheme.labelLarge?.copyWith(
           fontWeight: FontWeight.w700,
@@ -223,87 +357,15 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
     );
   }
 
-  Widget _buildOperationsSection(
-    ReadingProvider provider,
-    SettingsService settings,
-    ThemeData theme,
-    String word,
-    bool isBookmarked,
-  ) {
-    final canToggleAIAnalysis = _showAIAnalysis || settings.aiFeaturesEnabled;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionLabel(theme, '操作'),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: provider.selectedWordTranslation == null || isBookmarked
-                ? null
-                : () {
-                    provider.addBookmark(
-                      word,
-                      provider.selectedWordTranslation!,
-                    );
-                    setState(() {});
-                  },
-            icon: Icon(
-              isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-              size: 20,
-            ),
-            label: Text(isBookmarked ? '已加入生词本' : '加入生词本'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: provider.isAnalyzingWord || !canToggleAIAnalysis
-                ? null
-                : () {
-                    setState(() => _showAIAnalysis = !_showAIAnalysis);
-                    if (_showAIAnalysis) {
-                      provider.analyzeWordAI(
-                        word,
-                        _analysisContext(provider, word),
-                      );
-                    }
-                  },
-            icon: Icon(
-              Icons.psychology,
-              size: 20,
-              color: AppColors.vocabLearning,
-            ),
-            label: Text(_showAIAnalysis ? '收起 AI 详解' : 'AI 详解这个词'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.vocabLearning,
-              side: BorderSide(
-                color: AppColors.vocabLearning.withValues(alpha: 0.35),
-              ),
-              minimumSize: const Size.fromHeight(48),
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              textStyle: theme.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-        if (_showAIAnalysis) ...[
-          const SizedBox(height: 12),
-          _buildAIAnalysisContent(provider, theme),
-        ],
-      ],
-    );
+  Future<void> _addToLearning(ReadingProvider provider, String word) async {
+    await provider.markWordLearning(word);
+    final translation = provider.selectedWordTranslation?.trim();
+    if (translation != null &&
+        translation.isNotEmpty &&
+        !provider.isBookmarked(word)) {
+      provider.addBookmark(word, translation);
+    }
+    if (mounted) setState(() {});
   }
 
   String _analysisContext(ReadingProvider provider, String word) {
@@ -317,7 +379,11 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
     return provider.selectedWordTranslation ?? word;
   }
 
-  Widget _buildAIAnalysisContent(ReadingProvider provider, ThemeData theme) {
+  Widget _buildAIAnalysisContent(
+    ReadingProvider provider,
+    ThemeData theme,
+    String word,
+  ) {
     if (provider.isAnalyzingWord) {
       return const Center(
         child: Padding(
@@ -353,13 +419,24 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
           if (analysis.pronunciation.isNotEmpty) ...[
             Row(
               children: [
-                Icon(Icons.volume_up, size: 16, color: AppColors.vocabLearning),
-                const SizedBox(width: 6),
+                if (provider.canPronounceWords)
+                  PronunciationButton(
+                    word: word,
+                    onSpeakWord: provider.speakWord,
+                    buttonSize: 28,
+                    iconSize: 16,
+                  )
+                else
+                  Icon(
+                    Icons.volume_up_rounded,
+                    size: 16,
+                    color: AppColors.vocabLearning.withValues(alpha: 0.45),
+                  ),
+                const SizedBox(width: 4),
                 Flexible(
-                  child: Text(
-                    analysis.pronunciation,
+                  child: DictionaryPhoneticText(
+                    text: analysis.pronunciation,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      fontStyle: FontStyle.italic,
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),

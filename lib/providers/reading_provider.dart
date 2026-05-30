@@ -115,6 +115,8 @@ class ReadingProvider extends ChangeNotifier {
   String? _selectedWordTranslation;
   String? _selectedWordContext;
   DictionaryEntry? _selectedWordEntry;
+  DictionaryLookupResult? _selectedWordLookupResult;
+  final List<DictionaryLookupResult> _wordLookupHistory = [];
   bool _isLoadingWord = false;
 
   // ============================================================
@@ -306,6 +308,9 @@ class ReadingProvider extends ChangeNotifier {
   String? get selectedWordTranslation => _selectedWordTranslation;
   String? get selectedWordContext => _selectedWordContext;
   DictionaryEntry? get selectedWordEntry => _selectedWordEntry;
+  DictionaryLookupResult? get selectedWordLookupResult =>
+      _selectedWordLookupResult;
+  bool get canGoBackWordLookup => _wordLookupHistory.isNotEmpty;
   bool get isLoadingWord => _isLoadingWord;
 
   // -- Text analysis --
@@ -1041,10 +1046,33 @@ class ReadingProvider extends ChangeNotifier {
     String? contextText,
     bool trackReadingLookup = false,
   }) async {
-    _selectedWord = word;
+    _wordLookupHistory.clear();
+    await _lookupWord(
+      DictionaryLookupRequest(
+        word: word,
+        contextText: _normalizeLookupContext(contextText),
+      ),
+      trackReadingLookup: trackReadingLookup,
+    );
+  }
+
+  Future<void> lookupRelatedWord(String word) async {
+    final current = _selectedWordLookupResult;
+    if (current != null) {
+      _wordLookupHistory.add(current);
+    }
+    await _lookupWord(DictionaryLookupRequest(word: word));
+  }
+
+  Future<void> _lookupWord(
+    DictionaryLookupRequest request, {
+    bool trackReadingLookup = false,
+  }) async {
+    _selectedWord = request.displayWord;
     _selectedWordTranslation = null;
-    _selectedWordContext = _normalizeLookupContext(contextText);
+    _selectedWordContext = request.contextText;
     _selectedWordEntry = null;
+    _selectedWordLookupResult = null;
     _isLoadingWord = true;
     notifyListeners();
 
@@ -1053,18 +1081,20 @@ class ReadingProvider extends ChangeNotifier {
       await _learningAnalyticsService?.recordLookup(
         bookId: activeBookId,
         chapterIndex: _currentChapter,
-        word: word,
+        word: request.displayWord,
       );
     }
 
-    final entry = await _wordRepo.lookup(word);
-    _selectedWordEntry = entry;
-    final firstDefinition = entry?.meanings
-        .expand((meaning) => meaning.definitions)
-        .firstOrNull;
-    if (firstDefinition != null) {
-      _selectedWordTranslation = firstDefinition;
-    }
+    final result = await _wordRepo.lookupRequest(request);
+    _applyWordLookupResult(result);
+    _isLoadingWord = false;
+    notifyListeners();
+  }
+
+  void goBackWordLookup() {
+    if (_wordLookupHistory.isEmpty) return;
+    final previous = _wordLookupHistory.removeLast();
+    _applyWordLookupResult(previous);
     _isLoadingWord = false;
     notifyListeners();
   }
@@ -1074,8 +1104,18 @@ class ReadingProvider extends ChangeNotifier {
     _selectedWordTranslation = null;
     _selectedWordContext = null;
     _selectedWordEntry = null;
+    _selectedWordLookupResult = null;
+    _wordLookupHistory.clear();
     _isLoadingWord = false;
     notifyListeners();
+  }
+
+  void _applyWordLookupResult(DictionaryLookupResult result) {
+    _selectedWordLookupResult = result;
+    _selectedWord = result.request.displayWord;
+    _selectedWordContext = result.request.contextText;
+    _selectedWordEntry = result.entry;
+    _selectedWordTranslation = result.primaryDefinition;
   }
 
   String? _normalizeLookupContext(String? contextText) {
@@ -1611,21 +1651,65 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   Future<void> analyzeWordAI(String word, String sentence) async {
-    if (_result == null || !_ensureAIReady()) return;
+    final currentResult = result;
+    if (currentResult == null || !_ensureAIReady()) return;
+    final chapterText = currentResult.passageText;
+    final sourceLanguage = SourceLanguage.inferFromText(
+      '$sentence $chapterText',
+    );
+    final contentHash = AICacheService.contentHashFor(
+      jsonEncode({
+        'word': word.trim().toLowerCase(),
+        'sentence': sentence.trim(),
+        'chapterText': chapterText,
+      }),
+    );
+    final cacheBookId = activeBookId ?? 'word-analysis';
+    final cacheChapterIndex = currentChapter;
+
+    try {
+      final cacheJson = await _aiCache?.loadWordAnalysis(
+        cacheBookId,
+        cacheChapterIndex,
+        contentHash: contentHash,
+        promptVersion: _aiService!.promptVersion,
+        sourceLanguage: sourceLanguage.code,
+        outputLanguage: OutputLanguage.zhHans.code,
+      );
+      if (cacheJson != null) {
+        _aiWordAnalysis = WordAnalysis.fromJson(
+          jsonDecode(cacheJson) as Map<String, dynamic>,
+        );
+        _isAnalyzingWord = false;
+        notifyListeners();
+        return;
+      }
+    } catch (_) {
+      // Ignore stale or invalid cache entries and fall back to a fresh request.
+    }
+
     _isAnalyzingWord = true;
     _aiWordAnalysis = null;
     notifyListeners();
     try {
-      _aiWordAnalysis = await _aiService!.analyzeWord(
+      final analysis = await _aiService!.analyzeWord(
         word: word,
         sentence: sentence,
-        chapterContext: _result!.passageText,
-        sourceLanguage: SourceLanguage.inferFromText(
-          '$sentence ${_result!.passageText}',
-        ),
+        chapterContext: chapterText,
+        sourceLanguage: sourceLanguage,
         spoilerBoundary: SpoilerBoundary.currentPassage(),
       );
+      _aiWordAnalysis = analysis;
       _settings?.incrementAIUsage(wordAnalysis: true);
+      await _aiCache?.saveWordAnalysis(
+        cacheBookId,
+        cacheChapterIndex,
+        jsonEncode(analysis.toJson()),
+        contentHash: contentHash,
+        promptVersion: _aiService!.promptVersion,
+        sourceLanguage: sourceLanguage.code,
+        outputLanguage: OutputLanguage.zhHans.code,
+      );
     } catch (e) {
       _errorMessage = 'AI 单词解析失败: $e';
     }

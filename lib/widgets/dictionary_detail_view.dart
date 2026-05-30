@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../models/word_context_example.dart';
@@ -18,6 +19,9 @@ class DictionaryDetailView extends StatelessWidget {
   final bool showWordHeader;
   final bool showContext;
   final SpeakWordCallback? onSpeakWord;
+  final ValueChanged<String>? onLookupWord;
+  final VoidCallback? onGoBack;
+  final bool canGoBack;
 
   const DictionaryDetailView({
     super.key,
@@ -31,6 +35,9 @@ class DictionaryDetailView extends StatelessWidget {
     this.showWordHeader = true,
     this.showContext = false,
     this.onSpeakWord,
+    this.onLookupWord,
+    this.onGoBack,
+    this.canGoBack = false,
   });
 
   factory DictionaryDetailView.fromProvider({
@@ -58,6 +65,9 @@ class DictionaryDetailView extends StatelessWidget {
       showWordHeader: showWordHeader,
       showContext: showContext,
       onSpeakWord: provider.canPronounceWords ? provider.speakWord : null,
+      onLookupWord: provider.lookupRelatedWord,
+      onGoBack: provider.canGoBackWordLookup ? provider.goBackWordLookup : null,
+      canGoBack: provider.canGoBackWordLookup,
     );
   }
 
@@ -83,6 +93,23 @@ class DictionaryDetailView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (canGoBack && onGoBack != null) ...[
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: () => onGoBack?.call(),
+              icon: const Icon(Icons.arrow_back, size: 18),
+              label: const Text('返回上一个词条'),
+              style: TextButton.styleFrom(
+                alignment: Alignment.centerLeft,
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(0, 40),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         if (showWordHeader) ...[
           _WordHeader(
             word: word,
@@ -98,7 +125,11 @@ class DictionaryDetailView extends StatelessWidget {
           if (hasPrimaryDefinition) ...[
             _SectionLabel(label: '释义'),
             const SizedBox(height: 6),
-            _PrimaryDefinition(text: primaryDefinition!.trim()),
+            _PrimaryDefinition(
+              text: primaryDefinition!.trim(),
+              currentWord: word,
+              onLookupWord: onLookupWord,
+            ),
             const SizedBox(height: 14),
           ],
           if (entry != null) ...[
@@ -115,6 +146,8 @@ class DictionaryDetailView extends StatelessWidget {
               _MeaningBlock(
                 meaning: meaning,
                 primaryDefinition: primaryDefinition?.trim(),
+                currentWord: word,
+                onLookupWord: onLookupWord,
               ),
           ],
           if (importedExamples.isNotEmpty) ...[
@@ -124,7 +157,7 @@ class DictionaryDetailView extends StatelessWidget {
         ],
         if (showContext) ...[
           const SizedBox(height: 18),
-          _ContextBlock(word: word, contextText: contextText),
+          DictionaryContextBlock(word: word, contextText: contextText),
         ],
       ],
     );
@@ -175,7 +208,7 @@ class _WordHeader extends StatelessWidget {
         ),
         if (phonetic != null && phonetic.isNotEmpty) ...[
           const SizedBox(height: 6),
-          _PhoneticText(text: phonetic),
+          DictionaryPhoneticText(text: phonetic),
         ],
         if (level != null || sourceName != null) ...[
           const SizedBox(height: 10),
@@ -216,10 +249,11 @@ class _WordHeader extends StatelessWidget {
   }
 }
 
-class _PhoneticText extends StatelessWidget {
+class DictionaryPhoneticText extends StatelessWidget {
   final String text;
+  final TextStyle? style;
 
-  const _PhoneticText({required this.text});
+  const DictionaryPhoneticText({super.key, required this.text, this.style});
 
   static const _fontFamilyFallback = [
     'Lucida Grande',
@@ -236,8 +270,8 @@ class _PhoneticText extends StatelessWidget {
     final theme = Theme.of(context);
     return Text(
       text,
-      style: theme.textTheme.bodyMedium?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
+      style: (style ?? theme.textTheme.bodyMedium)?.copyWith(
+        color: style?.color ?? theme.colorScheme.onSurfaceVariant,
         fontFamily: 'Lucida Grande',
         fontFamilyFallback: _fontFamilyFallback,
         fontStyle: FontStyle.normal,
@@ -308,8 +342,14 @@ class _SectionLabel extends StatelessWidget {
 
 class _PrimaryDefinition extends StatelessWidget {
   final String text;
+  final String currentWord;
+  final ValueChanged<String>? onLookupWord;
 
-  const _PrimaryDefinition({required this.text});
+  const _PrimaryDefinition({
+    required this.text,
+    required this.currentWord,
+    required this.onLookupWord,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -324,8 +364,10 @@ class _PrimaryDefinition extends StatelessWidget {
           color: theme.colorScheme.primary.withValues(alpha: 0.12),
         ),
       ),
-      child: Text(
-        text,
+      child: _InteractiveDictionaryText(
+        text: text,
+        currentWord: currentWord,
+        onLookupWord: onLookupWord,
         style: theme.textTheme.bodyLarge?.copyWith(
           fontWeight: FontWeight.w700,
           color: theme.colorScheme.onPrimaryContainer,
@@ -339,8 +381,15 @@ class _PrimaryDefinition extends StatelessWidget {
 class _MeaningBlock extends StatelessWidget {
   final Meaning meaning;
   final String? primaryDefinition;
+  final String currentWord;
+  final ValueChanged<String>? onLookupWord;
 
-  const _MeaningBlock({required this.meaning, this.primaryDefinition});
+  const _MeaningBlock({
+    required this.meaning,
+    required this.currentWord,
+    required this.onLookupWord,
+    this.primaryDefinition,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -373,8 +422,10 @@ class _MeaningBlock extends StatelessWidget {
           for (final item in definitions.asMap().entries)
             Padding(
               padding: const EdgeInsets.only(bottom: 5),
-              child: Text(
-                '${item.key + 1}. ${item.value}',
+              child: _InteractiveDictionaryText(
+                text: '${item.key + 1}. ${item.value}',
+                currentWord: currentWord,
+                onLookupWord: onLookupWord,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface,
                   height: 1.35,
@@ -383,7 +434,11 @@ class _MeaningBlock extends StatelessWidget {
             ),
           if (examples.isNotEmpty) ...[
             if (definitions.isNotEmpty) const SizedBox(height: 4),
-            DictionaryExamplesSection(examples: examples),
+            DictionaryExamplesSection(
+              examples: examples,
+              currentWord: currentWord,
+              onLookupWord: onLookupWord,
+            ),
           ],
         ],
       ),
@@ -418,8 +473,15 @@ class _PartOfSpeechChip extends StatelessWidget {
 
 class DictionaryExamplesSection extends StatelessWidget {
   final List<String> examples;
+  final String? currentWord;
+  final ValueChanged<String>? onLookupWord;
 
-  const DictionaryExamplesSection({super.key, required this.examples});
+  const DictionaryExamplesSection({
+    super.key,
+    required this.examples,
+    this.currentWord,
+    this.onLookupWord,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -432,8 +494,10 @@ class DictionaryExamplesSection extends StatelessWidget {
         for (final example in visible)
           Padding(
             padding: const EdgeInsets.only(bottom: 5),
-            child: Text(
-              example,
+            child: _InteractiveDictionaryText(
+              text: example,
+              currentWord: currentWord,
+              onLookupWord: onLookupWord,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.tertiary,
                 fontStyle: FontStyle.italic,
@@ -446,11 +510,169 @@ class DictionaryExamplesSection extends StatelessWidget {
   }
 }
 
-class _ContextBlock extends StatelessWidget {
+class _InteractiveDictionaryText extends StatefulWidget {
+  const _InteractiveDictionaryText({
+    required this.text,
+    required this.style,
+    this.currentWord,
+    this.onLookupWord,
+  });
+
+  final String text;
+  final TextStyle? style;
+  final String? currentWord;
+  final ValueChanged<String>? onLookupWord;
+
+  @override
+  State<_InteractiveDictionaryText> createState() =>
+      _InteractiveDictionaryTextState();
+}
+
+class _InteractiveDictionaryTextState
+    extends State<_InteractiveDictionaryText> {
+  final Map<int, TapGestureRecognizer> _recognizers = {};
+  int? _hoveredTokenStart;
+  int? _pendingHoveredTokenStart;
+  bool _hoverUpdateScheduled = false;
+  int _hoverUpdateGeneration = 0;
+
+  @override
+  void dispose() {
+    _hoverUpdateGeneration += 1;
+    for (final recognizer in _recognizers.values) {
+      recognizer.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _InteractiveDictionaryText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text ||
+        oldWidget.currentWord != widget.currentWord) {
+      _hoveredTokenStart = null;
+      _pendingHoveredTokenStart = null;
+      _hoverUpdateGeneration += 1;
+      for (final recognizer in _recognizers.values) {
+        recognizer.dispose();
+      }
+      _recognizers.clear();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(style: widget.style, children: _buildSpans(context)),
+    );
+  }
+
+  List<TextSpan> _buildSpans(BuildContext context) {
+    final callback = widget.onLookupWord;
+    if (callback == null) {
+      _disposeInactiveRecognizers(const {});
+      return [TextSpan(text: widget.text)];
+    }
+
+    final spans = <TextSpan>[];
+    final pattern = RegExp(r"[A-Za-z][A-Za-z'-]*");
+    final activeTokenStarts = <int>{};
+    var cursor = 0;
+    for (final match in pattern.allMatches(widget.text)) {
+      if (match.start > cursor) {
+        spans.add(TextSpan(text: widget.text.substring(cursor, match.start)));
+      }
+
+      final token = widget.text.substring(match.start, match.end);
+      if (_isLookupCandidate(token)) {
+        final tokenStart = match.start;
+        activeTokenStarts.add(tokenStart);
+        final recognizer = _recognizers[tokenStart] ??= TapGestureRecognizer();
+        recognizer.onTap = () => callback(_normalizeLookupToken(token));
+        final hovered = _hoveredTokenStart == tokenStart;
+        spans.add(
+          TextSpan(
+            text: token,
+            mouseCursor: SystemMouseCursors.click,
+            onEnter: (_) => _scheduleHoveredToken(tokenStart),
+            onExit: (_) {
+              if (_hoveredTokenStart == tokenStart ||
+                  _pendingHoveredTokenStart == tokenStart) {
+                _scheduleHoveredToken(null);
+              }
+            },
+            style: hovered
+                ? TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    decoration: TextDecoration.underline,
+                    decorationStyle: TextDecorationStyle.dotted,
+                  )
+                : null,
+            recognizer: recognizer,
+          ),
+        );
+      } else {
+        spans.add(TextSpan(text: token));
+      }
+      cursor = match.end;
+    }
+
+    if (cursor < widget.text.length) {
+      spans.add(TextSpan(text: widget.text.substring(cursor)));
+    }
+    _disposeInactiveRecognizers(activeTokenStarts);
+    return spans;
+  }
+
+  void _scheduleHoveredToken(int? tokenStart) {
+    _pendingHoveredTokenStart = tokenStart;
+    if (_hoverUpdateScheduled) return;
+
+    _hoverUpdateScheduled = true;
+    final generation = _hoverUpdateGeneration;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _hoverUpdateScheduled = false;
+      if (!mounted || generation != _hoverUpdateGeneration) return;
+      final nextHoveredTokenStart = _pendingHoveredTokenStart;
+      if (_hoveredTokenStart == nextHoveredTokenStart) return;
+      setState(() => _hoveredTokenStart = nextHoveredTokenStart);
+    });
+  }
+
+  void _disposeInactiveRecognizers(Set<int> activeTokenStarts) {
+    final inactiveStarts = _recognizers.keys
+        .where((start) => !activeTokenStarts.contains(start))
+        .toList();
+    for (final start in inactiveStarts) {
+      _recognizers.remove(start)?.dispose();
+    }
+  }
+
+  bool _isLookupCandidate(String token) {
+    final normalized = _normalizeLookupToken(token);
+    if (normalized.length < 2) return false;
+    final current = widget.currentWord?.trim().toLowerCase();
+    return current == null || current != normalized;
+  }
+
+  String _normalizeLookupToken(String token) {
+    return token
+        .replaceAll(RegExp(r"(^[^A-Za-z]+|[^A-Za-z]+$)"), '')
+        .toLowerCase();
+  }
+}
+
+class DictionaryContextBlock extends StatelessWidget {
   final String word;
   final String? contextText;
+  final Widget? trailing;
 
-  const _ContextBlock({required this.word, this.contextText});
+  const DictionaryContextBlock({
+    super.key,
+    required this.word,
+    this.contextText,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -459,7 +681,12 @@ class _ContextBlock extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionLabel(label: '原文语境'),
+        Row(
+          children: [
+            const _SectionLabel(label: '原文语境'),
+            if (trailing != null) ...[const Spacer(), trailing!],
+          ],
+        ),
         const SizedBox(height: 8),
         Container(
           width: double.infinity,

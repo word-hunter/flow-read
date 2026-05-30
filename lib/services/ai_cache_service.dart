@@ -183,6 +183,57 @@ class AICacheService {
     }
   }
 
+  Future<String?> loadWordAnalysis(
+    String bookId,
+    int chapterIndex, {
+    required String contentHash,
+    required int promptVersion,
+    required String sourceLanguage,
+    String outputLanguage = 'zh-Hans',
+    String? modelConfigFingerprint,
+  }) async {
+    return _readFile(
+      _keyedPath(
+        AICacheKey(
+          kind: 'word_analysis',
+          bookId: bookId,
+          chapterIndex: chapterIndex,
+          contentHash: contentHash,
+          promptVersion: promptVersion,
+          sourceLanguage: sourceLanguage,
+          outputLanguage: outputLanguage,
+          modelConfigFingerprint: modelConfigFingerprint,
+        ),
+      ),
+    );
+  }
+
+  Future<void> saveWordAnalysis(
+    String bookId,
+    int chapterIndex,
+    String jsonString, {
+    required String contentHash,
+    required int promptVersion,
+    required String sourceLanguage,
+    String outputLanguage = 'zh-Hans',
+    String? modelConfigFingerprint,
+  }) async {
+    final key = AICacheKey(
+      kind: 'word_analysis',
+      bookId: bookId,
+      chapterIndex: chapterIndex,
+      contentHash: contentHash,
+      promptVersion: promptVersion,
+      sourceLanguage: sourceLanguage,
+      outputLanguage: outputLanguage,
+      modelConfigFingerprint: modelConfigFingerprint,
+    );
+    final path = _keyedPath(key);
+    await _ensureDir(File(path).parent.path);
+    await File(path).writeAsString(jsonString);
+    await _writeMetadata(path, key);
+  }
+
   Future<void> clearBookCache(String bookId) async {
     final paths = {
       '$_cacheDir/$bookId',
