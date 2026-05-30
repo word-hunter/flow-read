@@ -1,182 +1,20 @@
 import 'dart:typed_data';
 
-sealed class CssLength {
-  const CssLength();
+import 'package:epub_reader_core/epub_reader_core.dart'
+    show ImageStyleData, InlineStyle, ReaderBlockStyle;
 
-  static CssLength? parse(String? value, {bool allowUnitlessPx = false}) {
-    final text = value?.trim().toLowerCase();
-    if (text == null || text.isEmpty) return null;
-    if (text == 'auto') return const CssAuto();
-
-    final match = RegExp(r'^(-?\d+(?:\.\d+)?)(px|%|em|rem)?$').firstMatch(text);
-    if (match == null) return null;
-
-    final parsed = double.tryParse(match.group(1)!);
-    if (parsed == null || !parsed.isFinite) return null;
-    final unit = match.group(2);
-    return switch (unit) {
-      'px' => CssPx(parsed),
-      '%' => CssPercent(parsed),
-      'em' => CssEm(parsed),
-      'rem' => CssRem(parsed),
-      null when allowUnitlessPx => CssPx(parsed),
-      _ => null,
-    };
-  }
-
-  double? resolve({
-    required double percentBase,
-    required double fontSize,
-    double rootFontSize = 16,
-  });
-}
-
-class CssPx extends CssLength {
-  final double value;
-
-  const CssPx(this.value);
-
-  @override
-  double? resolve({
-    required double percentBase,
-    required double fontSize,
-    double rootFontSize = 16,
-  }) => value;
-}
-
-class CssPercent extends CssLength {
-  final double value;
-
-  const CssPercent(this.value);
-
-  @override
-  double? resolve({
-    required double percentBase,
-    required double fontSize,
-    double rootFontSize = 16,
-  }) => percentBase * value / 100;
-}
-
-class CssEm extends CssLength {
-  final double value;
-
-  const CssEm(this.value);
-
-  @override
-  double? resolve({
-    required double percentBase,
-    required double fontSize,
-    double rootFontSize = 16,
-  }) => fontSize * value;
-}
-
-class CssRem extends CssLength {
-  final double value;
-
-  const CssRem(this.value);
-
-  @override
-  double? resolve({
-    required double percentBase,
-    required double fontSize,
-    double rootFontSize = 16,
-  }) => rootFontSize * value;
-}
-
-class CssAuto extends CssLength {
-  const CssAuto();
-
-  @override
-  double? resolve({
-    required double percentBase,
-    required double fontSize,
-    double rootFontSize = 16,
-  }) => null;
-}
-
-enum ReaderTextAlign { start, center, end, justify }
-
-class ReaderBlockStyle {
-  final ReaderTextAlign? textAlign;
-  final CssLength? marginTop;
-  final CssLength? marginBottom;
-  final CssLength? paddingLeft;
-  final CssLength? paddingRight;
-  final CssLength? textIndent;
-  final double? fontSizeScale;
-  final double? lineHeight;
-
-  const ReaderBlockStyle({
-    this.textAlign,
-    this.marginTop,
-    this.marginBottom,
-    this.paddingLeft,
-    this.paddingRight,
-    this.textIndent,
-    this.fontSizeScale,
-    this.lineHeight,
-  });
-
-  ReaderBlockStyle merge(ReaderBlockStyle other) => ReaderBlockStyle(
-    textAlign: other.textAlign ?? textAlign,
-    marginTop: other.marginTop ?? marginTop,
-    marginBottom: other.marginBottom ?? marginBottom,
-    paddingLeft: other.paddingLeft ?? paddingLeft,
-    paddingRight: other.paddingRight ?? paddingRight,
-    textIndent: other.textIndent ?? textIndent,
-    fontSizeScale: other.fontSizeScale ?? fontSizeScale,
-    lineHeight: other.lineHeight ?? lineHeight,
-  );
-
-  static const none = ReaderBlockStyle();
-}
-
-class ImageStyleData {
-  final CssLength? width;
-  final CssLength? height;
-  final CssLength? maxWidth;
-  final CssLength? maxHeight;
-  final CssLength? marginLeft;
-  final CssLength? marginRight;
-  final ReaderTextAlign? alignment;
-  final bool? displayBlock;
-
-  const ImageStyleData({
-    this.width,
-    this.height,
-    this.maxWidth,
-    this.maxHeight,
-    this.marginLeft,
-    this.marginRight,
-    this.alignment,
-    this.displayBlock,
-  });
-
-  ImageStyleData merge(ImageStyleData other) => ImageStyleData(
-    width: other.width ?? width,
-    height: other.height ?? height,
-    maxWidth: other.maxWidth ?? maxWidth,
-    maxHeight: other.maxHeight ?? maxHeight,
-    marginLeft: other.marginLeft ?? marginLeft,
-    marginRight: other.marginRight ?? marginRight,
-    alignment: other.alignment ?? alignment,
-    displayBlock: other.displayBlock ?? displayBlock,
-  );
-
-  static const none = ImageStyleData();
-}
-
-class InlineStyle {
-  final bool bold;
-  final bool italic;
-
-  const InlineStyle({this.bold = false, this.italic = false});
-
-  InlineStyle merge(InlineStyle other) =>
-      InlineStyle(bold: bold || other.bold, italic: italic || other.italic);
-
-  static const normal = InlineStyle();
-}
+export 'package:epub_reader_core/epub_reader_core.dart'
+    show
+        CssAuto,
+        CssEm,
+        CssLength,
+        CssPercent,
+        CssPx,
+        CssRem,
+        ImageStyleData,
+        InlineStyle,
+        ReaderBlockStyle,
+        ReaderTextAlign;
 
 class StyledText {
   final String text;
