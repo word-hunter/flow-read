@@ -21,12 +21,24 @@ import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
 import '../widgets/release_notes_dialog.dart';
 import '../widgets/settings/settings_sections.dart';
+import '../widgets/settings/update_check_result_dialog.dart';
 import '../widgets/theme_transition.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({
+    super.key,
+    this.appUpdateService,
+    this.updateInstaller,
+    this.externalUrlLauncher,
+    this.logFolderOpener,
+  });
 
   static const routeName = '/settings';
+
+  final AppUpdateService? appUpdateService;
+  final AppUpdateInstaller? updateInstaller;
+  final ExternalUrlLauncher? externalUrlLauncher;
+  final LogFolderOpener? logFolderOpener;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -56,16 +68,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _cacheStatsLoading = true;
   SettingsSection _selectedSection = SettingsSection.appearance;
   final BackupFolderAccess _backupFolderAccess = const BackupFolderAccess();
-  final AppUpdateService _appUpdateService = AppUpdateService();
-  final AppUpdateInstaller _updateInstaller = AppUpdateInstaller();
-  final ExternalUrlLauncher _externalUrlLauncher = const ExternalUrlLauncher();
-  final LogFolderOpener _logFolderOpener = LogFolderOpener();
+  late final AppUpdateService _appUpdateService;
+  late final bool _ownsAppUpdateService;
+  late final AppUpdateInstaller _updateInstaller;
+  late final ExternalUrlLauncher _externalUrlLauncher;
+  late final LogFolderOpener _logFolderOpener;
 
   static const _desktopBreakpoint = 760.0;
 
   @override
   void initState() {
     super.initState();
+    _appUpdateService = widget.appUpdateService ?? AppUpdateService();
+    _ownsAppUpdateService = widget.appUpdateService == null;
+    _updateInstaller = widget.updateInstaller ?? const AppUpdateInstaller();
+    _externalUrlLauncher =
+        widget.externalUrlLauncher ?? const ExternalUrlLauncher();
+    _logFolderOpener = widget.logFolderOpener ?? LogFolderOpener();
     unawaited(_refreshCacheStats());
   }
 
@@ -74,7 +93,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _apiKeyController.dispose();
     _baseUrlController.dispose();
     _modelController.dispose();
-    _appUpdateService.dispose();
+    if (_ownsAppUpdateService) {
+      _appUpdateService.dispose();
+    }
     super.dispose();
   }
 
@@ -627,9 +648,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: const Text('导入备份'),
-            content: const Text(
-              '导入前将自动备份当前数据。导入后将替换当前书架、词汇、书签、RSS 和阅读数据。',
-            ),
+            content: const Text('导入前将自动备份当前数据。导入后将替换当前书架、词汇、书签、RSS 和阅读数据。'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
@@ -699,24 +718,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _updateStatusIsError = false;
         _updateFallbackActionLabel = null;
         _updateFallbackUrl = null;
-        _updateStatusMessage = update == null
-            ? '已是最新版本'
-            : '发现 Flow Read ${update.version}';
+        _updateStatusMessage = null;
+        _extractedAppPath = null;
       });
+      await _showUpdateCheckResultDialog(update);
     } catch (error) {
       if (!mounted) return;
+      final message = _friendlyUpdateError(error);
+      final fallbackActionLabel = error is AppUpdateException
+          ? error.actionLabel
+          : null;
+      final fallbackUrl = error is AppUpdateException ? error.actionUrl : null;
 
       setState(() {
         _checkingForUpdate = false;
         _updateStatusIsError = true;
-        _updateStatusMessage = _friendlyUpdateError(error);
-        _updateFallbackActionLabel = error is AppUpdateException
-            ? error.actionLabel
-            : null;
-        _updateFallbackUrl = error is AppUpdateException
-            ? error.actionUrl
-            : null;
+        _updateStatusMessage = message;
+        _updateFallbackActionLabel = fallbackActionLabel;
+        _updateFallbackUrl = fallbackUrl;
       });
+      await _showUpdateCheckErrorDialog(
+        message,
+        actionLabel: fallbackActionLabel,
+        actionUrl: fallbackUrl,
+      );
+    }
+  }
+
+  Future<void> _showUpdateCheckResultDialog(AppUpdateInfo? update) async {
+    if (!mounted) return;
+
+    final action = await showDialog<UpdateCheckResultAction>(
+      context: context,
+      builder: (_) => UpdateCheckResultDialog(update: update),
+    );
+
+    if (update == null) return;
+    if (!mounted) return;
+    switch (action) {
+      case UpdateCheckResultAction.updateNow:
+        await _startDownloadUpdate();
+      case UpdateCheckResultAction.viewReleaseNotes:
+        await _openAvailableUpdateReleasePage();
+      case null:
+        return;
+    }
+  }
+
+  Future<void> _showUpdateCheckErrorDialog(
+    String message, {
+    String? actionLabel,
+    Uri? actionUrl,
+  }) async {
+    if (!mounted) return;
+
+    final openFallback = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('检查更新失败'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('知道了'),
+          ),
+          if (actionLabel != null && actionUrl != null)
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(actionLabel),
+            ),
+        ],
+      ),
+    );
+
+    if (openFallback == true && actionUrl != null) {
+      await _openExternalUrl(actionUrl);
     }
   }
 
@@ -729,6 +805,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _startDownloadUpdate() async {
     final update = _availableUpdate;
     if (update == null || _downloadingUpdate) return;
+    if (!update.hasDownloadAsset) {
+      await _openAvailableUpdateReleasePage();
+      return;
+    }
 
     setState(() {
       _downloadingUpdate = true;
@@ -738,16 +818,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
-      final appPath =
-          await _appUpdateService.downloadAndExtract(update, onProgress: (
-            phase,
-            progress,
-          ) {
-            if (!mounted) return;
-            setState(() {
-              _downloadProgress = progress;
-            });
+      final appPath = await _appUpdateService.downloadAndExtract(
+        update,
+        onProgress: (phase, progress) {
+          if (!mounted) return;
+          setState(() {
+            _downloadProgress = progress;
           });
+        },
+      );
       if (!mounted) return;
 
       setState(() {

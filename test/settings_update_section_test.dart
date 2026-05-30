@@ -1,0 +1,76 @@
+import 'package:flow_read/services/app_update_service.dart';
+import 'package:flow_read/widgets/settings/settings_sections.dart';
+import 'package:flow_read/widgets/settings/update_check_result_dialog.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  testWidgets('about section keeps actions at the bottom', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SettingsAboutSection(
+              onShowReleaseNotes: () {},
+              onCheckForUpdates: () {},
+              checkingForUpdate: false,
+              updateStatusMessage: null,
+              updateStatusIsError: false,
+              updateFallbackActionLabel: null,
+              onOpenUpdateFallback: null,
+              availableUpdate: _updateInfo,
+              onDownloadUpdate: () {},
+              onOpenUpdateReleasePage: () {},
+              onOpenLogsFolder: () {},
+              onOpenRepository: () {},
+              onOpenIssueFeedback: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getTopLeft(find.text('诊断日志')).dy,
+      lessThan(tester.getTopLeft(find.text('操作')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('可用更新')).dy,
+      lessThan(tester.getTopLeft(find.text('操作')).dy),
+    );
+  });
+
+  testWidgets('update result dialog shows immediate update actions', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: UpdateCheckResultDialog(update: _updateInfo)),
+    );
+
+    expect(find.text('发现新版本'), findsOneWidget);
+    expect(find.text('Flow Read 9.9.9'), findsOneWidget);
+    expect(find.text('立即更新'), findsOneWidget);
+    expect(find.text('查看更新说明'), findsOneWidget);
+  });
+
+  testWidgets('update result dialog shows latest state', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: UpdateCheckResultDialog(update: null)),
+    );
+
+    expect(find.text('已是最新版本'), findsOneWidget);
+    expect(find.text('当前版本已经是最新版本。'), findsOneWidget);
+    expect(find.text('知道了'), findsOneWidget);
+  });
+}
+
+final _updateInfo = AppUpdateInfo(
+  version: '9.9.9',
+  tagName: 'v9.9.9',
+  releasePageUrl: Uri.parse('https://github.com/test/releases/v9.9.9'),
+  isPrerelease: false,
+  publishedAt: DateTime(2026, 1, 1),
+  releaseNotes: '### Added\n\n- Test update.',
+  assetName: 'FlowRead-macos-9.9.9.zip',
+  downloadUrl: Uri.parse('https://example.com/FlowRead-macos-9.9.9.zip'),
+);

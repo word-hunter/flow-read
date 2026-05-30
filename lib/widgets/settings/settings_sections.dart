@@ -979,6 +979,41 @@ class SettingsAboutSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         SettingsCard(
+          icon: Icons.plagiarism_outlined,
+          title: '诊断日志',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '本地日志默认脱敏，保留最近 14 天。',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: onOpenLogsFolder,
+                icon: const Icon(Icons.folder_open_outlined),
+                label: const Text('打开日志文件夹'),
+              ),
+            ],
+          ),
+        ),
+        if (availableUpdate != null) ...[
+          const SizedBox(height: 16),
+          _AvailableUpdateCard(
+            update: availableUpdate!,
+            onDownloadUpdate: onDownloadUpdate,
+            downloadingUpdate: downloadingUpdate,
+            downloadProgress: downloadProgress,
+            installedAppPath: installedAppPath,
+            installingUpdate: installingUpdate,
+            onInstallUpdate: onInstallUpdate,
+            onOpenReleasePage: onOpenUpdateReleasePage,
+          ),
+        ],
+        const SizedBox(height: 16),
+        SettingsCard(
           icon: Icons.settings_applications_outlined,
           title: '操作',
           child: Column(
@@ -1030,41 +1065,6 @@ class SettingsAboutSection extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        SettingsCard(
-          icon: Icons.plagiarism_outlined,
-          title: '诊断日志',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '本地日志默认脱敏，保留最近 14 天。',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: onOpenLogsFolder,
-                icon: const Icon(Icons.folder_open_outlined),
-                label: const Text('打开日志文件夹'),
-              ),
-            ],
-          ),
-        ),
-        if (availableUpdate != null) ...[
-          const SizedBox(height: 16),
-          _AvailableUpdateCard(
-            update: availableUpdate!,
-            onDownloadUpdate: onDownloadUpdate,
-            downloadingUpdate: downloadingUpdate,
-            downloadProgress: downloadProgress,
-            installedAppPath: installedAppPath,
-            installingUpdate: installingUpdate,
-            onInstallUpdate: onInstallUpdate,
-            onOpenReleasePage: onOpenUpdateReleasePage,
-          ),
-        ],
       ],
     );
   }
@@ -1115,10 +1115,7 @@ class _AvailableUpdateCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              update.isPrerelease ? '预发布版本' : '正式版本',
-              style: mutedStyle,
-            ),
+            Text(update.isPrerelease ? '预发布版本' : '正式版本', style: mutedStyle),
             if (notes.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
@@ -1171,7 +1168,9 @@ class _AvailableUpdateCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: [
-              if (!readyToInstall && !downloadingUpdate && onDownloadUpdate != null)
+              if (!readyToInstall &&
+                  !downloadingUpdate &&
+                  onDownloadUpdate != null)
                 FilledButton.icon(
                   onPressed: onDownloadUpdate,
                   icon: Icon(
@@ -1179,9 +1178,7 @@ class _AvailableUpdateCard extends StatelessWidget {
                         ? Icons.download_outlined
                         : Icons.open_in_new,
                   ),
-                  label: Text(
-                    update.hasDownloadAsset ? '下载更新' : '打开发布页',
-                  ),
+                  label: Text(update.hasDownloadAsset ? '下载更新' : '打开发布页'),
                 ),
               if (onInstallUpdate != null)
                 FilledButton.icon(
@@ -1195,11 +1192,13 @@ class _AvailableUpdateCard extends StatelessWidget {
                       : const Icon(Icons.restart_alt),
                   label: Text(installingUpdate ? '安装中...' : '安装并重启'),
                 ),
-              if (!readyToInstall && !downloadingUpdate && update.hasDownloadAsset)
+              if (!readyToInstall &&
+                  !downloadingUpdate &&
+                  update.hasDownloadAsset)
                 OutlinedButton.icon(
                   onPressed: onOpenReleasePage,
                   icon: const Icon(Icons.open_in_new),
-                  label: const Text('发布页'),
+                  label: const Text('查看更新说明'),
                 ),
             ],
           ),

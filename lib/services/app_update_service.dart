@@ -2,14 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import 'app_links.dart';
 import 'app_version.dart';
 
-enum AppUpdatePhase { downloading, extracting, complete, }
+enum AppUpdatePhase { downloading, extracting, complete }
 
 class AppUpdateInfo {
   const AppUpdateInfo({
@@ -171,19 +171,7 @@ class AppUpdateService {
   }
 
   Future<String> extractAndFindApp(File zipFile, String extractDir) async {
-    final bytes = await zipFile.readAsBytes();
-    final archive = ZipDecoder().decodeBytes(bytes);
-
-    final outDir = Directory(extractDir);
-    for (final file in archive.files) {
-      if (file.isFile && file.name.isNotEmpty) {
-        final outPath = '${outDir.path}/${file.name}';
-        final outFile = File(outPath);
-        outFile.parent.createSync(recursive: true);
-        outFile.writeAsBytesSync(file.content as List<int>);
-      }
-    }
-
+    await extractFileToDisk(zipFile.path, extractDir);
     return _findAppBundle(extractDir);
   }
 
@@ -196,8 +184,7 @@ class AppUpdateService {
     onProgress?.call(AppUpdatePhase.extracting, 0);
 
     final tempDir = await getTemporaryDirectory();
-    final extractDir =
-        '${tempDir.path}/flow_read_extracted_${update.version}';
+    final extractDir = '${tempDir.path}/flow_read_extracted_${update.version}';
     final extractDirObj = Directory(extractDir);
     if (extractDirObj.existsSync()) {
       extractDirObj.deleteSync(recursive: true);

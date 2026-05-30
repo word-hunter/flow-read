@@ -179,8 +179,11 @@ void main() {
       final zipBytes = _createAppZip();
       final service = AppUpdateService(
         client: MockClient((_) async {
-          return http.Response.bytes(zipBytes, 200,
-              headers: {'content-type': 'application/zip'});
+          return http.Response.bytes(
+            zipBytes,
+            200,
+            headers: {'content-type': 'application/zip'},
+          );
         }),
       );
 
@@ -200,6 +203,37 @@ void main() {
       expect(appPath, endsWith('.app'));
       expect(File('$appPath/Contents/Info.plist').existsSync(), isTrue);
     });
+
+    test(
+      'preserves executable permissions inside extracted app bundle',
+      () async {
+        final zipBytes = _createAppZip(includeExecutable: true);
+        final service = AppUpdateService(
+          client: MockClient((_) async {
+            return http.Response.bytes(zipBytes, 200);
+          }),
+        );
+
+        final update = AppUpdateInfo(
+          version: '1.0.1',
+          tagName: 'v1.0.1',
+          releasePageUrl: Uri.parse('https://github.com/test/releases/v1.0.1'),
+          isPrerelease: false,
+          publishedAt: DateTime(2026, 1, 1),
+          releaseNotes: 'Test',
+          assetName: 'FlowRead-macos-1.0.1.zip',
+          downloadUrl: Uri.parse(
+            'https://example.com/FlowRead-macos-1.0.1.zip',
+          ),
+        );
+
+        final appPath = await service.downloadAndExtract(update);
+        final executable = File('$appPath/Contents/MacOS/FlowRead');
+
+        expect(executable.existsSync(), isTrue);
+        expect(executable.statSync().mode & 0x40, isNot(0));
+      },
+    );
 
     test('throws when zip contains no .app bundle', () async {
       final zipBytes = _createNonAppZip();
@@ -347,7 +381,7 @@ Map<String, dynamic> _release({
   };
 }
 
-Uint8List _createAppZip() {
+Uint8List _createAppZip({bool includeExecutable = false}) {
   final archive = Archive();
   final infoPlist = ArchiveFile(
     'FlowRead.app/Contents/Info.plist',
@@ -355,16 +389,20 @@ Uint8List _createAppZip() {
     Uint8List(0),
   );
   archive.addFile(infoPlist);
+  if (includeExecutable) {
+    final executable = ArchiveFile(
+      'FlowRead.app/Contents/MacOS/FlowRead',
+      5,
+      'hello'.codeUnits,
+    )..mode = 0x1ed;
+    archive.addFile(executable);
+  }
   return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
 }
 
 Uint8List _createNonAppZip() {
   final archive = Archive();
-  final textFile = ArchiveFile(
-    'random/notes.txt',
-    5,
-    'hello'.codeUnits,
-  );
+  final textFile = ArchiveFile('random/notes.txt', 5, 'hello'.codeUnits);
   archive.addFile(textFile);
   return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
 }
