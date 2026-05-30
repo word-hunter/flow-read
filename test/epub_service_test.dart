@@ -41,6 +41,7 @@ void main() {
 
     expect(book.chapters, hasLength(1));
     expect(book.chapters.single.title, 'Chapter One');
+    expect(book.chapters.single.plainText, contains('Map caption'));
 
     final blocks = book.chapters.single.blocks;
     expect(blocks.whereType<TextBlock>().map((b) => b.plainText), [
@@ -51,7 +52,6 @@ void main() {
       'Second item',
       'Nested item',
       'Quoted line.',
-      'Map caption',
       'Name | Value',
       'North | Winter',
     ]);
@@ -80,6 +80,82 @@ void main() {
     expect(image.width, 640);
     expect(image.height, 320);
     expect(image.aspectRatio, 2);
+    expect(image.caption, 'Map caption');
+  });
+
+  test(
+    'EPUB parser applies safe CSS subset and ignores complex selectors',
+    () async {
+      final epubBytes = _buildEpub({
+        'OEBPS/Text/chapter1.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head>
+            <title>Chapter One</title>
+            <link rel="stylesheet" href="../Styles/book.css" />
+            <style>
+              p { text-align: justify; }
+              .scaled { font-size: 150%; margin-bottom: 2em; }
+              .emph { font-style: italic; }
+              #hero { width: 50%; max-width: 300px; }
+              .outer span { font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <p class="scaled">Scaled paragraph.</p>
+            <p><span class="emph external">Styled word.</span></p>
+            <p style="text-align: center">
+              <img id="hero" src="../Images/pic.png" style="height: 120px" />
+            </p>
+            <p class="outer"><span>Complex ignored.</span></p>
+          </body>
+        </html>
+      ''',
+        'OEBPS/Styles/book.css': '.external { font-weight: 700; }',
+        'OEBPS/Images/pic.png': String.fromCharCodes([1, 2, 3, 4]),
+      });
+
+      final book = await EpubService.parseBytes(epubBytes);
+      final blocks = book.chapters.single.blocks;
+
+      final scaled = blocks.whereType<TextBlock>().elementAt(0);
+      expect(scaled.style.textAlign, ReaderTextAlign.justify);
+      expect(scaled.style.fontSizeScale, 1.5);
+      expect(scaled.style.marginBottom, isA<CssEm>());
+
+      final styled = blocks.whereType<TextBlock>().elementAt(1);
+      expect(styled.spans.single.style.italic, isTrue);
+      expect(styled.spans.single.style.bold, isTrue);
+
+      final image = blocks.whereType<ImageBlock>().single;
+      expect(image.style.width, isA<CssPercent>());
+      expect(image.style.height, isA<CssPx>());
+      expect(image.style.maxWidth, isA<CssPx>());
+      expect(image.style.alignment, ReaderTextAlign.center);
+
+      final complexIgnored = blocks.whereType<TextBlock>().elementAt(2);
+      expect(complexIgnored.spans.single.style.bold, isFalse);
+    },
+  );
+
+  test('EPUB parser treats svg image as an image block', () async {
+    final epubBytes = _buildEpub({
+      'OEBPS/Text/chapter1.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Chapter One</title></head>
+          <body>
+            <svg><image href="../Images/pic.png" width="200" height="100" /></svg>
+          </body>
+        </html>
+      ''',
+      'OEBPS/Images/pic.png': String.fromCharCodes([1, 2, 3, 4]),
+    });
+
+    final book = await EpubService.parseBytes(epubBytes);
+    final image = book.chapters.single.blocks.whereType<ImageBlock>().single;
+
+    expect(image.src, '../Images/pic.png');
+    expect(image.declaredWidth, 200);
+    expect(image.declaredHeight, 100);
   });
 
   test(

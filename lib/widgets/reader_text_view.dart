@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../models/analysis_result.dart';
@@ -13,6 +11,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
 import 'dictionary_detail_view.dart';
 import 'pronunciation_button.dart';
+import 'reader/epub_image_layout.dart';
 
 typedef WordTapCallback =
     void Function(
@@ -302,15 +301,18 @@ Widget buildBlockWidget(
 }) {
   switch (block) {
     case TextBlock():
-      final effectiveFontSize = switch (block.type) {
+      final defaultScale = switch (block.type) {
         BlockType.heading => switch (block.headingLevel) {
-          1 => fontSize * 1.5,
-          2 => fontSize * 1.3,
-          3 => fontSize * 1.15,
-          _ => fontSize * 1.1,
+          1 => 1.5,
+          2 => 1.3,
+          3 => 1.15,
+          _ => 1.1,
         },
-        _ => fontSize,
+        _ => 1.0,
       };
+      final styleScale = block.style.fontSizeScale ?? defaultScale;
+      final effectiveFontSize =
+          fontSize * styleScale.clamp(0.75, 1.8).toDouble();
 
       final span = buildStyledBlock(
         block,
@@ -328,6 +330,7 @@ Widget buildBlockWidget(
 
       final richText = Text.rich(
         span as TextSpan,
+        textAlign: _textAlignFor(block.style.textAlign),
         style: theme.textTheme.bodyLarge?.copyWith(
           height: lineHeight,
           letterSpacing: 0.3,
@@ -350,6 +353,8 @@ Widget buildBlockWidget(
         BlockType.listItem => const EdgeInsets.only(bottom: 4),
         BlockType.blockquote => const EdgeInsets.only(bottom: 12),
       };
+      final stylePadding = _stylePaddingFor(block.style, effectiveFontSize);
+      final combinedPadding = padding + stylePadding;
 
       if (block.type == BlockType.listItem) {
         textWidget = Padding(
@@ -380,7 +385,7 @@ Widget buildBlockWidget(
         );
       }
 
-      return Padding(padding: padding, child: textWidget);
+      return Padding(padding: combinedPadding, child: textWidget);
 
     case ImageBlock():
       if (block.bytes == null) {
@@ -391,9 +396,6 @@ Widget buildBlockWidget(
 }
 
 class _EpubImageBlockView extends StatelessWidget {
-  static const double _fallbackAspectRatio = 4 / 3;
-  static const double _maxImageHeight = 520;
-
   final ImageBlock block;
 
   const _EpubImageBlockView({required this.block});
@@ -411,37 +413,91 @@ class _EpubImageBlockView extends StatelessWidget {
               constraints.hasBoundedWidth && constraints.maxWidth.isFinite
               ? constraints.maxWidth
               : 720.0;
-          final maxHeight = math.min(
-            _maxImageHeight,
-            math.max(220.0, availableWidth * 1.25),
+          final naturalSize =
+              block.naturalWidth != null && block.naturalHeight != null
+              ? Size(block.naturalWidth!, block.naturalHeight!)
+              : null;
+          final layout = resolveImageLayout(
+            contentWidth: availableWidth,
+            naturalSize: naturalSize,
+            declaredWidth: block.declaredWidth,
+            declaredHeight: block.declaredHeight,
+            cssWidth: block.style.width,
+            cssHeight: block.style.height,
+            cssMaxWidth: block.style.maxWidth,
+            cssMaxHeight: block.style.maxHeight,
+            alignment: block.style.alignment,
           );
-          final aspectRatio = (block.aspectRatio ?? _fallbackAspectRatio)
-              .clamp(0.2, 6.0)
-              .toDouble();
-          final frameWidth = math.min(availableWidth, maxHeight * aspectRatio);
 
           return Align(
-            alignment: Alignment.center,
-            child: SizedBox(
-              width: frameWidth,
-              child: AspectRatio(
-                aspectRatio: aspectRatio,
-                child: Image.memory(
-                  bytes,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
-                  gaplessPlayback: true,
-                  filterQuality: FilterQuality.medium,
-                  semanticLabel: block.alt,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            alignment: layout.alignment,
+            child: Column(
+              crossAxisAlignment: _crossAxisAlignmentFor(layout.alignment),
+              children: [
+                SizedBox(
+                  width: layout.width,
+                  child: Image.memory(
+                    bytes,
+                    width: layout.width,
+                    height: layout.height,
+                    fit: BoxFit.contain,
+                    alignment: layout.alignment,
+                    gaplessPlayback: true,
+                    filterQuality: FilterQuality.medium,
+                    semanticLabel: block.alt,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
                 ),
-              ),
+                if (block.caption != null) ...[
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: layout.width,
+                    child: Text(
+                      block.caption!,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           );
         },
       ),
     );
   }
+}
+
+TextAlign _textAlignFor(ReaderTextAlign? textAlign) {
+  return switch (textAlign) {
+    ReaderTextAlign.center => TextAlign.center,
+    ReaderTextAlign.end => TextAlign.end,
+    ReaderTextAlign.justify => TextAlign.justify,
+    _ => TextAlign.start,
+  };
+}
+
+CrossAxisAlignment _crossAxisAlignmentFor(Alignment alignment) {
+  if (alignment.x < 0) return CrossAxisAlignment.start;
+  if (alignment.x > 0) return CrossAxisAlignment.end;
+  return CrossAxisAlignment.center;
+}
+
+EdgeInsets _stylePaddingFor(ReaderBlockStyle style, double fontSize) {
+  double resolve(CssLength? length) {
+    final value = length?.resolve(percentBase: 720, fontSize: fontSize);
+    if (value == null || !value.isFinite || value <= 0) return 0;
+    return value.clamp(0, 48).toDouble();
+  }
+
+  return EdgeInsets.only(
+    top: resolve(style.marginTop),
+    bottom: resolve(style.marginBottom),
+    left: resolve(style.paddingLeft),
+    right: resolve(style.paddingRight),
+  );
 }
 
 class _HighlightBuilder {

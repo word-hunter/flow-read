@@ -402,6 +402,7 @@ void main() {
                   bytes: _transparentGif,
                   width: 800,
                   height: 400,
+                  caption: 'Cover caption',
                 ),
                 result,
                 ThemeData(),
@@ -416,9 +417,10 @@ void main() {
 
     expect(tester.takeException(), isNull);
 
-    final imageFrame = tester.renderObject<RenderBox>(find.byType(AspectRatio));
-    expect(imageFrame.size.width, closeTo(160, 0.1));
-    expect(imageFrame.size.height, closeTo(80, 0.1));
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(image.width, closeTo(160, 0.1));
+    expect(image.height, closeTo(80, 0.1));
+    expect(find.text('Cover caption'), findsOneWidget);
   });
 }
 

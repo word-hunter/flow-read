@@ -19,7 +19,7 @@ class EpubService {
   }
 
   static Future<Book> parseBytes(Uint8List bytes) async {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final archive = _EpubArchive(ZipDecoder().decodeBytes(bytes));
 
     final containerXml = _readFile(archive, 'META-INF/container.xml');
     if (containerXml == null) {
@@ -96,8 +96,14 @@ class EpubService {
         final body = contentDoc.body;
         if (body == null) continue;
 
+        final css = _buildStyleCascade(contentDoc, archive, chapterDir);
         _removeUnwantedElements(body);
-        final blocks = _parseContentBlocks(contentDoc, archive, chapterDir);
+        final blocks = _parseContentBlocks(
+          contentDoc,
+          archive,
+          chapterDir,
+          css,
+        );
         final plainText = _plainTextFromBlocks(blocks);
 
         if (plainText.trim().isNotEmpty || blocks.any((b) => b is ImageBlock)) {
@@ -165,30 +171,12 @@ class EpubService {
     return null;
   }
 
-  static String? _readFile(Archive archive, String path) {
-    final normalized = path.startsWith('/') ? path.substring(1) : path;
-    for (final file in archive) {
-      final filePath = file.name.startsWith('/')
-          ? file.name.substring(1)
-          : file.name;
-      if (filePath.toLowerCase() == normalized.toLowerCase()) {
-        return utf8.decode(file.content as List<int>, allowMalformed: true);
-      }
-    }
-    return null;
+  static String? _readFile(_EpubArchive archive, String path) {
+    return archive.readText(path);
   }
 
-  static Uint8List? _readFileBytes(Archive archive, String path) {
-    final normalized = path.startsWith('/') ? path.substring(1) : path;
-    for (final file in archive) {
-      final filePath = file.name.startsWith('/')
-          ? file.name.substring(1)
-          : file.name;
-      if (filePath.toLowerCase() == normalized.toLowerCase()) {
-        return Uint8List.fromList(file.content as List<int>);
-      }
-    }
-    return null;
+  static Uint8List? _readFileBytes(_EpubArchive archive, String path) {
+    return archive.readBytes(path);
   }
 
   static void _removeUnwantedElements(dom.Element element) {
@@ -199,6 +187,35 @@ class EpubService {
     for (final child in element.children) {
       _removeUnwantedElements(child);
     }
+  }
+
+  static _CssCascade _buildStyleCascade(
+    dom.Document document,
+    _EpubArchive archive,
+    String baseDir,
+  ) {
+    final css = StringBuffer();
+
+    for (final link in document.querySelectorAll('link')) {
+      final rel = link.attributes['rel']?.toLowerCase() ?? '';
+      final href = link.attributes['href'];
+      if (!rel.split(RegExp(r'\s+')).contains('stylesheet') ||
+          href == null ||
+          href.trim().isEmpty) {
+        continue;
+      }
+      final resolved = _resolveHref(baseDir, href);
+      final linkedCss = _readFile(archive, resolved);
+      if (linkedCss != null) {
+        css.writeln(linkedCss);
+      }
+    }
+
+    for (final style in document.querySelectorAll('style')) {
+      css.writeln(style.text);
+    }
+
+    return _CssCascade.parse(css.toString());
   }
 
   static String _extractTitle(
@@ -447,23 +464,25 @@ class EpubService {
 
   static List<ContentBlock> _parseContentBlocks(
     dom.Document document,
-    Archive archive,
+    _EpubArchive archive,
     String baseDir,
+    _CssCascade css,
   ) {
     final body = document.body;
     if (body == null) return [];
 
     final result = <ContentBlock>[];
-    _parseNodesAsBlocks(body.nodes, result, archive, baseDir, 0);
+    _parseNodesAsBlocks(body.nodes, result, archive, baseDir, 0, css);
     return result;
   }
 
   static void _parseNodesAsBlocks(
     Iterable<dom.Node> nodes,
     List<ContentBlock> result,
-    Archive archive,
+    _EpubArchive archive,
     String baseDir,
     int indent,
+    _CssCascade css,
   ) {
     final inlineRun = <dom.Node>[];
 
@@ -476,6 +495,7 @@ class EpubService {
         baseDir,
         BlockType.paragraph,
         indent: indent,
+        css: css,
       );
       inlineRun.clear();
     }
@@ -492,7 +512,7 @@ class EpubService {
 
       if (_isBlockElement(node) || _isImageElement(node)) {
         flushInlineRun();
-        _parseBlockElement(node, result, archive, baseDir, indent);
+        _parseBlockElement(node, result, archive, baseDir, indent, css);
       } else {
         inlineRun.add(node);
       }
@@ -504,14 +524,22 @@ class EpubService {
   static void _parseBlockElement(
     dom.Element element,
     List<ContentBlock> result,
-    Archive archive,
+    _EpubArchive archive,
     String baseDir,
     int indent,
+    _CssCascade css,
   ) {
     final tag = element.localName?.toLowerCase() ?? '';
+    final elementStyle = css.declarationFor(element);
+    final blockStyle = elementStyle.blockStyle;
 
     if (_isImageElement(element)) {
-      _addImageBlock(element, result, archive, baseDir);
+      _addImageBlock(element, result, archive, baseDir, css);
+      return;
+    }
+
+    if (tag == 'figure') {
+      _parseFigure(element, result, archive, baseDir, indent, css);
       return;
     }
 
@@ -526,6 +554,8 @@ class EpubService {
           BlockType.heading,
           headingLevel: level,
           indent: indent,
+          style: blockStyle,
+          css: css,
         );
         return;
       }
@@ -534,19 +564,19 @@ class EpubService {
     if (tag == 'ul' || tag == 'ol') {
       for (final li in element.children) {
         if (li.localName?.toLowerCase() == 'li') {
-          _parseListItem(li, result, archive, baseDir, indent + 1);
+          _parseListItem(li, result, archive, baseDir, indent + 1, css);
         }
       }
       return;
     }
 
     if (tag == 'blockquote') {
-      _parseBlockquote(element, result, archive, baseDir, indent + 1);
+      _parseBlockquote(element, result, archive, baseDir, indent + 1, css);
       return;
     }
 
     if (tag == 'table') {
-      _parseTable(element, result, archive, baseDir, indent);
+      _parseTable(element, result, archive, baseDir, indent, css);
       return;
     }
 
@@ -558,7 +588,11 @@ class EpubService {
       final text = element.text.trimRight();
       if (text.trim().isNotEmpty) {
         result.add(
-          TextBlock(type: BlockType.paragraph, spans: [StyledText(text)]),
+          TextBlock(
+            type: BlockType.paragraph,
+            spans: [StyledText(text)],
+            style: blockStyle,
+          ),
         );
       }
       return;
@@ -572,18 +606,49 @@ class EpubService {
         baseDir,
         BlockType.paragraph,
         indent: indent,
+        style: blockStyle,
+        css: css,
       );
     } else {
-      _parseNodesAsBlocks(element.nodes, result, archive, baseDir, indent);
+      _parseNodesAsBlocks(element.nodes, result, archive, baseDir, indent, css);
     }
+  }
+
+  static void _parseFigure(
+    dom.Element element,
+    List<ContentBlock> result,
+    _EpubArchive archive,
+    String baseDir,
+    int indent,
+    _CssCascade css,
+  ) {
+    final image = _firstImageDescendant(element);
+    final caption = _normalizePlainText(
+      element.querySelector('figcaption')?.text ?? '',
+    );
+    if (image != null) {
+      _addImageBlock(
+        image,
+        result,
+        archive,
+        baseDir,
+        css,
+        parentBlockStyle: css.declarationFor(element).blockStyle,
+        caption: caption,
+      );
+      return;
+    }
+
+    _parseNodesAsBlocks(element.nodes, result, archive, baseDir, indent, css);
   }
 
   static void _parseBlockquote(
     dom.Element element,
     List<ContentBlock> result,
-    Archive archive,
+    _EpubArchive archive,
     String baseDir,
     int indent,
+    _CssCascade css,
   ) {
     final inlineRun = <dom.Node>[];
 
@@ -596,6 +661,8 @@ class EpubService {
         baseDir,
         BlockType.blockquote,
         indent: indent,
+        style: css.declarationFor(element).blockStyle,
+        css: css,
       );
       inlineRun.clear();
     }
@@ -620,10 +687,12 @@ class EpubService {
           baseDir,
           BlockType.blockquote,
           indent: indent,
+          style: css.declarationFor(node).blockStyle,
+          css: css,
         );
       } else if (_isBlockElement(node) || _isImageElement(node)) {
         flushQuoteLine();
-        _parseBlockElement(node, result, archive, baseDir, indent);
+        _parseBlockElement(node, result, archive, baseDir, indent, css);
       } else {
         inlineRun.add(node);
       }
@@ -635,9 +704,10 @@ class EpubService {
   static void _parseListItem(
     dom.Element element,
     List<ContentBlock> result,
-    Archive archive,
+    _EpubArchive archive,
     String baseDir,
     int indent,
+    _CssCascade css,
   ) {
     final inlineRun = <dom.Node>[];
     var emittedOwnLine = false;
@@ -652,6 +722,8 @@ class EpubService {
         baseDir,
         BlockType.listItem,
         indent: indent,
+        style: css.declarationFor(element).blockStyle,
+        css: css,
       );
       emittedOwnLine = emittedOwnLine || result.length > before;
       inlineRun.clear();
@@ -670,7 +742,7 @@ class EpubService {
 
       if (tag == 'ul' || tag == 'ol') {
         flushOwnLine();
-        _parseBlockElement(node, result, archive, baseDir, indent);
+        _parseBlockElement(node, result, archive, baseDir, indent, css);
       } else if (_isBlockElement(node) || _isImageElement(node)) {
         if (!emittedOwnLine && _canRepresentAsListItem(node)) {
           flushOwnLine();
@@ -682,11 +754,13 @@ class EpubService {
             baseDir,
             BlockType.listItem,
             indent: indent,
+            style: css.declarationFor(node).blockStyle,
+            css: css,
           );
           emittedOwnLine = emittedOwnLine || result.length > before;
         } else {
           flushOwnLine();
-          _parseBlockElement(node, result, archive, baseDir, indent);
+          _parseBlockElement(node, result, archive, baseDir, indent, css);
         }
       } else {
         inlineRun.add(node);
@@ -699,9 +773,10 @@ class EpubService {
   static void _parseTable(
     dom.Element table,
     List<ContentBlock> result,
-    Archive archive,
+    _EpubArchive archive,
     String baseDir,
     int indent,
+    _CssCascade css,
   ) {
     final caption = table.querySelector('caption');
     if (caption != null) {
@@ -712,6 +787,8 @@ class EpubService {
         baseDir,
         BlockType.paragraph,
         indent: indent,
+        style: css.declarationFor(caption).blockStyle,
+        css: css,
       );
     }
 
@@ -728,6 +805,7 @@ class EpubService {
           type: BlockType.paragraph,
           spans: [StyledText(cells.join(' | '))],
           indent: indent,
+          style: css.declarationFor(row).blockStyle,
         ),
       );
     }
@@ -736,11 +814,13 @@ class EpubService {
   static void _appendInlineNodesAsBlocks(
     Iterable<dom.Node> nodes,
     List<ContentBlock> result,
-    Archive archive,
+    _EpubArchive archive,
     String baseDir,
     BlockType blockType, {
     int headingLevel = 0,
     int indent = 0,
+    ReaderBlockStyle style = ReaderBlockStyle.none,
+    required _CssCascade css,
   }) {
     var spans = <StyledText>[];
 
@@ -753,16 +833,17 @@ class EpubService {
             headingLevel: headingLevel,
             spans: normalized,
             indent: indent,
+            style: style,
           ),
         );
       }
       spans = [];
     }
 
-    void visit(dom.Node node, InlineStyle style) {
+    void visit(dom.Node node, InlineStyle inlineStyle) {
       if (node is dom.Text) {
         if (node.text.isNotEmpty) {
-          _appendStyledSpan(spans, StyledText(node.text, style));
+          _appendStyledSpan(spans, StyledText(node.text, inlineStyle));
         }
         return;
       }
@@ -772,26 +853,33 @@ class EpubService {
       final tag = node.localName?.toLowerCase() ?? '';
       if (_isImageElement(node)) {
         flushTextBlock();
-        _addImageBlock(node, result, archive, baseDir);
+        _addImageBlock(
+          node,
+          result,
+          archive,
+          baseDir,
+          css,
+          parentBlockStyle: style,
+        );
         return;
       }
 
       if (_isBlockElement(node) && tag != 'br') {
         flushTextBlock();
-        _parseBlockElement(node, result, archive, baseDir, indent);
+        _parseBlockElement(node, result, archive, baseDir, indent, css);
         return;
       }
 
       if (tag == 'br') {
-        _appendStyledSpan(spans, StyledText('\n', style));
+        _appendStyledSpan(spans, StyledText('\n', inlineStyle));
         return;
       }
 
-      var childStyle = style;
+      var childStyle = inlineStyle.merge(css.declarationFor(node).inlineStyle);
       if (tag == 'b' || tag == 'strong') {
-        childStyle = style.merge(const InlineStyle(bold: true));
+        childStyle = childStyle.merge(const InlineStyle(bold: true));
       } else if (tag == 'i' || tag == 'em' || tag == 'cite') {
-        childStyle = style.merge(const InlineStyle(italic: true));
+        childStyle = childStyle.merge(const InlineStyle(italic: true));
       }
 
       for (final child in node.nodes) {
@@ -825,6 +913,15 @@ class EpubService {
         !_hasDirectBlockChild(element);
   }
 
+  static dom.Element? _firstImageDescendant(dom.Element element) {
+    for (final child in element.children) {
+      if (_isImageElement(child)) return child;
+      final nested = _firstImageDescendant(child);
+      if (nested != null) return nested;
+    }
+    return null;
+  }
+
   static bool _isImageElement(dom.Element element) {
     final tag = element.localName?.toLowerCase() ?? '';
     if (tag == 'img') return true;
@@ -837,64 +934,61 @@ class EpubService {
   static void _addImageBlock(
     dom.Element element,
     List<ContentBlock> result,
-    Archive archive,
+    _EpubArchive archive,
     String baseDir,
-  ) {
+    _CssCascade css, {
+    ReaderBlockStyle parentBlockStyle = ReaderBlockStyle.none,
+    String? caption,
+  }) {
     final src = _imageSource(element);
     if (src == null || src.trim().isEmpty) return;
 
     final resolvedPath = _resolveHref(baseDir, src);
     final bytes = _readFileBytes(archive, resolvedPath);
-    final dimensions = _imageDimensions(element, bytes);
+    final naturalDimensions = _imageDimensionsFromBytes(bytes);
+    final declaredWidth = CssLength.parse(
+      element.attributes['width'],
+      allowUnitlessPx: true,
+    );
+    final declaredHeight = CssLength.parse(
+      element.attributes['height'],
+      allowUnitlessPx: true,
+    );
+    var imageStyle = css.declarationFor(element).imageStyle;
+    if (imageStyle.width == null && declaredWidth is! CssPx) {
+      imageStyle = imageStyle.merge(ImageStyleData(width: declaredWidth));
+    }
+    if (imageStyle.height == null && declaredHeight is! CssPx) {
+      imageStyle = imageStyle.merge(ImageStyleData(height: declaredHeight));
+    }
+    if (imageStyle.alignment == null && parentBlockStyle.textAlign != null) {
+      imageStyle = imageStyle.merge(
+        ImageStyleData(alignment: parentBlockStyle.textAlign),
+      );
+    }
+
     result.add(
       ImageBlock(
         src: src,
         alt: element.attributes['alt'],
         bytes: bytes,
-        width: dimensions?.width,
-        height: dimensions?.height,
+        declaredWidth: _cssPxValue(declaredWidth),
+        declaredHeight: _cssPxValue(declaredHeight),
+        naturalWidth: naturalDimensions?.width.toDouble(),
+        naturalHeight: naturalDimensions?.height.toDouble(),
+        style: imageStyle,
+        caption: caption == null || caption.trim().isEmpty
+            ? null
+            : caption.trim(),
       ),
     );
   }
 
-  static ({int width, int height})? _imageDimensions(
-    dom.Element element,
-    Uint8List? bytes,
-  ) {
-    final attrWidth =
-        _parseImageDimension(element.attributes['width']) ??
-        _parseCssDimension(element.attributes['style'], 'width');
-    final attrHeight =
-        _parseImageDimension(element.attributes['height']) ??
-        _parseCssDimension(element.attributes['style'], 'height');
-    if (attrWidth != null && attrHeight != null) {
-      return (width: attrWidth, height: attrHeight);
-    }
-
-    final byteDimensions = _imageDimensionsFromBytes(bytes);
-    final width = attrWidth ?? byteDimensions?.width;
-    final height = attrHeight ?? byteDimensions?.height;
-    if (width == null || height == null) return null;
-    return (width: width, height: height);
-  }
-
-  static int? _parseCssDimension(String? style, String property) {
-    if (style == null || style.trim().isEmpty) return null;
-    final match = RegExp(
-      '(^|;)\\s*$property\\s*:\\s*([^;]+)',
-      caseSensitive: false,
-    ).firstMatch(style);
-    return _parseImageDimension(match?.group(2));
-  }
-
-  static int? _parseImageDimension(String? value) {
-    final text = value?.trim();
-    if (text == null || text.isEmpty) return null;
-    final match = RegExp(r'^(\d+(?:\.\d+)?)(?:px)?$').firstMatch(text);
-    if (match == null) return null;
-    final parsed = double.tryParse(match.group(1)!);
-    if (parsed == null || parsed <= 0) return null;
-    return parsed.round();
+  static double? _cssPxValue(CssLength? length) {
+    return switch (length) {
+      CssPx(:final value) when value > 0 => value,
+      _ => null,
+    };
   }
 
   static ({int width, int height})? _imageDimensionsFromBytes(
@@ -1052,7 +1146,12 @@ class EpubService {
             case TextBlock():
               return _normalizePlainText(block.plainText);
             case ImageBlock():
-              return _normalizePlainText(block.alt ?? '');
+              return _normalizePlainText(
+                [block.alt, block.caption]
+                    .whereType<String>()
+                    .where((text) => text.trim().isNotEmpty)
+                    .join(' '),
+              );
           }
         })
         .where((text) => text.isNotEmpty)
@@ -1097,5 +1196,333 @@ class EpubService {
     }
 
     return parts.join('/');
+  }
+}
+
+class _CssCascade {
+  final Map<String, List<_CssRule>> _tagRules;
+  final Map<String, List<_CssRule>> _classRules;
+  final Map<String, List<_CssRule>> _idRules;
+
+  const _CssCascade._(this._tagRules, this._classRules, this._idRules);
+
+  static _CssCascade parse(String css) {
+    final cleaned = css.replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
+    final tagRules = <String, List<_CssRule>>{};
+    final classRules = <String, List<_CssRule>>{};
+    final idRules = <String, List<_CssRule>>{};
+    var order = 0;
+    for (final match in RegExp(r'([^{}]+)\{([^{}]*)\}').allMatches(cleaned)) {
+      final selectorText = match.group(1)?.trim() ?? '';
+      final declaration = _CssDeclaration.parse(match.group(2) ?? '');
+      if (declaration.isEmpty) continue;
+
+      for (final rawSelector in selectorText.split(',')) {
+        final selector = _CssSelector.parse(rawSelector.trim());
+        if (selector == null) continue;
+        final rule = _CssRule(selector, declaration, order++);
+        switch (selector.kind) {
+          case _CssSelectorKind.tag:
+            (tagRules[selector.value] ??= []).add(rule);
+          case _CssSelectorKind.className:
+            (classRules[selector.value] ??= []).add(rule);
+          case _CssSelectorKind.id:
+            (idRules[selector.value] ??= []).add(rule);
+        }
+      }
+    }
+    return _CssCascade._(tagRules, classRules, idRules);
+  }
+
+  _CssDeclaration declarationFor(dom.Element element) {
+    var declaration = const _CssDeclaration();
+
+    for (final rule
+        in _tagRules[element.localName?.toLowerCase() ?? ''] ??
+            const <_CssRule>[]) {
+      declaration = declaration.merge(rule.declaration);
+    }
+
+    final classMatches = <_CssRule>[];
+    for (final className
+        in (element.attributes['class'] ?? '').toLowerCase().split(
+          RegExp(r'\s+'),
+        )) {
+      classMatches.addAll(_classRules[className] ?? const <_CssRule>[]);
+    }
+    classMatches.sort((a, b) => a.order.compareTo(b.order));
+    for (final rule in classMatches) {
+      declaration = declaration.merge(rule.declaration);
+    }
+
+    for (final rule
+        in _idRules[element.attributes['id']?.toLowerCase() ?? ''] ??
+            const <_CssRule>[]) {
+      declaration = declaration.merge(rule.declaration);
+    }
+
+    return declaration.merge(
+      _CssDeclaration.parse(element.attributes['style'] ?? ''),
+    );
+  }
+}
+
+class _CssRule {
+  final _CssSelector selector;
+  final _CssDeclaration declaration;
+  final int order;
+
+  const _CssRule(this.selector, this.declaration, this.order);
+}
+
+enum _CssSelectorKind { tag, className, id }
+
+class _CssSelector {
+  final _CssSelectorKind kind;
+  final String value;
+
+  const _CssSelector(this.kind, this.value);
+
+  static _CssSelector? parse(String selector) {
+    if (selector.isEmpty ||
+        selector.contains(RegExp(r'[\s>+~:\[\]*=]')) ||
+        selector.startsWith('@')) {
+      return null;
+    }
+    if (selector.startsWith('.')) {
+      final value = selector.substring(1).trim().toLowerCase();
+      return _validIdentifier(value)
+          ? _CssSelector(_CssSelectorKind.className, value)
+          : null;
+    }
+    if (selector.startsWith('#')) {
+      final value = selector.substring(1).trim().toLowerCase();
+      return _validIdentifier(value)
+          ? _CssSelector(_CssSelectorKind.id, value)
+          : null;
+    }
+    final tag = selector.toLowerCase();
+    return RegExp(r'^[a-z][a-z0-9-]*$').hasMatch(tag)
+        ? _CssSelector(_CssSelectorKind.tag, tag)
+        : null;
+  }
+
+  static bool _validIdentifier(String value) {
+    return RegExp(r'^[a-z0-9_-]+$').hasMatch(value);
+  }
+}
+
+class _CssDeclaration {
+  final InlineStyle inlineStyle;
+  final ReaderBlockStyle blockStyle;
+  final ImageStyleData imageStyle;
+
+  const _CssDeclaration({
+    this.inlineStyle = InlineStyle.normal,
+    this.blockStyle = ReaderBlockStyle.none,
+    this.imageStyle = ImageStyleData.none,
+  });
+
+  bool get isEmpty =>
+      inlineStyle.bold == false &&
+      inlineStyle.italic == false &&
+      identical(blockStyle, ReaderBlockStyle.none) &&
+      identical(imageStyle, ImageStyleData.none);
+
+  static _CssDeclaration parse(String source) {
+    var inlineStyle = InlineStyle.normal;
+    var blockStyle = ReaderBlockStyle.none;
+    var imageStyle = ImageStyleData.none;
+    CssLength? marginLeft;
+    CssLength? marginRight;
+
+    for (final declaration in source.split(';')) {
+      final colon = declaration.indexOf(':');
+      if (colon <= 0) continue;
+      final property = declaration.substring(0, colon).trim().toLowerCase();
+      final value = declaration.substring(colon + 1).trim().toLowerCase();
+      if (value.isEmpty) continue;
+
+      switch (property) {
+        case 'font-style':
+          if (value == 'italic' || value == 'oblique') {
+            inlineStyle = inlineStyle.merge(const InlineStyle(italic: true));
+          }
+        case 'font-weight':
+          if (value == 'bold' ||
+              value == 'bolder' ||
+              ((int.tryParse(value) ?? 0) >= 600)) {
+            inlineStyle = inlineStyle.merge(const InlineStyle(bold: true));
+          }
+        case 'text-align':
+          blockStyle = blockStyle.merge(
+            ReaderBlockStyle(textAlign: _parseTextAlign(value)),
+          );
+        case 'text-indent':
+          blockStyle = blockStyle.merge(
+            ReaderBlockStyle(
+              textIndent: CssLength.parse(value, allowUnitlessPx: true),
+            ),
+          );
+        case 'line-height':
+          blockStyle = blockStyle.merge(
+            ReaderBlockStyle(lineHeight: _parseLineHeight(value)),
+          );
+        case 'font-size':
+          blockStyle = blockStyle.merge(
+            ReaderBlockStyle(fontSizeScale: _parseFontSizeScale(value)),
+          );
+        case 'margin-top':
+          blockStyle = blockStyle.merge(
+            ReaderBlockStyle(
+              marginTop: CssLength.parse(value, allowUnitlessPx: true),
+            ),
+          );
+        case 'margin-bottom':
+          blockStyle = blockStyle.merge(
+            ReaderBlockStyle(
+              marginBottom: CssLength.parse(value, allowUnitlessPx: true),
+            ),
+          );
+        case 'padding-left':
+          blockStyle = blockStyle.merge(
+            ReaderBlockStyle(
+              paddingLeft: CssLength.parse(value, allowUnitlessPx: true),
+            ),
+          );
+        case 'padding-right':
+          blockStyle = blockStyle.merge(
+            ReaderBlockStyle(
+              paddingRight: CssLength.parse(value, allowUnitlessPx: true),
+            ),
+          );
+        case 'width':
+          imageStyle = imageStyle.merge(
+            ImageStyleData(
+              width: CssLength.parse(value, allowUnitlessPx: true),
+            ),
+          );
+        case 'height':
+          imageStyle = imageStyle.merge(
+            ImageStyleData(
+              height: CssLength.parse(value, allowUnitlessPx: true),
+            ),
+          );
+        case 'max-width':
+          imageStyle = imageStyle.merge(
+            ImageStyleData(
+              maxWidth: CssLength.parse(value, allowUnitlessPx: true),
+            ),
+          );
+        case 'max-height':
+          imageStyle = imageStyle.merge(
+            ImageStyleData(
+              maxHeight: CssLength.parse(value, allowUnitlessPx: true),
+            ),
+          );
+        case 'margin-left':
+          marginLeft = CssLength.parse(value, allowUnitlessPx: true);
+          imageStyle = imageStyle.merge(ImageStyleData(marginLeft: marginLeft));
+        case 'margin-right':
+          marginRight = CssLength.parse(value, allowUnitlessPx: true);
+          imageStyle = imageStyle.merge(
+            ImageStyleData(marginRight: marginRight),
+          );
+        case 'display':
+          if (value == 'block' || value == 'inline-block') {
+            imageStyle = imageStyle.merge(
+              const ImageStyleData(displayBlock: true),
+            );
+          }
+      }
+    }
+
+    final textAlign = blockStyle.textAlign;
+    if (textAlign != null) {
+      imageStyle = imageStyle.merge(ImageStyleData(alignment: textAlign));
+    }
+    if (marginLeft is CssAuto && marginRight is CssAuto) {
+      imageStyle = imageStyle.merge(
+        const ImageStyleData(alignment: ReaderTextAlign.center),
+      );
+    }
+
+    return _CssDeclaration(
+      inlineStyle: inlineStyle,
+      blockStyle: blockStyle,
+      imageStyle: imageStyle,
+    );
+  }
+
+  _CssDeclaration merge(_CssDeclaration other) {
+    return _CssDeclaration(
+      inlineStyle: inlineStyle.merge(other.inlineStyle),
+      blockStyle: blockStyle.merge(other.blockStyle),
+      imageStyle: imageStyle.merge(other.imageStyle),
+    );
+  }
+
+  static ReaderTextAlign? _parseTextAlign(String value) {
+    return switch (value) {
+      'center' => ReaderTextAlign.center,
+      'right' || 'end' => ReaderTextAlign.end,
+      'justify' => ReaderTextAlign.justify,
+      'left' || 'start' => ReaderTextAlign.start,
+      _ => null,
+    };
+  }
+
+  static double? _parseLineHeight(String value) {
+    final parsed = double.tryParse(value);
+    if (parsed != null && parsed.isFinite && parsed > 0) {
+      return parsed.clamp(1.0, 3.0).toDouble();
+    }
+    final length = CssLength.parse(value);
+    return switch (length) {
+      CssEm(:final value) || CssRem(:final value)
+          when value.isFinite && value > 0 =>
+        value.clamp(1.0, 3.0).toDouble(),
+      CssPercent(:final value) when value.isFinite && value > 0 =>
+        (value / 100).clamp(1.0, 3.0).toDouble(),
+      _ => null,
+    };
+  }
+
+  static double? _parseFontSizeScale(String value) {
+    final length = CssLength.parse(value, allowUnitlessPx: true);
+    final scale = switch (length) {
+      CssEm(:final value) || CssRem(:final value) => value,
+      CssPercent(:final value) => value / 100,
+      CssPx(:final value) => value / 16,
+      _ => null,
+    };
+    if (scale == null || !scale.isFinite || scale <= 0) return null;
+    return scale.clamp(0.75, 1.8).toDouble();
+  }
+}
+
+class _EpubArchive {
+  final Map<String, ArchiveFile> _filesByPath;
+
+  _EpubArchive(Archive archive)
+    : _filesByPath = {
+        for (final file in archive) _normalizePath(file.name): file,
+      };
+
+  String? readText(String path) {
+    final bytes = readBytes(path);
+    if (bytes == null) return null;
+    return utf8.decode(bytes, allowMalformed: true);
+  }
+
+  Uint8List? readBytes(String path) {
+    final file = _filesByPath[_normalizePath(path)];
+    if (file == null) return null;
+    return Uint8List.fromList(file.content as List<int>);
+  }
+
+  static String _normalizePath(String path) {
+    final normalized = path.startsWith('/') ? path.substring(1) : path;
+    return normalized.toLowerCase();
   }
 }
