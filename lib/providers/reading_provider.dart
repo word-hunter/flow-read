@@ -17,6 +17,7 @@ import '../models/book.dart';
 import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
 import '../models/bookmarked_word.dart';
+import '../models/chapter_ai_status.dart';
 import '../models/learning_item.dart';
 import '../models/learning_analytics.dart';
 import '../models/reading_search_result.dart';
@@ -151,6 +152,7 @@ class ReadingProvider extends ChangeNotifier {
   bool _isGeneratingSummary = false;
   AIChapterPreview? _aiChapterPreview;
   bool _isGeneratingChapterPreview = false;
+  ChapterAIStatus? _chapterAIStatus;
   String _summaryLanguage = 'zh';
   AIPracticeSet? _aiPractice;
   bool _isGeneratingPractice = false;
@@ -382,6 +384,31 @@ class ReadingProvider extends ChangeNotifier {
   bool get isGeneratingSummary => _isGeneratingSummary;
   AIChapterPreview? get aiChapterPreview => _aiChapterPreview;
   bool get isGeneratingChapterPreview => _isGeneratingChapterPreview;
+  ChapterAIStatus? get chapterAIStatus {
+    if (!aiFeaturesEnabled) {
+      return ChapterAIStatus.unconfigured(aiFeatureDisabledReason);
+    }
+    if (_isGeneratingChapterPreview) {
+      return const ChapterAIStatus.loading(
+        ChapterAIFeature.preview,
+        '正在生成读前预览...',
+      );
+    }
+    if (_isGeneratingSummary) {
+      return const ChapterAIStatus.loading(
+        ChapterAIFeature.summary,
+        '正在生成章节总结...',
+      );
+    }
+    if (_isGeneratingPractice) {
+      return const ChapterAIStatus.loading(
+        ChapterAIFeature.practice,
+        '正在生成练习题...',
+      );
+    }
+    return _chapterAIStatus;
+  }
+
   String get summaryLanguage => _summaryLanguage;
   AIPracticeSet? get aiPractice => _aiPractice;
   bool get isGeneratingPractice => _isGeneratingPractice;
@@ -536,6 +563,7 @@ class ReadingProvider extends ChangeNotifier {
     _aiChapterPreview = null;
     _aiPractice = null;
     _aiWordAnalysis = null;
+    _chapterAIStatus = null;
     _resetSearchState();
 
     await init();
@@ -742,6 +770,7 @@ class ReadingProvider extends ChangeNotifier {
       _aiChapterPreview = null;
       _aiPractice = null;
       _aiWordAnalysis = null;
+      _chapterAIStatus = null;
       _isReading = false;
       _resetSearchState();
     }
@@ -801,6 +830,7 @@ class ReadingProvider extends ChangeNotifier {
     _aiSummary = null;
     _aiChapterPreview = null;
     _aiPractice = null;
+    _chapterAIStatus = null;
     _saveCurrentProgress();
     notifyListeners();
     await _analyzeCurrentChapter();
@@ -1635,6 +1665,7 @@ class ReadingProvider extends ChangeNotifier {
     if (_result == null || !_ensureAIReady()) return;
     _isGeneratingSummary = true;
     _aiSummary = null;
+    _chapterAIStatus = null;
     notifyListeners();
     try {
       final chapterText = _result!.passageText;
@@ -1653,6 +1684,10 @@ class ReadingProvider extends ChangeNotifier {
         _aiSummary = AISummary.fromJson(
           jsonDecode(cacheJson) as Map<String, dynamic>,
         );
+        _chapterAIStatus = const ChapterAIStatus.cacheHit(
+          ChapterAIFeature.summary,
+          '已读取缓存的章节总结。',
+        );
         _isGeneratingSummary = false;
         notifyListeners();
         return;
@@ -1668,6 +1703,7 @@ class ReadingProvider extends ChangeNotifier {
         ),
       )) {
         _aiSummary = summary;
+        _chapterAIStatus = ChapterAIStatus.fromSummary(summary);
         _settings?.incrementAIUsage(chapterSummary: true);
         await _aiCache?.saveSummary(
           _activeBookId!,
@@ -1682,6 +1718,10 @@ class ReadingProvider extends ChangeNotifier {
       }
     } catch (e) {
       _errorMessage = '生成总结失败: $e';
+      _chapterAIStatus = ChapterAIStatus.failed(
+        ChapterAIFeature.summary,
+        '章节总结生成失败：$e',
+      );
     }
     _isGeneratingSummary = false;
     notifyListeners();
@@ -1693,6 +1733,7 @@ class ReadingProvider extends ChangeNotifier {
     if (bookId == null) return;
     _isGeneratingChapterPreview = true;
     _aiChapterPreview = null;
+    _chapterAIStatus = null;
     notifyListeners();
     try {
       final chapter = _book!.chapters[_currentChapter];
@@ -1719,6 +1760,10 @@ class ReadingProvider extends ChangeNotifier {
         _aiChapterPreview = AIChapterPreview.fromJson(
           jsonDecode(cacheJson) as Map<String, dynamic>,
         );
+        _chapterAIStatus = const ChapterAIStatus.cacheHit(
+          ChapterAIFeature.preview,
+          '已读取缓存的读前预览。',
+        );
         _isGeneratingChapterPreview = false;
         notifyListeners();
         return;
@@ -1736,6 +1781,7 @@ class ReadingProvider extends ChangeNotifier {
         ),
       );
       _aiChapterPreview = preview;
+      _chapterAIStatus = ChapterAIStatus.fromPreview(preview);
       await _aiCache?.saveChapterPreview(
         bookId,
         _currentChapter,
@@ -1747,6 +1793,10 @@ class ReadingProvider extends ChangeNotifier {
       );
     } catch (e) {
       _errorMessage = '生成读前预览失败: $e';
+      _chapterAIStatus = ChapterAIStatus.failed(
+        ChapterAIFeature.preview,
+        '读前预览生成失败：$e',
+      );
     }
     _isGeneratingChapterPreview = false;
     notifyListeners();
@@ -1755,6 +1805,7 @@ class ReadingProvider extends ChangeNotifier {
   void toggleSummaryLanguage() {
     _summaryLanguage = _summaryLanguage == 'zh' ? 'en' : 'zh';
     _aiSummary = null;
+    _chapterAIStatus = null;
     notifyListeners();
   }
 
@@ -1762,6 +1813,7 @@ class ReadingProvider extends ChangeNotifier {
     if (_result == null || !_ensureAIReady()) return;
     _isGeneratingPractice = true;
     _aiPractice = null;
+    _chapterAIStatus = null;
     notifyListeners();
     try {
       final chapterText = _result!.passageText;
@@ -1785,6 +1837,10 @@ class ReadingProvider extends ChangeNotifier {
         _aiPractice = AIPracticeSet.fromJson(
           jsonDecode(cacheJson) as Map<String, dynamic>,
         );
+        _chapterAIStatus = const ChapterAIStatus.cacheHit(
+          ChapterAIFeature.practice,
+          '已读取缓存的练习题。',
+        );
         _isGeneratingPractice = false;
         notifyListeners();
         return;
@@ -1802,6 +1858,7 @@ class ReadingProvider extends ChangeNotifier {
         ),
       )) {
         _aiPractice = practice;
+        _chapterAIStatus = ChapterAIStatus.fromPractice(practice);
         _settings?.incrementAIUsage(practice: true);
         await _aiCache?.savePractice(
           _activeBookId!,
@@ -1815,6 +1872,10 @@ class ReadingProvider extends ChangeNotifier {
       }
     } catch (e) {
       _errorMessage = '生成练习题失败: $e';
+      _chapterAIStatus = ChapterAIStatus.failed(
+        ChapterAIFeature.practice,
+        '练习题生成失败：$e',
+      );
     }
     _isGeneratingPractice = false;
     notifyListeners();
@@ -1894,6 +1955,7 @@ class ReadingProvider extends ChangeNotifier {
     _aiChapterPreview = null;
     _aiPractice = null;
     _aiWordAnalysis = null;
+    _chapterAIStatus = null;
     notifyListeners();
   }
 

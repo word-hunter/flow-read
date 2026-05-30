@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/ai_chapter_preview.dart';
 import '../models/ai_summary.dart';
+import '../models/chapter_ai_status.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
@@ -35,6 +36,7 @@ class _AISummaryViewState extends State<AISummaryView> {
             children: [
               _buildHeader(theme, provider),
               _buildLanguageToggle(theme, provider, settings.aiFeaturesEnabled),
+              _buildAIStatus(theme, provider.chapterAIStatus),
               Divider(
                 color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
               ),
@@ -84,6 +86,57 @@ class _AISummaryViewState extends State<AISummaryView> {
             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAIStatus(ThemeData theme, ChapterAIStatus? status) {
+    if (status == null) return const SizedBox.shrink();
+
+    final color = switch (status.kind) {
+      ChapterAIStatusKind.unconfigured => theme.colorScheme.outline,
+      ChapterAIStatusKind.loading => theme.colorScheme.primary,
+      ChapterAIStatusKind.cacheHit => AppColors.correct,
+      ChapterAIStatusKind.failed => theme.colorScheme.error,
+      ChapterAIStatusKind.fallback => theme.colorScheme.tertiary,
+      ChapterAIStatusKind.generated => theme.colorScheme.primary,
+    };
+    final icon = switch (status.kind) {
+      ChapterAIStatusKind.unconfigured => Icons.block_outlined,
+      ChapterAIStatusKind.loading => Icons.sync,
+      ChapterAIStatusKind.cacheHit => Icons.cached,
+      ChapterAIStatusKind.failed => Icons.error_outline,
+      ChapterAIStatusKind.fallback => Icons.info_outline,
+      ChapterAIStatusKind.generated => Icons.check_circle_outline,
+    };
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.24)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                status.message,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.25,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
