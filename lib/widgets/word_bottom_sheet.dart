@@ -5,6 +5,7 @@ import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
 import 'dictionary_detail_view.dart';
+import 'word_mastery_confetti.dart';
 
 class WordBottomSheet extends StatefulWidget {
   final String word;
@@ -186,12 +187,17 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
             children: [
               if (status != UserWordStatus.known)
                 Expanded(
-                  child: _actionButton(
-                    theme: theme,
-                    label: 'Known',
-                    icon: Icons.check_circle_outline,
-                    color: AppColors.familiarityHigh,
-                    onPressed: () => provider.markWordKnown(word),
+                  child: WordMasteryActionAnchor(
+                    builder: (context, origin) => _actionButton(
+                      theme: theme,
+                      label: 'Known',
+                      icon: Icons.check_circle_outline,
+                      color: AppColors.familiarityHigh,
+                      onPressed: () => provider.markWordKnown(
+                        word,
+                        celebrationOrigin: origin(),
+                      ),
+                    ),
                   ),
                 ),
               if (status != UserWordStatus.learning)

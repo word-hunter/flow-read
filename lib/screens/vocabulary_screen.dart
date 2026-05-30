@@ -7,6 +7,7 @@ import '../models/user_vocabulary.dart';
 import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/word_bottom_sheet.dart';
+import '../widgets/word_mastery_confetti.dart';
 
 enum _VocabularyView { words, cards }
 
@@ -94,7 +95,10 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                         return _VocabItem(
                           vocab: vocab,
                           status: provider.getWordStatus(vocab.word),
-                          onMarkKnown: () => provider.markWordKnown(vocab.word),
+                          onMarkKnown: (origin) => provider.markWordKnown(
+                            vocab.word,
+                            celebrationOrigin: origin,
+                          ),
                           onMarkLearning: () =>
                               provider.markWordLearning(vocab.word),
                           onMarkUnknown: () =>
@@ -424,7 +428,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
 class _VocabItem extends StatelessWidget {
   final AggregatedVocabulary vocab;
   final UserWordStatus? status;
-  final VoidCallback onMarkKnown;
+  final ValueChanged<Offset?> onMarkKnown;
   final VoidCallback onMarkLearning;
   final VoidCallback onMarkUnknown;
   final VoidCallback onTap;
@@ -563,10 +567,12 @@ class _VocabItem extends StatelessWidget {
                 Row(
                   children: [
                     if (status != UserWordStatus.known)
-                      _miniButton(
-                        label: 'Known',
-                        color: AppColors.familiarityHigh,
-                        onTap: onMarkKnown,
+                      WordMasteryActionAnchor(
+                        builder: (context, origin) => _miniButton(
+                          label: 'Known',
+                          color: AppColors.familiarityHigh,
+                          onTap: () => onMarkKnown(origin()),
+                        ),
                       ),
                     if (status != UserWordStatus.learning)
                       _miniButton(

@@ -7,6 +7,7 @@ import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/dictionary_detail_view.dart';
 import '../widgets/pronunciation_button.dart';
+import '../widgets/word_mastery_confetti.dart';
 
 class VocabPage extends StatefulWidget {
   const VocabPage({super.key});
@@ -213,7 +214,8 @@ class _VocabPageState extends State<VocabPage> {
         return _VocabItem(
           vocab: vocab,
           status: provider.getWordStatus(vocab.word),
-          onMarkKnown: () => provider.markWordKnown(vocab.word),
+          onMarkKnown: (origin) =>
+              provider.markWordKnown(vocab.word, celebrationOrigin: origin),
           onMarkLearning: () => provider.markWordLearning(vocab.word),
           onMarkUnknown: () => provider.markWordUnknown(vocab.word),
           onTap: () => provider.lookupWord(vocab.word),
@@ -281,7 +283,7 @@ class _VocabPageState extends State<VocabPage> {
 class _VocabItem extends StatelessWidget {
   final AggregatedVocabulary vocab;
   final UserWordStatus? status;
-  final VoidCallback onMarkKnown;
+  final ValueChanged<Offset?> onMarkKnown;
   final VoidCallback onMarkLearning;
   final VoidCallback onMarkUnknown;
   final VoidCallback onTap;
@@ -413,10 +415,12 @@ class _VocabItem extends StatelessWidget {
               Row(
                 children: [
                   if (status != UserWordStatus.known)
-                    _miniButton(
-                      label: 'Known',
-                      color: AppColors.familiarityHigh,
-                      onTap: onMarkKnown,
+                    WordMasteryActionAnchor(
+                      builder: (context, origin) => _miniButton(
+                        label: 'Known',
+                        color: AppColors.familiarityHigh,
+                        onTap: () => onMarkKnown(origin()),
+                      ),
                     ),
                   if (status != UserWordStatus.learning)
                     _miniButton(

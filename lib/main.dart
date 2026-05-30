@@ -20,6 +20,7 @@ import 'theme/app_theme.dart';
 import 'widgets/epub_drop_importer.dart';
 import 'widgets/release_notes_gate.dart';
 import 'widgets/theme_transition.dart';
+import 'widgets/word_mastery_confetti.dart';
 
 void main() {
   runZonedGuarded(
@@ -363,7 +364,14 @@ class _FlowReadAppState extends State<FlowReadApp> {
               themeMode: settings.themeMode,
               themeAnimationDuration: const Duration(milliseconds: 220),
               themeAnimationCurve: Curves.easeOutCubic,
-              builder: _buildShortcutScope,
+              builder: (context, child) {
+                return _buildShortcutScope(
+                  context,
+                  WordMasteryConfettiHost(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
+                );
+              },
               home: const ReleaseNotesGate(
                 child: EpubDropImporter(child: HomeScreen()),
               ),

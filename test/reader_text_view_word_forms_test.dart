@@ -79,29 +79,36 @@ void main() {
         wordLevelService: wordLevels,
       );
 
-      final tappableTexts = _tappableTextSpans(span);
+      final highlightedTexts = _highlightedTextSpans(span);
 
       expect(
-        tappableTexts.map((item) => item.text),
+        highlightedTexts.map((item) => item.text),
         isNot(contains('Partitions')),
       );
-      expect(tappableTexts.map((item) => item.text), isNot(contains("can't")));
-      expect(tappableTexts.map((item) => item.text), contains('migrating'));
-      expect(_colorFor(tappableTexts, 'migrating'), learningColor);
+      expect(
+        highlightedTexts.map((item) => item.text),
+        isNot(contains("can't")),
+      );
+      expect(highlightedTexts.map((item) => item.text), contains('migrating'));
+      expect(_colorFor(highlightedTexts, 'migrating'), learningColor);
     },
   );
 }
 
-List<_TappableTextProbe> _tappableTextSpans(InlineSpan span) {
+List<_TappableTextProbe> _highlightedTextSpans(InlineSpan span) {
   final result = <_TappableTextProbe>[];
 
   void visit(InlineSpan item) {
     if (item is TextSpan) {
       final text = item.text;
-      if (text != null && item.recognizer != null) {
+      final style = item.style;
+      final isHighlighted =
+          style?.fontWeight == FontWeight.w600 &&
+          style?.decoration == TextDecoration.underline;
+      if (text != null && item.recognizer != null && isHighlighted) {
         result.add((
           text: text,
-          color: item.style?.color,
+          color: style?.color,
           recognizer: item.recognizer,
         ));
       }

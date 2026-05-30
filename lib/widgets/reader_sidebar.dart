@@ -7,6 +7,7 @@ import '../theme/app_colors.dart';
 import 'dictionary_detail_view.dart';
 import 'pronunciation_button.dart';
 import 'reader_text_view.dart' show WordTapCallback;
+import 'word_mastery_confetti.dart';
 
 Color _sidebarLevelColor(String level) {
   switch (level) {
@@ -400,11 +401,16 @@ class ReaderSidebar extends StatelessWidget {
           Row(
             children: [
               if (status != UserWordStatus.known)
-                _miniActionChip(
-                  label: 'Known',
-                  icon: Icons.check_circle_outline,
-                  color: AppColors.familiarityHigh,
-                  onTap: () => provider.markWordKnown(provider.selectedWord!),
+                WordMasteryActionAnchor(
+                  builder: (context, origin) => _miniActionChip(
+                    label: 'Known',
+                    icon: Icons.check_circle_outline,
+                    color: AppColors.familiarityHigh,
+                    onTap: () => provider.markWordKnown(
+                      provider.selectedWord!,
+                      celebrationOrigin: origin(),
+                    ),
+                  ),
                 ),
               if (status != UserWordStatus.learning)
                 _miniActionChip(

@@ -6,6 +6,7 @@ import '../../services/settings_service.dart';
 import '../../theme/app_colors.dart';
 import '../dictionary_detail_view.dart';
 import '../pronunciation_button.dart';
+import '../word_mastery_confetti.dart';
 
 enum _WordAction { known, learning }
 
@@ -304,41 +305,48 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
         _buildSectionLabel(theme, '操作'),
         SizedBox(
           width: double.infinity,
-          child: SegmentedButton<_WordAction>(
-            selected: selected == null ? const {} : {selected},
-            emptySelectionAllowed: true,
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) {
-              if (selection.isEmpty) {
-                _markWordUnknown(provider, word);
-                return;
-              }
-              _applyWordAction(provider, word, selection.single);
-            },
-            style: ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              padding: const WidgetStatePropertyAll(
-                EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              ),
-              textStyle: WidgetStatePropertyAll(
-                theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+          child: WordMasteryActionAnchor(
+            builder: (context, origin) => SegmentedButton<_WordAction>(
+              selected: selected == null ? const {} : {selected},
+              emptySelectionAllowed: true,
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) {
+                if (selection.isEmpty) {
+                  _markWordUnknown(provider, word);
+                  return;
+                }
+                _applyWordAction(
+                  provider,
+                  word,
+                  selection.single,
+                  celebrationOrigin: origin,
+                );
+              },
+              style: ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                ),
+                textStyle: WidgetStatePropertyAll(
+                  theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
+              segments: const [
+                ButtonSegment(
+                  value: _WordAction.known,
+                  icon: Icon(Icons.check_circle_outline, size: 17),
+                  label: Text('已掌握'),
+                ),
+                ButtonSegment(
+                  value: _WordAction.learning,
+                  icon: Icon(Icons.bookmark_border, size: 17),
+                  label: Text('生词本'),
+                ),
+              ],
             ),
-            segments: const [
-              ButtonSegment(
-                value: _WordAction.known,
-                icon: Icon(Icons.check_circle_outline, size: 17),
-                label: Text('已掌握'),
-              ),
-              ButtonSegment(
-                value: _WordAction.learning,
-                icon: Icon(Icons.bookmark_border, size: 17),
-                label: Text('生词本'),
-              ),
-            ],
           ),
         ),
       ],
@@ -356,11 +364,15 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
   Future<void> _applyWordAction(
     ReadingProvider provider,
     String word,
-    _WordAction action,
-  ) async {
+    _WordAction action, {
+    Offset? Function()? celebrationOrigin,
+  }) async {
     switch (action) {
       case _WordAction.known:
-        await provider.markWordKnown(word);
+        await provider.markWordKnown(
+          word,
+          celebrationOrigin: celebrationOrigin?.call(),
+        );
         break;
       case _WordAction.learning:
         await _addToLearning(provider, word);

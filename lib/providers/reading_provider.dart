@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
@@ -107,6 +108,9 @@ class ReadingProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   String _importStage = '';
+  int _wordMasteredCelebrationTick = 0;
+  String? _wordMasteredCelebrationWord;
+  Offset? _wordMasteredCelebrationOrigin;
 
   // ============================================================
   // Word lookup state
@@ -389,6 +393,9 @@ class ReadingProvider extends ChangeNotifier {
       _reviewScheduleService?.buildSessionCards() ?? const [];
   bool get canCreateLearningItems => _learningItemService != null;
   bool get canPronounceWords => _pronunciationService != null;
+  int get wordMasteredCelebrationTick => _wordMasteredCelebrationTick;
+  String? get wordMasteredCelebrationWord => _wordMasteredCelebrationWord;
+  Offset? get wordMasteredCelebrationOrigin => _wordMasteredCelebrationOrigin;
 
   ChapterLearningReport? get currentChapterLearningReport {
     final book = _book;
@@ -1002,10 +1009,15 @@ class ReadingProvider extends ChangeNotifier {
   // Vocabulary actions
   // ============================================================
 
-  Future<void> markWordKnown(String word) async {
+  Future<void> markWordKnown(String word, {Offset? celebrationOrigin}) async {
     final canonical = _canonicalWord(word);
     final previousStatus = _userVocab?.getStatus(canonical);
     await _userVocab?.setKnown(canonical);
+    _recordWordMasteredCelebration(
+      canonical,
+      previousStatus,
+      origin: celebrationOrigin,
+    );
     _queueDifficultyRefreshForVocabularyChange(
       canonical,
       previousStatus,
@@ -1013,6 +1025,17 @@ class ReadingProvider extends ChangeNotifier {
     );
     await _analyzeCurrentChapter();
     notifyListeners();
+  }
+
+  void _recordWordMasteredCelebration(
+    String word,
+    UserWordStatus? previousStatus, {
+    Offset? origin,
+  }) {
+    if (_userVocab == null || previousStatus == UserWordStatus.known) return;
+    _wordMasteredCelebrationWord = word;
+    _wordMasteredCelebrationOrigin = origin;
+    _wordMasteredCelebrationTick += 1;
   }
 
   Future<void> markWordLearning(String word) async {
