@@ -123,6 +123,10 @@ class LearningAnalyticsService {
       bookId,
       safeChapterIndex,
     );
+    final repeatedLookupWords = _repeatedLookupWordPreviews(
+      bookId,
+      safeChapterIndex,
+    );
     final comparison = _buildLookupComparison(
       book: book,
       bookId: bookId,
@@ -165,6 +169,7 @@ class LearningAnalyticsService {
       dueReviewCount: dueReviewCount,
       practiceAnsweredCount: practiceAnsweredCount,
       practiceCorrectCount: practiceCorrectCount,
+      weakPoints: const [],
       masteredWords: knownWords,
       learningWords: learningWords,
       nextStep: '',
@@ -188,6 +193,7 @@ class LearningAnalyticsService {
       dueReviewCount: report.dueReviewCount,
       practiceAnsweredCount: report.practiceAnsweredCount,
       practiceCorrectCount: report.practiceCorrectCount,
+      weakPoints: _weakPoints(report, repeatedLookupWords),
       masteredWords: report.masteredWords,
       learningWords: report.learningWords,
       nextStep: _nextStep(report),
@@ -311,6 +317,82 @@ class LearningAnalyticsService {
     return '本书已到最后一章，适合做一次整书复盘。';
   }
 
+  List<ChapterWeakPoint> _weakPoints(
+    ChapterLearningReport report,
+    List<String> repeatedLookupWords,
+  ) {
+    final points = <ChapterWeakPoint>[];
+    if (report.chapterProgress < 0.95) {
+      final remain = ((1 - report.chapterProgress) * 100).round();
+      points.add(
+        ChapterWeakPoint(
+          type: ChapterWeakPointType.incompleteReading,
+          title: '本章还没读完',
+          detail: '剩余约 $remain%，先读完再判断本章真实卡点。',
+          priority: 10,
+        ),
+      );
+    }
+    if (report.dueReviewCount > 0) {
+      points.add(
+        ChapterWeakPoint(
+          type: ChapterWeakPointType.reviewBacklog,
+          title: '复习积压',
+          detail: '当前有 ${report.dueReviewCount} 条到期复习，可能影响后续章节理解。',
+          priority: 20,
+        ),
+      );
+    }
+    if (report.practiceAnsweredCount >= 3 && report.practiceAccuracy < 0.7) {
+      points.add(
+        ChapterWeakPoint(
+          type: ChapterWeakPointType.lowPracticeAccuracy,
+          title: '练习正确率偏低',
+          detail: '本章练习正确率 ${report.practiceAccuracyPercent}%，优先回看错题对应原文。',
+          priority: 30,
+        ),
+      );
+    }
+    if (report.lookupDependency.direction == LookupDependencyDirection.higher &&
+        report.lookupCount >= 3) {
+      points.add(
+        ChapterWeakPoint(
+          type: ChapterWeakPointType.highLookupDependency,
+          title: '查词依赖上升',
+          detail:
+              '本章 ${report.lookupPerThousandWords.toStringAsFixed(1)} 次/千词，高于上一章。',
+          priority: 40,
+        ),
+      );
+    }
+    if (report.repeatedLookupCount >= 2) {
+      final examples = repeatedLookupWords.take(3).join('、');
+      points.add(
+        ChapterWeakPoint(
+          type: ChapterWeakPointType.repeatedLookups,
+          title: '重复查词较多',
+          detail: examples.isEmpty
+              ? '本章有 ${report.repeatedLookupCount} 次重复查词，适合转成学习卡片。'
+              : '反复查询 $examples，适合转成学习卡片。',
+          priority: 50,
+        ),
+      );
+    }
+    if (report.newWordCount >= 12) {
+      points.add(
+        ChapterWeakPoint(
+          type: ChapterWeakPointType.vocabularyLoad,
+          title: '新词负荷偏高',
+          detail: '本章有 ${report.newWordCount} 个新词，先挑 3-5 个高频词学习。',
+          priority: 60,
+        ),
+      );
+    }
+
+    points.sort((a, b) => a.priority.compareTo(b.priority));
+    return points;
+  }
+
   int _lookupCountForWeek(DateTime weekStart) {
     var total = 0;
     for (var i = 0; i < 7; i += 1) {
@@ -357,6 +439,25 @@ class LearningAnalyticsService {
     return sorted.take(4).toList(growable: false);
   }
 
+  List<String> _repeatedLookupWordPreviews(String bookId, int chapterIndex) {
+    final prefix = _chapterWordPrefixFor(bookId, chapterIndex);
+    final repeated = _repository.keys
+        .where((key) => key.startsWith(prefix))
+        .map((key) {
+          final count = _repository.countFor(key);
+          final word = Uri.decodeComponent(key.substring(prefix.length));
+          return _RepeatedLookupWord(word: word, repeatedCount: count - 1);
+        })
+        .where((item) => item.repeatedCount > 0)
+        .toList();
+    repeated.sort((a, b) {
+      final countCompare = b.repeatedCount.compareTo(a.repeatedCount);
+      if (countCompare != 0) return countCompare;
+      return a.word.compareTo(b.word);
+    });
+    return repeated.map((item) => item.word).take(4).toList(growable: false);
+  }
+
   String _canonicalWord(String word) {
     return normalizeEnglishApostrophes(word).toLowerCase().trim();
   }
@@ -395,4 +496,11 @@ class LearningAnalyticsService {
   }
 
   String _dayWordPrefixFor(String day) => '$_lookupDayWordPrefix.$day.';
+}
+
+class _RepeatedLookupWord {
+  final String word;
+  final int repeatedCount;
+
+  const _RepeatedLookupWord({required this.word, required this.repeatedCount});
 }

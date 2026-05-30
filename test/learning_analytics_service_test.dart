@@ -76,6 +76,54 @@ void main() {
     },
   );
 
+  test('diagnoses chapter weak points from lookup and practice data', () async {
+    final analytics = LearningAnalyticsService(
+      repository: _MemoryLearningAnalyticsRepository(),
+      clock: () => DateTime(2026, 5, 20, 9),
+    );
+    await analytics.init();
+
+    await analytics.recordLookup(
+      bookId: 'book-1',
+      chapterIndex: 0,
+      word: 'simple',
+    );
+    for (final word in ['current', 'current', 'current', 'syntax', 'clue']) {
+      await analytics.recordLookup(
+        bookId: 'book-1',
+        chapterIndex: 1,
+        word: word,
+      );
+    }
+    for (final isCorrect in [true, false, false]) {
+      await analytics.recordPracticeAnswer(
+        bookId: 'book-1',
+        chapterIndex: 1,
+        isCorrect: isCorrect,
+      );
+    }
+
+    final report = analytics.buildChapterReport(
+      bookId: 'book-1',
+      book: _book,
+      chapterIndex: 1,
+      chapterProgress: 1,
+      analysis: _analysis,
+      readingTime: null,
+      userVocabulary: null,
+      learningItems: const [],
+      dueReviewCount: 0,
+    );
+
+    expect(report.weakPoints.map((point) => point.type), [
+      ChapterWeakPointType.lowPracticeAccuracy,
+      ChapterWeakPointType.highLookupDependency,
+      ChapterWeakPointType.repeatedLookups,
+    ]);
+    expect(report.weakPoints[2].detail, contains('current'));
+    expect(report.nextStep, contains('回看本章练习错题'));
+  });
+
   test('builds weekly reading, lookup, and review summary', () async {
     var now = DateTime(2026, 5, 18, 8);
     final analytics = LearningAnalyticsService(

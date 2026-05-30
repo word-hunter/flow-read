@@ -1,5 +1,28 @@
 enum LookupDependencyDirection { noData, lower, steady, higher }
 
+enum ChapterWeakPointType {
+  incompleteReading,
+  reviewBacklog,
+  lowPracticeAccuracy,
+  highLookupDependency,
+  repeatedLookups,
+  vocabularyLoad,
+}
+
+class ChapterWeakPoint {
+  final ChapterWeakPointType type;
+  final String title;
+  final String detail;
+  final int priority;
+
+  const ChapterWeakPoint({
+    required this.type,
+    required this.title,
+    required this.detail,
+    required this.priority,
+  });
+}
+
 class LookupDependencyComparison {
   final int currentLookupCount;
   final int previousLookupCount;
@@ -43,6 +66,7 @@ class ChapterLearningReport {
   final int dueReviewCount;
   final int practiceAnsweredCount;
   final int practiceCorrectCount;
+  final List<ChapterWeakPoint> weakPoints;
   final List<String> masteredWords;
   final List<String> learningWords;
   final String nextStep;
@@ -65,6 +89,7 @@ class ChapterLearningReport {
     required this.dueReviewCount,
     required this.practiceAnsweredCount,
     required this.practiceCorrectCount,
+    required this.weakPoints,
     required this.masteredWords,
     required this.learningWords,
     required this.nextStep,

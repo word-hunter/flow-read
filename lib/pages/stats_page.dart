@@ -164,6 +164,15 @@ class StatsPage extends StatelessWidget {
             body: _lookupDependencyText(report),
             color: _trendColor(theme, report.lookupDependency.direction),
           ),
+          if (report.weakPoints.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _InsightRow(
+              icon: Icons.priority_high_outlined,
+              title: '主要卡点',
+              body: _weakPointText(report),
+              color: _weakPointColor(theme, report),
+            ),
+          ],
           const SizedBox(height: 10),
           _InsightRow(
             icon: Icons.school_outlined,
@@ -583,6 +592,27 @@ class StatsPage extends StatelessWidget {
       parts.add('可回忆：$examples');
     }
     return parts.join(' · ');
+  }
+
+  String _weakPointText(ChapterLearningReport report) {
+    return report.weakPoints
+        .take(3)
+        .map((point) => '${point.title}：${point.detail}')
+        .join('\n');
+  }
+
+  Color _weakPointColor(ThemeData theme, ChapterLearningReport report) {
+    if (report.weakPoints.isEmpty) return theme.colorScheme.onSurfaceVariant;
+    final first = report.weakPoints.first;
+    return switch (first.type) {
+      ChapterWeakPointType.incompleteReading =>
+        theme.colorScheme.onSurfaceVariant,
+      ChapterWeakPointType.reviewBacklog => const Color(0xFFF9A825),
+      ChapterWeakPointType.lowPracticeAccuracy => const Color(0xFFC62828),
+      ChapterWeakPointType.highLookupDependency => const Color(0xFFC62828),
+      ChapterWeakPointType.repeatedLookups => const Color(0xFFE67E22),
+      ChapterWeakPointType.vocabularyLoad => const Color(0xFFE67E22),
+    };
   }
 
   String _practiceAccuracyValue(ChapterLearningReport report) {
