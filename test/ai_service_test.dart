@@ -64,4 +64,46 @@ void main() {
       expect(result.isEmpty, isFalse);
     },
   );
+
+  test('chapter preview uses json mode and parses preview response', () async {
+    final client = LLMClient(
+      settings,
+      httpClient: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['response_format'], {'type': 'json_object'});
+        final messages = body['messages'] as List<dynamic>;
+        expect(messages.first['content'], contains('pre-reading preview'));
+        expect(messages.last['content'], contains('Opening Excerpt Only'));
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {
+                  'content': jsonEncode({
+                    'setup': 'Notice the room before judging the scene.',
+                    'focus_points': ['Watch who speaks first.'],
+                    'vocabulary_hints': ['threshold: doorway'],
+                    'spoiler_boundary_note':
+                        'Only the opening excerpt is used.',
+                  }),
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final service = AIService(client);
+    final preview = await service.generateChapterPreview(
+      chapterTitle: 'A Room',
+      openingText: 'Alice stood on the threshold.',
+      vocabulary: const ['threshold'],
+    );
+
+    expect(preview.setup, contains('room'));
+    expect(preview.focusPoints, contains('Watch who speaks first.'));
+    expect(preview.vocabularyHints, contains('threshold: doorway'));
+  });
 }

@@ -45,6 +45,28 @@ void main() {
     expect(prompt.systemPrompt, isNot(contains('English reading tutor')));
   });
 
+  test('chapter preview prompt uses only opening excerpt', () {
+    final prompt = const PromptBuilder().buildChapterPreview(
+      ChapterPreviewPromptRequest(
+        chapterTitle: 'The Door',
+        openingText: 'Alice opened the door and listened.',
+        vocabulary: const ['listened'],
+        sourceLanguage: SourceLanguage.english,
+        outputLanguage: OutputLanguage.zhHans,
+        spoilerBoundary: SpoilerBoundary.chapter(
+          bookId: 'book-1',
+          chapterIndex: 2,
+        ),
+      ),
+    );
+
+    expect(prompt.systemPrompt, contains('pre-reading preview'));
+    expect(prompt.systemPrompt, contains('Do not summarize the whole chapter'));
+    expect(prompt.userPrompt, contains('allowed_units: chapters 0..2'));
+    expect(prompt.userPrompt, contains('## Opening Excerpt Only'));
+    expect(prompt.userPrompt, contains('Alice opened the door'));
+  });
+
   test('article summary prompt carries browser context', () {
     final prompt = const PromptBuilder().buildArticleSummary(
       ArticlePromptRequest(

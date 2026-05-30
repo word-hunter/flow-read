@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 
 import '../controllers/reading_search_controller.dart';
 import '../models/aggregated_vocabulary.dart';
+import '../models/ai_chapter_preview.dart';
 import '../models/ai_practice_questions.dart';
 import '../models/ai_summary.dart';
 import '../models/ai_text_analysis.dart';
@@ -148,6 +149,8 @@ class ReadingProvider extends ChangeNotifier {
   bool _isTranslatingText = false;
   AISummary? _aiSummary;
   bool _isGeneratingSummary = false;
+  AIChapterPreview? _aiChapterPreview;
+  bool _isGeneratingChapterPreview = false;
   String _summaryLanguage = 'zh';
   AIPracticeSet? _aiPractice;
   bool _isGeneratingPractice = false;
@@ -377,6 +380,8 @@ class ReadingProvider extends ChangeNotifier {
   bool get isTranslatingText => _isTranslatingText;
   AISummary? get aiSummary => _aiSummary;
   bool get isGeneratingSummary => _isGeneratingSummary;
+  AIChapterPreview? get aiChapterPreview => _aiChapterPreview;
+  bool get isGeneratingChapterPreview => _isGeneratingChapterPreview;
   String get summaryLanguage => _summaryLanguage;
   AIPracticeSet? get aiPractice => _aiPractice;
   bool get isGeneratingPractice => _isGeneratingPractice;
@@ -528,6 +533,7 @@ class ReadingProvider extends ChangeNotifier {
     _aiTextAnalysis = null;
     _aiTranslation = null;
     _aiSummary = null;
+    _aiChapterPreview = null;
     _aiPractice = null;
     _aiWordAnalysis = null;
     _resetSearchState();
@@ -733,6 +739,7 @@ class ReadingProvider extends ChangeNotifier {
       _aiTextAnalysis = null;
       _aiTranslation = null;
       _aiSummary = null;
+      _aiChapterPreview = null;
       _aiPractice = null;
       _aiWordAnalysis = null;
       _isReading = false;
@@ -791,6 +798,9 @@ class ReadingProvider extends ChangeNotifier {
     _readingProgress = 0.0;
     _readingScrollOffset = 0.0;
     _sourceHighlightQuery = '';
+    _aiSummary = null;
+    _aiChapterPreview = null;
+    _aiPractice = null;
     _saveCurrentProgress();
     notifyListeners();
     await _analyzeCurrentChapter();
@@ -1677,6 +1687,71 @@ class ReadingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> generateChapterPreview() async {
+    if (_result == null || _book == null || !_ensureAIReady()) return;
+    final bookId = _activeBookId;
+    if (bookId == null) return;
+    _isGeneratingChapterPreview = true;
+    _aiChapterPreview = null;
+    notifyListeners();
+    try {
+      final chapter = _book!.chapters[_currentChapter];
+      final chapterText = _result!.passageText;
+      final openingText = _chapterPreviewOpening(chapterText);
+      final sourceLanguage = SourceLanguage.inferFromText(openingText);
+      final vocabulary = _result!.vocabulary.map((v) => v.word).toList();
+      final contentHash = AICacheService.contentHashFor(
+        jsonEncode({
+          'title': chapter.title,
+          'openingText': openingText,
+          'vocabulary': vocabulary.take(20).toList(),
+        }),
+      );
+      final cacheJson = await _aiCache?.loadChapterPreview(
+        bookId,
+        _currentChapter,
+        contentHash: contentHash,
+        promptVersion: _aiService!.promptVersion,
+        sourceLanguage: sourceLanguage.code,
+        outputLanguage: OutputLanguage.zhHans.code,
+      );
+      if (cacheJson != null) {
+        _aiChapterPreview = AIChapterPreview.fromJson(
+          jsonDecode(cacheJson) as Map<String, dynamic>,
+        );
+        _isGeneratingChapterPreview = false;
+        notifyListeners();
+        return;
+      }
+
+      final preview = await _aiService!.generateChapterPreview(
+        chapterTitle: chapter.title,
+        openingText: openingText,
+        vocabulary: vocabulary,
+        sourceLanguage: sourceLanguage,
+        outputLanguage: OutputLanguage.zhHans,
+        spoilerBoundary: SpoilerBoundary.chapter(
+          bookId: bookId,
+          chapterIndex: _currentChapter,
+        ),
+      );
+      _aiChapterPreview = preview;
+      await _aiCache?.saveChapterPreview(
+        bookId,
+        _currentChapter,
+        jsonEncode(preview.toJson()),
+        contentHash: contentHash,
+        promptVersion: _aiService!.promptVersion,
+        sourceLanguage: sourceLanguage.code,
+        outputLanguage: OutputLanguage.zhHans.code,
+      );
+    } catch (e) {
+      _errorMessage = '生成读前预览失败: $e';
+    }
+    _isGeneratingChapterPreview = false;
+    notifyListeners();
+  }
+
   void toggleSummaryLanguage() {
     _summaryLanguage = _summaryLanguage == 'zh' ? 'en' : 'zh';
     _aiSummary = null;
@@ -1816,6 +1891,7 @@ class ReadingProvider extends ChangeNotifier {
     _aiTextAnalysis = null;
     _aiTranslation = null;
     _aiSummary = null;
+    _aiChapterPreview = null;
     _aiPractice = null;
     _aiWordAnalysis = null;
     notifyListeners();
@@ -1837,6 +1913,12 @@ class ReadingProvider extends ChangeNotifier {
       return false;
     }
     return true;
+  }
+
+  String _chapterPreviewOpening(String chapterText) {
+    final trimmed = chapterText.trim();
+    if (trimmed.length <= 1400) return trimmed;
+    return trimmed.substring(0, 1400).trim();
   }
 
   // ============================================================

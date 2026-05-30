@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/ai_chapter_preview.dart';
 import '../models/ai_summary.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
@@ -169,6 +170,33 @@ class _AISummaryViewState extends State<AISummaryView> {
             ),
           ),
           const SizedBox(height: 16),
+          if (provider.isGeneratingChapterPreview) ...[
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(height: 12),
+          ] else if (provider.aiChapterPreview != null &&
+              !provider.aiChapterPreview!.isEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _buildPreviewSection(
+                provider.aiChapterPreview!,
+                theme,
+                compact: true,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          OutlinedButton.icon(
+            onPressed: aiFeaturesEnabled && !provider.isGeneratingChapterPreview
+                ? () => provider.generateChapterPreview()
+                : null,
+            icon: const Icon(Icons.visibility_outlined, size: 18),
+            label: const Text('生成读前预览'),
+          ),
+          const SizedBox(height: 10),
           FilledButton.icon(
             onPressed: aiFeaturesEnabled
                 ? () => provider.generateSummary()
@@ -194,6 +222,11 @@ class _AISummaryViewState extends State<AISummaryView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (provider.aiChapterPreview != null &&
+              !provider.aiChapterPreview!.isEmpty) ...[
+            _buildPreviewSection(provider.aiChapterPreview!, theme),
+            const SizedBox(height: 20),
+          ],
           if (summary.events.isNotEmpty) ...[
             _buildSectionHeader(theme, '关键事件', Icons.event_note),
             ...summary.events.map((e) => _buildEventCard(e, theme)),
@@ -263,6 +296,65 @@ class _AISummaryViewState extends State<AISummaryView> {
               color: theme.colorScheme.primary,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewSection(
+    AIChapterPreview preview,
+    ThemeData theme, {
+    bool compact = false,
+  }) {
+    final content = <Widget>[
+      if (preview.setup.isNotEmpty)
+        Text(
+          preview.setup,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface,
+            height: 1.45,
+          ),
+        ),
+      if (preview.focusPoints.isNotEmpty) ...[
+        if (preview.setup.isNotEmpty) const SizedBox(height: 10),
+        ...preview.focusPoints.map(
+          (point) =>
+              _PreviewBullet(text: point, icon: Icons.center_focus_strong),
+        ),
+      ],
+      if (!compact && preview.vocabularyHints.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        ...preview.vocabularyHints.map(
+          (hint) => _PreviewBullet(text: hint, icon: Icons.menu_book_outlined),
+        ),
+      ],
+      if (!compact && preview.spoilerBoundaryNote.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        Text(
+          preview.spoilerBoundaryNote,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.35,
+          ),
+        ),
+      ],
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(theme, '读前预览', Icons.visibility_outlined),
+          ...content,
         ],
       ),
     );
@@ -447,6 +539,37 @@ class _AISummaryViewState extends State<AISummaryView> {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PreviewBullet extends StatelessWidget {
+  final String text;
+  final IconData icon;
+
+  const _PreviewBullet({required this.text, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 15, color: theme.colorScheme.primary),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../models/ai_text_analysis.dart';
+import '../models/ai_chapter_preview.dart';
 import '../models/ai_summary.dart';
 import '../models/ai_practice_questions.dart';
 import '../models/word_analysis.dart';
@@ -118,6 +119,42 @@ class AIService {
     );
     _validateSummary(summary, chapterText);
     yield summary;
+  }
+
+  Future<AIChapterPreview> generateChapterPreview({
+    required String chapterTitle,
+    required String openingText,
+    required List<String> vocabulary,
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
+    final prompt = _promptBuilder.buildChapterPreview(
+      ChapterPreviewPromptRequest(
+        chapterTitle: chapterTitle,
+        openingText: openingText,
+        vocabulary: vocabulary,
+        sourceLanguage:
+            sourceLanguage ?? SourceLanguage.inferFromText(openingText),
+        outputLanguage: outputLanguage,
+        spoilerBoundary:
+            spoilerBoundary ??
+            SpoilerBoundary.chapter(bookId: 'current_book', chapterIndex: 0),
+      ),
+    );
+
+    final response = await _client.chat(
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.userPrompt,
+      jsonMode: true,
+    );
+
+    return _parseJsonOrFallback(
+      response,
+      AIChapterPreview.fromJson,
+      AIChapterPreview.fallback,
+      'chapter_preview',
+    );
   }
 
   Stream<AIPracticeSet> generatePractice({

@@ -142,6 +142,24 @@ class ChapterSummaryPromptRequest {
   });
 }
 
+class ChapterPreviewPromptRequest {
+  final String chapterTitle;
+  final String openingText;
+  final List<String> vocabulary;
+  final SourceLanguage sourceLanguage;
+  final OutputLanguage outputLanguage;
+  final SpoilerBoundary spoilerBoundary;
+
+  const ChapterPreviewPromptRequest({
+    required this.chapterTitle,
+    required this.openingText,
+    required this.vocabulary,
+    required this.sourceLanguage,
+    required this.outputLanguage,
+    required this.spoilerBoundary,
+  });
+}
+
 class PracticePromptRequest {
   final String chapterText;
   final List<String> vocabulary;
@@ -348,6 +366,54 @@ current_unit: ${request.spoilerBoundary.currentUnitId}
 ${request.chapterText}
 
 ## Key Vocabulary to Consider
+$vocabList''';
+
+    return _result(request, systemPrompt, userPrompt);
+  }
+
+  PromptBuildResult buildChapterPreview(ChapterPreviewPromptRequest request) {
+    final vocabList = request.vocabulary.take(20).join(', ');
+    final systemPrompt = [
+      PromptSections.preamble(
+        sourceLanguage: request.sourceLanguage,
+        outputLanguage: request.outputLanguage,
+        spoilerBoundary: request.spoilerBoundary,
+      ),
+      'Task: create a spoiler-safe pre-reading preview for the chapter. '
+          'Use only the title, opening excerpt, and vocabulary provided. '
+          'Do not summarize the whole chapter, reveal outcomes, or infer later plot.',
+      PromptSections.strictJsonSchema('''{
+  "setup": "What the reader should be ready to notice before reading (${request.outputLanguage.promptLabel})",
+  "focus_points": [
+    "A concrete reading focus that does not reveal later outcomes (${request.outputLanguage.promptLabel})"
+  ],
+  "vocabulary_hints": [
+    "A word or expression to watch for, with a short non-spoiling hint (${request.outputLanguage.promptLabel})"
+  ],
+  "spoiler_boundary_note": "Short note confirming the preview uses only the provided opening context (${request.outputLanguage.promptLabel})"
+}'''),
+      'Limits: at most 3 focus points and at most 5 vocabulary hints. '
+          'Prefer uncertainty over spoilers; say what to watch for, not what will happen.',
+    ].join('\n\n');
+
+    final userPrompt =
+        '''## Source Language
+${request.sourceLanguage.promptLabel}
+
+## Output Language
+${request.outputLanguage.promptLabel}
+
+## Spoiler Boundary
+allowed_units: ${request.spoilerBoundary.allowedUnits}
+current_unit: ${request.spoilerBoundary.currentUnitId}
+
+## Chapter Title
+${request.chapterTitle}
+
+## Opening Excerpt Only
+${request.openingText}
+
+## Vocabulary to Watch
 $vocabList''';
 
     return _result(request, systemPrompt, userPrompt);
@@ -619,6 +685,7 @@ $question''';
   ) {
     final sourceLanguage = switch (request) {
       ChapterSummaryPromptRequest r => r.sourceLanguage,
+      ChapterPreviewPromptRequest r => r.sourceLanguage,
       PracticePromptRequest r => r.sourceLanguage,
       TextAnalysisPromptRequest r => r.sourceLanguage,
       TranslationPromptRequest r => r.sourceLanguage,
@@ -628,6 +695,7 @@ $question''';
     };
     final outputLanguage = switch (request) {
       ChapterSummaryPromptRequest r => r.outputLanguage,
+      ChapterPreviewPromptRequest r => r.outputLanguage,
       PracticePromptRequest r => r.outputLanguage,
       TextAnalysisPromptRequest r => r.outputLanguage,
       TranslationPromptRequest r => r.outputLanguage,
@@ -637,6 +705,7 @@ $question''';
     };
     final spoilerBoundary = switch (request) {
       ChapterSummaryPromptRequest r => r.spoilerBoundary,
+      ChapterPreviewPromptRequest r => r.spoilerBoundary,
       PracticePromptRequest r => r.spoilerBoundary,
       TextAnalysisPromptRequest r => r.spoilerBoundary,
       TranslationPromptRequest r => r.spoilerBoundary,

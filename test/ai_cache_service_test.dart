@@ -134,4 +134,39 @@ void main() {
       isNull,
     );
   });
+
+  test('caches chapter preview by upgraded key', () async {
+    await cache.saveChapterPreview(
+      'book-one',
+      1,
+      '{"setup":"Watch the opening image."}',
+      contentHash: 'preview-hash',
+      promptVersion: 2,
+      sourceLanguage: 'en',
+      outputLanguage: 'zh',
+    );
+
+    expect(
+      await cache.loadChapterPreview(
+        'book-one',
+        1,
+        contentHash: 'preview-hash',
+        promptVersion: 2,
+        sourceLanguage: 'en',
+        outputLanguage: 'zh',
+      ),
+      '{"setup":"Watch the opening image."}',
+    );
+    expect(
+      await cache.loadChapterPreview(
+        'book-one',
+        1,
+        contentHash: 'preview-hash',
+        promptVersion: 3,
+        sourceLanguage: 'en',
+        outputLanguage: 'zh',
+      ),
+      isNull,
+    );
+  });
 }

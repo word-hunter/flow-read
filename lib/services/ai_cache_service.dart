@@ -183,6 +183,57 @@ class AICacheService {
     }
   }
 
+  Future<String?> loadChapterPreview(
+    String bookId,
+    int chapterIndex, {
+    required String contentHash,
+    required int promptVersion,
+    required String sourceLanguage,
+    String outputLanguage = 'zh',
+    String? modelConfigFingerprint,
+  }) async {
+    return _readFile(
+      _keyedPath(
+        AICacheKey(
+          kind: 'chapter_preview',
+          bookId: bookId,
+          chapterIndex: chapterIndex,
+          contentHash: contentHash,
+          promptVersion: promptVersion,
+          sourceLanguage: sourceLanguage,
+          outputLanguage: outputLanguage,
+          modelConfigFingerprint: modelConfigFingerprint,
+        ),
+      ),
+    );
+  }
+
+  Future<void> saveChapterPreview(
+    String bookId,
+    int chapterIndex,
+    String jsonString, {
+    required String contentHash,
+    required int promptVersion,
+    required String sourceLanguage,
+    String outputLanguage = 'zh',
+    String? modelConfigFingerprint,
+  }) async {
+    final key = AICacheKey(
+      kind: 'chapter_preview',
+      bookId: bookId,
+      chapterIndex: chapterIndex,
+      contentHash: contentHash,
+      promptVersion: promptVersion,
+      sourceLanguage: sourceLanguage,
+      outputLanguage: outputLanguage,
+      modelConfigFingerprint: modelConfigFingerprint,
+    );
+    final path = _keyedPath(key);
+    await _ensureDir(File(path).parent.path);
+    await File(path).writeAsString(jsonString);
+    await _writeMetadata(path, key);
+  }
+
   Future<String?> loadWordAnalysis(
     String bookId,
     int chapterIndex, {
