@@ -123,12 +123,16 @@ void main() {
     await tester.tap(find.text('关于').first);
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('版本 ${FlowReadVersion.display}'), findsOneWidget);
-    expect(find.text('开发者'), findsOneWidget);
+    expect(find.text('辅助英语阅读与生词高亮工具'), findsOneWidget);
+    expect(find.text('当前安装版本'), findsOneWidget);
+    expect(find.text('项目与反馈'), findsOneWidget);
+    expect(find.text('开发者：'), findsOneWidget);
     expect(find.text(AppLinks.developerName), findsOneWidget);
     expect(find.text(AppLinks.repositoryUrl.toString()), findsOneWidget);
     expect(find.text('GitHub 仓库'), findsOneWidget);
     expect(find.text('反馈问题'), findsOneWidget);
     expect(find.text('检查更新'), findsOneWidget);
+    expect(find.text('查看更新内容'), findsOneWidget);
     await tester.drag(
       find.byKey(const ValueKey('settings-section-about')),
       const Offset(0, -300),

@@ -53,7 +53,9 @@ void main() {
     expect(find.byIcon(Icons.keyboard_arrow_down), findsNWidgets(4));
   });
 
-  testWidgets('about section keeps actions at the bottom', (tester) async {
+  testWidgets('about section groups product info before support cards', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -78,14 +80,19 @@ void main() {
       ),
     );
 
+    expect(find.text('Flow Read'), findsOneWidget);
+    expect(find.text('辅助英语阅读与生词高亮工具'), findsOneWidget);
+    expect(find.text('发现新版本 9.9.9'), findsOneWidget);
+    expect(find.text('查看更新内容'), findsOneWidget);
     expect(
-      tester.getTopLeft(find.text('诊断日志')).dy,
-      lessThan(tester.getTopLeft(find.text('操作')).dy),
+      tester.getTopLeft(find.text('可用更新')).dy,
+      greaterThan(tester.getTopLeft(find.text('Flow Read')).dy),
     );
     expect(
       tester.getTopLeft(find.text('可用更新')).dy,
-      lessThan(tester.getTopLeft(find.text('操作')).dy),
+      lessThan(tester.getTopLeft(find.text('项目与反馈')).dy),
     );
+    expect(find.text('操作'), findsNothing);
   });
 
   testWidgets('update result dialog shows immediate update actions', (

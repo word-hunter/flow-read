@@ -776,7 +776,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _updateStatusIsError = false;
         _updateFallbackActionLabel = null;
         _updateFallbackUrl = null;
-        _updateStatusMessage = null;
+        _updateStatusMessage = update == null ? '当前已安装最新版本' : null;
         _extractedAppPath = null;
       });
       await _showUpdateCheckResultDialog(update);

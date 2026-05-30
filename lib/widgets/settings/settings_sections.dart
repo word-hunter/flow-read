@@ -57,7 +57,7 @@ extension SettingsSectionMeta on SettingsSection {
       case SettingsSection.experiments:
         return '管理仍在测试中的入口和功能项。';
       case SettingsSection.about:
-        return '查看版本、开发者信息并反馈问题。';
+        return '版本信息、更新检查、问题反馈与诊断日志。';
     }
   }
 
@@ -1200,110 +1200,21 @@ class SettingsAboutSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SettingsCard(
-          icon: Icons.info_outline,
-          title: '版本',
-          child: Row(
-            children: [
-              Image.asset(
-                'assets/brand/flow_read_logo.png',
-                width: 42,
-                height: 42,
-                filterQuality: FilterQuality.high,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Flow Read',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '版本 ${FlowReadVersion.display}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        SettingsCard(
-          icon: Icons.person_outline,
-          title: '开发者',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                AppLinks.developerName,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                AppLinks.repositoryUrl.toString(),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: onOpenRepository,
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('GitHub 仓库'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: onOpenIssueFeedback,
-                    icon: const Icon(Icons.bug_report_outlined),
-                    label: const Text('反馈问题'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        SettingsCard(
-          icon: Icons.plagiarism_outlined,
-          title: '诊断日志',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '本地日志默认脱敏，保留最近 14 天。',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: onOpenLogsFolder,
-                icon: const Icon(Icons.folder_open_outlined),
-                label: const Text('打开日志文件夹'),
-              ),
-            ],
-          ),
+        _AboutHeroCard(
+          checkingForUpdate: checkingForUpdate,
+          updateStatusMessage: updateStatusMessage,
+          updateStatusIsError: updateStatusIsError,
+          availableUpdate: availableUpdate,
+          updateFallbackActionLabel: updateFallbackActionLabel,
+          onOpenUpdateFallback: onOpenUpdateFallback,
+          onCheckForUpdates: onCheckForUpdates,
+          onShowReleaseNotes: onShowReleaseNotes,
         ),
         if (availableUpdate != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _AvailableUpdateCard(
             update: availableUpdate!,
             onDownloadUpdate: onDownloadUpdate,
@@ -1315,62 +1226,486 @@ class SettingsAboutSection extends StatelessWidget {
             onOpenReleasePage: onOpenUpdateReleasePage,
           ),
         ],
-        const SizedBox(height: 16),
-        SettingsCard(
-          icon: Icons.settings_applications_outlined,
-          title: '操作',
+        const SizedBox(height: 20),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cards = [
+              SettingsCard(
+                icon: Icons.account_tree_outlined,
+                title: '项目与反馈',
+                child: _ProjectFeedbackContent(
+                  onOpenRepository: onOpenRepository,
+                  onOpenIssueFeedback: onOpenIssueFeedback,
+                ),
+              ),
+              SettingsCard(
+                icon: Icons.plagiarism_outlined,
+                title: '诊断日志',
+                child: _DiagnosticsContent(onOpenLogsFolder: onOpenLogsFolder),
+              ),
+            ];
+
+            if (constraints.maxWidth < 720) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: _settingsChildrenWithSpacing(
+                  cards,
+                  const SizedBox(height: 16),
+                ),
+              );
+            }
+
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var index = 0; index < cards.length; index++) ...[
+                    if (index > 0) const SizedBox(width: 20),
+                    Expanded(child: cards[index]),
+                  ],
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _AboutHeroCard extends StatelessWidget {
+  const _AboutHeroCard({
+    required this.checkingForUpdate,
+    required this.updateStatusMessage,
+    required this.updateStatusIsError,
+    required this.availableUpdate,
+    required this.updateFallbackActionLabel,
+    required this.onOpenUpdateFallback,
+    required this.onCheckForUpdates,
+    required this.onShowReleaseNotes,
+  });
+
+  final bool checkingForUpdate;
+  final String? updateStatusMessage;
+  final bool updateStatusIsError;
+  final AppUpdateInfo? availableUpdate;
+  final String? updateFallbackActionLabel;
+  final VoidCallback? onOpenUpdateFallback;
+  final VoidCallback onCheckForUpdates;
+  final VoidCallback onShowReleaseNotes;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final status = _statusFor(theme);
+
+    return Material(
+      color: Color.alphaBlend(
+        colorScheme.primaryContainer.withValues(alpha: 0.12),
+        colorScheme.surfaceContainerLowest,
+      ),
+      elevation: 1,
+      shadowColor: colorScheme.shadow.withValues(alpha: 0.05),
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.18)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 720;
+            final identity = _AboutIdentity(status: status, compact: compact);
+            final actions = _AboutActions(
+              checkingForUpdate: checkingForUpdate,
+              updateFallbackActionLabel: updateFallbackActionLabel,
+              onOpenUpdateFallback: onOpenUpdateFallback,
+              onCheckForUpdates: onCheckForUpdates,
+              onShowReleaseNotes: onShowReleaseNotes,
+            );
+
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [identity, const SizedBox(height: 24), actions],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: identity),
+                Container(
+                  width: 1,
+                  height: 128,
+                  margin: const EdgeInsets.symmetric(horizontal: 28),
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.75),
+                ),
+                SizedBox(width: 240, child: actions),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  _AboutStatusData _statusFor(ThemeData theme) {
+    final colorScheme = theme.colorScheme;
+    if (checkingForUpdate) {
+      return _AboutStatusData(
+        icon: Icons.sync,
+        label: '正在检查更新...',
+        color: colorScheme.primary,
+      );
+    }
+    if (updateStatusMessage != null) {
+      return _AboutStatusData(
+        icon: updateStatusIsError
+            ? Icons.error_outline
+            : Icons.check_circle_outline,
+        label: updateStatusMessage!,
+        color: updateStatusIsError ? colorScheme.error : colorScheme.primary,
+      );
+    }
+    if (availableUpdate != null) {
+      return _AboutStatusData(
+        icon: Icons.download_for_offline_outlined,
+        label: '发现新版本 ${availableUpdate!.version}',
+        color: colorScheme.tertiary,
+      );
+    }
+    return _AboutStatusData(
+      icon: Icons.info_outline,
+      label: '当前安装版本',
+      color: colorScheme.primary,
+    );
+  }
+}
+
+class _AboutIdentity extends StatelessWidget {
+  const _AboutIdentity({required this.status, required this.compact});
+
+  final _AboutStatusData status;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final logoSize = compact ? 76.0 : 104.0;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Image.asset(
+          'assets/brand/flow_read_logo.png',
+          width: logoSize,
+          height: logoSize,
+          filterQuality: FilterQuality.high,
+        ),
+        SizedBox(width: compact ? 18 : 28),
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                'Flow Read',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    (compact
+                            ? theme.textTheme.headlineSmall
+                            : theme.textTheme.headlineMedium)
+                        ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '辅助英语阅读与生词高亮工具',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
               Wrap(
-                spacing: 12,
-                runSpacing: 12,
+                spacing: 10,
+                runSpacing: 10,
                 children: [
-                  FilledButton.icon(
-                    onPressed: checkingForUpdate ? null : onCheckForUpdates,
-                    icon: checkingForUpdate
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.system_update_alt_outlined),
-                    label: Text(checkingForUpdate ? '检查中...' : '检查更新'),
+                  _AboutPill(
+                    icon: Icons.confirmation_number_outlined,
+                    label: '版本 ${FlowReadVersion.display}',
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
-                  OutlinedButton.icon(
-                    onPressed: onShowReleaseNotes,
-                    icon: const Icon(Icons.new_releases_outlined),
-                    label: const Text('当前版本更新内容'),
+                  _AboutPill(
+                    icon: status.icon,
+                    label: status.label,
+                    color: status.color,
                   ),
                 ],
               ),
-              if (updateStatusMessage != null) ...[
-                const SizedBox(height: 14),
-                SettingsStatusLine(
-                  icon: updateStatusIsError
-                      ? Icons.error_outline
-                      : Icons.check_circle_outline,
-                  text: updateStatusMessage!,
-                  color: updateStatusIsError
-                      ? theme.colorScheme.error
-                      : theme.colorScheme.primary,
-                ),
-                if (updateFallbackActionLabel != null &&
-                    onOpenUpdateFallback != null) ...[
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    onPressed: onOpenUpdateFallback,
-                    icon: const Icon(Icons.open_in_new),
-                    label: Text(updateFallbackActionLabel!),
-                  ),
-                ],
-              ],
             ],
           ),
         ),
       ],
     );
   }
+}
+
+class _AboutActions extends StatelessWidget {
+  const _AboutActions({
+    required this.checkingForUpdate,
+    required this.updateFallbackActionLabel,
+    required this.onOpenUpdateFallback,
+    required this.onCheckForUpdates,
+    required this.onShowReleaseNotes,
+  });
+
+  final bool checkingForUpdate;
+  final String? updateFallbackActionLabel;
+  final VoidCallback? onOpenUpdateFallback;
+  final VoidCallback onCheckForUpdates;
+  final VoidCallback onShowReleaseNotes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 50,
+          child: FilledButton.icon(
+            onPressed: checkingForUpdate ? null : onCheckForUpdates,
+            icon: checkingForUpdate
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
+            label: Text(checkingForUpdate ? '检查中...' : '检查更新'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 50,
+          child: OutlinedButton.icon(
+            onPressed: onShowReleaseNotes,
+            icon: const Icon(Icons.article_outlined),
+            label: const Text('查看更新内容'),
+          ),
+        ),
+        if (updateFallbackActionLabel != null &&
+            onOpenUpdateFallback != null) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: onOpenUpdateFallback,
+              icon: const Icon(Icons.open_in_new),
+              label: Text(updateFallbackActionLabel!),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ProjectFeedbackContent extends StatelessWidget {
+  const _ProjectFeedbackContent({
+    required this.onOpenRepository,
+    required this.onOpenIssueFeedback,
+  });
+
+  final VoidCallback onOpenRepository;
+  final VoidCallback onOpenIssueFeedback;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _AboutInfoRow(
+          icon: Icons.person_outline,
+          label: '开发者：',
+          value: AppLinks.developerName,
+          strong: true,
+        ),
+        const SizedBox(height: 14),
+        _AboutInfoRow(
+          icon: Icons.link,
+          label: '',
+          value: AppLinks.repositoryUrl.toString(),
+          valueColor: theme.colorScheme.primary,
+        ),
+        const Divider(height: 34),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            OutlinedButton.icon(
+              onPressed: onOpenRepository,
+              icon: const Icon(Icons.code),
+              label: const Text('GitHub 仓库'),
+            ),
+            OutlinedButton.icon(
+              onPressed: onOpenIssueFeedback,
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('反馈问题'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _DiagnosticsContent extends StatelessWidget {
+  const _DiagnosticsContent({required this.onOpenLogsFolder});
+
+  final VoidCallback onOpenLogsFolder;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '本地日志默认脱敏，保留最近 14 天。',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const Divider(height: 48),
+        OutlinedButton.icon(
+          onPressed: onOpenLogsFolder,
+          icon: const Icon(Icons.folder_outlined),
+          label: const Text('打开日志文件夹'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AboutInfoRow extends StatelessWidget {
+  const _AboutInfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.strong = false,
+    this.valueColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool strong;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 12),
+        if (label.isNotEmpty)
+          Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: valueColor ?? theme.colorScheme.onSurface,
+              fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AboutPill extends StatelessWidget {
+  const _AboutPill({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AboutStatusData {
+  const _AboutStatusData({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+}
+
+List<Widget> _settingsChildrenWithSpacing(
+  List<Widget> children,
+  Widget spacing,
+) {
+  return [
+    for (var i = 0; i < children.length; i++) ...[
+      if (i != 0) spacing,
+      children[i],
+    ],
+  ];
 }
 
 class _AvailableUpdateCard extends StatelessWidget {
