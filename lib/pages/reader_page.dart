@@ -7,10 +7,9 @@ import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
 import '../providers/reading_provider.dart';
-import '../services/settings_service.dart';
 import '../services/english_word_utils.dart';
+import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
-import '../widgets/ai_summary_view.dart';
 import '../widgets/bookmark_sheet.dart';
 import '../widgets/font_settings_sheet.dart';
 import '../widgets/reader/reader_word_sidebar.dart';
@@ -650,7 +649,6 @@ class _ReaderPageState extends State<ReaderPage> {
                   chapterTitle,
                   progressPercent: progressPercent,
                   showSidebarToggle: isWide,
-                  aiFeaturesEnabled: settings.aiFeaturesEnabled,
                 ),
                 _buildReadingProgressLine(theme, _displayProgress),
                 _buildReadingReminder(theme),
@@ -1119,7 +1117,6 @@ class _ReaderPageState extends State<ReaderPage> {
     String chapterTitle, {
     required int progressPercent,
     bool showSidebarToggle = false,
-    required bool aiFeaturesEnabled,
   }) {
     final isDark =
         provider.readingTheme == 'dark' ||
@@ -1267,18 +1264,6 @@ class _ReaderPageState extends State<ReaderPage> {
                     provider.goToChapter(provider.currentChapter + 1);
                   }
                   break;
-                case 'summary':
-                  provider.generateSummary();
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => const AISummaryView(),
-                  );
-                  break;
-                case 'practice':
-                  provider.generatePractice();
-                  break;
                 case 'bookmarks':
                   showModalBottomSheet(
                     context: context,
@@ -1306,16 +1291,6 @@ class _ReaderPageState extends State<ReaderPage> {
                 ),
                 const PopupMenuDivider(),
               ],
-              PopupMenuItem(
-                value: 'summary',
-                enabled: aiFeaturesEnabled,
-                child: const Text('AI 总结当前内容'),
-              ),
-              PopupMenuItem(
-                value: 'practice',
-                enabled: aiFeaturesEnabled,
-                child: const Text('生成练习题'),
-              ),
               const PopupMenuItem(value: 'bookmarks', child: Text('历史书签')),
             ],
             child: const SizedBox.square(

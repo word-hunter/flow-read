@@ -148,6 +148,9 @@ void main() {
     final previousItem = find.text('上一个目录项');
     expect(previousItem, findsOneWidget);
     expect(tester.getSize(previousItem).width, greaterThan(70));
+    expect(find.text('AI 总结当前内容'), findsNothing);
+    expect(find.text('生成练习题'), findsNothing);
+    expect(find.text('历史书签'), findsOneWidget);
   });
 
   testWidgets('shows a prompt when the daily reading goal is reached', (
