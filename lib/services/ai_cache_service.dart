@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../models/chapter_ai_coverage.dart';
+
 class AICacheService {
   AICacheService({Future<Directory> Function()? documentsDirectoryProvider})
     : _documentsDirectoryProvider =
@@ -319,6 +321,49 @@ class AICacheService {
     return count;
   }
 
+  Future<ChapterAISummaryCoverage> summaryCoverageFor(
+    String bookId, {
+    required int totalChapters,
+  }) async {
+    final generated = <int>{};
+    final cacheDir = _cacheDir;
+    if (cacheDir == null || totalChapters <= 0) {
+      return ChapterAISummaryCoverage(
+        totalChapters: totalChapters,
+        generatedChapterIndexes: generated,
+      );
+    }
+
+    final bookDirs = {
+      '$cacheDir/$bookId',
+      '$cacheDir/${_safePathSegment(bookId)}',
+    };
+
+    for (final path in bookDirs) {
+      final dir = Directory(path);
+      if (!await dir.exists()) continue;
+      await for (final entity in dir.list(recursive: true)) {
+        if (entity is! File) continue;
+        final path = entity.path;
+        final metadataChapter = await _summaryChapterFromMetadata(path, bookId);
+        if (metadataChapter != null) {
+          _addCoverageChapter(generated, metadataChapter, totalChapters);
+          continue;
+        }
+
+        final pathChapter = _summaryChapterFromPath(path);
+        if (pathChapter != null) {
+          _addCoverageChapter(generated, pathChapter, totalChapters);
+        }
+      }
+    }
+
+    return ChapterAISummaryCoverage(
+      totalChapters: totalChapters,
+      generatedChapterIndexes: generated,
+    );
+  }
+
   Future<void> _ensureDir(String path) async {
     final dir = Directory(path);
     if (!await dir.exists()) {
@@ -333,6 +378,43 @@ class AICacheService {
       return await file.readAsString();
     } catch (_) {
       return null;
+    }
+  }
+
+  Future<int?> _summaryChapterFromMetadata(String path, String bookId) async {
+    if (!path.endsWith('.meta')) return null;
+    final raw = await _readFile(path);
+    if (raw == null) return null;
+    try {
+      final metadata = jsonDecode(raw) as Map<String, dynamic>;
+      if (metadata['kind'] != 'summary') return null;
+      if (metadata['bookId'] != bookId) return null;
+      final chapterIndex = metadata['chapterIndex'];
+      return chapterIndex is int ? chapterIndex : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int? _summaryChapterFromPath(String path) {
+    if (path.endsWith('.meta')) return null;
+    final legacy = RegExp(r'ch(\d+)_summary_[^/\\]+\.json$').firstMatch(path);
+    if (legacy != null) return int.tryParse(legacy.group(1)!);
+
+    final keyed = RegExp(
+      r'[/\\]ch(\d+)[/\\]summary_v[^/\\]+\.json$',
+    ).firstMatch(path);
+    if (keyed != null) return int.tryParse(keyed.group(1)!);
+    return null;
+  }
+
+  void _addCoverageChapter(
+    Set<int> chapters,
+    int chapterIndex,
+    int totalChapters,
+  ) {
+    if (chapterIndex >= 0 && chapterIndex < totalChapters) {
+      chapters.add(chapterIndex);
     }
   }
 

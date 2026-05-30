@@ -17,6 +17,7 @@ import '../models/book.dart';
 import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
 import '../models/bookmarked_word.dart';
+import '../models/chapter_ai_coverage.dart';
 import '../models/chapter_ai_status.dart';
 import '../models/learning_item.dart';
 import '../models/learning_analytics.dart';
@@ -153,6 +154,8 @@ class ReadingProvider extends ChangeNotifier {
   AIChapterPreview? _aiChapterPreview;
   bool _isGeneratingChapterPreview = false;
   ChapterAIStatus? _chapterAIStatus;
+  ChapterAISummaryCoverage? _chapterAISummaryCoverage;
+  bool _isLoadingChapterAISummaryCoverage = false;
   String _summaryLanguage = 'zh';
   AIPracticeSet? _aiPractice;
   bool _isGeneratingPractice = false;
@@ -409,6 +412,10 @@ class ReadingProvider extends ChangeNotifier {
     return _chapterAIStatus;
   }
 
+  ChapterAISummaryCoverage? get chapterAISummaryCoverage =>
+      _chapterAISummaryCoverage;
+  bool get isLoadingChapterAISummaryCoverage =>
+      _isLoadingChapterAISummaryCoverage;
   String get summaryLanguage => _summaryLanguage;
   AIPracticeSet? get aiPractice => _aiPractice;
   bool get isGeneratingPractice => _isGeneratingPractice;
@@ -564,6 +571,8 @@ class ReadingProvider extends ChangeNotifier {
     _aiPractice = null;
     _aiWordAnalysis = null;
     _chapterAIStatus = null;
+    _chapterAISummaryCoverage = null;
+    _isLoadingChapterAISummaryCoverage = false;
     _resetSearchState();
 
     await init();
@@ -660,6 +669,7 @@ class ReadingProvider extends ChangeNotifier {
       _bookmarkedWords.clear();
       _readingBookmarks.clear();
       _resetSearchState();
+      await _refreshChapterAISummaryCoverage(notify: false);
 
       _importStage = '正在统计生词、分析句式...';
       notifyListeners();
@@ -706,6 +716,7 @@ class ReadingProvider extends ChangeNotifier {
       _resetSearchState();
 
       _loadBookmarks(bookId);
+      await _refreshChapterAISummaryCoverage(notify: false);
 
       await _analyzeCurrentChapter();
       return true;
@@ -771,6 +782,8 @@ class ReadingProvider extends ChangeNotifier {
       _aiPractice = null;
       _aiWordAnalysis = null;
       _chapterAIStatus = null;
+      _chapterAISummaryCoverage = null;
+      _isLoadingChapterAISummaryCoverage = false;
       _isReading = false;
       _resetSearchState();
     }
@@ -1688,6 +1701,7 @@ class ReadingProvider extends ChangeNotifier {
           ChapterAIFeature.summary,
           '已读取缓存的章节总结。',
         );
+        await _refreshChapterAISummaryCoverage(notify: false);
         _isGeneratingSummary = false;
         notifyListeners();
         return;
@@ -1715,6 +1729,7 @@ class ReadingProvider extends ChangeNotifier {
           sourceLanguage: sourceLanguage.code,
           outputLanguage: _summaryLanguage,
         );
+        await _refreshChapterAISummaryCoverage(notify: false);
       }
     } catch (e) {
       _errorMessage = '生成总结失败: $e';
@@ -1961,6 +1976,18 @@ class ReadingProvider extends ChangeNotifier {
 
   Future<void> clearAICache() async {
     await _aiCache?.clearAllCache();
+    final totalChapters = _book?.chapters.length;
+    _chapterAISummaryCoverage = totalChapters == null
+        ? null
+        : ChapterAISummaryCoverage(
+            totalChapters: totalChapters,
+            generatedChapterIndexes: const [],
+          );
+    notifyListeners();
+  }
+
+  Future<void> refreshChapterAISummaryCoverage() {
+    return _refreshChapterAISummaryCoverage();
   }
 
   bool _ensureAIReady() {
@@ -1981,6 +2008,47 @@ class ReadingProvider extends ChangeNotifier {
     final trimmed = chapterText.trim();
     if (trimmed.length <= 1400) return trimmed;
     return trimmed.substring(0, 1400).trim();
+  }
+
+  Future<void> _refreshChapterAISummaryCoverage({bool notify = true}) async {
+    final aiCache = _aiCache;
+    final bookId = _activeBookId;
+    final totalChapters = _book?.chapters.length;
+    if (aiCache == null || bookId == null || totalChapters == null) {
+      _chapterAISummaryCoverage = null;
+      _isLoadingChapterAISummaryCoverage = false;
+      if (notify) notifyListeners();
+      return;
+    }
+
+    if (notify) {
+      _isLoadingChapterAISummaryCoverage = true;
+      notifyListeners();
+    }
+
+    try {
+      final coverage = await aiCache.summaryCoverageFor(
+        bookId,
+        totalChapters: totalChapters,
+      );
+      if (_activeBookId == bookId && _book?.chapters.length == totalChapters) {
+        _chapterAISummaryCoverage = coverage;
+      }
+    } catch (e, stackTrace) {
+      AppLogger.instance.event(
+        'ai.summary_coverage_failed',
+        level: AppLogLevel.warning,
+        source: 'ai',
+        metadata: {'bookId': bookId},
+        error: e,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      if (notify) {
+        _isLoadingChapterAISummaryCoverage = false;
+        notifyListeners();
+      }
+    }
   }
 
   // ============================================================

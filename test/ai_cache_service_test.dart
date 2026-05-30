@@ -169,4 +169,66 @@ void main() {
       isNull,
     );
   });
+
+  test('summary coverage counts only generated chapter summaries', () async {
+    await cache.saveSummary(
+      'book/one',
+      0,
+      'zh',
+      '{"events":[]}',
+      contentHash: 'summary-a',
+      promptVersion: 2,
+      sourceLanguage: 'en',
+      outputLanguage: 'zh',
+    );
+    await cache.saveSummary(
+      'book/one',
+      2,
+      'en',
+      '{"events":[]}',
+      contentHash: 'summary-b',
+      promptVersion: 2,
+      sourceLanguage: 'en',
+      outputLanguage: 'en',
+    );
+    await cache.savePractice(
+      'book/one',
+      1,
+      '{"questions":[]}',
+      contentHash: 'practice',
+      promptVersion: 2,
+      sourceLanguage: 'en',
+      outputLanguage: 'zh',
+    );
+    await cache.saveChapterPreview(
+      'book/one',
+      3,
+      '{"setup":"Preview"}',
+      contentHash: 'preview',
+      promptVersion: 2,
+      sourceLanguage: 'en',
+      outputLanguage: 'zh',
+    );
+
+    final coverage = await cache.summaryCoverageFor(
+      'book/one',
+      totalChapters: 4,
+    );
+
+    expect(coverage.generatedChapterIndexes, {0, 2});
+    expect(coverage.generatedCount, 2);
+    expect(coverage.missingChapterIndexes, [1, 3]);
+  });
+
+  test('summary coverage includes legacy summary files', () async {
+    await cache.saveSummary('book-one', 1, 'zh', '{"legacy":true}');
+
+    final coverage = await cache.summaryCoverageFor(
+      'book-one',
+      totalChapters: 3,
+    );
+
+    expect(coverage.generatedChapterIndexes, {1});
+    expect(coverage.missingCount, 2);
+  });
 }

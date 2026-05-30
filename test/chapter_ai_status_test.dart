@@ -1,6 +1,7 @@
 import 'package:flow_read/models/ai_chapter_preview.dart';
 import 'package:flow_read/models/ai_practice_questions.dart';
 import 'package:flow_read/models/ai_summary.dart';
+import 'package:flow_read/models/chapter_ai_coverage.dart';
 import 'package:flow_read/models/chapter_ai_status.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/services/settings_service.dart';
@@ -61,6 +62,11 @@ void main() {
   ) async {
     final provider = _StatusReadingProvider(
       const ChapterAIStatus.cacheHit(ChapterAIFeature.summary, '已读取缓存的章节总结。'),
+      coverage: ChapterAISummaryCoverage(
+        totalChapters: 4,
+        generatedChapterIndexes: const [0, 2],
+      ),
+      currentChapter: 1,
     );
     final settings = _StatusSettingsService();
 
@@ -80,16 +86,33 @@ void main() {
 
     expect(find.text('已读取缓存的章节总结。'), findsOneWidget);
     expect(find.byIcon(Icons.cached), findsOneWidget);
+    expect(find.text('已生成 2/4 章总结 · 当前章未生成'), findsOneWidget);
   });
 }
 
 class _StatusReadingProvider extends ReadingProvider {
-  _StatusReadingProvider(this._status);
+  _StatusReadingProvider(
+    this._status, {
+    ChapterAISummaryCoverage? coverage,
+    int currentChapter = 0,
+  }) : _coverage = coverage,
+       _currentChapter = currentChapter;
 
   final ChapterAIStatus? _status;
+  final ChapterAISummaryCoverage? _coverage;
+  final int _currentChapter;
 
   @override
   ChapterAIStatus? get chapterAIStatus => _status;
+
+  @override
+  ChapterAISummaryCoverage? get chapterAISummaryCoverage => _coverage;
+
+  @override
+  bool get isLoadingChapterAISummaryCoverage => false;
+
+  @override
+  int get currentChapter => _currentChapter;
 
   @override
   String get summaryLanguage => 'zh';
@@ -114,6 +137,9 @@ class _StatusReadingProvider extends ReadingProvider {
 
   @override
   Future<void> generateSummary() async {}
+
+  @override
+  Future<void> refreshChapterAISummaryCoverage() async {}
 
   @override
   void toggleSummaryLanguage() {}

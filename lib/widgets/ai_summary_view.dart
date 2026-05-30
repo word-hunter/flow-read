@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/ai_chapter_preview.dart';
 import '../models/ai_summary.dart';
+import '../models/chapter_ai_coverage.dart';
 import '../models/chapter_ai_status.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
@@ -15,6 +16,23 @@ class AISummaryView extends StatefulWidget {
 }
 
 class _AISummaryViewState extends State<AISummaryView> {
+  bool _requestedCoverage = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_requestedCoverage) return;
+    _requestedCoverage = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final provider = context.read<ReadingProvider>();
+      if (provider.chapterAISummaryCoverage == null &&
+          !provider.isLoadingChapterAISummaryCoverage) {
+        provider.refreshChapterAISummaryCoverage();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ReadingProvider>();
@@ -37,6 +55,7 @@ class _AISummaryViewState extends State<AISummaryView> {
               _buildHeader(theme, provider),
               _buildLanguageToggle(theme, provider, settings.aiFeaturesEnabled),
               _buildAIStatus(theme, provider.chapterAIStatus),
+              _buildSummaryCoverage(theme, provider),
               Divider(
                 color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
               ),
@@ -88,6 +107,51 @@ class _AISummaryViewState extends State<AISummaryView> {
         ],
       ),
     );
+  }
+
+  Widget _buildSummaryCoverage(ThemeData theme, ReadingProvider provider) {
+    final coverage = provider.chapterAISummaryCoverage;
+    if (!provider.isLoadingChapterAISummaryCoverage && coverage == null) {
+      return const SizedBox.shrink();
+    }
+
+    final message = coverage == null
+        ? '正在读取已生成章节...'
+        : _coverageMessage(coverage, provider.currentChapter);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Row(
+        children: [
+          Icon(
+            Icons.auto_stories_outlined,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _coverageMessage(
+    ChapterAISummaryCoverage coverage,
+    int currentChapter,
+  ) {
+    final currentState = coverage.isGenerated(currentChapter)
+        ? '当前章已生成'
+        : '当前章未生成';
+    return '已生成 ${coverage.generatedCount}/${coverage.totalChapters} 章总结 · $currentState';
   }
 
   Widget _buildAIStatus(ThemeData theme, ChapterAIStatus? status) {
