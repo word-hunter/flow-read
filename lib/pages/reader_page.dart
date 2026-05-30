@@ -7,7 +7,6 @@ import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
 import '../providers/reading_provider.dart';
-import '../services/english_word_utils.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
 import '../widgets/bookmark_sheet.dart';
@@ -858,23 +857,11 @@ class _ReaderPageState extends State<ReaderPage> {
     VoidCallback closeToolbar, {
     required bool aiFeaturesEnabled,
   }) {
-    final lookupWord = _lookupWordFromSelection(selectedText);
     return [
       SelectedTextAction.copy(
         context: context,
         selectedText: selectedText,
         closeToolbar: closeToolbar,
-      ),
-      SelectedTextAction(
-        icon: Icons.translate_rounded,
-        tooltip: '查词',
-        enabled: lookupWord != null,
-        onPressed: () {
-          final word = lookupWord;
-          if (word == null) return;
-          closeToolbar();
-          _onWordTapped(word, selectedText.trim());
-        },
       ),
       SelectedTextAction(
         icon: Icons.auto_awesome_rounded,
@@ -886,22 +873,6 @@ class _ReaderPageState extends State<ReaderPage> {
         },
       ),
     ];
-  }
-
-  String? _lookupWordFromSelection(String selectedText) {
-    final trimmed = selectedText.trim();
-    if (trimmed.isEmpty) return null;
-    final matches = englishWordPattern.allMatches(trimmed).toList();
-    if (matches.length != 1) return null;
-
-    final match = matches.single;
-    final before = trimmed.substring(0, match.start);
-    final after = trimmed.substring(match.end);
-    final punctuation = RegExp(r'''^[\s.,;:!?"'“”‘’()\[\]{}<>-]*$''');
-    if (!punctuation.hasMatch(before) || !punctuation.hasMatch(after)) {
-      return null;
-    }
-    return match.group(0);
   }
 
   Widget _buildContentBlock(
