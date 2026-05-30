@@ -1118,7 +1118,15 @@ void main() {
           .getBottomLeft(find.text('生词本'))
           .dy;
 
-      expect(find.text('操作'), findsOneWidget);
+      final segmentedButton = tester.widget<SegmentedButton<dynamic>>(
+        find.byWidgetPredicate((widget) => widget is SegmentedButton<dynamic>),
+      );
+
+      expect(find.text('操作'), findsNothing);
+      expect(
+        segmentedButton.style?.mouseCursor?.resolve({WidgetState.hovered}),
+        SystemMouseCursors.click,
+      );
       expect(find.text('学习状态'), findsNothing);
       expect(find.text('学习中'), findsNothing);
       expect(find.text('AI 详解这个词'), findsNothing);
@@ -1174,6 +1182,10 @@ void main() {
     expect(
       aiButton.style?.overlayColor?.resolve({WidgetState.hovered}),
       isNotNull,
+    );
+    expect(
+      aiButton.style?.mouseCursor?.resolve({WidgetState.hovered}),
+      SystemMouseCursors.click,
     );
 
     await tester.tap(find.byIcon(Icons.auto_awesome_outlined));

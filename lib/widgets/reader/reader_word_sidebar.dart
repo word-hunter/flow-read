@@ -273,23 +273,12 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
         disabledForegroundColor: theme.colorScheme.onSurfaceVariant.withValues(
           alpha: 0.35,
         ),
+        enabledMouseCursor: SystemMouseCursors.click,
+        disabledMouseCursor: SystemMouseCursors.basic,
       ),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 36, minHeight: 32),
       visualDensity: VisualDensity.compact,
-    );
-  }
-
-  Widget _buildSectionLabel(ThemeData theme, String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        label,
-        style: theme.textTheme.labelMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
     );
   }
 
@@ -304,7 +293,6 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionLabel(theme, '操作'),
         SizedBox(
           width: double.infinity,
           child: WordMasteryActionAnchor(
@@ -327,6 +315,9 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
               style: ButtonStyle(
                 visualDensity: VisualDensity.compact,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                mouseCursor: const WidgetStatePropertyAll(
+                  SystemMouseCursors.click,
+                ),
                 padding: const WidgetStatePropertyAll(
                   EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 ),
