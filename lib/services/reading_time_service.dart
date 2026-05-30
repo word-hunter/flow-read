@@ -20,6 +20,8 @@ class ReadingTimeService {
   int? _activeChapterIndex;
 
   int get totalSeconds => _totalSeconds;
+  DateTime get currentDate => _clock();
+
   int get todaySeconds {
     final now = _clock();
     return _repository.secondsFor(_dailyKey(now)) + _activeSecondsForDate(now);
@@ -101,6 +103,29 @@ class ReadingTimeService {
     return total;
   }
 
+  List<int> secondsByDayForWeek([DateTime? date]) {
+    final target = date ?? _clock();
+    final start = weekStartFor(target);
+    return List.generate(7, (index) {
+      final day = start.add(Duration(days: index));
+      return secondsForDate(day) + _activeSecondsForDate(day);
+    }, growable: false);
+  }
+
+  int secondsForMonth([DateTime? date]) {
+    final target = date ?? _clock();
+    return secondsByDayForMonth(target).fold(0, (total, day) => total + day);
+  }
+
+  List<int> secondsByDayForMonth([DateTime? date]) {
+    final target = date ?? _clock();
+    final daysInMonth = daysInMonthFor(target);
+    return List.generate(daysInMonth, (index) {
+      final day = DateTime(target.year, target.month, index + 1);
+      return secondsForDate(day) + _activeSecondsForDate(day);
+    }, growable: false);
+  }
+
   int goalReachedDaysForWeek(int dailyGoalSeconds, [DateTime? date]) {
     if (dailyGoalSeconds <= 0) return 0;
     final target = date ?? _clock();
@@ -122,6 +147,10 @@ class ReadingTimeService {
   static DateTime weekStartFor(DateTime date) {
     final day = DateTime(date.year, date.month, date.day);
     return day.subtract(Duration(days: day.weekday - DateTime.monday));
+  }
+
+  static int daysInMonthFor(DateTime date) {
+    return DateTime(date.year, date.month + 1, 0).day;
   }
 
   int _activeSecondsForDate(DateTime date) {

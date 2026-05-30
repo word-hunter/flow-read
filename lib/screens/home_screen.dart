@@ -196,6 +196,10 @@ class _WideHomeLayout extends StatelessWidget {
             currentTab: provider.currentTab,
             onTabChanged: provider.switchTab,
             readingTimeSeconds: provider.weekReadingTimeSeconds,
+            monthReadingTimeSeconds: provider.monthReadingTimeSeconds,
+            weekDailyReadingSeconds: provider.weekDailyReadingSeconds,
+            monthDailyReadingSeconds: provider.monthDailyReadingSeconds,
+            goalDate: provider.readingGoalDate,
             dailyReadingGoalSeconds: settings.dailyReadingGoalSeconds,
             onSettingsTap: () =>
                 Navigator.pushNamed(context, SettingsScreen.routeName),

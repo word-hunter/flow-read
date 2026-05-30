@@ -92,6 +92,9 @@ void main() {
       expect(service.secondsForChapter('book-1', 2), 125);
       expect(service.todaySeconds, 125);
       expect(service.secondsForWeek(now), 125);
+      expect(service.secondsByDayForWeek(now), [0, 125, 0, 0, 0, 0, 0]);
+      expect(service.secondsForMonth(now), 125);
+      expect(service.secondsByDayForMonth(now)[18], 125);
       expect(service.displayText, '2 分钟');
 
       final reloaded = ReadingTimeService(clock: () => now);
@@ -102,6 +105,9 @@ void main() {
       expect(reloaded.secondsForChapter('book-1', 2), 125);
       expect(reloaded.todaySeconds, 125);
       expect(reloaded.secondsForWeek(now), 125);
+      expect(reloaded.secondsByDayForWeek(now), [0, 125, 0, 0, 0, 0, 0]);
+      expect(reloaded.secondsForMonth(now), 125);
+      expect(reloaded.secondsByDayForMonth(now)[18], 125);
     },
   );
 

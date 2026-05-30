@@ -359,6 +359,12 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   int get weekReadingTimeSeconds => _readingTime?.secondsForWeek() ?? 0;
+  int get monthReadingTimeSeconds => _readingTime?.secondsForMonth() ?? 0;
+  DateTime get readingGoalDate => _readingTime?.currentDate ?? DateTime.now();
+  List<int> get weekDailyReadingSeconds =>
+      _readingTime?.secondsByDayForWeek() ?? const [0, 0, 0, 0, 0, 0, 0];
+  List<int> get monthDailyReadingSeconds =>
+      _readingTime?.secondsByDayForMonth() ?? const [];
 
   int get readingGoalReachedDaysThisWeek {
     return _readingTime?.goalReachedDaysForWeek(dailyReadingGoalSeconds) ?? 0;

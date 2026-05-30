@@ -1,12 +1,18 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import '../../theme/app_constants.dart';
 import '../theme_mode_cycle_button.dart';
 import 'reading_stats_ring.dart';
 
-class HomeSidebar extends StatelessWidget {
+class HomeSidebar extends StatefulWidget {
   final int currentTab;
   final ValueChanged<int> onTabChanged;
   final int readingTimeSeconds;
+  final int monthReadingTimeSeconds;
+  final List<int> weekDailyReadingSeconds;
+  final List<int> monthDailyReadingSeconds;
+  final DateTime? goalDate;
   final int dailyReadingGoalSeconds;
   final VoidCallback onSettingsTap;
   final VoidCallback onThemeToggle;
@@ -19,6 +25,10 @@ class HomeSidebar extends StatelessWidget {
     required this.currentTab,
     required this.onTabChanged,
     required this.readingTimeSeconds,
+    this.monthReadingTimeSeconds = 0,
+    this.weekDailyReadingSeconds = const [0, 0, 0, 0, 0, 0, 0],
+    this.monthDailyReadingSeconds = const [],
+    this.goalDate,
     required this.dailyReadingGoalSeconds,
     required this.onSettingsTap,
     required this.onThemeToggle,
@@ -26,6 +36,93 @@ class HomeSidebar extends StatelessWidget {
     required this.showRss,
     required this.showBrowser,
   });
+
+  @override
+  State<HomeSidebar> createState() => _HomeSidebarState();
+}
+
+class _HomeSidebarState extends State<HomeSidebar> {
+  final _readingGoalKey = GlobalKey();
+  OverlayEntry? _readingGoalOverlay;
+
+  @override
+  void dispose() {
+    _readingGoalOverlay?.remove();
+    _readingGoalOverlay = null;
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _readingGoalOverlay?.markNeedsBuild();
+  }
+
+  void _toggleReadingGoalPanel() {
+    if (_readingGoalOverlay == null) {
+      _showReadingGoalPanel();
+    } else {
+      _hideReadingGoalPanel();
+    }
+  }
+
+  void _showReadingGoalPanel() {
+    final overlay = Overlay.of(context);
+    final box =
+        _readingGoalKey.currentContext?.findRenderObject() as RenderBox?;
+    final cardOffset = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+
+    _readingGoalOverlay = OverlayEntry(
+      builder: (context) {
+        final mediaSize = MediaQuery.sizeOf(context);
+        final panelWidth = (mediaSize.width - AppConstants.sidebarWidth - 28)
+            .clamp(400.0, 480.0)
+            .toDouble();
+        const preferredPanelHeight = 700.0;
+        final maxTop = math.max(
+          16.0,
+          mediaSize.height - preferredPanelHeight - 16,
+        );
+        final top = math.min(math.max(cardOffset.dy, 16.0), maxTop);
+
+        return Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _hideReadingGoalPanel,
+                ),
+              ),
+              Positioned(
+                left: AppConstants.sidebarWidth + 12,
+                top: top,
+                width: panelWidth,
+                child: ReadingGoalDetailsPanel(
+                  weekTotalSeconds: widget.readingTimeSeconds,
+                  monthTotalSeconds: widget.monthReadingTimeSeconds,
+                  weekDailySeconds: widget.weekDailyReadingSeconds,
+                  monthDailySeconds: widget.monthDailyReadingSeconds,
+                  dailyGoalSeconds: widget.dailyReadingGoalSeconds,
+                  goalDate: widget.goalDate ?? DateTime.now(),
+                  onClose: _hideReadingGoalPanel,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    overlay.insert(_readingGoalOverlay!);
+    setState(() {});
+  }
+
+  void _hideReadingGoalPanel() {
+    _readingGoalOverlay?.remove();
+    _readingGoalOverlay = null;
+    if (mounted) setState(() {});
+  }
 
   static const _navItems = [
     (
@@ -82,8 +179,11 @@ class HomeSidebar extends StatelessWidget {
                   _buildSectionLabel(theme, '阅读目标'),
                   const SizedBox(height: 10),
                   ReadingStatsRing(
-                    totalSeconds: readingTimeSeconds,
-                    dailyGoalSeconds: dailyReadingGoalSeconds,
+                    key: _readingGoalKey,
+                    totalSeconds: widget.readingTimeSeconds,
+                    dailyGoalSeconds: widget.dailyReadingGoalSeconds,
+                    isExpanded: _readingGoalOverlay != null,
+                    onTap: _toggleReadingGoalPanel,
                   ),
                 ],
               ),
@@ -100,21 +200,24 @@ class HomeSidebar extends StatelessWidget {
     final navItems = _navItems
         .where(
           (item) =>
-              (showRss || item.tabIndex != 1) &&
-              (showBrowser || item.tabIndex != 2),
+              (widget.showRss || item.tabIndex != 1) &&
+              (widget.showBrowser || item.tabIndex != 2),
         )
         .toList(growable: false);
 
     return Column(
       children: List.generate(navItems.length, (index) {
         final item = navItems[index];
-        final isSelected = currentTab == item.tabIndex;
+        final isSelected = widget.currentTab == item.tabIndex;
         return _buildNavItem(
           theme: theme,
           icon: isSelected ? item.selectedIcon : item.icon,
           label: item.label,
           isSelected: isSelected,
-          onTap: () => onTabChanged(item.tabIndex),
+          onTap: () {
+            _hideReadingGoalPanel();
+            widget.onTabChanged(item.tabIndex);
+          },
         );
       }),
     );
@@ -192,13 +295,16 @@ class HomeSidebar extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             color: theme.colorScheme.onSurfaceVariant,
-            onPressed: onSettingsTap,
+            onPressed: () {
+              _hideReadingGoalPanel();
+              widget.onSettingsTap();
+            },
             tooltip: '设置',
           ),
           ThemeModeCycleButton(
-            nextMode: nextThemeMode,
+            nextMode: widget.nextThemeMode,
             color: theme.colorScheme.onSurfaceVariant,
-            onPressed: onThemeToggle,
+            onPressed: widget.onThemeToggle,
           ),
         ],
       ),
