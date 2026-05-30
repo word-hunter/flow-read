@@ -5,6 +5,7 @@ import '../models/word_context_example.dart';
 import '../models/word_level.dart';
 import '../providers/reading_provider.dart';
 import '../services/dictionary/word_repository.dart';
+import '../services/english_word_utils.dart';
 import 'imported_word_examples.dart';
 import 'pronunciation_button.dart';
 
@@ -14,6 +15,8 @@ class DictionaryDetailView extends StatelessWidget {
   final String? primaryDefinition;
   final bool isLoading;
   final String? contextText;
+  final int? contextWordStart;
+  final int? contextWordEnd;
   final List<WordContextExample> importedExamples;
   final LevelKey? level;
   final bool showWordHeader;
@@ -30,6 +33,8 @@ class DictionaryDetailView extends StatelessWidget {
     required this.primaryDefinition,
     required this.isLoading,
     this.contextText,
+    this.contextWordStart,
+    this.contextWordEnd,
     this.importedExamples = const [],
     this.level,
     this.showWordHeader = true,
@@ -60,6 +65,8 @@ class DictionaryDetailView extends StatelessWidget {
       primaryDefinition: provider.selectedWordTranslation,
       isLoading: provider.isLoadingWord,
       contextText: provider.selectedWordContext,
+      contextWordStart: provider.selectedWordContextStart,
+      contextWordEnd: provider.selectedWordContextEnd,
       importedExamples: provider.importedExamplesFor(word),
       level: level,
       showWordHeader: showWordHeader,
@@ -157,7 +164,12 @@ class DictionaryDetailView extends StatelessWidget {
         ],
         if (showContext) ...[
           const SizedBox(height: 18),
-          DictionaryContextBlock(word: word, contextText: contextText),
+          DictionaryContextBlock(
+            word: word,
+            contextText: contextText,
+            contextWordStart: contextWordStart,
+            contextWordEnd: contextWordEnd,
+          ),
         ],
       ],
     );
@@ -663,14 +675,22 @@ class _InteractiveDictionaryTextState
 }
 
 class DictionaryContextBlock extends StatelessWidget {
+  static const _maxContextLines = 4;
+  static const _maxContextCharacters = 150;
+  static const _contextLeadCharacters = 52;
+
   final String word;
   final String? contextText;
+  final int? contextWordStart;
+  final int? contextWordEnd;
   final Widget? trailing;
 
   const DictionaryContextBlock({
     super.key,
     required this.word,
     this.contextText,
+    this.contextWordStart,
+    this.contextWordEnd,
     this.trailing,
   });
 
@@ -678,6 +698,7 @@ class DictionaryContextBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final text = contextText?.trim();
+    final excerpt = text == null || text.isEmpty ? null : _contextExcerpt(text);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -708,7 +729,9 @@ class DictionaryContextBlock extends StatelessWidget {
                   ),
                 )
               : Text.rich(
-                  _highlightContext(theme, text),
+                  _highlightContext(theme, excerpt!),
+                  maxLines: _maxContextLines,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
                 ),
         ),
@@ -716,31 +739,94 @@ class DictionaryContextBlock extends StatelessWidget {
     );
   }
 
+  String _contextExcerpt(String text) {
+    final normalized = text.trim();
+    if (normalized.length <= _maxContextCharacters) return normalized;
+
+    final wordMatch =
+        _findAnchoredContextWordMatch(normalized) ??
+        _findFirstContextWordMatch(normalized);
+
+    if (wordMatch == null) {
+      final excerpt = normalized
+          .substring(0, _maxContextCharacters)
+          .trimRight();
+      return '$excerpt...';
+    }
+
+    final start = (wordMatch.start - _contextLeadCharacters).clamp(
+      0,
+      normalized.length,
+    );
+    final end = (start + _maxContextCharacters).clamp(0, normalized.length);
+
+    final prefix = start > 0 ? '...' : '';
+    final suffix = end < normalized.length ? '...' : '';
+    return '$prefix${normalized.substring(start, end).trim()}$suffix';
+  }
+
   TextSpan _highlightContext(ThemeData theme, String text) {
-    final lowerContext = text.toLowerCase();
-    final lowerWord = word.toLowerCase();
-    final index = lowerContext.indexOf(lowerWord);
-    if (index < 0) {
+    final wordMatches = _findContextWordMatches(text);
+    if (wordMatches.isEmpty) {
       return TextSpan(
         text: text,
         style: TextStyle(color: theme.colorScheme.onSurface),
       );
     }
 
-    return TextSpan(
-      style: TextStyle(color: theme.colorScheme.onSurface),
-      children: [
-        TextSpan(text: text.substring(0, index)),
+    final children = <TextSpan>[];
+    var lastIndex = 0;
+    for (final wordMatch in wordMatches) {
+      if (wordMatch.start > lastIndex) {
+        children.add(
+          TextSpan(text: text.substring(lastIndex, wordMatch.start)),
+        );
+      }
+      children.add(
         TextSpan(
-          text: text.substring(index, index + word.length),
+          text: text.substring(wordMatch.start, wordMatch.end),
           style: TextStyle(
             color: theme.colorScheme.primary,
             fontWeight: FontWeight.w800,
           ),
         ),
-        TextSpan(text: text.substring(index + word.length)),
-      ],
+      );
+      lastIndex = wordMatch.end;
+    }
+    if (lastIndex < text.length) {
+      children.add(TextSpan(text: text.substring(lastIndex)));
+    }
+
+    return TextSpan(
+      style: TextStyle(color: theme.colorScheme.onSurface),
+      children: children,
     );
+  }
+
+  RegExpMatch? _findAnchoredContextWordMatch(String text) {
+    final start = contextWordStart;
+    final end = contextWordEnd;
+    if (start == null || end == null) return null;
+
+    for (final match in _findContextWordMatches(text)) {
+      if (match.start == start && match.end == end) return match;
+    }
+
+    return null;
+  }
+
+  RegExpMatch? _findFirstContextWordMatch(String text) {
+    return _findContextWordMatches(text).firstOrNull;
+  }
+
+  List<RegExpMatch> _findContextWordMatches(String text) {
+    final target = normalizeEnglishApostrophes(word).toLowerCase().trim();
+    if (target.isEmpty) return const [];
+
+    return englishWordPattern.allMatches(text).where((match) {
+      final token = normalizeEnglishApostrophes(match.group(0)!).toLowerCase();
+      return token == target;
+    }).toList();
   }
 }
 

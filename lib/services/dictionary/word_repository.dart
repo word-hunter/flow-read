@@ -64,8 +64,15 @@ class Meaning {
 class DictionaryLookupRequest {
   final String word;
   final String? contextText;
+  final int? contextWordStart;
+  final int? contextWordEnd;
 
-  const DictionaryLookupRequest({required this.word, this.contextText});
+  const DictionaryLookupRequest({
+    required this.word,
+    this.contextText,
+    this.contextWordStart,
+    this.contextWordEnd,
+  });
 
   String get query => word.trim().toLowerCase();
   String get displayWord {

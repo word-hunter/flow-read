@@ -444,9 +444,19 @@ class _RssArticleListState extends State<RssArticleList> {
     );
   }
 
-  void _showWordSheet(String word, String contextText) {
+  void _showWordSheet(
+    String word,
+    String contextText, {
+    int? contextWordStart,
+    int? contextWordEnd,
+  }) {
     final provider = context.read<ReadingProvider>();
-    provider.lookupWord(word, contextText: contextText);
+    provider.lookupWord(
+      word,
+      contextText: contextText,
+      contextWordStart: contextWordStart,
+      contextWordEnd: contextWordEnd,
+    );
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

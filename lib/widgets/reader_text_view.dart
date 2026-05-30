@@ -14,7 +14,13 @@ import '../theme/app_constants.dart';
 import 'dictionary_detail_view.dart';
 import 'pronunciation_button.dart';
 
-typedef WordTapCallback = void Function(String word, String contextText);
+typedef WordTapCallback =
+    void Function(
+      String word,
+      String contextText, {
+      int? contextWordStart,
+      int? contextWordEnd,
+    });
 
 List<String> splitIntoParagraphs(String text) {
   final paragraphs = <String>[];
@@ -53,6 +59,8 @@ TextSpan buildTappableWordSpan({
   required TextStyle textStyle,
   required WordTapCallback onWordTapped,
   required String contextText,
+  int? contextWordStart,
+  int? contextWordEnd,
   required ThemeData theme,
   String? searchQuery,
   bool isLookupHighlighted = false,
@@ -73,7 +81,12 @@ TextSpan buildTappableWordSpan({
     ),
     mouseCursor: SystemMouseCursors.click,
     recognizer: TapGestureRecognizer()
-      ..onTap = () => onWordTapped(word, contextText),
+      ..onTap = () => onWordTapped(
+        word,
+        contextText,
+        contextWordStart: contextWordStart,
+        contextWordEnd: contextWordEnd,
+      ),
   );
 }
 
@@ -82,6 +95,8 @@ TextSpan buildPlainLookupWordSpan({
   required TextStyle textStyle,
   required WordTapCallback onWordTapped,
   required String contextText,
+  int? contextWordStart,
+  int? contextWordEnd,
   required ThemeData theme,
   String? searchQuery,
   bool isLookupHighlighted = false,
@@ -97,7 +112,12 @@ TextSpan buildPlainLookupWordSpan({
     style: style,
     mouseCursor: SystemMouseCursors.click,
     recognizer: TapGestureRecognizer()
-      ..onTap = () => onWordTapped(word, contextText),
+      ..onTap = () => onWordTapped(
+        word,
+        contextText,
+        contextWordStart: contextWordStart,
+        contextWordEnd: contextWordEnd,
+      ),
   );
 }
 
@@ -560,6 +580,8 @@ class _HighlightBuilder {
             isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: '...$word...',
+            contextWordStart: 3,
+            contextWordEnd: 3 + word.length,
           ),
         );
       } else if (isKnown ||
@@ -579,6 +601,8 @@ class _HighlightBuilder {
             isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: paragraph,
+            contextWordStart: match.start,
+            contextWordEnd: match.end,
           ),
         );
       } else {
@@ -599,6 +623,8 @@ class _HighlightBuilder {
             isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: '...$word...',
+            contextWordStart: 3,
+            contextWordEnd: 3 + word.length,
           ),
         );
       }
@@ -761,6 +787,8 @@ class _StyledBlockBuilder {
             isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: '...$word...',
+            contextWordStart: 3,
+            contextWordEnd: 3 + word.length,
           ),
         );
       } else if (isKnown ||
@@ -775,6 +803,8 @@ class _StyledBlockBuilder {
             isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: fullText,
+            contextWordStart: match.start,
+            contextWordEnd: match.end,
           ),
         );
       } else {
@@ -790,6 +820,8 @@ class _StyledBlockBuilder {
             isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: '...$word...',
+            contextWordStart: 3,
+            contextWordEnd: 3 + word.length,
           ),
         );
       }

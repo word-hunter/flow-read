@@ -934,6 +934,130 @@ void main() {
     expect(wentBack, isTrue);
   });
 
+  testWidgets('DictionaryContextBlock keeps source context compact', (
+    tester,
+  ) async {
+    const contextText =
+        'Opening notes describe the assignment, the research folder, and the '
+        'drafting schedule before the paragraph eventually explains that the '
+        'production log is intended to chart any obstacles and aims of the '
+        'final report while the rest keeps expanding with unrelated detail.';
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 260,
+            child: DictionaryContextBlock(
+              word: 'aims',
+              contextText: contextText,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final plainContext = _contextPlainText(tester);
+
+    expect(plainContext, contains('aims'));
+    expect(plainContext.startsWith('...'), isTrue);
+    expect(plainContext.length, lessThan(contextText.length));
+  });
+
+  testWidgets('DictionaryContextBlock highlights whole selected words', (
+    tester,
+  ) async {
+    const contextText =
+        'The production log is intended to end with notes. End result: the '
+        'end of my research.';
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 360,
+            child: DictionaryContextBlock(
+              word: 'end',
+              contextText: contextText,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(_highlightedContextTexts(tester), ['end', 'End', 'end']);
+    expect(_highlightedContextStarts(tester), [
+      contextText.indexOf('end with'),
+      contextText.indexOf('End result'),
+      contextText.indexOf('end of'),
+    ]);
+  });
+
+  testWidgets('DictionaryContextBlock anchors excerpt to selected token', (
+    tester,
+  ) async {
+    const contextText =
+        'The end near the opening should not decide the excerpt. '
+        'Background notes keep expanding across the page with scheduling '
+        'details, research questions, draft reminders, unrelated names, and '
+        'several observations that make this context long enough to truncate. '
+        'The selected phrase is the end of my research and it matters.';
+    final selectedStart = contextText.indexOf('end of my research');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 260,
+            child: DictionaryContextBlock(
+              word: 'end',
+              contextText: contextText,
+              contextWordStart: selectedStart,
+              contextWordEnd: selectedStart + 'end'.length,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final plainContext = _contextPlainText(tester);
+
+    expect(plainContext, contains('end of my research'));
+    expect(plainContext, isNot(contains('end near the opening')));
+  });
+
+  testWidgets('DictionaryContextBlock keeps selected token visibly in excerpt', (
+    tester,
+  ) async {
+    const contextText =
+        'The production log is intended to chart any obstacles you face in '
+        'your research, your progress and the aims of your final report. My '
+        'production log will have to be a little different because I am going '
+        'to record all the research I do here, both relevant and irrelevant, '
+        'because as yet I do not really know what my final report will be. '
+        'This is starting to feel a little like a diary.';
+    final selectedStart = contextText.indexOf('starting');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 260,
+            child: DictionaryContextBlock(
+              word: 'starting',
+              contextText: contextText,
+              contextWordStart: selectedStart,
+              contextWordEnd: selectedStart + 'starting'.length,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(_contextPlainText(tester), contains('starting'));
+    expect(_contextWordHasVisibleBoxes(tester, 'starting'), isTrue);
+  });
+
   testWidgets(
     'ReaderWordSidebar keeps learning actions outside dictionary scroll',
     (tester) async {
@@ -1335,6 +1459,87 @@ TextSpan? _findSpan(InlineSpan span, String text) {
     if (found != null) return found;
   }
   return null;
+}
+
+String _contextPlainText(WidgetTester tester) {
+  return (_contextTextWidget(tester).textSpan! as TextSpan).toPlainText();
+}
+
+Text _contextTextWidget(WidgetTester tester) {
+  return tester.widget<Text>(
+    find.byWidgetPredicate(
+      (widget) =>
+          widget is Text &&
+          widget.textSpan != null &&
+          widget.maxLines == 4 &&
+          widget.overflow == TextOverflow.ellipsis,
+    ),
+  );
+}
+
+List<String> _highlightedContextTexts(WidgetTester tester) {
+  final textWidget = _contextTextWidget(tester);
+  final highlights = <String>[];
+  _collectHighlightedText(textWidget.textSpan!, highlights);
+  return highlights;
+}
+
+List<int> _highlightedContextStarts(WidgetTester tester) {
+  final textWidget = _contextTextWidget(tester);
+  final starts = <int>[];
+  var offset = 0;
+  _collectHighlightedStarts(
+    textWidget.textSpan!,
+    starts,
+    () => offset,
+    (value) => offset = value,
+  );
+  return starts;
+}
+
+bool _contextWordHasVisibleBoxes(WidgetTester tester, String word) {
+  final richText = tester
+      .widgetList<RichText>(find.byType(RichText))
+      .firstWhere((widget) => widget.text.toPlainText().contains(word));
+  final richTextFinder = find.byWidget(richText);
+  final renderParagraph = tester.renderObject<RenderParagraph>(richTextFinder);
+  final plainText = richText.text.toPlainText();
+  final start = plainText.indexOf(word);
+  final boxes = renderParagraph.getBoxesForSelection(
+    TextSelection(baseOffset: start, extentOffset: start + word.length),
+  );
+  return boxes.isNotEmpty;
+}
+
+void _collectHighlightedText(InlineSpan span, List<String> highlights) {
+  if (span is! TextSpan) return;
+  if (span.style?.fontWeight == FontWeight.w800 && span.text != null) {
+    highlights.add(span.text!);
+  }
+  for (final child in span.children ?? const <InlineSpan>[]) {
+    _collectHighlightedText(child, highlights);
+  }
+}
+
+void _collectHighlightedStarts(
+  InlineSpan span,
+  List<int> starts,
+  int Function() getOffset,
+  void Function(int value) setOffset,
+) {
+  if (span is! TextSpan) return;
+
+  final text = span.text;
+  if (text != null) {
+    if (span.style?.fontWeight == FontWeight.w800) {
+      starts.add(getOffset());
+    }
+    setOffset(getOffset() + text.length);
+  }
+
+  for (final child in span.children ?? const <InlineSpan>[]) {
+    _collectHighlightedStarts(child, starts, getOffset, setOffset);
+  }
 }
 
 Future<void> _tapInlineText(WidgetTester tester, String text) async {

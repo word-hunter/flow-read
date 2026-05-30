@@ -216,6 +216,8 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
         DictionaryContextBlock(
           word: word,
           contextText: provider.selectedWordContext,
+          contextWordStart: provider.selectedWordContextStart,
+          contextWordEnd: provider.selectedWordContextEnd,
           trailing: _buildAIContextAction(provider, settings, theme, word),
         ),
         if (_showAIAnalysis) ...[

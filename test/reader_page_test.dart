@@ -235,6 +235,8 @@ void main() {
     await provider.lookupWord(
       'avoidance',
       contextText: 'strategic avoidance and social discomfort',
+      contextWordStart: 10,
+      contextWordEnd: 19,
     );
 
     expect(provider.selectedWord, 'avoidance');
@@ -242,10 +244,14 @@ void main() {
       provider.selectedWordContext,
       'strategic avoidance and social discomfort',
     );
+    expect(provider.selectedWordContextStart, 10);
+    expect(provider.selectedWordContextEnd, 19);
     expect(provider.selectedWordTranslation, 'deliberately avoiding');
 
     provider.clearWordLookup();
     expect(provider.selectedWordContext, isNull);
+    expect(provider.selectedWordContextStart, isNull);
+    expect(provider.selectedWordContextEnd, isNull);
   });
 }
 

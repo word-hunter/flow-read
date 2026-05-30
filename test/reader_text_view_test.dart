@@ -57,7 +57,7 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (_, _) {},
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
     );
 
@@ -87,7 +87,7 @@ void main() {
       block,
       result,
       theme,
-      onWordTapped: (_, _) {},
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
     );
 
@@ -137,14 +137,14 @@ void main() {
         text,
         contractionResult,
         theme,
-        onWordTapped: (_, _) {},
+        onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
         colorSettings: colorSettings,
       );
       final blockSpan = buildStyledBlock(
         TextBlock(type: BlockType.paragraph, spans: const [StyledText(text)]),
         contractionResult,
         theme,
-        onWordTapped: (_, _) {},
+        onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
         colorSettings: colorSettings,
       );
 
@@ -172,7 +172,7 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (_, _) {},
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       searchQuery: 'known',
     );
@@ -190,7 +190,7 @@ void main() {
       'known learning mystery',
       result,
       lightTheme,
-      onWordTapped: (_, _) {},
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       searchQuery: 'known',
     );
@@ -198,7 +198,7 @@ void main() {
       'known learning mystery',
       result,
       darkTheme,
-      onWordTapped: (_, _) {},
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       searchQuery: 'mystery',
     );
@@ -231,7 +231,7 @@ void main() {
       'known learning mystery known',
       result,
       theme,
-      onWordTapped: (_, _) {},
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       lookupHighlightWord: 'known',
     );
@@ -257,7 +257,7 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (_, _) {},
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       lookupHighlightWord: 'learning',
     );
@@ -265,7 +265,7 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (_, _) {},
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       lookupHighlightWord: 'mystery',
     );
@@ -289,7 +289,7 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (_, _) {},
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       searchQuery: 'known',
       lookupHighlightWord: 'known',
@@ -314,7 +314,7 @@ void main() {
       block,
       result,
       theme,
-      onWordTapped: (_, _) {},
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       lookupHighlightWord: 'mystery',
     );
@@ -329,14 +329,18 @@ void main() {
     final theme = ThemeData();
     String? tappedWord;
     String? tappedContext;
+    int? tappedContextWordStart;
+    int? tappedContextWordEnd;
 
     final span = buildHighlightedParagraph(
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (word, context) {
+      onWordTapped: (word, context, {contextWordStart, contextWordEnd}) {
         tappedWord = word;
         tappedContext = context;
+        tappedContextWordStart = contextWordStart;
+        tappedContextWordEnd = contextWordEnd;
       },
       colorSettings: colorSettings,
     );
@@ -350,6 +354,39 @@ void main() {
 
     expect(tappedWord, 'mystery');
     expect(tappedContext, '...mystery...');
+    expect(tappedContextWordStart, 3);
+    expect(tappedContextWordEnd, 10);
+  });
+
+  testWidgets('plain lookup spans forward paragraph token offsets', (
+    tester,
+  ) async {
+    final theme = ThemeData();
+    String? tappedContext;
+    int? tappedContextWordStart;
+    int? tappedContextWordEnd;
+
+    final span = buildHighlightedParagraph(
+      'known learning known',
+      result,
+      theme,
+      onWordTapped: (word, context, {contextWordStart, contextWordEnd}) {
+        tappedContext = context;
+        tappedContextWordStart = contextWordStart;
+        tappedContextWordEnd = contextWordEnd;
+      },
+      colorSettings: colorSettings,
+    );
+
+    final known = _tappableTextSpans(
+      span,
+    ).firstWhere((item) => item.text == 'known');
+
+    (known.recognizer as TapGestureRecognizer).onTap?.call();
+
+    expect(tappedContext, 'known learning known');
+    expect(tappedContextWordStart, 0);
+    expect(tappedContextWordEnd, 5);
   });
 
   testWidgets('EPUB image blocks fit the available text width', (tester) async {
@@ -368,7 +405,7 @@ void main() {
                 ),
                 result,
                 ThemeData(),
-                onWordTapped: (_, _) {},
+                onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
               ),
             ),
           ),

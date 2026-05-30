@@ -118,6 +118,8 @@ class ReadingProvider extends ChangeNotifier {
   String? _selectedWord;
   String? _selectedWordTranslation;
   String? _selectedWordContext;
+  int? _selectedWordContextStart;
+  int? _selectedWordContextEnd;
   DictionaryEntry? _selectedWordEntry;
   DictionaryLookupResult? _selectedWordLookupResult;
   final List<DictionaryLookupResult> _wordLookupHistory = [];
@@ -312,6 +314,8 @@ class ReadingProvider extends ChangeNotifier {
   String? get selectedWord => _selectedWord;
   String? get selectedWordTranslation => _selectedWordTranslation;
   String? get selectedWordContext => _selectedWordContext;
+  int? get selectedWordContextStart => _selectedWordContextStart;
+  int? get selectedWordContextEnd => _selectedWordContextEnd;
   DictionaryEntry? get selectedWordEntry => _selectedWordEntry;
   DictionaryLookupResult? get selectedWordLookupResult =>
       _selectedWordLookupResult;
@@ -509,6 +513,8 @@ class ReadingProvider extends ChangeNotifier {
     _selectedWord = null;
     _selectedWordTranslation = null;
     _selectedWordContext = null;
+    _selectedWordContextStart = null;
+    _selectedWordContextEnd = null;
     _selectedWordEntry = null;
     _selectedText = null;
     _selectedAnalysis = null;
@@ -712,6 +718,8 @@ class ReadingProvider extends ChangeNotifier {
       _selectedWord = null;
       _selectedWordTranslation = null;
       _selectedWordContext = null;
+      _selectedWordContextStart = null;
+      _selectedWordContextEnd = null;
       _selectedWordEntry = null;
       _selectedText = null;
       _selectedAnalysis = null;
@@ -1068,13 +1076,22 @@ class ReadingProvider extends ChangeNotifier {
   Future<void> lookupWord(
     String word, {
     String? contextText,
+    int? contextWordStart,
+    int? contextWordEnd,
     bool trackReadingLookup = false,
   }) async {
     _wordLookupHistory.clear();
+    final normalizedContext = _normalizeLookupContext(
+      contextText,
+      contextWordStart: contextWordStart,
+      contextWordEnd: contextWordEnd,
+    );
     await _lookupWord(
       DictionaryLookupRequest(
         word: word,
-        contextText: _normalizeLookupContext(contextText),
+        contextText: normalizedContext.text,
+        contextWordStart: normalizedContext.wordStart,
+        contextWordEnd: normalizedContext.wordEnd,
       ),
       trackReadingLookup: trackReadingLookup,
     );
@@ -1096,6 +1113,8 @@ class ReadingProvider extends ChangeNotifier {
     _selectedWord = request.displayWord;
     _selectedWordTranslation = null;
     _selectedWordContext = request.contextText;
+    _selectedWordContextStart = request.contextWordStart;
+    _selectedWordContextEnd = request.contextWordEnd;
     _selectedWordEntry = null;
     _selectedWordLookupResult = null;
     _isLoadingWord = true;
@@ -1131,6 +1150,8 @@ class ReadingProvider extends ChangeNotifier {
     _selectedWord = null;
     _selectedWordTranslation = null;
     _selectedWordContext = null;
+    _selectedWordContextStart = null;
+    _selectedWordContextEnd = null;
     _selectedWordEntry = null;
     _selectedWordLookupResult = null;
     _wordLookupHistory.clear();
@@ -1142,14 +1163,42 @@ class ReadingProvider extends ChangeNotifier {
     _selectedWordLookupResult = result;
     _selectedWord = result.request.displayWord;
     _selectedWordContext = result.request.contextText;
+    _selectedWordContextStart = result.request.contextWordStart;
+    _selectedWordContextEnd = result.request.contextWordEnd;
     _selectedWordEntry = result.entry;
     _selectedWordTranslation = result.primaryDefinition;
   }
 
-  String? _normalizeLookupContext(String? contextText) {
-    final trimmed = contextText?.trim();
-    if (trimmed == null || trimmed.isEmpty) return null;
-    return trimmed;
+  ({String? text, int? wordStart, int? wordEnd}) _normalizeLookupContext(
+    String? contextText, {
+    int? contextWordStart,
+    int? contextWordEnd,
+  }) {
+    final raw = contextText;
+    if (raw == null) return (text: null, wordStart: null, wordEnd: null);
+
+    final leadingWhitespace = raw.length - raw.trimLeft().length;
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return (text: null, wordStart: null, wordEnd: null);
+    }
+
+    if (contextWordStart == null || contextWordEnd == null) {
+      return (text: trimmed, wordStart: null, wordEnd: null);
+    }
+
+    final normalizedStart = contextWordStart - leadingWhitespace;
+    final normalizedEnd = contextWordEnd - leadingWhitespace;
+    final hasValidRange =
+        normalizedStart >= 0 &&
+        normalizedEnd > normalizedStart &&
+        normalizedEnd <= trimmed.length;
+
+    return (
+      text: trimmed,
+      wordStart: hasValidRange ? normalizedStart : null,
+      wordEnd: hasValidRange ? normalizedEnd : null,
+    );
   }
 
   // ============================================================

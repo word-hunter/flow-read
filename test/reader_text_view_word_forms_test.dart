@@ -74,7 +74,7 @@ void main() {
         "Partitions can't keep migrating.",
         result,
         ThemeData(),
-        onWordTapped: (_, _) {},
+        onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
         colorSettings: VocabularyColorSettings(learningColor: learningColor),
         wordLevelService: wordLevels,
       );

@@ -299,12 +299,19 @@ class _ReaderPageState extends State<ReaderPage> {
     return '$hours 小时 $remain 分钟';
   }
 
-  void _onWordTapped(String word, String contextText) {
+  void _onWordTapped(
+    String word,
+    String contextText, {
+    int? contextWordStart,
+    int? contextWordEnd,
+  }) {
     _hideReadingReminder();
     final provider = context.read<ReadingProvider>();
     provider.lookupWord(
       word,
       contextText: contextText,
+      contextWordStart: contextWordStart,
+      contextWordEnd: contextWordEnd,
       trackReadingLookup: true,
     );
     if (_isWideScreen) {
