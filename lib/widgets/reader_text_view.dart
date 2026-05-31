@@ -319,7 +319,7 @@ Widget buildBlockWidget(
         },
         _ => 1.0,
       };
-      final styleScale = block.style.fontSizeScale ?? defaultScale;
+      final styleScale = defaultScale;
       final effectiveFontSize =
           fontSize * styleScale.clamp(0.75, 1.8).toDouble();
 
@@ -340,7 +340,7 @@ Widget buildBlockWidget(
 
       final richText = Text.rich(
         span as TextSpan,
-        textAlign: _textAlignFor(block.style.textAlign),
+        textAlign: TextAlign.start,
         style: theme.textTheme.bodyLarge?.copyWith(
           height: lineHeight,
           letterSpacing: 0.3,
@@ -364,8 +364,6 @@ Widget buildBlockWidget(
         BlockType.listItem => const EdgeInsets.only(bottom: 4),
         BlockType.blockquote => const EdgeInsets.only(bottom: 12),
       };
-      final stylePadding = _stylePaddingFor(block.style, effectiveFontSize);
-      final combinedPadding = padding + stylePadding;
 
       if (block.type == BlockType.listItem) {
         textWidget = Padding(
@@ -399,7 +397,7 @@ Widget buildBlockWidget(
         );
       }
 
-      return Padding(padding: combinedPadding, child: textWidget);
+      return Padding(padding: padding, child: textWidget);
 
     case ImageBlock():
       if (block.bytes == null) {
@@ -490,34 +488,10 @@ class _EpubImageBlockView extends StatelessWidget {
   }
 }
 
-TextAlign _textAlignFor(ReaderTextAlign? textAlign) {
-  return switch (textAlign) {
-    ReaderTextAlign.center => TextAlign.center,
-    ReaderTextAlign.end => TextAlign.end,
-    ReaderTextAlign.justify => TextAlign.justify,
-    _ => TextAlign.start,
-  };
-}
-
 CrossAxisAlignment _crossAxisAlignmentFor(Alignment alignment) {
   if (alignment.x < 0) return CrossAxisAlignment.start;
   if (alignment.x > 0) return CrossAxisAlignment.end;
   return CrossAxisAlignment.center;
-}
-
-EdgeInsets _stylePaddingFor(ReaderBlockStyle style, double fontSize) {
-  double resolve(CssLength? length) {
-    final value = length?.resolve(percentBase: 720, fontSize: fontSize);
-    if (value == null || !value.isFinite || value <= 0) return 0;
-    return value.clamp(0, 48).toDouble();
-  }
-
-  return EdgeInsets.only(
-    top: resolve(style.marginTop),
-    bottom: resolve(style.marginBottom),
-    left: resolve(style.paddingLeft),
-    right: resolve(style.paddingRight),
-  );
 }
 
 class _HighlightBuilder {

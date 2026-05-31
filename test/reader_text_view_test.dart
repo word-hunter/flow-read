@@ -208,6 +208,104 @@ void main() {
     expect(richText.text.style?.color, readerTextColor);
   });
 
+  testWidgets('text blocks ignore EPUB typography CSS in reader rendering', (
+    tester,
+  ) async {
+    const readerTextColor = Color(0xFF202124);
+    final block = TextBlock(
+      type: BlockType.paragraph,
+      spans: const [StyledText('known learning')],
+      style: const ReaderBlockStyle(
+        textAlign: ReaderTextAlign.center,
+        fontSizeScale: 1.8,
+        lineHeight: 1.0,
+        marginTop: CssEm(2),
+        marginBottom: CssEm(3),
+        paddingLeft: CssPx(48),
+        paddingRight: CssPx(24),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: buildBlockWidget(
+            block,
+            result,
+            ThemeData(),
+            fontSize: 18,
+            lineHeight: 2.1,
+            fontFamily: 'Literata',
+            baseTextColor: readerTextColor,
+            onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+          ),
+        ),
+      ),
+    );
+
+    final richText = tester.widget<RichText>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText && widget.text.toPlainText() == 'known learning',
+      ),
+    );
+    expect(richText.textAlign, TextAlign.start);
+    expect(richText.text.style?.fontSize, 18);
+    expect(richText.text.style?.height, 2.1);
+    expect(richText.text.style?.fontFamily, 'Literata');
+    expect(richText.text.style?.color, readerTextColor);
+
+    final ancestorPaddings = tester
+        .widgetList<Padding>(
+          find.ancestor(
+            of: find.byWidgetPredicate(
+              (widget) =>
+                  widget is RichText &&
+                  widget.text.toPlainText() == 'known learning',
+            ),
+            matching: find.byType(Padding),
+          ),
+        )
+        .map((padding) => padding.padding)
+        .toList();
+    expect(ancestorPaddings, contains(const EdgeInsets.only(bottom: 12)));
+  });
+
+  testWidgets('heading text uses system reader scale over EPUB font-size CSS', (
+    tester,
+  ) async {
+    final block = TextBlock(
+      type: BlockType.heading,
+      headingLevel: 1,
+      spans: const [StyledText('Heading')],
+      style: const ReaderBlockStyle(fontSizeScale: 0.75),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: buildBlockWidget(
+            block,
+            result,
+            ThemeData(),
+            fontSize: 20,
+            lineHeight: 1.8,
+            onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+          ),
+        ),
+      ),
+    );
+
+    final richText = tester.widget<RichText>(
+      find.byWidgetPredicate(
+        (widget) => widget is RichText && widget.text.toPlainText() == 'Heading',
+      ),
+    );
+    expect(richText.text.style?.fontSize, 30);
+    expect(richText.text.style?.height, 1.8);
+    expect(richText.text.style?.fontWeight, FontWeight.bold);
+  });
+
   testWidgets(
     'common contractions with straight or curly apostrophes stay plain but tappable',
     (tester) async {
