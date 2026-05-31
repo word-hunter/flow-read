@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:html/parser.dart' as html;
+import 'package:html/dom.dart' as dom;
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
@@ -301,6 +302,12 @@ class RssService {
         link: link,
         description: description != null ? _stripHtml(description) : null,
         content: _cleanArticleContent(content ?? description),
+        images: _extractArticleImages(
+          item,
+          feedUrl: feedUrl,
+          articleLink: link,
+          htmlSources: [content, description],
+        ),
         pubDate: pubDate,
         author: _childText(item, ['author', 'dc:creator', 'creator']),
         id: guid?.isNotEmpty == true
@@ -334,6 +341,12 @@ class RssService {
         link: link,
         description: summary != null ? _stripHtml(summary) : null,
         content: _cleanArticleContent(content ?? summary),
+        images: _extractArticleImages(
+          entry,
+          feedUrl: feedUrl,
+          articleLink: link,
+          htmlSources: [content, summary],
+        ),
         pubDate: pubDate,
         author: entry
             .findElements('author')
@@ -451,6 +464,144 @@ class RssService {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return null;
     return _stripHtml(trimmed);
+  }
+
+  List<RssArticleImage> _extractArticleImages(
+    XmlElement item, {
+    required String feedUrl,
+    required String? articleLink,
+    required List<String?> htmlSources,
+  }) {
+    final images = <RssArticleImage>[];
+    final seen = <String>{};
+
+    void addImage({
+      required String? rawUrl,
+      String? alt,
+      int? width,
+      int? height,
+    }) {
+      final url = _resolveImageUrl(
+        rawUrl,
+        feedUrl: feedUrl,
+        articleLink: articleLink,
+      );
+      if (url == null || !seen.add(url)) return;
+      images.add(
+        RssArticleImage(
+          url: url,
+          alt: _cleanOptional(alt),
+          width: width,
+          height: height,
+        ),
+      );
+    }
+
+    for (final source in htmlSources) {
+      final trimmed = source?.trim();
+      if (trimmed == null || trimmed.isEmpty) continue;
+      final fragment = html.parseFragment(trimmed);
+      for (final image in fragment.querySelectorAll('img')) {
+        addImage(
+          rawUrl: _htmlImageSource(image),
+          alt: image.attributes['alt'],
+          width:
+              _parseImageDimension(image.attributes['width']) ??
+              _parseCssDimension(image.attributes['style'], 'width'),
+          height:
+              _parseImageDimension(image.attributes['height']) ??
+              _parseCssDimension(image.attributes['style'], 'height'),
+        );
+      }
+    }
+
+    for (final child in item.childElements) {
+      final local = child.name.local.toLowerCase();
+      final qualified = child.name.qualified.toLowerCase();
+      final type = child.getAttribute('type')?.toLowerCase() ?? '';
+      final medium = child.getAttribute('medium')?.toLowerCase();
+      final isMediaImage =
+          qualified == 'media:thumbnail' ||
+          (local == 'thumbnail' && child.getAttribute('url') != null) ||
+          (qualified == 'media:content' &&
+              (medium == 'image' || type.startsWith('image/')));
+      final isImageEnclosure =
+          local == 'enclosure' && type.startsWith('image/');
+      if (!isMediaImage && !isImageEnclosure) continue;
+
+      addImage(
+        rawUrl: child.getAttribute('url') ?? child.innerText,
+        alt:
+            child.getAttribute('alt') ??
+            child.getAttribute('title') ??
+            child.getAttribute('description'),
+        width: _parseImageDimension(child.getAttribute('width')),
+        height: _parseImageDimension(child.getAttribute('height')),
+      );
+    }
+
+    return images;
+  }
+
+  String? _htmlImageSource(dom.Element image) {
+    final src =
+        image.attributes['src'] ??
+        image.attributes['data-src'] ??
+        image.attributes['data-original'];
+    if (src != null && src.trim().isNotEmpty) return src.trim();
+
+    final srcset = image.attributes['srcset'];
+    if (srcset == null || srcset.trim().isEmpty) return null;
+    final first = srcset.split(',').first.trim();
+    if (first.isEmpty) return null;
+    return first.split(RegExp(r'\s+')).first.trim();
+  }
+
+  String? _resolveImageUrl(
+    String? rawUrl, {
+    required String feedUrl,
+    required String? articleLink,
+  }) {
+    final text = rawUrl?.trim();
+    if (text == null || text.isEmpty) return null;
+    final uri = Uri.tryParse(text);
+    if (uri == null || uri.scheme == 'data' || uri.scheme == 'blob') {
+      return null;
+    }
+    final articleBase = articleLink == null || articleLink.trim().isEmpty
+        ? null
+        : Uri.tryParse(articleLink);
+    final base = articleBase ?? Uri.tryParse(feedUrl);
+    final resolved = uri.hasScheme ? uri : base?.resolveUri(uri);
+    if (resolved == null ||
+        (resolved.scheme != 'http' && resolved.scheme != 'https')) {
+      return null;
+    }
+    return resolved.removeFragment().toString();
+  }
+
+  String? _cleanOptional(String? value) {
+    final trimmed = value?.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
+  int? _parseCssDimension(String? style, String property) {
+    if (style == null || style.trim().isEmpty) return null;
+    final match = RegExp(
+      '(^|;)\\s*$property\\s*:\\s*([^;]+)',
+      caseSensitive: false,
+    ).firstMatch(style);
+    return _parseImageDimension(match?.group(2));
+  }
+
+  int? _parseImageDimension(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty) return null;
+    final match = RegExp(r'^(\d+(?:\.\d+)?)(?:px)?$').firstMatch(text);
+    if (match == null) return null;
+    final parsed = double.tryParse(match.group(1)!);
+    if (parsed == null || parsed <= 0) return null;
+    return parsed.round();
   }
 
   String? _childText(XmlElement element, List<String> names) {

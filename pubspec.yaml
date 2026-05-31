@@ -33,6 +33,8 @@ dependencies:
 
   epub_reader_core:
     path: packages/epub_reader_core
+  flow_read_image_viewer:
+    path: packages/flow_read_image_viewer
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

@@ -35,6 +35,19 @@ void main() {
     expect(articles.first.link, 'https://example.com/first');
     expect(articles.first.description, 'Summary one');
     expect(articles.first.content, 'Full content');
+    expect(articles.first.images, hasLength(3));
+    expect(articles.first.images[0].url, 'https://example.com/images/full.png');
+    expect(articles.first.images[0].alt, 'Full image');
+    expect(articles.first.images[0].width, 640);
+    expect(articles.first.images[0].height, 320);
+    expect(
+      articles.first.images[1].url,
+      'https://cdn.example.com/media/thumb.jpg',
+    );
+    expect(
+      articles.first.images[2].url,
+      'https://example.com/downloads/enclosure.webp',
+    );
     expect(articles.first.author, 'Ada');
     expect(articles.first.pubDate?.toUtc(), DateTime.utc(2026, 5, 20, 7));
   });
@@ -60,6 +73,16 @@ void main() {
     expect(articles.single.link, 'https://example.com/atom-entry');
     expect(articles.single.description, 'Atom summary');
     expect(articles.single.content, 'Atom full content');
+    expect(articles.single.images, hasLength(2));
+    expect(
+      articles.single.images[0].url,
+      'https://example.com/images/atom.png',
+    );
+    expect(articles.single.images[0].alt, 'Atom image');
+    expect(
+      articles.single.images[1].url,
+      'https://cdn.example.com/atom-thumb.png',
+    );
     expect(articles.single.author, 'Grace');
     expect(articles.single.pubDate?.toUtc(), DateTime.utc(2026, 5, 20, 7, 10));
   });
@@ -205,7 +228,8 @@ const _rssFeed = '''
 <?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0"
   xmlns:content="http://purl.org/rss/1.0/modules/content/"
-  xmlns:dc="http://purl.org/dc/elements/1.1/">
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:media="http://search.yahoo.com/mrss/">
   <channel>
     <title>Flow News</title>
     <description><![CDATA[<p>Reading <b>updates</b></p>]]></description>
@@ -216,7 +240,9 @@ const _rssFeed = '''
       <title>First Article</title>
       <link>https://example.com/first</link>
       <description><![CDATA[<p>Summary <b>one</b></p>]]></description>
-      <content:encoded><![CDATA[<p>Full <em>content</em></p>]]></content:encoded>
+      <content:encoded><![CDATA[<p>Full <em>content</em></p><img src="/images/full.png#size" alt="Full image" width="640" height="320" />]]></content:encoded>
+      <media:thumbnail url="https://cdn.example.com/media/thumb.jpg" width="120" height="80" />
+      <enclosure url="/downloads/enclosure.webp" type="image/webp" />
       <pubDate>Wed, 20 May 2026 15:00:00 +0800</pubDate>
       <guid>first-guid</guid>
       <dc:creator>Ada</dc:creator>
@@ -235,7 +261,8 @@ const _rssFeed = '''
 
 const _atomFeed = '''
 <?xml version="1.0" encoding="UTF-8" ?>
-<feed xmlns="http://www.w3.org/2005/Atom">
+<feed xmlns="http://www.w3.org/2005/Atom"
+  xmlns:media="http://search.yahoo.com/mrss/">
   <title>Atom Flow</title>
   <subtitle><![CDATA[<p>Atom <strong>reading</strong> updates</p>]]></subtitle>
   <logo>https://example.com/atom-logo.png</logo>
@@ -249,7 +276,8 @@ const _atomFeed = '''
       <name>Grace</name>
     </author>
     <summary type="html">&lt;p&gt;Atom summary&lt;/p&gt;</summary>
-    <content type="html">&lt;p&gt;Atom full content&lt;/p&gt;</content>
+    <content type="html">&lt;p&gt;Atom full content&lt;/p&gt;&lt;img src="/images/atom.png" alt="Atom image" /&gt;</content>
+    <media:thumbnail url="https://cdn.example.com/atom-thumb.png" />
   </entry>
 </feed>
 ''';

@@ -8,6 +8,7 @@ import 'package:flow_read/widgets/reader_text_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 
 typedef _TappableTextProbe = ({
   String text,
@@ -417,10 +418,38 @@ void main() {
 
     expect(tester.takeException(), isNull);
 
-    final image = tester.widget<Image>(find.byType(Image));
-    expect(image.width, closeTo(160, 0.1));
-    expect(image.height, closeTo(80, 0.1));
+    final preview = tester.renderObject<RenderBox>(
+      find.byType(ReadableImagePreview),
+    );
+    expect(preview.size.width, closeTo(160, 0.1));
+    expect(preview.size.height, closeTo(80, 0.1));
     expect(find.text('Cover caption'), findsOneWidget);
+  });
+
+  testWidgets('EPUB image blocks open the shared image viewer', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 220,
+            child: buildBlockWidget(
+              ImageBlock(src: 'cover.gif', bytes: _transparentGif),
+              result,
+              ThemeData(),
+              onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(ReadableImagePreview));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    expect(find.byTooltip('放大'), findsOneWidget);
+    expect(find.byTooltip('缩小'), findsOneWidget);
+    expect(find.byTooltip('下载图片'), findsOneWidget);
   });
 }
 

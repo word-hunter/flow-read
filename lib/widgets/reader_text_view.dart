@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../providers/reading_provider.dart';
@@ -436,16 +437,19 @@ class _EpubImageBlockView extends StatelessWidget {
               children: [
                 SizedBox(
                   width: layout.width,
-                  child: Image.memory(
-                    bytes,
+                  child: ReadableImagePreview(
+                    resource: ReadableImageResource.memory(
+                      bytes,
+                      source: block.src,
+                      alt: block.alt,
+                      width: block.naturalWidth ?? block.declaredWidth,
+                      height: block.naturalHeight ?? block.declaredHeight,
+                    ),
                     width: layout.width,
                     height: layout.height,
-                    fit: BoxFit.contain,
+                    maxHeight: layout.height ?? 520,
                     alignment: layout.alignment,
-                    gaplessPlayback: true,
-                    filterQuality: FilterQuality.medium,
-                    semanticLabel: block.alt,
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    fit: BoxFit.contain,
                   ),
                 ),
                 if (block.caption != null) ...[

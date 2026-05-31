@@ -144,6 +144,13 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "11.0.2"
+  flow_read_image_viewer:
+    dependency: "direct main"
+    description:
+      path: "packages/flow_read_image_viewer"
+      relative: true
+    source: path
+    version: "0.1.0"
   flutter:
     dependency: "direct main"
     description: flutter

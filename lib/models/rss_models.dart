@@ -95,6 +95,7 @@ class RssArticle {
   final String? link;
   final String? description;
   final String? content;
+  final List<RssArticleImage> images;
   final DateTime? pubDate;
   final String? author;
   bool isRead;
@@ -107,6 +108,7 @@ class RssArticle {
     this.link,
     this.description,
     this.content,
+    this.images = const [],
     this.pubDate,
     this.author,
     this.isRead = false,
@@ -122,6 +124,7 @@ class RssArticle {
     String? link,
     String? description,
     String? content,
+    List<RssArticleImage>? images,
     DateTime? pubDate,
     String? author,
     bool? isRead,
@@ -134,10 +137,29 @@ class RssArticle {
       link: link ?? this.link,
       description: description ?? this.description,
       content: content ?? this.content,
+      images: images ?? this.images,
       pubDate: pubDate ?? this.pubDate,
       author: author ?? this.author,
       isRead: isRead ?? this.isRead,
       id: id ?? this.id,
     );
+  }
+}
+
+class RssArticleImage {
+  final String url;
+  final String? alt;
+  final int? width;
+  final int? height;
+
+  const RssArticleImage({required this.url, this.alt, this.width, this.height});
+
+  double? get aspectRatio {
+    final imageWidth = width;
+    final imageHeight = height;
+    if (imageWidth == null || imageHeight == null || imageHeight <= 0) {
+      return null;
+    }
+    return imageWidth / imageHeight;
   }
 }

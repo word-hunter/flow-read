@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/rss_models.dart';
@@ -289,7 +290,8 @@ class _RssArticleListState extends State<RssArticleList> {
               ],
               if (isExpanded &&
                   (article.content?.isNotEmpty == true ||
-                      article.description?.isNotEmpty == true)) ...[
+                      article.description?.isNotEmpty == true ||
+                      article.images.isNotEmpty)) ...[
                 const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
@@ -415,7 +417,22 @@ class _RssArticleListState extends State<RssArticleList> {
                 ? article.content
                 : article.description)
             ?.trim();
-    if (text == null || text.isEmpty) return const SizedBox.shrink();
+    if ((text == null || text.isEmpty) && article.images.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (text == null || text.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: article.images
+            .map(
+              (image) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _buildArticleImage(image),
+              ),
+            )
+            .toList(),
+      );
+    }
 
     final readingProvider = context.watch<ReadingProvider>();
     final settings = context.watch<SettingsService>();
@@ -426,21 +443,56 @@ class _RssArticleListState extends State<RssArticleList> {
       readingProvider.wordLevelService,
     );
 
-    return Text.rich(
-      buildHighlightedParagraph(
-            text,
-            result,
-            theme,
-            onWordTapped: _showWordSheet,
-            fontSize: 14,
-            lineHeight: 1.7,
-            fontFamily: 'Serif',
-            colorSettings: settings.colors,
-            lookupHighlightWord: readingProvider.selectedWord,
-            wordLevelService: readingProvider.wordLevelService,
-          )
-          as TextSpan,
-      style: theme.textTheme.bodyMedium?.copyWith(height: 1.7),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          buildHighlightedParagraph(
+                text,
+                result,
+                theme,
+                onWordTapped: _showWordSheet,
+                fontSize: 14,
+                lineHeight: 1.7,
+                fontFamily: 'Serif',
+                colorSettings: settings.colors,
+                lookupHighlightWord: readingProvider.selectedWord,
+                wordLevelService: readingProvider.wordLevelService,
+              )
+              as TextSpan,
+          style: theme.textTheme.bodyMedium?.copyWith(height: 1.7),
+        ),
+        if (article.images.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          ...article.images.map(
+            (image) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _buildArticleImage(image),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildArticleImage(RssArticleImage image) {
+    final uri = Uri.tryParse(image.url);
+    if (uri == null) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ReadableImagePreview(
+        resource: ReadableImageResource.network(
+          uri,
+          alt: image.alt,
+          suggestedFileName: uri.pathSegments
+              .where((segment) => segment.trim().isNotEmpty)
+              .lastOrNull,
+          width: image.width?.toDouble(),
+          height: image.height?.toDouble(),
+        ),
+        maxHeight: 320,
+        maxWidth: 520,
+      ),
     );
   }
 
