@@ -74,13 +74,11 @@ void main() {
     final epubFile = File('${tempDir.path}/test.epub');
     await epubFile.writeAsString('mock epub content');
 
-    await booksBox().put(
-      book.id,
-      book.copyWith(sourcePath: epubFile.path),
-    );
+    await booksBox().put(book.id, book.copyWith(sourcePath: epubFile.path));
     await userVocabularyBox().put('flow', 'known');
     await readingConfigBox().put('fontSize', '18.0');
     await readingTimeBox().put('_global_', 120);
+    await learningAnalyticsBox().put(20260515, 7);
     await dictionaryCacheBox().put('flow', '{"word":"flow"}');
     await wordContextsBox().put(
       'flow',
@@ -156,7 +154,15 @@ void main() {
     expect(data['createdAt'], isNull);
     expect(data['files'], isNull);
     final boxes = data['boxes'] as Map<String, dynamic>;
+    expect(boxes.keys, containsAll(BackupService.backupDataBoxNames));
     expect(boxes, isNot(containsPair(HiveBoxNames.dictionaryCache, anything)));
+    final analyticsEntries =
+        boxes[HiveBoxNames.learningAnalytics]['entries'] as List<dynamic>;
+    expect(analyticsEntries, hasLength(1));
+    expect(analyticsEntries.single, {
+      'key': {'type': 'int', 'value': 20260515},
+      'value': 7,
+    });
 
     final settingsEntries =
         boxes[HiveBoxNames.settings]['entries'] as List<dynamic>;
@@ -179,6 +185,7 @@ void main() {
     await userVocabularyBox().clear();
     await readingConfigBox().clear();
     await readingTimeBox().clear();
+    await learningAnalyticsBox().clear();
     await dictionaryCacheBox().clear();
     await wordContextsBox().clear();
     await learningItemsBox().clear();
@@ -195,6 +202,7 @@ void main() {
     expect(userVocabularyBox().get('flow'), 'known');
     expect(readingConfigBox().get('fontSize'), '18.0');
     expect(readingTimeBox().get('_global_'), 120);
+    expect(learningAnalyticsBox().get(20260515), 7);
     expect(dictionaryCacheBox().get('flow'), isNull);
     expect(
       wordContextsBox().get('flow'),
@@ -277,9 +285,7 @@ void main() {
   test('exportNow writes a .flow.bak file into the selected folder', () async {
     await readingTimeBox().put('_global_', 30);
 
-    final path = await backup.exportNow(
-      folderPath: '${tempDir.path}/backups',
-    );
+    final path = await backup.exportNow(folderPath: '${tempDir.path}/backups');
     final file = File(path);
 
     expect(await file.exists(), isTrue);
@@ -288,9 +294,9 @@ void main() {
 
     final bakFileBytes = await file.readAsBytes();
     final zipArchive = ZipDecoder().decodeBytes(bakFileBytes);
-    final manifest = jsonDecode(
-      utf8.decode(zipArchive.findFile('manifest.json')!.content),
-    ) as Map<String, dynamic>;
+    final manifest =
+        jsonDecode(utf8.decode(zipArchive.findFile('manifest.json')!.content))
+            as Map<String, dynamic>;
     expect(manifest['app'], BackupService.appId);
     expect(manifest['formatVersion'], archive.supportedManifestFormatVersion);
   });
@@ -307,11 +313,13 @@ void main() {
 
     expect(
       () => backup.exportNow(folderPath: '${tempDir.path}/backups'),
-      throwsA(isA<BackupException>().having(
-        (e) => e.message,
-        'message',
-        contains('缺失'),
-      )),
+      throwsA(
+        isA<BackupException>().having(
+          (e) => e.message,
+          'message',
+          contains('缺失'),
+        ),
+      ),
     );
   });
 

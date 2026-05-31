@@ -30,18 +30,4 @@ class HiveBoxNames {
     learningItems,
     learningAnalytics,
   ];
-
-  static const backupIncludedBoxes = <String>[
-    books,
-    userVocabulary,
-    settings,
-    wordBookmarks,
-    readingBookmarks,
-    readingConfig,
-    readingTime,
-    rssSubscriptions,
-    wordContexts,
-    learningItems,
-    learningAnalytics,
-  ];
 }

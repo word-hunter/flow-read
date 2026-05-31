@@ -43,8 +43,6 @@ class BackupService extends ChangeNotifier {
   static const schemaVersion = 1;
   static const appId = 'flow_read';
 
-  static const _includedBoxes = HiveBoxNames.backupIncludedBoxes;
-
   static const _localSettingKeys = <String>{
     'backupEnabled',
     'backupFolderPath',
@@ -55,6 +53,77 @@ class BackupService extends ChangeNotifier {
     'lastBackupPath',
   };
   static const _secretSettingKeys = <String>{'apiKey', 'aiApiKeys'};
+
+  // Regenerable caches stay out of this table: wordLevels and dictionaryCache.
+  static final List<_BackupDataSegment> _backupDataSegments =
+      List.unmodifiable([
+        _BackupDataSegment.box<BookMetadata>(
+          boxName: HiveBoxNames.books,
+          box: () => Hive.box<BookMetadata>(HiveBoxNames.books),
+          encode: (value) => value.toJson(),
+          decode: (value) => BookMetadata.fromJson(_asStringKeyMap(value)),
+        ),
+        _BackupDataSegment.box<String>(
+          boxName: HiveBoxNames.userVocabulary,
+          box: () => Hive.box<String>(HiveBoxNames.userVocabulary),
+        ),
+        _BackupDataSegment.box<dynamic>(
+          boxName: HiveBoxNames.settings,
+          box: () => Hive.box<dynamic>(HiveBoxNames.settings),
+          clearBeforeRestore: false,
+          skipSnapshotKey: (key, includeSecretsInBackup) {
+            if (_localSettingKeys.contains(key)) return true;
+            return !includeSecretsInBackup && _secretSettingKeys.contains(key);
+          },
+          skipRestoreKey: (key) => _localSettingKeys.contains(key),
+        ),
+        _BackupDataSegment.box<String>(
+          boxName: HiveBoxNames.wordBookmarks,
+          box: () => Hive.box<String>(HiveBoxNames.wordBookmarks),
+        ),
+        _BackupDataSegment.box<String>(
+          boxName: HiveBoxNames.readingBookmarks,
+          box: () => Hive.box<String>(HiveBoxNames.readingBookmarks),
+        ),
+        _BackupDataSegment.box<String>(
+          boxName: HiveBoxNames.readingConfig,
+          box: () => Hive.box<String>(HiveBoxNames.readingConfig),
+        ),
+        _BackupDataSegment.box<int>(
+          boxName: HiveBoxNames.readingTime,
+          box: () => Hive.box<int>(HiveBoxNames.readingTime),
+          decode: _decodeInt,
+        ),
+        _BackupDataSegment.box<RssFeedSubscription>(
+          boxName: HiveBoxNames.rssSubscriptions,
+          box: () =>
+              Hive.box<RssFeedSubscription>(HiveBoxNames.rssSubscriptions),
+          encode: _rssSubscriptionToJson,
+          decode: (value) => _rssSubscriptionFromJson(_asStringKeyMap(value)),
+        ),
+        _BackupDataSegment.box<String>(
+          boxName: HiveBoxNames.wordContexts,
+          box: () => Hive.box<String>(HiveBoxNames.wordContexts),
+        ),
+        _BackupDataSegment.box<LearningItem>(
+          boxName: HiveBoxNames.learningItems,
+          box: () => Hive.box<LearningItem>(HiveBoxNames.learningItems),
+          encode: (value) => value.toJson(),
+          decode: (value) => LearningItem.fromJson(_asStringKeyMap(value)),
+        ),
+        _BackupDataSegment.box<int>(
+          boxName: HiveBoxNames.learningAnalytics,
+          box: () => Hive.box<int>(HiveBoxNames.learningAnalytics),
+          decode: _decodeInt,
+        ),
+      ]);
+
+  @visibleForTesting
+  static List<String> get backupDataBoxNames {
+    return List.unmodifiable(
+      _backupDataSegments.map((segment) => segment.boxName),
+    );
+  }
 
   final SettingsService settings;
   final BackupFolderAccess _folderAccess;
@@ -267,17 +336,14 @@ class BackupService extends ChangeNotifier {
           await File(stagingCover).writeAsBytes(coverBytes, flush: true);
         }
 
-        stagingPaths[id] = (
-          source: stagingSource,
-          cover: stagingCover,
-        );
+        stagingPaths[id] = (source: stagingSource, cover: stagingCover);
       }
 
       stage = _ImportStage.restoringBoxes;
-      for (final boxName in _includedBoxes) {
-        final boxData = boxes[boxName];
-        if (boxData is Map<String, dynamic>) {
-          await _restoreBox(boxName, boxData);
+      for (final segment in _backupDataSegments) {
+        final boxData = boxes[segment.boxName];
+        if (boxData is Map) {
+          await _restoreSegment(segment, _asStringKeyMap(boxData));
         }
       }
 
@@ -428,22 +494,25 @@ class BackupService extends ChangeNotifier {
     return archive.buildDataPayload(
       schemaVersion: schemaVersion,
       boxes: {
-        for (final boxName in _includedBoxes) boxName: _snapshotBox(boxName),
+        for (final segment in _backupDataSegments)
+          segment.boxName: _snapshotSegment(segment),
       },
     );
   }
 
-  Map<String, dynamic> _snapshotBox(String boxName) {
+  Map<String, dynamic> _snapshotSegment(_BackupDataSegment segment) {
     final entries = <Map<String, dynamic>>[];
-    for (final key in _keysFor(boxName)) {
-      if (boxName == HiveBoxNames.settings &&
-          _shouldSkipSettingInSnapshot(key)) {
+    for (final key in segment.keys()) {
+      if (segment.shouldSkipSnapshotKey(
+        key,
+        includeSecretsInBackup: settings.includeSecretsInBackup,
+      )) {
         continue;
       }
-      final value = _getValue(boxName, key);
+      final value = segment.getValue(key);
       entries.add({
         'key': _encodeKey(key),
-        'value': _encodeBoxValue(boxName, value),
+        'value': segment.encodeValue(value),
       });
     }
     return {'entries': entries};
@@ -482,9 +551,7 @@ class BackupService extends ChangeNotifier {
       }
 
       if (totalBytes > archive.maxBackupBookBytes) {
-        throw const BackupException(
-          '备份内容较大，暂不支持一次性导出超过 500 MB 的书籍文件。',
-        );
+        throw const BackupException('备份内容较大，暂不支持一次性导出超过 500 MB 的书籍文件。');
       }
 
       books[meta.id] = _BookFile(
@@ -598,187 +665,27 @@ class BackupService extends ChangeNotifier {
     return '${booksDir.path}${Platform.pathSeparator}${bookId}_cover.png';
   }
 
-  Future<void> _restoreBox(String boxName, Map<String, dynamic> data) async {
+  Future<void> _restoreSegment(
+    _BackupDataSegment segment,
+    Map<String, dynamic> data,
+  ) async {
     final entries = data['entries'];
     if (entries is! List) {
-      throw BackupException('$boxName 备份数据无效');
+      throw BackupException('${segment.boxName} 备份数据无效');
     }
 
-    if (boxName != HiveBoxNames.settings) {
-      await _clearBox(boxName);
+    if (segment.clearBeforeRestore) {
+      await segment.clear();
     }
 
     for (final entry in entries) {
       if (entry is! Map) continue;
       final key = _decodeKey(entry['key']);
-      if (boxName == HiveBoxNames.settings &&
-          _localSettingKeys.contains(key)) {
+      if (segment.shouldSkipRestoreKey(key)) {
         continue;
       }
-      final value = _decodeBoxValue(boxName, entry['value']);
-      await _putValue(boxName, key, value);
-    }
-  }
-
-  bool _shouldSkipSettingInSnapshot(dynamic key) {
-    if (_localSettingKeys.contains(key)) return true;
-    if (!settings.includeSecretsInBackup &&
-        _secretSettingKeys.contains(key)) {
-      return true;
-    }
-    return false;
-  }
-
-  Iterable<dynamic> _keysFor(String boxName) {
-    switch (boxName) {
-      case HiveBoxNames.books:
-        return Hive.box<BookMetadata>(HiveBoxNames.books).keys;
-      case HiveBoxNames.userVocabulary:
-        return Hive.box<String>(HiveBoxNames.userVocabulary).keys;
-      case HiveBoxNames.settings:
-        return Hive.box(HiveBoxNames.settings).keys;
-      case HiveBoxNames.wordBookmarks:
-        return Hive.box<String>(HiveBoxNames.wordBookmarks).keys;
-      case HiveBoxNames.readingBookmarks:
-        return Hive.box<String>(HiveBoxNames.readingBookmarks).keys;
-      case HiveBoxNames.readingConfig:
-        return Hive.box<String>(HiveBoxNames.readingConfig).keys;
-      case HiveBoxNames.readingTime:
-        return Hive.box<int>(HiveBoxNames.readingTime).keys;
-      case HiveBoxNames.dictionaryCache:
-        return Hive.box<String>(HiveBoxNames.dictionaryCache).keys;
-      case HiveBoxNames.rssSubscriptions:
-        return Hive.box<RssFeedSubscription>(
-          HiveBoxNames.rssSubscriptions,
-        ).keys;
-      case HiveBoxNames.wordContexts:
-        return Hive.box<String>(HiveBoxNames.wordContexts).keys;
-      case HiveBoxNames.learningItems:
-        return Hive.box<LearningItem>(HiveBoxNames.learningItems).keys;
-      default:
-        return const [];
-    }
-  }
-
-  dynamic _getValue(String boxName, dynamic key) {
-    switch (boxName) {
-      case HiveBoxNames.books:
-        return Hive.box<BookMetadata>(HiveBoxNames.books).get(key);
-      case HiveBoxNames.userVocabulary:
-        return Hive.box<String>(HiveBoxNames.userVocabulary).get(key);
-      case HiveBoxNames.settings:
-        return Hive.box(HiveBoxNames.settings).get(key);
-      case HiveBoxNames.wordBookmarks:
-        return Hive.box<String>(HiveBoxNames.wordBookmarks).get(key);
-      case HiveBoxNames.readingBookmarks:
-        return Hive.box<String>(HiveBoxNames.readingBookmarks).get(key);
-      case HiveBoxNames.readingConfig:
-        return Hive.box<String>(HiveBoxNames.readingConfig).get(key);
-      case HiveBoxNames.readingTime:
-        return Hive.box<int>(HiveBoxNames.readingTime).get(key);
-      case HiveBoxNames.dictionaryCache:
-        return Hive.box<String>(HiveBoxNames.dictionaryCache).get(key);
-      case HiveBoxNames.rssSubscriptions:
-        return Hive.box<RssFeedSubscription>(
-          HiveBoxNames.rssSubscriptions,
-        ).get(key);
-      case HiveBoxNames.wordContexts:
-        return Hive.box<String>(HiveBoxNames.wordContexts).get(key);
-      case HiveBoxNames.learningItems:
-        return Hive.box<LearningItem>(HiveBoxNames.learningItems).get(key);
-    }
-  }
-
-  Future<void> _clearBox(String boxName) async {
-    switch (boxName) {
-      case HiveBoxNames.books:
-        await Hive.box<BookMetadata>(HiveBoxNames.books).clear();
-        return;
-      case HiveBoxNames.userVocabulary:
-        await Hive.box<String>(HiveBoxNames.userVocabulary).clear();
-        return;
-      case HiveBoxNames.wordBookmarks:
-        await Hive.box<String>(HiveBoxNames.wordBookmarks).clear();
-        return;
-      case HiveBoxNames.readingBookmarks:
-        await Hive.box<String>(HiveBoxNames.readingBookmarks).clear();
-        return;
-      case HiveBoxNames.readingConfig:
-        await Hive.box<String>(HiveBoxNames.readingConfig).clear();
-        return;
-      case HiveBoxNames.readingTime:
-        await Hive.box<int>(HiveBoxNames.readingTime).clear();
-        return;
-      case HiveBoxNames.dictionaryCache:
-        await Hive.box<String>(HiveBoxNames.dictionaryCache).clear();
-        return;
-      case HiveBoxNames.rssSubscriptions:
-        await Hive.box<RssFeedSubscription>(
-          HiveBoxNames.rssSubscriptions,
-        ).clear();
-        return;
-      case HiveBoxNames.wordContexts:
-        await Hive.box<String>(HiveBoxNames.wordContexts).clear();
-        return;
-      case HiveBoxNames.learningItems:
-        await Hive.box<LearningItem>(HiveBoxNames.learningItems).clear();
-        return;
-    }
-  }
-
-  Future<void> _putValue(String boxName, dynamic key, dynamic value) async {
-    switch (boxName) {
-      case HiveBoxNames.books:
-        await Hive.box<BookMetadata>(
-          HiveBoxNames.books,
-        ).put(key, value as BookMetadata);
-        return;
-      case HiveBoxNames.userVocabulary:
-        await Hive.box<String>(
-          HiveBoxNames.userVocabulary,
-        ).put(key, value as String);
-        return;
-      case HiveBoxNames.settings:
-        await Hive.box(HiveBoxNames.settings).put(key, value);
-        return;
-      case HiveBoxNames.wordBookmarks:
-        await Hive.box<String>(
-          HiveBoxNames.wordBookmarks,
-        ).put(key, value as String);
-        return;
-      case HiveBoxNames.readingBookmarks:
-        await Hive.box<String>(
-          HiveBoxNames.readingBookmarks,
-        ).put(key, value as String);
-        return;
-      case HiveBoxNames.readingConfig:
-        await Hive.box<String>(
-          HiveBoxNames.readingConfig,
-        ).put(key, value as String);
-        return;
-      case HiveBoxNames.readingTime:
-        await Hive.box<int>(HiveBoxNames.readingTime).put(key, value as int);
-        return;
-      case HiveBoxNames.dictionaryCache:
-        await Hive.box<String>(
-          HiveBoxNames.dictionaryCache,
-        ).put(key, value as String);
-        return;
-      case HiveBoxNames.rssSubscriptions:
-        await Hive.box<RssFeedSubscription>(
-          HiveBoxNames.rssSubscriptions,
-        ).put(key, value as RssFeedSubscription);
-        return;
-      case HiveBoxNames.wordContexts:
-        await Hive.box<String>(
-          HiveBoxNames.wordContexts,
-        ).put(key, value as String);
-        return;
-      case HiveBoxNames.learningItems:
-        await Hive.box<LearningItem>(
-          HiveBoxNames.learningItems,
-        ).put(key, value as LearningItem);
-        return;
+      final value = segment.decodeValue(entry['value']);
+      await segment.putValue(key, value);
     }
   }
 
@@ -796,35 +703,13 @@ class BackupService extends ChangeNotifier {
     return encoded.toString();
   }
 
-  dynamic _encodeBoxValue(String boxName, dynamic value) {
-    switch (boxName) {
-      case HiveBoxNames.books:
-        return (value as BookMetadata).toJson();
-      case HiveBoxNames.rssSubscriptions:
-        return _rssSubscriptionToJson(value as RssFeedSubscription);
-      case HiveBoxNames.learningItems:
-        return (value as LearningItem).toJson();
-      default:
-        return _encodeJsonValue(value);
-    }
+  static int _decodeInt(dynamic value) {
+    return (value as num).toInt();
   }
 
-  dynamic _decodeBoxValue(String boxName, dynamic value) {
-    switch (boxName) {
-      case HiveBoxNames.books:
-        return BookMetadata.fromJson(_asStringKeyMap(value));
-      case HiveBoxNames.rssSubscriptions:
-        return _rssSubscriptionFromJson(_asStringKeyMap(value));
-      case HiveBoxNames.learningItems:
-        return LearningItem.fromJson(_asStringKeyMap(value));
-      case HiveBoxNames.readingTime:
-        return (value as num).toInt();
-      default:
-        return value;
-    }
-  }
-
-  Map<String, dynamic> _rssSubscriptionToJson(RssFeedSubscription value) {
+  static Map<String, dynamic> _rssSubscriptionToJson(
+    RssFeedSubscription value,
+  ) {
     return {
       'url': value.url,
       'title': value.title,
@@ -834,7 +719,9 @@ class BackupService extends ChangeNotifier {
     };
   }
 
-  RssFeedSubscription _rssSubscriptionFromJson(Map<String, dynamic> json) {
+  static RssFeedSubscription _rssSubscriptionFromJson(
+    Map<String, dynamic> json,
+  ) {
     return RssFeedSubscription(
       url: json['url'] as String,
       title: json['title'] as String? ?? '',
@@ -846,7 +733,7 @@ class BackupService extends ChangeNotifier {
     );
   }
 
-  Map<String, dynamic> _asStringKeyMap(dynamic value) {
+  static Map<String, dynamic> _asStringKeyMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) {
       return value.map((k, v) => MapEntry(k.toString(), v));
@@ -854,16 +741,14 @@ class BackupService extends ChangeNotifier {
     throw const BackupException('备份数据格式无效');
   }
 
-  dynamic _encodeJsonValue(dynamic value) {
+  static dynamic _encodeJsonValue(dynamic value) {
     if (value == null || value is String || value is num || value is bool) {
       return value;
     }
     if (value is DateTime) return value.toIso8601String();
     if (value is List) return value.map(_encodeJsonValue).toList();
     if (value is Map) {
-      return value.map(
-        (k, v) => MapEntry(k.toString(), _encodeJsonValue(v)),
-      );
+      return value.map((k, v) => MapEntry(k.toString(), _encodeJsonValue(v)));
     }
     return value.toString();
   }
@@ -901,8 +786,7 @@ class BackupService extends ChangeNotifier {
     _timer?.cancel();
     _timer = null;
 
-    if (!settings.backupEnabled ||
-        settings.backupFolderPath.trim().isEmpty) {
+    if (!settings.backupEnabled || settings.backupFolderPath.trim().isEmpty) {
       return;
     }
 
@@ -942,6 +826,78 @@ class BackupService extends ChangeNotifier {
   }
 }
 
+typedef _BackupSnapshotSkip =
+    bool Function(dynamic key, bool includeSecretsInBackup);
+typedef _BackupRestoreSkip = bool Function(dynamic key);
+
+class _BackupDataSegment {
+  _BackupDataSegment._({
+    required this.boxName,
+    required this.keys,
+    required this.getValue,
+    required this.clear,
+    required this.putValue,
+    required this.encodeValue,
+    required this.decodeValue,
+    required this.clearBeforeRestore,
+    this.skipSnapshotKey,
+    this.skipRestoreKey,
+  });
+
+  static _BackupDataSegment box<T>({
+    required String boxName,
+    required Box<T> Function() box,
+    dynamic Function(T value)? encode,
+    T Function(dynamic value)? decode,
+    bool clearBeforeRestore = true,
+    _BackupSnapshotSkip? skipSnapshotKey,
+    _BackupRestoreSkip? skipRestoreKey,
+  }) {
+    return _BackupDataSegment._(
+      boxName: boxName,
+      keys: () => box().keys,
+      getValue: (key) => box().get(key),
+      clear: () => box().clear(),
+      putValue: (key, value) => box().put(key, value as T),
+      encodeValue: (value) {
+        if (encode != null) return encode(value as T);
+        return BackupService._encodeJsonValue(value);
+      },
+      decodeValue: (value) {
+        if (decode != null) return decode(value);
+        return value;
+      },
+      clearBeforeRestore: clearBeforeRestore,
+      skipSnapshotKey: skipSnapshotKey,
+      skipRestoreKey: skipRestoreKey,
+    );
+  }
+
+  final String boxName;
+  final Iterable<dynamic> Function() keys;
+  final dynamic Function(dynamic key) getValue;
+  final Future<int> Function() clear;
+  final Future<void> Function(dynamic key, dynamic value) putValue;
+  final dynamic Function(dynamic value) encodeValue;
+  final dynamic Function(dynamic value) decodeValue;
+  final bool clearBeforeRestore;
+  final _BackupSnapshotSkip? skipSnapshotKey;
+  final _BackupRestoreSkip? skipRestoreKey;
+
+  bool shouldSkipSnapshotKey(
+    dynamic key, {
+    required bool includeSecretsInBackup,
+  }) {
+    final predicate = skipSnapshotKey;
+    return predicate != null && predicate(key, includeSecretsInBackup);
+  }
+
+  bool shouldSkipRestoreKey(dynamic key) {
+    final predicate = skipRestoreKey;
+    return predicate != null && predicate(key);
+  }
+}
+
 class _BookFile {
   final Uint8List sourceBytes;
   final Uint8List? coverBytes;
@@ -964,9 +920,7 @@ Map<String, dynamic> _parseWordHunterBackupSource(String source) {
   return _asStringKeyMapStatic(decoded);
 }
 
-Map<String, dynamic> _normalizeWordHunterPayload(
-  Map<String, dynamic> payload,
-) {
+Map<String, dynamic> _normalizeWordHunterPayload(Map<String, dynamic> payload) {
   final knownWords = _extractWordSet(payload['known']);
   final contexts = _parseWordHunterContexts(payload['context']);
   final learningWordSet = {

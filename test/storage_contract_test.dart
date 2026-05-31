@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/storage/hive_box_names.dart';
 import 'package:flow_read/storage/hive_type_ids.dart';
 import 'package:flow_read/storage/storage_migrations.dart';
@@ -19,26 +20,17 @@ void main() {
   });
 
   test('Hive box and type id contracts stay explicit', () {
+    final backupDataBoxes = BackupService.backupDataBoxNames;
+
     expect(
       HiveBoxNames.bootstrapBoxes.toSet(),
       hasLength(HiveBoxNames.bootstrapBoxes.length),
     );
-    expect(
-      HiveBoxNames.backupIncludedBoxes.toSet(),
-      hasLength(HiveBoxNames.backupIncludedBoxes.length),
-    );
-    expect(
-      HiveBoxNames.backupIncludedBoxes,
-      everyElement(isIn(HiveBoxNames.bootstrapBoxes)),
-    );
-    expect(
-      HiveBoxNames.backupIncludedBoxes,
-      isNot(contains(HiveBoxNames.wordLevels)),
-    );
-    expect(
-      HiveBoxNames.backupIncludedBoxes,
-      isNot(contains(HiveBoxNames.dictionaryCache)),
-    );
+    expect(backupDataBoxes.toSet(), hasLength(backupDataBoxes.length));
+    expect(backupDataBoxes, everyElement(isIn(HiveBoxNames.bootstrapBoxes)));
+    expect(backupDataBoxes, contains(HiveBoxNames.learningAnalytics));
+    expect(backupDataBoxes, isNot(contains(HiveBoxNames.wordLevels)));
+    expect(backupDataBoxes, isNot(contains(HiveBoxNames.dictionaryCache)));
 
     expect(HiveTypeIds.reserved, hasLength(7));
   });
