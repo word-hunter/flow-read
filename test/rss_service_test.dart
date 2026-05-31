@@ -116,17 +116,25 @@ void main() {
         'https://example.com/rss.xml',
         forceRefresh: true,
       );
-      final empty = await service.fetchArticles(
-        'https://example.com/uncached.xml',
-        forceRefresh: true,
-      );
 
       expect(initial, hasLength(2));
       expect(fallback.map((article) => article.title), [
         'First Article',
         'Second Article',
       ]);
-      expect(empty, isEmpty);
+      await expectLater(
+        service.fetchArticles(
+          'https://example.com/uncached.xml',
+          forceRefresh: true,
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('HTTP 500'),
+          ),
+        ),
+      );
       expect(repository.updateLastFetchedCalls, 1);
     },
   );

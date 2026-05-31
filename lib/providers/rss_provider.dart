@@ -5,7 +5,9 @@ import '../services/app_logger.dart';
 import '../services/rss_service.dart';
 
 class RssProvider extends ChangeNotifier {
-  final RssService _service = RssService();
+  RssProvider({RssFeedService? service}) : _service = service ?? RssService();
+
+  final RssFeedService _service;
 
   List<RssFeedSubscription> _subscriptions = [];
   String? _selectedFeedUrl;
@@ -50,10 +52,21 @@ class RssProvider extends ChangeNotifier {
   Future<void> init() async {
     _isLoading = true;
     notifyListeners();
-    await _service.init();
-    _subscriptions = _service.subscriptions;
-    if (_subscriptions.isNotEmpty) {
-      _articles = await _service.fetchLatestArticles();
+    try {
+      await _service.init();
+      _subscriptions = _service.subscriptions;
+      if (_subscriptions.isNotEmpty) {
+        _articles = await _service.fetchLatestArticles();
+      }
+    } catch (error, stackTrace) {
+      AppLogger.instance.event(
+        'rss.init_failed',
+        level: AppLogLevel.warning,
+        source: 'rss_provider',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _errorMessage = '加载 RSS 失败: $error';
     }
     _isLoading = false;
     notifyListeners();
