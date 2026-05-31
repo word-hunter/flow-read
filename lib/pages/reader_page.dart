@@ -34,6 +34,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
   final ScrollController _scrollController = ScrollController();
   final MenuController _tocMenuController = MenuController();
+  final MenuController _fontSettingsMenuController = MenuController();
   final FocusNode _readerFocusNode = FocusNode(
     debugLabel: 'ReaderPageKeyboard',
   );
@@ -52,6 +53,7 @@ class _ReaderPageState extends State<ReaderPage> {
   bool _sidebarOpen = false;
   bool _searchSheetOpen = false;
   bool _tocMenuOpen = false;
+  bool _fontSettingsMenuOpen = false;
   bool _searchShowingAll = false;
   bool _dailyGoalPromptShown = false;
   bool _wasDailyGoalReached = false;
@@ -393,6 +395,9 @@ class _ReaderPageState extends State<ReaderPage> {
     if (controller.isOpen) {
       controller.close();
     } else {
+      if (_fontSettingsMenuOpen) {
+        _fontSettingsMenuController.close();
+      }
       controller.open();
     }
   }
@@ -400,6 +405,23 @@ class _ReaderPageState extends State<ReaderPage> {
   void _setTocMenuOpen(bool isOpen) {
     if (!mounted || _tocMenuOpen == isOpen) return;
     setState(() => _tocMenuOpen = isOpen);
+  }
+
+  void _toggleFontSettingsMenu(MenuController controller) {
+    _hideReadingReminder();
+    if (controller.isOpen) {
+      controller.close();
+    } else {
+      if (_tocMenuOpen) {
+        _tocMenuController.close();
+      }
+      controller.open();
+    }
+  }
+
+  void _setFontSettingsMenuOpen(bool isOpen) {
+    if (!mounted || _fontSettingsMenuOpen == isOpen) return;
+    setState(() => _fontSettingsMenuOpen = isOpen);
   }
 
   void _showFontSettingsSheet() {
@@ -611,26 +633,43 @@ class _ReaderPageState extends State<ReaderPage> {
       case 'dark':
         return const Color(0xFF1E1E1E);
       default:
-        return Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF1E1E1E)
-            : Colors.white;
+        return Colors.white;
     }
   }
 
+  Color _readerTextColor(ReadingProvider provider) {
+    switch (provider.readingTheme) {
+      case 'dark':
+        return const Color(0xFFE8E2D6);
+      case 'sepia':
+        return const Color(0xFF30281F);
+      default:
+        return const Color(0xFF20231F);
+    }
+  }
+
+  Color _readerMutedTextColor(ReadingProvider provider) {
+    switch (provider.readingTheme) {
+      case 'dark':
+        return const Color(0xFFC8C1B7);
+      case 'sepia':
+        return const Color(0xFF6F6251);
+      default:
+        return const Color(0xFF626960);
+    }
+  }
+
+  bool _isDarkReadingTheme(ReadingProvider provider) {
+    return provider.readingTheme == 'dark';
+  }
+
   TextStyle _buildBaseTextStyle(ThemeData theme, ReadingProvider provider) {
-    final isDark =
-        provider.readingTheme == 'dark' ||
-        (theme.brightness == Brightness.dark &&
-            provider.readingTheme == 'light');
-    final color = isDark
-        ? const Color(0xFFE0E0E0)
-        : theme.colorScheme.onSurface;
     return (theme.textTheme.bodyLarge ?? const TextStyle()).copyWith(
       fontSize: provider.fontSize,
       height: provider.lineHeight,
       letterSpacing: 0.3,
       fontFamily: provider.fontFamily,
-      color: color,
+      color: _readerTextColor(provider),
     );
   }
 
@@ -679,7 +718,8 @@ class _ReaderPageState extends State<ReaderPage> {
                 Expanded(
                   child: _buildReadingBodyOverlay(
                     theme: theme,
-                    showOverlay: isWide && _tocMenuOpen,
+                    showOverlay:
+                        isWide && (_tocMenuOpen || _fontSettingsMenuOpen),
                     child: isWide
                         ? Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -794,7 +834,14 @@ class _ReaderPageState extends State<ReaderPage> {
               curve: Curves.easeOutCubic,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: _tocMenuController.close,
+                onTap: () {
+                  if (_tocMenuOpen) {
+                    _tocMenuController.close();
+                  }
+                  if (_fontSettingsMenuOpen) {
+                    _fontSettingsMenuController.close();
+                  }
+                },
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: theme.colorScheme.shadow.withValues(alpha: 0.06),
@@ -962,6 +1009,8 @@ class _ReaderPageState extends State<ReaderPage> {
       fontSize: provider.fontSize,
       lineHeight: provider.lineHeight,
       fontFamily: provider.fontFamily,
+      baseTextColor: _readerTextColor(provider),
+      mutedTextColor: _readerMutedTextColor(provider),
       colorSettings: colorSettings,
       searchQuery: searchQuery,
       lookupHighlightWord: lookupHighlightWord,
@@ -977,14 +1026,8 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Widget _buildTitleBlock(AnalysisResult result, ThemeData theme) {
     final provider = context.read<ReadingProvider>();
-    final isDark =
-        provider.readingTheme == 'dark' ||
-        (theme.brightness == Brightness.dark &&
-            provider.readingTheme == 'light');
-    final titleColor = isDark
-        ? const Color(0xFFE0E0E0)
-        : theme.colorScheme.onSurface;
-    final dividerColor = isDark
+    final titleColor = _readerTextColor(provider);
+    final dividerColor = _isDarkReadingTheme(provider)
         ? const Color(0xFF3A3A3A)
         : const Color(0xFFEEEEEE);
     return Padding(
@@ -1049,6 +1092,7 @@ class _ReaderPageState extends State<ReaderPage> {
           fontSize: provider.fontSize,
           lineHeight: provider.lineHeight,
           fontFamily: provider.fontFamily,
+          baseTextColor: _readerTextColor(provider),
           colorSettings: colorSettings,
           searchQuery: searchQuery,
           lookupHighlightWord: lookupHighlightWord,
@@ -1095,6 +1139,7 @@ class _ReaderPageState extends State<ReaderPage> {
               fontSize: provider.fontSize,
               lineHeight: provider.lineHeight,
               fontFamily: provider.fontFamily,
+              baseTextColor: _readerTextColor(provider),
               colorSettings: colorSettings,
               lookupHighlightWord: provider.selectedWord,
               wordLevelService: provider.wordLevelService,
@@ -1114,6 +1159,7 @@ class _ReaderPageState extends State<ReaderPage> {
     bool selected = false,
   }) {
     final theme = Theme.of(context);
+    final isDarkReader = _isDarkReadingTheme(context.read<ReadingProvider>());
     return IconButton(
       icon: Icon(icon, size: size),
       tooltip: tooltip,
@@ -1121,7 +1167,11 @@ class _ReaderPageState extends State<ReaderPage> {
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints.tightFor(width: 32, height: 32),
       visualDensity: VisualDensity.compact,
-      style: _toolbarIconButtonStyle(theme, selected: selected),
+      style: _toolbarIconButtonStyle(
+        theme,
+        selected: selected,
+        darkReader: isDarkReader,
+      ),
     );
   }
 
@@ -1131,6 +1181,7 @@ class _ReaderPageState extends State<ReaderPage> {
     required VoidCallback? onPressed,
   }) {
     final theme = Theme.of(context);
+    final isDarkReader = _isDarkReadingTheme(context.read<ReadingProvider>());
     return IconButton(
       icon: Icon(icon, size: 22),
       tooltip: tooltip,
@@ -1138,7 +1189,7 @@ class _ReaderPageState extends State<ReaderPage> {
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints.tightFor(width: 32, height: 32),
       visualDensity: VisualDensity.compact,
-      style: _toolbarIconButtonStyle(theme).copyWith(
+      style: _toolbarIconButtonStyle(theme, darkReader: isDarkReader).copyWith(
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -1149,8 +1200,12 @@ class _ReaderPageState extends State<ReaderPage> {
   ButtonStyle _toolbarIconButtonStyle(
     ThemeData theme, {
     bool selected = false,
+    bool darkReader = false,
   }) {
     final colorScheme = theme.colorScheme;
+    final inactiveForeground = darkReader
+        ? const Color(0xFFC8C1B7)
+        : colorScheme.onSurfaceVariant;
     return ButtonStyle(
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       mouseCursor: WidgetStateProperty.resolveWith((states) {
@@ -1179,14 +1234,14 @@ class _ReaderPageState extends State<ReaderPage> {
       }),
       foregroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
-          return colorScheme.onSurface.withValues(alpha: 0.38);
+          return inactiveForeground.withValues(alpha: 0.38);
         }
         if (selected ||
             states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
           return colorScheme.primary;
         }
-        return colorScheme.onSurfaceVariant;
+        return inactiveForeground;
       }),
       overlayColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.pressed)) {
@@ -1204,13 +1259,13 @@ class _ReaderPageState extends State<ReaderPage> {
     required int progressPercent,
     bool showSidebarToggle = false,
   }) {
-    final isDark =
-        provider.readingTheme == 'dark' ||
-        (theme.brightness == Brightness.dark &&
-            provider.readingTheme == 'light');
+    final isDark = _isDarkReadingTheme(provider);
     final borderColor = isDark
         ? const Color(0xFF3A3A3A).withValues(alpha: 0.72)
         : theme.colorScheme.outlineVariant.withValues(alpha: 0.48);
+    final toolbarTextColor = isDark
+        ? const Color(0xFFC8C1B7)
+        : theme.colorScheme.onSurfaceVariant;
     final showSearch = _layoutWidth >= 520;
     final showChapterStep = _layoutWidth >= 680 && provider.chapterCount > 1;
     final contentTitle = chapterTitle.trim().isNotEmpty
@@ -1269,7 +1324,7 @@ class _ReaderPageState extends State<ReaderPage> {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                        color: toolbarTextColor,
                         fontWeight: FontWeight.w600,
                         height: 1.1,
                       ),
@@ -1314,11 +1369,7 @@ class _ReaderPageState extends State<ReaderPage> {
               tooltip: '搜索',
               onPressed: () => unawaited(_showSearchSheet()),
             ),
-          _compactIconButton(
-            icon: Icons.text_fields,
-            tooltip: '字体',
-            onPressed: _showFontSettingsSheet,
-          ),
+          _buildFontSettingsButton(useDropdown: showSidebarToggle),
           _compactIconButton(
             icon: provider.isCurrentPositionBookmarked()
                 ? Icons.bookmark
@@ -1331,7 +1382,7 @@ class _ReaderPageState extends State<ReaderPage> {
             tooltip: '更多',
             icon: const Icon(Icons.more_horiz, size: 20),
             padding: EdgeInsets.zero,
-            style: _toolbarIconButtonStyle(theme).copyWith(
+            style: _toolbarIconButtonStyle(theme, darkReader: isDark).copyWith(
               fixedSize: const WidgetStatePropertyAll(Size.square(32)),
               minimumSize: const WidgetStatePropertyAll(Size.square(32)),
               maximumSize: const WidgetStatePropertyAll(Size.square(32)),
@@ -1424,6 +1475,46 @@ class _ReaderPageState extends State<ReaderPage> {
           tooltip: '目录',
           selected: controller.isOpen,
           onPressed: () => _toggleTocMenu(controller),
+        );
+      },
+    );
+  }
+
+  Widget _buildFontSettingsButton({required bool useDropdown}) {
+    if (!useDropdown) {
+      return _compactIconButton(
+        icon: Icons.text_fields,
+        tooltip: '字体',
+        onPressed: _showFontSettingsSheet,
+      );
+    }
+
+    final panelWidth = FontSettingsDropdownPanel.preferredWidthFor(
+      MediaQuery.sizeOf(context),
+    );
+
+    return MenuAnchor(
+      controller: _fontSettingsMenuController,
+      onOpen: () => _setFontSettingsMenuOpen(true),
+      onClose: () => _setFontSettingsMenuOpen(false),
+      alignmentOffset: Offset(-(panelWidth - 32), 6),
+      style: const MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(Colors.transparent),
+        elevation: WidgetStatePropertyAll(0),
+        padding: WidgetStatePropertyAll(EdgeInsets.zero),
+      ),
+      menuChildren: [
+        FontSettingsDropdownPanel(
+          width: panelWidth,
+          onClose: _fontSettingsMenuController.close,
+        ),
+      ],
+      builder: (context, controller, _) {
+        return _compactIconButton(
+          icon: Icons.text_fields,
+          tooltip: '字体',
+          selected: controller.isOpen,
+          onPressed: () => _toggleFontSettingsMenu(controller),
         );
       },
     );

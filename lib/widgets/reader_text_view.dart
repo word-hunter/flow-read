@@ -212,6 +212,7 @@ InlineSpan buildHighlightedText(
   double fontSize = 16.0,
   double lineHeight = 2.0,
   String fontFamily = 'Serif',
+  Color? baseTextColor,
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
   String? lookupHighlightWord,
@@ -224,6 +225,7 @@ InlineSpan buildHighlightedText(
     fontSize,
     lineHeight,
     fontFamily,
+    baseTextColor,
     colorSettings,
     searchQuery,
     lookupHighlightWord,
@@ -239,6 +241,7 @@ InlineSpan buildHighlightedParagraph(
   double fontSize = 16.0,
   double lineHeight = 2.0,
   String fontFamily = 'Serif',
+  Color? baseTextColor,
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
   String? lookupHighlightWord,
@@ -251,6 +254,7 @@ InlineSpan buildHighlightedParagraph(
     fontSize,
     lineHeight,
     fontFamily,
+    baseTextColor,
     colorSettings,
     searchQuery,
     lookupHighlightWord,
@@ -266,6 +270,7 @@ InlineSpan buildStyledBlock(
   double fontSize = 16.0,
   double lineHeight = 2.0,
   String fontFamily = 'Serif',
+  Color? baseTextColor,
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
   String? lookupHighlightWord,
@@ -279,6 +284,7 @@ InlineSpan buildStyledBlock(
     fontSize,
     lineHeight,
     fontFamily,
+    baseTextColor,
     colorSettings,
     searchQuery,
     lookupHighlightWord,
@@ -295,6 +301,8 @@ Widget buildBlockWidget(
   double fontSize = 16.0,
   double lineHeight = 2.0,
   String fontFamily = 'Serif',
+  Color? baseTextColor,
+  Color? mutedTextColor,
   VocabularyColorSettings? colorSettings,
   String? searchQuery,
   String? lookupHighlightWord,
@@ -323,6 +331,7 @@ Widget buildBlockWidget(
         fontSize: effectiveFontSize,
         lineHeight: lineHeight,
         fontFamily: fontFamily,
+        baseTextColor: baseTextColor,
         colorSettings: colorSettings,
         searchQuery: searchQuery,
         lookupHighlightWord: lookupHighlightWord,
@@ -338,6 +347,7 @@ Widget buildBlockWidget(
           fontFamily: fontFamily,
           fontSize: effectiveFontSize,
           fontWeight: block.type == BlockType.heading ? FontWeight.bold : null,
+          color: baseTextColor,
         ),
       );
 
@@ -365,7 +375,10 @@ Widget buildBlockWidget(
             children: [
               Padding(
                 padding: const EdgeInsets.only(top: 2, right: 8),
-                child: Text('•', style: TextStyle(fontSize: fontSize)),
+                child: Text(
+                  '•',
+                  style: TextStyle(fontSize: fontSize, color: baseTextColor),
+                ),
               ),
               Expanded(child: textWidget),
             ],
@@ -392,14 +405,15 @@ Widget buildBlockWidget(
       if (block.bytes == null) {
         return const SizedBox.shrink();
       }
-      return _EpubImageBlockView(block: block);
+      return _EpubImageBlockView(block: block, captionColor: mutedTextColor);
   }
 }
 
 class _EpubImageBlockView extends StatelessWidget {
   final ImageBlock block;
+  final Color? captionColor;
 
-  const _EpubImageBlockView({required this.block});
+  const _EpubImageBlockView({required this.block, this.captionColor});
 
   @override
   Widget build(BuildContext context) {
@@ -460,7 +474,9 @@ class _EpubImageBlockView extends StatelessWidget {
                       block.caption!,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color:
+                            captionColor ??
+                            Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -511,6 +527,7 @@ class _HighlightBuilder {
   final double fontSize;
   final double lineHeight;
   final String fontFamily;
+  final Color? baseTextColor;
   final VocabularyColorSettings? colorSettings;
   final String? searchQuery;
   final String? lookupHighlightWord;
@@ -527,6 +544,7 @@ class _HighlightBuilder {
     this.fontSize,
     this.lineHeight,
     this.fontFamily,
+    this.baseTextColor,
     this.colorSettings,
     this.searchQuery,
     this.lookupHighlightWord,
@@ -554,6 +572,16 @@ class _HighlightBuilder {
 
   Color _colorForLearning() {
     return colorSettings?.learningColor ?? AppColors.vocabLearning;
+  }
+
+  TextStyle _baseTextStyle() {
+    return theme.textTheme.bodyLarge!.copyWith(
+      height: lineHeight,
+      letterSpacing: 0.3,
+      fontFamily: fontFamily,
+      fontSize: fontSize,
+      color: baseTextColor,
+    );
   }
 
   String _keyFor(String word) {
@@ -593,6 +621,7 @@ class _HighlightBuilder {
           _buildSearchHighlightedSpans(
             paragraph.substring(lastIndex, match.start),
             theme,
+            style: _baseTextStyle(),
             searchQuery: searchQuery,
           ),
         );
@@ -610,12 +639,7 @@ class _HighlightBuilder {
           buildTappableWordSpan(
             word: word,
             color: color,
-            textStyle: theme.textTheme.bodyLarge!.copyWith(
-              height: lineHeight,
-              letterSpacing: 0.3,
-              fontFamily: fontFamily,
-              fontSize: fontSize,
-            ),
+            textStyle: _baseTextStyle(),
             theme: theme,
             searchQuery: searchQuery,
             isLookupHighlighted: isLookupHighlighted,
@@ -629,12 +653,7 @@ class _HighlightBuilder {
           buildTappableWordSpan(
             word: word,
             color: learningColor,
-            textStyle: theme.textTheme.bodyLarge!.copyWith(
-              height: lineHeight,
-              letterSpacing: 0.3,
-              fontFamily: fontFamily,
-              fontSize: fontSize,
-            ),
+            textStyle: _baseTextStyle(),
             theme: theme,
             searchQuery: searchQuery,
             isLookupHighlighted: isLookupHighlighted,
@@ -650,12 +669,7 @@ class _HighlightBuilder {
         spans.add(
           buildPlainLookupWordSpan(
             word: word,
-            textStyle: theme.textTheme.bodyLarge!.copyWith(
-              height: lineHeight,
-              letterSpacing: 0.3,
-              fontFamily: fontFamily,
-              fontSize: fontSize,
-            ),
+            textStyle: _baseTextStyle(),
             theme: theme,
             searchQuery: searchQuery,
             isLookupHighlighted: isLookupHighlighted,
@@ -672,12 +686,7 @@ class _HighlightBuilder {
           buildTappableWordSpan(
             word: word,
             color: unknownColor,
-            textStyle: theme.textTheme.bodyLarge!.copyWith(
-              height: lineHeight,
-              letterSpacing: 0.3,
-              fontFamily: fontFamily,
-              fontSize: fontSize,
-            ),
+            textStyle: _baseTextStyle(),
             theme: theme,
             searchQuery: searchQuery,
             isLookupHighlighted: isLookupHighlighted,
@@ -696,6 +705,7 @@ class _HighlightBuilder {
         _buildSearchHighlightedSpans(
           paragraph.substring(lastIndex),
           theme,
+          style: _baseTextStyle(),
           searchQuery: searchQuery,
         ),
       );
@@ -715,6 +725,7 @@ class _StyledBlockBuilder {
   final double fontSize;
   final double lineHeight;
   final String fontFamily;
+  final Color? baseTextColor;
   final VocabularyColorSettings? colorSettings;
   final String? searchQuery;
   final String? lookupHighlightWord;
@@ -732,6 +743,7 @@ class _StyledBlockBuilder {
     this.fontSize,
     this.lineHeight,
     this.fontFamily,
+    this.baseTextColor,
     this.colorSettings,
     this.searchQuery,
     this.lookupHighlightWord,
@@ -923,6 +935,7 @@ class _StyledBlockBuilder {
       letterSpacing: 0.3,
       fontFamily: fontFamily,
       fontSize: fontSize,
+      color: baseTextColor,
       fontWeight: style.bold ? FontWeight.bold : null,
       fontStyle: style.italic ? FontStyle.italic : null,
     );

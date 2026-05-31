@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flow_read/models/reader_font.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/widgets/font_settings_sheet.dart';
@@ -18,26 +20,173 @@ void main() {
       ),
     );
 
-    expect(find.text('Literata'), findsOneWidget);
+    const literataTile = ValueKey('font-family-option-Literata');
+    expect(find.text('阅读设置'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reading-settings-preview')),
+      findsOneWidget,
+    );
 
-    await tester.ensureVisible(find.text('Literata'));
+    await tester.scrollUntilVisible(
+      find.byKey(literataTile),
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Literata'));
+    await tester.tap(find.byKey(literataTile));
     await tester.pumpAndSettle();
 
     expect(provider.fontFamily, ReaderFonts.literata);
     expect(
-      tester
-          .widget<ChoiceChip>(
-            find.ancestor(
-              of: find.text('Literata'),
-              matching: find.byType(ChoiceChip),
-            ),
-          )
-          .selected,
-      isTrue,
+      find.descendant(
+        of: find.byKey(literataTile),
+        matching: find.byIcon(Icons.check),
+      ),
+      findsOneWidget,
     );
   });
+
+  testWidgets('desktop dropdown relies on the reader and omits preview card', (
+    tester,
+  ) async {
+    final provider = _FakeReadingProvider();
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ReadingProvider>.value(
+        value: provider,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: FontSettingsDropdownPanel(width: 720, maxHeight: 640),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('阅读设置'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reading-settings-preview')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('desktop dropdown uses a compact default height', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1100, 900);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final provider = _FakeReadingProvider();
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ReadingProvider>.value(
+        value: provider,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Center(child: FontSettingsDropdownPanel(width: 720)),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('font-settings-dropdown-panel')))
+          .height,
+      600,
+    );
+  });
+
+  testWidgets('setting option cards expose hover feedback', (tester) async {
+    final provider = _FakeReadingProvider();
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ReadingProvider>.value(
+        value: provider,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: FontSettingsDropdownPanel(width: 720, maxHeight: 640),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+
+    for (final key in [
+      const ValueKey('font-category-sans'),
+      const ValueKey('font-family-option-Literata'),
+      const ValueKey('reading-theme-dark'),
+    ]) {
+      await tester.scrollUntilVisible(
+        find.byKey(key),
+        220,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      final beforeHover = _cardDecoration(tester, key);
+      await mouse.moveTo(tester.getCenter(find.byKey(key)));
+      await tester.pump(const Duration(milliseconds: 160));
+
+      final afterHover = _cardDecoration(tester, key);
+      expect(afterHover.color, isNot(beforeHover.color));
+      expect(afterHover.border, isNot(beforeHover.border));
+
+      await mouse.moveTo(Offset.zero);
+      await tester.pump(const Duration(milliseconds: 160));
+    }
+
+    await mouse.removePointer();
+  });
+
+  testWidgets('theme hover target is limited to the preview card', (
+    tester,
+  ) async {
+    final provider = _FakeReadingProvider();
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ReadingProvider>.value(
+        value: provider,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: FontSettingsDropdownPanel(width: 720, maxHeight: 640),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const darkThemeKey = ValueKey('reading-theme-dark');
+    await tester.scrollUntilVisible(
+      find.byKey(darkThemeKey),
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    final darkThemeTarget = find.byKey(darkThemeKey);
+    expect(tester.getSize(darkThemeTarget).height, 86);
+    expect(
+      tester.getTopLeft(find.text('深色')).dy,
+      greaterThan(tester.getBottomLeft(darkThemeTarget).dy),
+    );
+  });
+}
+
+BoxDecoration _cardDecoration(WidgetTester tester, Key key) {
+  final container = find
+      .descendant(of: find.byKey(key), matching: find.byType(AnimatedContainer))
+      .first;
+  return tester.widget<AnimatedContainer>(container).decoration!
+      as BoxDecoration;
 }
 
 class _FakeReadingProvider extends ReadingProvider {

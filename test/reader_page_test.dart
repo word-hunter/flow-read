@@ -9,6 +9,7 @@ import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/screens/reading_desk_screen.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/dictionary/word_repository.dart';
+import 'package:flow_read/widgets/font_settings_sheet.dart';
 import 'package:flow_read/widgets/toc_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -195,6 +196,39 @@ void main() {
 
     expect(provider.currentChapter, 1);
     expect(find.byType(TocDropdownPanel), findsNothing);
+  });
+
+  testWidgets('uses an anchored font settings menu on wide reader', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1100, 760);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final provider = _FakeReadingProvider();
+    final settings = SettingsService();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('字体'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FontSettingsDropdownPanel), findsOneWidget);
+    expect(find.byType(FontSettingsSheet), findsNothing);
+    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(find.text('阅读设置'), findsOneWidget);
+    expect(find.text('调整排版与外观，获得更舒适的阅读体验'), findsOneWidget);
   });
 
   testWidgets('reader toolbar buttons expose hover styling on desktop', (

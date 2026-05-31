@@ -155,6 +155,59 @@ void main() {
     expect(learningStyle?.fontStyle, FontStyle.italic);
   });
 
+  testWidgets('styled blocks can use reader theme text color', (tester) async {
+    const readerTextColor = Color(0xFFE8E2D6);
+    final theme = ThemeData();
+    final block = TextBlock(
+      type: BlockType.paragraph,
+      spans: const [
+        StyledText('known ', InlineStyle(bold: true)),
+        StyledText('learning', InlineStyle(italic: true)),
+      ],
+    );
+
+    final span = buildStyledBlock(
+      block,
+      result,
+      theme,
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      colorSettings: colorSettings,
+      baseTextColor: readerTextColor,
+    );
+
+    expect(_textSpanStyleFor(span, 'known')?.color, readerTextColor);
+    expect(_textSpanStyleFor(span, 'known')?.fontWeight, FontWeight.bold);
+  });
+
+  testWidgets('block widget applies reader theme text color', (tester) async {
+    const readerTextColor = Color(0xFFE8E2D6);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: buildBlockWidget(
+            TextBlock(
+              type: BlockType.paragraph,
+              spans: const [StyledText('known learning')],
+            ),
+            result,
+            ThemeData(),
+            baseTextColor: readerTextColor,
+            onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+          ),
+        ),
+      ),
+    );
+
+    final richText = tester.widget<RichText>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText && widget.text.toPlainText() == 'known learning',
+      ),
+    );
+    expect(richText.text.style?.color, readerTextColor);
+  });
+
   testWidgets(
     'common contractions with straight or curly apostrophes stay plain but tappable',
     (tester) async {
