@@ -34,6 +34,7 @@ import '../services/analysis_service.dart';
 import '../services/app_logger.dart';
 import '../services/book_service.dart';
 import '../services/bookmark_service.dart';
+import '../services/chapter_ai_job.dart';
 import '../services/epub_service.dart';
 import '../services/epub_import_source.dart';
 import '../services/learning_item_service.dart';
@@ -1680,61 +1681,25 @@ class ReadingProvider extends ChangeNotifier {
 
   Future<void> generateSummary() async {
     if (_result == null || !_ensureAIReady()) return;
+    final bookId = _activeBookId;
+    if (bookId == null) return;
     _isGeneratingSummary = true;
     _aiSummary = null;
     _chapterAIStatus = null;
     notifyListeners();
     try {
-      final chapterText = _result!.passageText;
-      final sourceLanguage = SourceLanguage.inferFromText(chapterText);
-      final contentHash = AICacheService.contentHashFor(chapterText);
-      final cacheJson = await _aiCache?.loadSummary(
-        _activeBookId!,
-        _currentChapter,
-        _summaryLanguage,
-        contentHash: contentHash,
-        promptVersion: _aiService!.promptVersion,
-        sourceLanguage: sourceLanguage.code,
-        outputLanguage: _summaryLanguage,
-      );
-      if (cacheJson != null) {
-        _aiSummary = AISummary.fromJson(
-          jsonDecode(cacheJson) as Map<String, dynamic>,
-        );
-        _chapterAIStatus = const ChapterAIStatus.cacheHit(
-          ChapterAIFeature.summary,
-          '已读取缓存的章节总结。',
-        );
-        await _refreshChapterAISummaryCoverage(notify: false);
-        _isGeneratingSummary = false;
-        notifyListeners();
-        return;
-      }
-      await for (final summary in _aiService!.generateSummary(
-        chapterText: chapterText,
-        vocabulary: _result!.vocabulary.map((v) => v.word).toList(),
-        language: _summaryLanguage,
-        sourceLanguage: sourceLanguage,
-        spoilerBoundary: SpoilerBoundary.chapter(
-          bookId: _activeBookId!,
+      final result = await _createChapterAIJob().generateSummary(
+        ChapterSummaryJobRequest(
+          bookId: bookId,
           chapterIndex: _currentChapter,
+          chapterText: _result!.passageText,
+          vocabulary: _result!.vocabulary.map((v) => v.word).toList(),
+          outputLanguage: OutputLanguage.fromCode(_summaryLanguage),
         ),
-      )) {
-        _aiSummary = summary;
-        _chapterAIStatus = ChapterAIStatus.fromSummary(summary);
-        _settings?.incrementAIUsage(chapterSummary: true);
-        await _aiCache?.saveSummary(
-          _activeBookId!,
-          _currentChapter,
-          _summaryLanguage,
-          jsonEncode(summary.toJson()),
-          contentHash: contentHash,
-          promptVersion: _aiService!.promptVersion,
-          sourceLanguage: sourceLanguage.code,
-          outputLanguage: _summaryLanguage,
-        );
-        await _refreshChapterAISummaryCoverage(notify: false);
-      }
+      );
+      _aiSummary = result.summary;
+      _chapterAIStatus = result.status;
+      await _refreshChapterAISummaryCoverage(notify: false);
     } catch (e) {
       _errorMessage = '生成总结失败: $e';
       _chapterAIStatus = ChapterAIStatus.failed(
@@ -1830,65 +1795,24 @@ class ReadingProvider extends ChangeNotifier {
 
   Future<void> generatePractice() async {
     if (_result == null || !_ensureAIReady()) return;
+    final bookId = _activeBookId;
+    if (bookId == null) return;
     _isGeneratingPractice = true;
     _aiPractice = null;
     _chapterAIStatus = null;
     notifyListeners();
     try {
-      final chapterText = _result!.passageText;
-      final sourceLanguage = SourceLanguage.inferFromText(chapterText);
-      final events = _aiSummary?.events ?? [];
-      final contentHash = AICacheService.contentHashFor(
-        jsonEncode({
-          'chapterText': chapterText,
-          'events': events.map((event) => event.toJson()).toList(),
-        }),
-      );
-      final cacheJson = await _aiCache?.loadPractice(
-        _activeBookId!,
-        _currentChapter,
-        contentHash: contentHash,
-        promptVersion: _aiService!.promptVersion,
-        sourceLanguage: sourceLanguage.code,
-        outputLanguage: OutputLanguage.zhHans.code,
-      );
-      if (cacheJson != null) {
-        _aiPractice = AIPracticeSet.fromJson(
-          jsonDecode(cacheJson) as Map<String, dynamic>,
-        );
-        _chapterAIStatus = const ChapterAIStatus.cacheHit(
-          ChapterAIFeature.practice,
-          '已读取缓存的练习题。',
-        );
-        _isGeneratingPractice = false;
-        notifyListeners();
-        return;
-      }
-      await for (final practice in _aiService!.generatePractice(
-        chapterText: chapterText,
-        vocabulary: _result!.vocabulary.map((v) => v.word).toList(),
-        events: events,
-        sourceLanguage: sourceLanguage,
-        outputLanguage: OutputLanguage.zhHans,
-        spoilerBoundary: SpoilerBoundary.chapter(
-          bookId: _activeBookId!,
+      final result = await _createChapterAIJob().generatePractice(
+        ChapterPracticeJobRequest(
+          bookId: bookId,
           chapterIndex: _currentChapter,
-          scope: AIContextScope.readSoFar,
+          chapterText: _result!.passageText,
+          vocabulary: _result!.vocabulary.map((v) => v.word).toList(),
+          events: _aiSummary?.events ?? const [],
         ),
-      )) {
-        _aiPractice = practice;
-        _chapterAIStatus = ChapterAIStatus.fromPractice(practice);
-        _settings?.incrementAIUsage(practice: true);
-        await _aiCache?.savePractice(
-          _activeBookId!,
-          _currentChapter,
-          jsonEncode(practice.toJson()),
-          contentHash: contentHash,
-          promptVersion: _aiService!.promptVersion,
-          sourceLanguage: sourceLanguage.code,
-          outputLanguage: OutputLanguage.zhHans.code,
-        );
-      }
+      );
+      _aiPractice = result.practice;
+      _chapterAIStatus = result.status;
     } catch (e) {
       _errorMessage = '生成练习题失败: $e';
       _chapterAIStatus = ChapterAIStatus.failed(
@@ -2006,6 +1930,14 @@ class ReadingProvider extends ChangeNotifier {
       return false;
     }
     return true;
+  }
+
+  ChapterAIJob _createChapterAIJob() {
+    return ChapterAIJob.fromServices(
+      aiService: _aiService!,
+      cache: _aiCache,
+      settings: _settings,
+    );
   }
 
   String _chapterPreviewOpening(String chapterText) {
