@@ -33,7 +33,8 @@ void main() {
     );
 
     expect(find.textContaining('第一章顶部标记00'), findsOneWidget);
-    expect(find.text('位置 1 / 2 · 0%'), findsOneWidget);
+    expect(find.text('Chapter One · 1 / 2 · 0%'), findsOneWidget);
+    expect(find.text('位置 1 / 2 · 0%'), findsNothing);
     expect(find.byTooltip('上一页'), findsNothing);
     expect(find.byTooltip('下一页'), findsNothing);
 
@@ -65,7 +66,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('位置 1 / 2 · 60%'), findsOneWidget);
+    expect(find.text('Chapter One · 1 / 2 · 60%'), findsOneWidget);
     expect(find.textContaining('第一章顶部标记00'), findsNothing);
   });
 
@@ -597,6 +598,7 @@ void main() {
       nav.labelTextStyle?.resolve({WidgetState.selected})?.color,
       colorScheme.primary,
     );
+    expect(tester.getTopLeft(find.byType(ReaderPage)).dy, 24);
   });
 
   test('lookupWord keeps source context for the learning panel', () async {

@@ -3,7 +3,6 @@ import '../pages/reader_page.dart';
 import '../pages/vocab_page.dart';
 import '../pages/training_page.dart';
 import '../pages/stats_page.dart';
-import '../theme/app_constants.dart';
 
 class ReadingDeskScreen extends StatefulWidget {
   const ReadingDeskScreen({super.key});
@@ -21,6 +20,7 @@ class _ReadingDeskScreenState extends State<ReadingDeskScreen> {
     TrainingPage(),
     StatsPage(),
   ];
+  static const double _contentTopGap = 24;
 
   static const _navDestinations = [
     NavigationDestination(
@@ -52,12 +52,7 @@ class _ReadingDeskScreenState extends State<ReadingDeskScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            8,
-            8 + AppConstants.immersiveTitleBarTopInset,
-            8,
-            8,
-          ),
+          padding: const EdgeInsets.fromLTRB(8, _contentTopGap, 8, 8),
           child: IndexedStack(index: _currentIndex, children: _pages),
         ),
       ),

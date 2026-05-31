@@ -724,20 +724,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Widget _buildPageScaffold({required Widget child}) {
     final provider = context.watch<ReadingProvider>();
-    return Container(
-      decoration: BoxDecoration(
-        color: _readerBackgroundColor(provider),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(borderRadius: BorderRadius.circular(24), child: child),
-    );
+    return ColoredBox(color: _readerBackgroundColor(provider), child: child);
   }
 
   Widget _buildReadingProgressLine(ThemeData theme, double progress) {
@@ -1123,7 +1110,7 @@ class _ReaderPageState extends State<ReaderPage> {
     required IconData icon,
     required String tooltip,
     required VoidCallback? onPressed,
-    double size = 20,
+    double size = 19,
     bool selected = false,
   }) {
     final theme = Theme.of(context);
@@ -1132,7 +1119,7 @@ class _ReaderPageState extends State<ReaderPage> {
       tooltip: tooltip,
       onPressed: onPressed,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
       visualDensity: VisualDensity.compact,
       style: _toolbarIconButtonStyle(theme, selected: selected),
     );
@@ -1145,11 +1132,11 @@ class _ReaderPageState extends State<ReaderPage> {
   }) {
     final theme = Theme.of(context);
     return IconButton(
-      icon: Icon(icon, size: 30),
+      icon: Icon(icon, size: 22),
       tooltip: tooltip,
       onPressed: onPressed,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 30, height: 38),
+      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
       visualDensity: VisualDensity.compact,
       style: _toolbarIconButtonStyle(theme).copyWith(
         shape: WidgetStatePropertyAll(
@@ -1166,6 +1153,12 @@ class _ReaderPageState extends State<ReaderPage> {
     final colorScheme = theme.colorScheme;
     return ButtonStyle(
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      mouseCursor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return SystemMouseCursors.basic;
+        }
+        return SystemMouseCursors.click;
+      }),
       shape: WidgetStatePropertyAll(
         RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -1216,8 +1209,8 @@ class _ReaderPageState extends State<ReaderPage> {
         (theme.brightness == Brightness.dark &&
             provider.readingTheme == 'light');
     final borderColor = isDark
-        ? const Color(0xFF3A3A3A)
-        : const Color(0xFFEEEEEE);
+        ? const Color(0xFF3A3A3A).withValues(alpha: 0.72)
+        : theme.colorScheme.outlineVariant.withValues(alpha: 0.48);
     final showSearch = _layoutWidth >= 520;
     final showChapterStep = _layoutWidth >= 680 && provider.chapterCount > 1;
     final contentTitle = chapterTitle.trim().isNotEmpty
@@ -1226,19 +1219,24 @@ class _ReaderPageState extends State<ReaderPage> {
     final difficultyLabel = provider.currentBookDifficulty?.level.shortLabel;
     final locationLabel = provider.hasBook
         ? [
-            '位置 ${provider.currentChapter + 1} / ${provider.chapterCount}',
+            contentTitle,
+            '${provider.currentChapter + 1} / ${provider.chapterCount}',
             '$progressPercent%',
             ?difficultyLabel,
           ].join(' · ')
-        : 'Reader';
+        : contentTitle;
     final canGoPreviousChapter =
         provider.hasBook && provider.currentChapter > 0;
     final canGoNextChapter =
         provider.hasBook && provider.currentChapter < provider.chapterCount - 1;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF1F1F1F).withValues(alpha: 0.42)
+            : theme.colorScheme.surface.withValues(alpha: 0.86),
         border: Border(bottom: BorderSide(color: borderColor)),
       ),
       child: Row(
@@ -1264,30 +1262,17 @@ class _ReaderPageState extends State<ReaderPage> {
                   ),
                 Flexible(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          contentTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onSurface,
-                            height: 1.05,
-                          ),
-                        ),
-                        Text(
-                          locationLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            height: 1.05,
-                          ),
-                        ),
-                      ],
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      locationLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                        height: 1.1,
+                      ),
                     ),
                   ),
                 ),
@@ -1347,9 +1332,9 @@ class _ReaderPageState extends State<ReaderPage> {
             icon: const Icon(Icons.more_horiz, size: 20),
             padding: EdgeInsets.zero,
             style: _toolbarIconButtonStyle(theme).copyWith(
-              fixedSize: const WidgetStatePropertyAll(Size.square(34)),
-              minimumSize: const WidgetStatePropertyAll(Size.square(34)),
-              maximumSize: const WidgetStatePropertyAll(Size.square(34)),
+              fixedSize: const WidgetStatePropertyAll(Size.square(32)),
+              minimumSize: const WidgetStatePropertyAll(Size.square(32)),
+              maximumSize: const WidgetStatePropertyAll(Size.square(32)),
             ),
             onSelected: (value) {
               switch (value) {
