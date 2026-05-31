@@ -180,16 +180,14 @@ class PracticePromptRequest {
 
 class TextAnalysisPromptRequest {
   final String selectedText;
-  final String contextBefore;
-  final String contextAfter;
+  final String currentPassage;
   final SourceLanguage sourceLanguage;
   final OutputLanguage outputLanguage;
   final SpoilerBoundary spoilerBoundary;
 
   const TextAnalysisPromptRequest({
     required this.selectedText,
-    required this.contextBefore,
-    required this.contextAfter,
+    required this.currentPassage,
     required this.sourceLanguage,
     required this.outputLanguage,
     required this.spoilerBoundary,
@@ -485,7 +483,7 @@ $vocabList''';
         outputLanguage: request.outputLanguage,
         spoilerBoundary: request.spoilerBoundary,
       ),
-      'Task: analyze ONLY the selected text. Use nearby context only to resolve meaning. Focus on $sourceFocus.',
+      'Task: analyze ONLY the selected text. Use the current passage only to resolve meaning. Focus on $sourceFocus.',
       PromptSections.strictJsonSchema('''{
   "translation": "Contextual translation in ${request.outputLanguage.promptLabel}",
   "structure_notes": [
@@ -536,11 +534,8 @@ current_unit: ${request.spoilerBoundary.currentUnitId}
 ## Selected Text
 "${request.selectedText}"
 
-## Context Before (for reference only)
-"${request.contextBefore}"
-
-## Context After (for reference only)
-"${request.contextAfter}"''';
+## Current Passage (for reference only)
+"${request.currentPassage}"''';
 
     return _result(request, systemPrompt, userPrompt);
   }

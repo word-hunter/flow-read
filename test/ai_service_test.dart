@@ -55,8 +55,7 @@ void main() {
       final service = AIService(client);
       final result = await service.analyzeText(
         selectedText: 'Alice opened the door.',
-        contextBefore: '',
-        contextAfter: '',
+        currentPassage: 'Alice opened the door.',
       );
 
       expect(result.translation, contains('非结构化内容'));

@@ -340,21 +340,7 @@ class _ReaderPageState extends State<ReaderPage> {
     if (selectedText.isEmpty) return;
     final provider = context.read<ReadingProvider>();
     final analyzerName = '${settings.aiProvider.label} AI';
-    // Get surrounding context
-    final result = provider.result;
-    String before = '';
-    String after = '';
-    if (result != null) {
-      final fullText = result.passageText;
-      final idx = fullText.indexOf(selectedText);
-      if (idx >= 0) {
-        final start = (idx - 200).clamp(0, idx);
-        before = fullText.substring(start, idx);
-        final end = (idx + selectedText.length + 200).clamp(0, fullText.length);
-        after = fullText.substring(idx + selectedText.length, end);
-      }
-    }
-    provider.analyzeSelectedTextAI(selectedText, before, after);
+    provider.analyzeSelectedTextAI(selectedText);
     if (_isWideScreen) {
       provider.clearWordLookup();
       setState(() {

@@ -28,8 +28,7 @@ void main() {
     final prompt = const PromptBuilder().buildTextAnalysis(
       TextAnalysisPromptRequest(
         selectedText: '彼は静かにうなずいた。',
-        contextBefore: '',
-        contextAfter: '',
+        currentPassage: '彼は静かにうなずいた。',
         sourceLanguage: SourceLanguage.japanese,
         outputLanguage: OutputLanguage.zhHans,
         spoilerBoundary: SpoilerBoundary.currentPassage(),
@@ -38,6 +37,8 @@ void main() {
 
     expect(prompt.systemPrompt, contains('Source language: Japanese'));
     expect(prompt.systemPrompt, contains('particles'));
+    expect(prompt.userPrompt, contains('## Current Passage'));
+    expect(prompt.userPrompt, isNot(contains('## Context Before')));
     expect(
       prompt.systemPrompt,
       contains('Do not describe the passage as English'),

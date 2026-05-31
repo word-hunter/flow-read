@@ -1,6 +1,7 @@
 import '../models/ai_text_analysis.dart';
 import 'ai_service.dart';
 import 'llm_client.dart';
+import 'passage_request_builder.dart';
 import 'prompt_builder.dart';
 
 enum ReadingAssistantSurface { epub, rss, browser }
@@ -39,6 +40,7 @@ class ReadingAssistantContext {
 class ReadingAssistantAgent {
   final LLMClient _client;
   final PromptBuilder _promptBuilder;
+  final PassageRequestBuilder _passageRequestBuilder;
   late final AIService _aiService = AIService(
     _client,
     promptBuilder: _promptBuilder,
@@ -47,7 +49,9 @@ class ReadingAssistantAgent {
   ReadingAssistantAgent(
     this._client, {
     PromptBuilder promptBuilder = const PromptBuilder(),
-  }) : _promptBuilder = promptBuilder;
+    PassageRequestBuilder passageRequestBuilder = const PassageRequestBuilder(),
+  }) : _promptBuilder = promptBuilder,
+       _passageRequestBuilder = passageRequestBuilder;
 
   Future<String> translateSelection(String text) {
     return _aiService.translateText(text);
@@ -55,13 +59,17 @@ class ReadingAssistantAgent {
 
   Future<AITextAnalysis> analyzeSelection({
     required String selectedText,
-    required String contextBefore,
-    required String contextAfter,
+    required String sourceText,
   }) {
-    return _aiService.analyzeText(
+    final request = _passageRequestBuilder.buildSelectedTextAnalysis(
       selectedText: selectedText,
-      contextBefore: contextBefore,
-      contextAfter: contextAfter,
+      sourceText: sourceText,
+    );
+    return _aiService.analyzeText(
+      selectedText: request.selectedText,
+      currentPassage: request.currentPassage,
+      sourceLanguage: request.sourceLanguage,
+      spoilerBoundary: request.spoilerBoundary,
     );
   }
 

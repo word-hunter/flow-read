@@ -128,17 +128,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final selectedText = text.trim();
     if (selectedText.isEmpty) return;
     final pageText = _page?.plainText ?? '';
-    final index = pageText.indexOf(selectedText);
-    final beforeStart = index < 0 ? 0 : (index - 240).clamp(0, index);
-    final afterEnd = index < 0
-        ? 0
-        : (index + selectedText.length + 240).clamp(0, pageText.length);
-    final before = index < 0 ? '' : pageText.substring(beforeStart, index);
-    final after = index < 0
-        ? ''
-        : pageText.substring(index + selectedText.length, afterEnd);
     final provider = context.read<ReadingProvider>();
-    provider.analyzeSelectedTextAI(selectedText, before, after);
+    provider.analyzeSelectedTextAI(selectedText, sourceText: pageText);
     _showSelectedTextSheet(selectedText);
   }
 

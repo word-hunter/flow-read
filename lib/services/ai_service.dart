@@ -20,8 +20,7 @@ class AIService {
 
   Future<AITextAnalysis> analyzeText({
     required String selectedText,
-    required String contextBefore,
-    required String contextAfter,
+    required String currentPassage,
     SourceLanguage? sourceLanguage,
     OutputLanguage outputLanguage = OutputLanguage.zhHans,
     SpoilerBoundary? spoilerBoundary,
@@ -29,13 +28,10 @@ class AIService {
     final prompt = _promptBuilder.buildTextAnalysis(
       TextAnalysisPromptRequest(
         selectedText: selectedText,
-        contextBefore: contextBefore,
-        contextAfter: contextAfter,
+        currentPassage: currentPassage,
         sourceLanguage:
             sourceLanguage ??
-            SourceLanguage.inferFromText(
-              '$selectedText $contextBefore $contextAfter',
-            ),
+            SourceLanguage.inferFromText('$selectedText $currentPassage'),
         outputLanguage: outputLanguage,
         spoilerBoundary: spoilerBoundary ?? SpoilerBoundary.currentPassage(),
       ),

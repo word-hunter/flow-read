@@ -38,6 +38,7 @@ import '../services/epub_service.dart';
 import '../services/epub_import_source.dart';
 import '../services/learning_item_service.dart';
 import '../services/learning_analytics_service.dart';
+import '../services/passage_request_builder.dart';
 import '../services/prompt_builder.dart';
 import '../services/pronunciation_service.dart';
 import '../services/reading_config_service.dart';
@@ -67,6 +68,8 @@ class ReadingProvider extends ChangeNotifier {
   ReadingConfigService? _readingConfig;
   ReadingTimeService? _readingTime;
   SentenceAnalyzer _sentenceAnalyzer = RuleBasedSentenceAnalyzer();
+  final PassageRequestBuilder _passageRequestBuilder =
+      const PassageRequestBuilder();
   SettingsService? _settings;
   AIService? _aiService;
   AICacheService? _aiCache;
@@ -1628,13 +1631,13 @@ class ReadingProvider extends ChangeNotifier {
   // AI
   // ============================================================
 
-  Future<void> analyzeSelectedTextAI(
-    String text,
-    String before,
-    String after,
-  ) async {
+  Future<void> analyzeSelectedTextAI(String text, {String? sourceText}) async {
     if (!_ensureAIReady()) return;
-    _selectedText = text;
+    final request = _passageRequestBuilder.buildSelectedTextAnalysis(
+      selectedText: text,
+      sourceText: sourceText ?? _result?.passageText ?? text,
+    );
+    _selectedText = request.selectedText;
     _isAnalyzingText = true;
     _aiTextAnalysis = null;
     _aiTranslation = null;
@@ -1642,11 +1645,10 @@ class ReadingProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _aiTextAnalysis = await _aiService!.analyzeText(
-        selectedText: text,
-        contextBefore: before,
-        contextAfter: after,
-        sourceLanguage: SourceLanguage.inferFromText('$text $before $after'),
-        spoilerBoundary: SpoilerBoundary.currentPassage(),
+        selectedText: request.selectedText,
+        currentPassage: request.currentPassage,
+        sourceLanguage: request.sourceLanguage,
+        spoilerBoundary: request.spoilerBoundary,
       );
       _settings?.incrementAIUsage(textAnalysis: true);
     } catch (e) {
