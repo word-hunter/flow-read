@@ -282,6 +282,47 @@ void main() {
     expect(restored.chapterScrollOffset, 480);
   });
 
+  test('direct import creates pre-import backup before restore', () async {
+    final preImportDir = Directory('${tempDir.path}/pre_import_backups');
+    await settings.setBackupFolderPath(preImportDir.path);
+
+    await userVocabularyBox().put('imported', 'known');
+    final importPath = await backup.exportNow(
+      folderPath: '${tempDir.path}/restore_source',
+    );
+    final lastBackupAt = settings.lastBackupAt;
+    final lastBackupPath = settings.lastBackupPath;
+
+    await userVocabularyBox().clear();
+    await userVocabularyBox().put('current', 'learning');
+
+    await backup.importBackupFile(importPath);
+
+    expect(userVocabularyBox().get('imported'), 'known');
+    expect(userVocabularyBox().get('current'), isNull);
+    expect(settings.lastBackupAt, lastBackupAt);
+    expect(settings.lastBackupPath, lastBackupPath);
+
+    final preImportFiles = preImportDir
+        .listSync()
+        .whereType<File>()
+        .where((file) => file.path.endsWith('.flow.bak'))
+        .toList();
+    expect(preImportFiles, hasLength(1));
+    expect(
+      preImportFiles.single.path.split(Platform.pathSeparator).last,
+      startsWith('flow_read_pre_import_'),
+    );
+
+    final boxes = _decodeBackupBoxes(preImportFiles.single);
+    final vocabEntries =
+        boxes[HiveBoxNames.userVocabulary]['entries'] as List<dynamic>;
+    expect(vocabEntries.single, {
+      'key': {'type': 'string', 'value': 'current'},
+      'value': 'learning',
+    });
+  });
+
   test('exportNow writes a .flow.bak file into the selected folder', () async {
     await readingTimeBox().put('_global_', 30);
 
@@ -413,4 +454,12 @@ void main() {
       'Learning appears in an imported sentence.',
     );
   });
+}
+
+Map<String, dynamic> _decodeBackupBoxes(File file) {
+  final zipArchive = ZipDecoder().decodeBytes(file.readAsBytesSync());
+  final data =
+      jsonDecode(utf8.decode(zipArchive.findFile('data/app.json')!.content))
+          as Map<String, dynamic>;
+  return data['boxes'] as Map<String, dynamic>;
 }

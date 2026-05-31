@@ -653,7 +653,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final rssProvider = context.read<RssProvider>();
 
     try {
-      await backup.exportPreImportBackup();
       await backup.importBackupFile(path);
       await readingProvider.reloadAfterBackupRestore();
       await rssProvider.init();

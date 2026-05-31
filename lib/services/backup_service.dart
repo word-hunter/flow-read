@@ -37,8 +37,6 @@ class WordHunterImportResult {
   });
 }
 
-enum _ImportStage { validating, stagingFiles, restoringBoxes, committingFiles }
-
 class BackupService extends ChangeNotifier {
   static const schemaVersion = 1;
   static const appId = 'flow_read';
@@ -163,57 +161,12 @@ class BackupService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final folderAccess = await _folderAccess.startAccessing(
-        path: targetFolder,
+      return await _exportBackupSnapshot(
+        folderPath: targetFolder,
         bookmark: settings.backupFolderBookmark,
+        prefix: 'flow_read_backup',
+        updateLastBackup: true,
       );
-      try {
-        final createdAt = DateTime.now();
-        final bookFiles = await _collectBookFiles();
-        final dataPayload = _buildDataPayload();
-        final dataJson = const JsonEncoder().convert(dataPayload);
-        final bookIds = bookFiles.books.keys.toList();
-        final manifest = archive.buildManifest(
-          appId: appId,
-          formatVersion: archive.supportedManifestFormatVersion,
-          createdAt: createdAt,
-          bookIds: bookIds,
-          bookHasCover: bookFiles.hasCover,
-        );
-        final manifestJson = const JsonEncoder().convert(manifest);
-
-        final entries = <String, Map<String, dynamic>>{};
-        for (final id in bookIds) {
-          final file = bookFiles.books[id]!;
-          entries[archive.bookSourceEntryPath(id)] = {
-            'bytes': file.sourceBytes,
-            'compress': false,
-          };
-          if (file.coverBytes != null) {
-            entries[archive.bookCoverEntryPath(id)] = {
-              'bytes': file.coverBytes!,
-              'compress': false,
-            };
-          }
-        }
-
-        final zipBytes = await compute(archive.encodeZipArchive, {
-          'manifestJson': manifestJson,
-          'dataJson': dataJson,
-          'entries': entries,
-        });
-
-        final filePath = await _writeBackupToFolder(
-          folderPath: folderAccess.path,
-          createdAt: createdAt,
-          zipBytes: zipBytes,
-          prefix: 'flow_read_backup',
-        );
-        await settings.setLastBackup(createdAt, filePath);
-        return filePath;
-      } finally {
-        await folderAccess.stopAccessing();
-      }
     } catch (e) {
       final message = _describeExportError(e);
       _lastError = message;
@@ -224,12 +177,81 @@ class BackupService extends ChangeNotifier {
     }
   }
 
-  Future<String?> exportPreImportBackup() async {
+  Future<String> _exportBackupSnapshot({
+    required String folderPath,
+    required String prefix,
+    String? bookmark,
+    required bool updateLastBackup,
+  }) async {
+    final folderAccess = await _folderAccess.startAccessing(
+      path: folderPath,
+      bookmark: bookmark,
+    );
+    try {
+      final createdAt = DateTime.now();
+      final bookFiles = await _collectBookFiles();
+      final dataPayload = _buildDataPayload();
+      final dataJson = const JsonEncoder().convert(dataPayload);
+      final bookIds = bookFiles.books.keys.toList();
+      final manifest = archive.buildManifest(
+        appId: appId,
+        formatVersion: archive.supportedManifestFormatVersion,
+        createdAt: createdAt,
+        bookIds: bookIds,
+        bookHasCover: bookFiles.hasCover,
+      );
+      final manifestJson = const JsonEncoder().convert(manifest);
+
+      final entries = <String, Map<String, dynamic>>{};
+      for (final id in bookIds) {
+        final file = bookFiles.books[id]!;
+        entries[archive.bookSourceEntryPath(id)] = {
+          'bytes': file.sourceBytes,
+          'compress': false,
+        };
+        if (file.coverBytes != null) {
+          entries[archive.bookCoverEntryPath(id)] = {
+            'bytes': file.coverBytes!,
+            'compress': false,
+          };
+        }
+      }
+
+      final zipBytes = await compute(archive.encodeZipArchive, {
+        'manifestJson': manifestJson,
+        'dataJson': dataJson,
+        'entries': entries,
+      });
+
+      final filePath = await _writeBackupToFolder(
+        folderPath: folderAccess.path,
+        createdAt: createdAt,
+        zipBytes: zipBytes,
+        prefix: prefix,
+      );
+      if (updateLastBackup) {
+        await settings.setLastBackup(createdAt, filePath);
+      }
+      return filePath;
+    } finally {
+      await folderAccess.stopAccessing();
+    }
+  }
+
+  Future<String> _exportPreImportBackup() async {
     final configuredPath = settings.backupFolderPath.trim();
+    Object? configuredError;
+
     if (configuredPath.isNotEmpty) {
       try {
-        return await exportNow(folderPath: configuredPath);
-      } catch (_) {
+        return await _exportBackupSnapshot(
+          folderPath: configuredPath,
+          bookmark: settings.backupFolderBookmark,
+          prefix: 'flow_read_pre_import',
+          updateLastBackup: false,
+        );
+      } catch (e) {
+        configuredError = e;
         // Fallback to documents directory.
       }
     }
@@ -240,28 +262,55 @@ class BackupService extends ChangeNotifier {
         '${documentsDir.path}${Platform.pathSeparator}backups'
         '${Platform.pathSeparator}pre_import',
       );
-      return await exportNow(folderPath: preImportDir.path);
+      return await _exportBackupSnapshot(
+        folderPath: preImportDir.path,
+        prefix: 'flow_read_pre_import',
+        updateLastBackup: false,
+      );
     } catch (e) {
-      return null;
+      final cause = configuredError ?? e;
+      throw BackupException('导入前备份失败，当前数据未更改：${_describeExportError(cause)}');
     }
   }
 
   Future<void> importBackupFile(String filePath) async {
+    if (_isSyncing) {
+      throw const BackupException('备份正在进行');
+    }
+
+    _isSyncing = true;
+    _lastError = null;
+    notifyListeners();
+
+    try {
+      await _importBackupFile(filePath);
+    } catch (e) {
+      final message = e is BackupException ? e.message : e.toString();
+      _lastError = message;
+      if (e is BackupException) rethrow;
+      throw BackupException(message);
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _importBackupFile(String filePath) async {
     final file = File(filePath);
     if (!await file.exists()) {
       throw const BackupException('备份文件不存在');
-    }
-
-    final headerBytes = await file.openRead(0, 4).first;
-    if (headerBytes.length < 4 ||
-        !archive.isZipFileHeader(Uint8List.fromList(headerBytes))) {
-      throw const BackupException('不是 Flow Read 备份文件');
     }
 
     final zipBytes = await file.readAsBytes();
     if (zipBytes.isEmpty) {
       throw const BackupException('备份文件为空');
     }
+    if (zipBytes.length < 4 ||
+        !archive.isZipFileHeader(Uint8List.sublistView(zipBytes, 0, 4))) {
+      throw const BackupException('不是 Flow Read 备份文件');
+    }
+
+    await _exportPreImportBackup();
 
     final decoded = await compute(archive.decodeZipArchive, zipBytes);
     final manifestJson = decoded['manifestJson'] as String;
@@ -309,10 +358,7 @@ class BackupService extends ChangeNotifier {
       '${documentsDir.path}${Platform.pathSeparator}books',
     );
 
-    var stage = _ImportStage.validating;
-
     try {
-      stage = _ImportStage.stagingFiles;
       await booksDir.create(recursive: true);
 
       final stagingPaths = <String, ({String source, String? cover})>{};
@@ -339,7 +385,6 @@ class BackupService extends ChangeNotifier {
         stagingPaths[id] = (source: stagingSource, cover: stagingCover);
       }
 
-      stage = _ImportStage.restoringBoxes;
       for (final segment in _backupDataSegments) {
         final boxData = boxes[segment.boxName];
         if (boxData is Map) {
@@ -347,7 +392,6 @@ class BackupService extends ChangeNotifier {
         }
       }
 
-      stage = _ImportStage.committingFiles;
       final booksBoxRef = Hive.box<BookMetadata>(HiveBoxNames.books);
       for (final id in manifestIds) {
         final canonicalSource = _bookSourcePath(booksDir, id);
@@ -386,9 +430,6 @@ class BackupService extends ChangeNotifier {
       await settings.reloadFromStorage();
     } catch (_) {
       await _cleanupStaleImportingFiles(booksDir);
-      if (stage == _ImportStage.validating) {
-        throw const BackupException('导入失败，当前数据未更改。');
-      }
       throw const BackupException(
         '导入失败，当前数据可能已部分更改。\n'
         '如需恢复，请使用上次导入前自动保存的备份。',

@@ -15,3 +15,4 @@ Flow Read 的备份格式从单个 pretty JSON（内含 base64 编码的 EPUB/�
 - Word Hunter 导入保留不变 —— 它是外部第三方格式，不受此决策影响。
 - 新增 `lib/services/backup_archive.dart` 处理 zip 容器逻辑（manifest、编解码、isolate 调度），与 `BackupService` 的业务职责分离。
 - `importBackupFile()` 改用 magic bytes（`PK\x03\x04`）探测文件类型，不依赖扩展名。
+- `importBackupFile()` 负责完整恢复事务：先生成 Pre-backup，再校验 manifest/data、暂存书籍文件、恢复 boxes、提交 staged 文件并清理临时文件。调用方不需要也不应该在外层手动执行导入前备份。
