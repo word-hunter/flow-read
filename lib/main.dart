@@ -26,6 +26,7 @@ void main() {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      _registerBundledFontLicenses();
       await _initializeLogging();
       _installGlobalErrorLogging();
       runApp(const FlowReadBootstrapApp());
@@ -40,6 +41,15 @@ void main() {
       );
     },
   );
+}
+
+void _registerBundledFontLicenses() {
+  LicenseRegistry.addLicense(() async* {
+    final literataLicense = await rootBundle.loadString(
+      'assets/fonts/literata/OFL.txt',
+    );
+    yield LicenseEntryWithLineBreaks(<String>['Literata'], literataLicense);
+  });
 }
 
 Future<void> _initializeLogging() async {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/reader_font.dart';
 import '../providers/reading_provider.dart';
 
 class FontSettingsSheet extends StatelessWidget {
@@ -103,7 +104,7 @@ class FontSettingsSheet extends StatelessWidget {
   }
 
   Widget _buildFontFamilySection(ReadingProvider provider, ThemeData theme) {
-    final families = ['Serif', 'Sans-serif', 'Monospace'];
+    final selectedFamily = ReaderFonts.normalizeFamily(provider.fontFamily);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -116,13 +117,13 @@ class FontSettingsSheet extends StatelessWidget {
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
-          children: families.map((family) {
-            final isSelected = provider.fontFamily == family;
+          children: ReaderFonts.options.map((option) {
+            final isSelected = selectedFamily == option.family;
             return ChoiceChip(
               label: Text(
-                family,
+                option.label,
                 style: TextStyle(
-                  fontFamily: family,
+                  fontFamily: option.family,
                   fontSize: 14,
                   color: isSelected
                       ? theme.colorScheme.onPrimaryContainer
@@ -131,7 +132,7 @@ class FontSettingsSheet extends StatelessWidget {
               ),
               selected: isSelected,
               selectedColor: theme.colorScheme.primaryContainer,
-              onSelected: (_) => provider.setFontFamily(family),
+              onSelected: (_) => provider.setFontFamily(option.family),
             );
           }).toList(),
         ),

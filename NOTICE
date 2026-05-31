@@ -11,6 +11,13 @@ in pubspec.yaml and pubspec.lock. Those dependencies remain under their own
 licenses. Review the package metadata from pub.dev and the generated Flutter
 license registry before redistributing a release build.
 
+Bundled fonts
+-------------
+
+The files under assets/fonts/literata/ are from The Literata Project Authors
+(https://github.com/googlefonts/literata). They are bundled under the SIL Open
+Font License, Version 1.1. See assets/fonts/literata/OFL.txt.
+
 Bundled lexical data
 --------------------
 

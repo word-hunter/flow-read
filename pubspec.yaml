@@ -79,6 +79,20 @@ flutter:
     - assets/brand/
     - assets/wordnet/
     - assets/dict/
+    - assets/fonts/literata/OFL.txt
+
+  fonts:
+    - family: Literata
+      fonts:
+        - asset: assets/fonts/literata/Literata-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/literata/Literata-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/literata/Literata-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/literata/Literata-Bold.ttf
+          weight: 700
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

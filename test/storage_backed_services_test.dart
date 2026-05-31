@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/bookmarked_word.dart';
+import 'package:flow_read/models/reader_font.dart';
 import 'package:flow_read/models/reading_bookmark.dart';
 import 'package:flow_read/models/rss_models.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
@@ -63,7 +64,7 @@ void main() {
 
     await service.setFontSize(30);
     await service.setLineHeight(1);
-    await service.setFontFamily('Sans');
+    await service.setFontFamily(ReaderFonts.literata);
     await service.setTheme('sepia');
 
     final reloaded = ReadingConfigService();
@@ -71,8 +72,15 @@ void main() {
 
     expect(reloaded.fontSize, 24);
     expect(reloaded.lineHeight, 1.4);
-    expect(reloaded.fontFamily, 'Sans');
+    expect(reloaded.fontFamily, ReaderFonts.literata);
     expect(reloaded.theme, 'sepia');
+
+    await reloaded.setFontFamily('Unsupported Font');
+
+    final sanitized = ReadingConfigService();
+    await sanitized.init();
+
+    expect(sanitized.fontFamily, ReaderFonts.defaultFamily);
   });
 
   test(

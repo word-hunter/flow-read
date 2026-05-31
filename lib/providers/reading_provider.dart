@@ -21,6 +21,7 @@ import '../models/chapter_ai_coverage.dart';
 import '../models/chapter_ai_status.dart';
 import '../models/learning_item.dart';
 import '../models/learning_analytics.dart';
+import '../models/reader_font.dart';
 import '../models/reading_search_result.dart';
 import '../models/reading_bookmark.dart';
 import '../models/sentence_breakdown.dart';
@@ -346,7 +347,8 @@ class ReadingProvider extends ChangeNotifier {
 
   // -- Reading config (delegated to ReadingConfigService) --
   double get fontSize => _readingConfig?.fontSize ?? 16.0;
-  String get fontFamily => _readingConfig?.fontFamily ?? 'Serif';
+  String get fontFamily =>
+      _readingConfig?.fontFamily ?? ReaderFonts.defaultFamily;
   double get lineHeight => _readingConfig?.lineHeight ?? 2.0;
   String get readingTheme => _readingConfig?.theme ?? 'light';
 

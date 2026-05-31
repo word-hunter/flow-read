@@ -105,6 +105,56 @@ void main() {
     expect(_colorFor(tappableTexts, 'mystery'), unknownColor);
   });
 
+  testWidgets('reader font family is applied to tappable paragraph spans', (
+    tester,
+  ) async {
+    final theme = ThemeData();
+
+    final span = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      theme,
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      colorSettings: colorSettings,
+      fontFamily: 'Literata',
+    );
+
+    expect(_textSpanStyleFor(span, 'known')?.fontFamily, 'Literata');
+    expect(_textSpanStyleFor(span, 'learning')?.fontFamily, 'Literata');
+    expect(_textSpanStyleFor(span, 'mystery')?.fontFamily, 'Literata');
+    expect(_tappableTextSpans(span), hasLength(3));
+  });
+
+  testWidgets('styled block inline emphasis keeps selected reader font', (
+    tester,
+  ) async {
+    final theme = ThemeData();
+    final block = TextBlock(
+      type: BlockType.paragraph,
+      spans: const [
+        StyledText('known ', InlineStyle(bold: true)),
+        StyledText('learning', InlineStyle(italic: true)),
+      ],
+    );
+
+    final span = buildStyledBlock(
+      block,
+      result,
+      theme,
+      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      colorSettings: colorSettings,
+      fontFamily: 'Literata',
+    );
+
+    final knownStyle = _textSpanStyleFor(span, 'known');
+    final learningStyle = _textSpanStyleFor(span, 'learning');
+
+    expect(knownStyle?.fontFamily, 'Literata');
+    expect(knownStyle?.fontWeight, FontWeight.bold);
+    expect(learningStyle?.fontFamily, 'Literata');
+    expect(learningStyle?.fontStyle, FontStyle.italic);
+  });
+
   testWidgets(
     'common contractions with straight or curly apostrophes stay plain but tappable',
     (tester) async {

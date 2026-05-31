@@ -1,3 +1,4 @@
+import '../models/reader_font.dart';
 import '../storage/repositories/reading_config_repository.dart';
 
 class ReadingConfigService {
@@ -7,7 +8,7 @@ class ReadingConfigService {
   final ReadingConfigRepository _repository;
 
   double fontSize = 16.0;
-  String fontFamily = 'Serif';
+  String fontFamily = ReaderFonts.defaultFamily;
   double lineHeight = 2.0;
   String theme = 'light';
 
@@ -22,7 +23,12 @@ class ReadingConfigService {
           _repository.getString('fontSize', defaultValue: '16.0'),
         ) ??
         16.0;
-    fontFamily = _repository.getString('fontFamily', defaultValue: 'Serif');
+    fontFamily = ReaderFonts.normalizeFamily(
+      _repository.getString(
+        'fontFamily',
+        defaultValue: ReaderFonts.defaultFamily,
+      ),
+    );
     lineHeight =
         double.tryParse(
           _repository.getString('lineHeight', defaultValue: '2.0'),
@@ -37,8 +43,8 @@ class ReadingConfigService {
   }
 
   Future<void> setFontFamily(String value) async {
-    fontFamily = value;
-    await _repository.putString('fontFamily', value);
+    fontFamily = ReaderFonts.normalizeFamily(value);
+    await _repository.putString('fontFamily', fontFamily);
   }
 
   Future<void> setLineHeight(double value) async {
