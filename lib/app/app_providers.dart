@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
@@ -8,13 +10,8 @@ import '../services/ai_service.dart';
 import '../services/backup_service.dart';
 import '../services/book_service.dart';
 import '../services/bookmark_service.dart';
-import '../services/dictionary/collins_repository.dart';
-import '../services/dictionary/dictionary_cache_service.dart';
 import '../services/dictionary/dictionary_manager_service.dart';
-import '../services/dictionary/dictionary_repository.dart';
-import '../services/dictionary/dictionary_source_config.dart';
-import '../services/dictionary/longman_repository.dart';
-import '../services/dictionary/wordnet_repository.dart';
+import '../services/dictionary/dictionary_source_registry.dart';
 import '../services/learning_item_service.dart';
 import '../services/learning_analytics_service.dart';
 import '../services/review_schedule_service.dart';
@@ -86,30 +83,13 @@ ReadingProvider _createReadingProvider(SettingsService settings) {
   userVocab.init();
   provider.setUserVocabulary(userVocab);
 
-  final dictCache = DictionaryCacheService();
-  dictCache.init();
+  final dictionarySources = DictionarySourceRegistry();
+  unawaited(dictionarySources.init());
 
   provider.setWordRepository(
     DictionaryManagerService(
       settings: settings,
-      sources: [
-        DictionarySourceAdapter(
-          type: DictionarySourceType.wordNet,
-          repository: WordNetRepository(),
-        ),
-        DictionarySourceAdapter(
-          type: DictionarySourceType.dictionaryApi,
-          repository: DictionaryRepository(),
-        ),
-        DictionarySourceAdapter(
-          type: DictionarySourceType.collins,
-          repository: CollinsRepository(dictCache),
-        ),
-        DictionarySourceAdapter(
-          type: DictionarySourceType.longman,
-          repository: LongmanRepository(dictCache),
-        ),
-      ],
+      sources: dictionarySources.adapters(),
     ),
   );
 

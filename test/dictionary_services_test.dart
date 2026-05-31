@@ -14,6 +14,7 @@ import 'package:flow_read/services/dictionary/dictionary_cache_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_manager_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_repository.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_config.dart';
+import 'package:flow_read/services/dictionary/dictionary_source_registry.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_test_service.dart';
 import 'package:flow_read/services/ai_cache_service.dart';
 import 'package:flow_read/services/ai_service.dart';
@@ -229,6 +230,47 @@ void main() {
       );
       expect(settingsBox().get('dictionarySources'), isA<String>());
     });
+
+    test(
+      'source registry supplies lookup and diagnostic repositories',
+      () async {
+        final registry = DictionarySourceRegistry();
+        await registry.init();
+
+        expect(
+          DictionarySourceRegistry.sourceTypes,
+          DictionarySourceConfig.defaults.map((config) => config.type).toList(),
+        );
+
+        final adapters = registry.adapters();
+        expect(
+          adapters.map((adapter) => adapter.type).toList(),
+          DictionarySourceRegistry.sourceTypes,
+        );
+
+        final repositories = registry.repositories();
+        expect(
+          repositories.keys.toList(),
+          DictionarySourceRegistry.sourceTypes,
+        );
+        expect(
+          repositories[DictionarySourceType.collins],
+          isA<CollinsRepository>(),
+        );
+        expect(
+          repositories[DictionarySourceType.wordNet],
+          isA<WordNetRepository>(),
+        );
+        expect(
+          repositories[DictionarySourceType.dictionaryApi],
+          isA<DictionaryRepository>(),
+        );
+        expect(
+          repositories[DictionarySourceType.longman],
+          isA<LongmanRepository>(),
+        );
+      },
+    );
 
     test(
       'legacy WordNet-first source order migrates to Collins-first',

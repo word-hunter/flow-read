@@ -14,12 +14,9 @@ import '../services/backup_folder_access.dart';
 import '../services/backup_service.dart';
 import '../services/changelog_service.dart';
 import '../services/dictionary/dictionary_cache_service.dart';
-import '../services/dictionary/collins_repository.dart';
-import '../services/dictionary/dictionary_repository.dart';
 import '../services/dictionary/dictionary_source_config.dart';
+import '../services/dictionary/dictionary_source_registry.dart';
 import '../services/dictionary/dictionary_source_test_service.dart';
-import '../services/dictionary/longman_repository.dart';
-import '../services/dictionary/wordnet_repository.dart';
 import '../services/external_url_launcher.dart';
 import '../services/log_folder_opener.dart';
 import '../services/llm_client.dart';
@@ -430,15 +427,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     try {
-      final cache = DictionaryCacheService();
-      await cache.init();
+      final dictionarySources = DictionarySourceRegistry();
+      await dictionarySources.init();
       final tester = DictionarySourceTestService(
-        repositories: {
-          DictionarySourceType.wordNet: WordNetRepository(),
-          DictionarySourceType.dictionaryApi: DictionaryRepository(),
-          DictionarySourceType.collins: CollinsRepository(cache),
-          DictionarySourceType.longman: LongmanRepository(cache),
-        },
+        repositories: dictionarySources.repositories(),
       );
 
       final results = await tester.testSources(
