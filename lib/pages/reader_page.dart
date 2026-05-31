@@ -33,6 +33,7 @@ class _ReaderPageState extends State<ReaderPage> {
   static const double _viewportRestorePixelTolerance = 0.5;
 
   final ScrollController _scrollController = ScrollController();
+  final MenuController _tocMenuController = MenuController();
   final FocusNode _readerFocusNode = FocusNode(
     debugLabel: 'ReaderPageKeyboard',
   );
@@ -50,6 +51,7 @@ class _ReaderPageState extends State<ReaderPage> {
   _ReaderSidebarMode _sidebarMode = _ReaderSidebarMode.word;
   bool _sidebarOpen = false;
   bool _searchSheetOpen = false;
+  bool _tocMenuOpen = false;
   bool _searchShowingAll = false;
   bool _dailyGoalPromptShown = false;
   bool _wasDailyGoalReached = false;
@@ -386,6 +388,20 @@ class _ReaderPageState extends State<ReaderPage> {
     );
   }
 
+  void _toggleTocMenu(MenuController controller) {
+    _hideReadingReminder();
+    if (controller.isOpen) {
+      controller.close();
+    } else {
+      controller.open();
+    }
+  }
+
+  void _setTocMenuOpen(bool isOpen) {
+    if (!mounted || _tocMenuOpen == isOpen) return;
+    setState(() => _tocMenuOpen = isOpen);
+  }
+
   void _showFontSettingsSheet() {
     _hideReadingReminder();
     showModalBottomSheet(
@@ -661,38 +677,42 @@ class _ReaderPageState extends State<ReaderPage> {
                 _buildReadingProgressLine(theme, _displayProgress),
                 _buildReadingReminder(theme),
                 Expanded(
-                  child: isWide
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _buildReadingContent(
-                                paragraphs,
-                                blocks,
-                                result,
-                                theme,
-                                colorSettings,
-                                settings.aiFeaturesEnabled,
+                  child: _buildReadingBodyOverlay(
+                    theme: theme,
+                    showOverlay: isWide && _tocMenuOpen,
+                    child: isWide
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _buildReadingContent(
+                                  paragraphs,
+                                  blocks,
+                                  result,
+                                  theme,
+                                  colorSettings,
+                                  settings.aiFeaturesEnabled,
+                                ),
                               ),
-                            ),
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeInOut,
-                              alignment: Alignment.topCenter,
-                              child: _sidebarOpen
-                                  ? _buildReaderSidebar()
-                                  : const SizedBox.shrink(),
-                            ),
-                          ],
-                        )
-                      : _buildReadingContent(
-                          paragraphs,
-                          blocks,
-                          result,
-                          theme,
-                          colorSettings,
-                          settings.aiFeaturesEnabled,
-                        ),
+                              AnimatedSize(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeInOut,
+                                alignment: Alignment.topCenter,
+                                child: _sidebarOpen
+                                    ? _buildReaderSidebar()
+                                    : const SizedBox.shrink(),
+                              ),
+                            ],
+                          )
+                        : _buildReadingContent(
+                            paragraphs,
+                            blocks,
+                            result,
+                            theme,
+                            colorSettings,
+                            settings.aiFeaturesEnabled,
+                          ),
+                  ),
                 ),
               ],
             ),
@@ -766,6 +786,38 @@ class _ReaderPageState extends State<ReaderPage> {
               ),
             )
           : const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildReadingBodyOverlay({
+    required ThemeData theme,
+    required bool showOverlay,
+    required Widget child,
+  }) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        Positioned.fill(
+          child: IgnorePointer(
+            ignoring: !showOverlay,
+            child: AnimatedOpacity(
+              opacity: showOverlay ? 1 : 0,
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.easeOutCubic,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _tocMenuController.close,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.shadow.withValues(alpha: 0.06),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1072,7 +1124,9 @@ class _ReaderPageState extends State<ReaderPage> {
     required String tooltip,
     required VoidCallback? onPressed,
     double size = 20,
+    bool selected = false,
   }) {
+    final theme = Theme.of(context);
     return IconButton(
       icon: Icon(icon, size: size),
       tooltip: tooltip,
@@ -1080,9 +1134,7 @@ class _ReaderPageState extends State<ReaderPage> {
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints.tightFor(width: 34, height: 34),
       visualDensity: VisualDensity.compact,
-      style: IconButton.styleFrom(
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
+      style: _toolbarIconButtonStyle(theme, selected: selected),
     );
   }
 
@@ -1091,6 +1143,7 @@ class _ReaderPageState extends State<ReaderPage> {
     required String tooltip,
     required VoidCallback? onPressed,
   }) {
+    final theme = Theme.of(context);
     return IconButton(
       icon: Icon(icon, size: 30),
       tooltip: tooltip,
@@ -1098,9 +1151,56 @@ class _ReaderPageState extends State<ReaderPage> {
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints.tightFor(width: 30, height: 38),
       visualDensity: VisualDensity.compact,
-      style: IconButton.styleFrom(
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      style: _toolbarIconButtonStyle(theme).copyWith(
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
+    );
+  }
+
+  ButtonStyle _toolbarIconButtonStyle(
+    ThemeData theme, {
+    bool selected = false,
+  }) {
+    final colorScheme = theme.colorScheme;
+    return ButtonStyle(
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return Colors.transparent;
+        }
+        if (states.contains(WidgetState.pressed)) {
+          return colorScheme.primary.withValues(alpha: 0.14);
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return colorScheme.primary.withValues(alpha: selected ? 0.16 : 0.08);
+        }
+        return selected
+            ? colorScheme.primary.withValues(alpha: 0.12)
+            : Colors.transparent;
+      }),
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return colorScheme.onSurface.withValues(alpha: 0.38);
+        }
+        if (selected ||
+            states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return colorScheme.primary;
+        }
+        return colorScheme.onSurfaceVariant;
+      }),
+      overlayColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) {
+          return colorScheme.primary.withValues(alpha: 0.10);
+        }
+        return Colors.transparent;
+      }),
     );
   }
 
@@ -1148,12 +1248,7 @@ class _ReaderPageState extends State<ReaderPage> {
             tooltip: '返回',
             onPressed: () => context.read<ReadingProvider>().exitReader(),
           ),
-          if (provider.hasBook && provider.chapterCount > 1)
-            _compactIconButton(
-              icon: Icons.menu,
-              tooltip: '目录',
-              onPressed: _showTocSheet,
-            ),
+          _buildTocButton(provider, useDropdown: showSidebarToggle),
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1249,6 +1344,13 @@ class _ReaderPageState extends State<ReaderPage> {
           PopupMenuButton<String>(
             position: PopupMenuPosition.under,
             tooltip: '更多',
+            icon: const Icon(Icons.more_horiz, size: 20),
+            padding: EdgeInsets.zero,
+            style: _toolbarIconButtonStyle(theme).copyWith(
+              fixedSize: const WidgetStatePropertyAll(Size.square(34)),
+              minimumSize: const WidgetStatePropertyAll(Size.square(34)),
+              maximumSize: const WidgetStatePropertyAll(Size.square(34)),
+            ),
             onSelected: (value) {
               switch (value) {
                 case 'search':
@@ -1293,13 +1395,52 @@ class _ReaderPageState extends State<ReaderPage> {
               ],
               const PopupMenuItem(value: 'bookmarks', child: Text('历史书签')),
             ],
-            child: const SizedBox.square(
-              dimension: 34,
-              child: Icon(Icons.more_horiz, size: 20),
-            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTocButton(
+    ReadingProvider provider, {
+    required bool useDropdown,
+  }) {
+    if (!provider.hasBook || provider.chapterCount <= 1) {
+      return const SizedBox.shrink();
+    }
+
+    if (!useDropdown) {
+      return _compactIconButton(
+        icon: Icons.menu,
+        tooltip: '目录',
+        onPressed: _showTocSheet,
+      );
+    }
+
+    return MenuAnchor(
+      controller: _tocMenuController,
+      onOpen: () => _setTocMenuOpen(true),
+      onClose: () => _setTocMenuOpen(false),
+      alignmentOffset: const Offset(0, 6),
+      style: const MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(Colors.transparent),
+        elevation: WidgetStatePropertyAll(0),
+        padding: WidgetStatePropertyAll(EdgeInsets.zero),
+      ),
+      menuChildren: [
+        TocDropdownPanel(
+          onClose: _tocMenuController.close,
+          onChapterSelected: (_) => _tocMenuController.close(),
+        ),
+      ],
+      builder: (context, controller, _) {
+        return _compactIconButton(
+          icon: controller.isOpen ? Icons.menu_open : Icons.menu,
+          tooltip: '目录',
+          selected: controller.isOpen,
+          onPressed: () => _toggleTocMenu(controller),
+        );
+      },
     );
   }
 
