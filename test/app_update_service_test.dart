@@ -185,6 +185,7 @@ void main() {
             headers: {'content-type': 'application/zip'},
           );
         }),
+        useNativeMacosArchiveExtractor: false,
       );
 
       final update = AppUpdateInfo(
@@ -204,6 +205,90 @@ void main() {
       expect(File('$appPath/Contents/Info.plist').existsSync(), isTrue);
     });
 
+    test('uses ditto for macOS app archive extraction', () async {
+      final zipFile = File('${Directory.systemTemp.path}/flow_read_test.zip')
+        ..writeAsBytesSync(_createAppZip());
+      final extractDir = Directory.systemTemp.createTempSync(
+        'flow_read_ditto_test_',
+      );
+      final calls = <({String executable, List<String> arguments})>[];
+      final service = AppUpdateService(
+        client: MockClient((_) async {
+          return http.Response('', 200);
+        }),
+        useNativeMacosArchiveExtractor: true,
+        processRunner: (executable, arguments) async {
+          calls.add((executable: executable, arguments: arguments));
+          final appDir = Directory('${extractDir.path}/FlowRead.app');
+          appDir.createSync(recursive: true);
+          File('${appDir.path}/Contents/Info.plist')
+            ..createSync(recursive: true)
+            ..writeAsStringSync('');
+          File('${appDir.path}/Contents/MacOS/FlowRead')
+            ..createSync(recursive: true)
+            ..writeAsStringSync('hello')
+            ..setLastModifiedSync(DateTime(2026, 1, 1));
+          if (!Platform.isWindows) {
+            await Process.run('chmod', [
+              '755',
+              '${appDir.path}/Contents/MacOS/FlowRead',
+            ]);
+          }
+          return ProcessResult(1, 0, '', '');
+        },
+      );
+
+      addTearDown(() {
+        if (zipFile.existsSync()) zipFile.deleteSync();
+        if (extractDir.existsSync()) extractDir.deleteSync(recursive: true);
+      });
+
+      final appPath = await service.extractAndFindApp(zipFile, extractDir.path);
+
+      expect(appPath, endsWith('FlowRead.app'));
+      expect(calls, hasLength(1));
+      expect(calls.single.executable, 'ditto');
+      expect(calls.single.arguments, [
+        '-x',
+        '-k',
+        zipFile.path,
+        extractDir.path,
+      ]);
+    });
+
+    test('throws when macOS archive extraction command fails', () async {
+      final zipFile = File('${Directory.systemTemp.path}/flow_read_test.zip')
+        ..writeAsBytesSync(_createAppZip());
+      final extractDir = Directory.systemTemp.createTempSync(
+        'flow_read_ditto_failure_test_',
+      );
+      final service = AppUpdateService(
+        client: MockClient((_) async {
+          return http.Response('', 200);
+        }),
+        useNativeMacosArchiveExtractor: true,
+        processRunner: (_, _) async {
+          return ProcessResult(1, 1, '', 'ditto failed');
+        },
+      );
+
+      addTearDown(() {
+        if (zipFile.existsSync()) zipFile.deleteSync();
+        if (extractDir.existsSync()) extractDir.deleteSync(recursive: true);
+      });
+
+      expect(
+        service.extractAndFindApp(zipFile, extractDir.path),
+        throwsA(
+          isA<AppUpdateException>().having(
+            (error) => error.message,
+            'message',
+            contains('ditto failed'),
+          ),
+        ),
+      );
+    });
+
     test(
       'preserves executable permissions inside extracted app bundle',
       () async {
@@ -212,6 +297,7 @@ void main() {
           client: MockClient((_) async {
             return http.Response.bytes(zipBytes, 200);
           }),
+          useNativeMacosArchiveExtractor: false,
         );
 
         final update = AppUpdateInfo(
@@ -241,6 +327,39 @@ void main() {
         client: MockClient((_) async {
           return http.Response.bytes(zipBytes, 200);
         }),
+        useNativeMacosArchiveExtractor: false,
+      );
+
+      final update = AppUpdateInfo(
+        version: '1.0.0',
+        tagName: 'v1.0.0',
+        releasePageUrl: Uri.parse('https://github.com/test/releases/v1.0.0'),
+        isPrerelease: false,
+        publishedAt: DateTime(2026, 1, 1),
+        releaseNotes: 'Test',
+        assetName: 'FlowRead-macos-1.0.0.zip',
+        downloadUrl: Uri.parse('https://example.com/FlowRead-macos-1.0.0.zip'),
+      );
+
+      expect(
+        service.downloadAndExtract(update),
+        throwsA(
+          isA<AppUpdateException>().having(
+            (error) => error.message,
+            'message',
+            contains('未找到可安装的应用'),
+          ),
+        ),
+      );
+    });
+
+    test('throws when app bundle has no launch executable', () async {
+      final zipBytes = _createAppZip(includeExecutable: false);
+      final service = AppUpdateService(
+        client: MockClient((_) async {
+          return http.Response.bytes(zipBytes, 200);
+        }),
+        useNativeMacosArchiveExtractor: false,
       );
 
       final update = AppUpdateInfo(
@@ -302,6 +421,7 @@ void main() {
         client: MockClient((_) async {
           return http.Response.bytes(zipBytes, 200);
         }),
+        useNativeMacosArchiveExtractor: false,
       );
 
       final update = AppUpdateInfo(
@@ -381,7 +501,7 @@ Map<String, dynamic> _release({
   };
 }
 
-Uint8List _createAppZip({bool includeExecutable = false}) {
+Uint8List _createAppZip({bool includeExecutable = true}) {
   final archive = Archive();
   final infoPlist = ArchiveFile(
     'FlowRead.app/Contents/Info.plist',

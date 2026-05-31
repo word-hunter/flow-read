@@ -8,6 +8,7 @@ const _appBundleName = 'FlowRead.app';
 const _requiredReleaseEntitlements = [
   'com.apple.security.network.client',
   'com.apple.security.files.user-selected.read-write',
+  'com.apple.security.files.user-selected.executable',
   'com.apple.security.files.bookmarks.app-scope',
 ];
 const _generatedChangelogSections = ['Added', 'Fixed', 'Changed'];

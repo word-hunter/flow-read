@@ -11,6 +11,9 @@ import 'app_version.dart';
 
 enum AppUpdatePhase { downloading, extracting, complete }
 
+typedef AppUpdateProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> arguments);
+
 class AppUpdateInfo {
   const AppUpdateInfo({
     required this.version,
@@ -51,13 +54,20 @@ class AppUpdateService {
     http.Client? client,
     this.owner = AppLinks.repositoryOwner,
     this.repo = AppLinks.repositoryName,
+    AppUpdateProcessRunner? processRunner,
+    bool? useNativeMacosArchiveExtractor,
   }) : _client = client ?? http.Client(),
-       _ownsClient = client == null;
+       _ownsClient = client == null,
+       _processRunner = processRunner ?? Process.run,
+       _useNativeMacosArchiveExtractor =
+           useNativeMacosArchiveExtractor ?? Platform.isMacOS;
 
   final String owner;
   final String repo;
   final http.Client _client;
   final bool _ownsClient;
+  final AppUpdateProcessRunner _processRunner;
+  final bool _useNativeMacosArchiveExtractor;
 
   static const _stableChannel = 'stable';
 
@@ -171,8 +181,29 @@ class AppUpdateService {
   }
 
   Future<String> extractAndFindApp(File zipFile, String extractDir) async {
-    await extractFileToDisk(zipFile.path, extractDir);
+    if (_useNativeMacosArchiveExtractor) {
+      await _extractMacosAppArchive(zipFile, extractDir);
+    } else {
+      await extractFileToDisk(zipFile.path, extractDir);
+    }
     return _findAppBundle(extractDir);
+  }
+
+  Future<void> _extractMacosAppArchive(File zipFile, String extractDir) async {
+    try {
+      final result = await _processRunner('ditto', [
+        '-x',
+        '-k',
+        zipFile.path,
+        extractDir,
+      ]);
+      if (result.exitCode == 0) return;
+
+      final output = _processOutput(result);
+      throw AppUpdateException(output.isEmpty ? '解压更新包失败' : '解压更新包失败：$output');
+    } on ProcessException catch (error) {
+      throw AppUpdateException('解压更新包失败：${error.message}');
+    }
   }
 
   Future<String> downloadAndExtract(
@@ -223,12 +254,30 @@ class AppUpdateService {
     for (final entity in dir.listSync(recursive: true)) {
       if (entity is Directory &&
           entity.path.endsWith('.app') &&
-          File('${entity.path}/Contents/Info.plist').existsSync()) {
+          File('${entity.path}/Contents/Info.plist').existsSync() &&
+          _hasExecutable(entity)) {
         return entity.path;
       }
     }
 
     return '';
+  }
+
+  static bool _hasExecutable(Directory appDir) {
+    final macosDir = Directory('${appDir.path}/Contents/MacOS');
+    if (!macosDir.existsSync()) return false;
+
+    return macosDir.listSync().whereType<File>().any((file) {
+      final mode = file.statSync().mode;
+      return mode & 0x40 != 0;
+    });
+  }
+
+  static String _processOutput(ProcessResult result) {
+    return '${result.stdout}\n${result.stderr}'.trim().replaceAll(
+      RegExp(r'\s+'),
+      ' ',
+    );
   }
 
   void dispose() {

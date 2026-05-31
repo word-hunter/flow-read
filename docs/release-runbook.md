@@ -80,6 +80,7 @@ Confirm at least:
 - `com.apple.security.app-sandbox`
 - `com.apple.security.network.client`
 - `com.apple.security.files.user-selected.read-write`
+- `com.apple.security.files.user-selected.executable`
 - `com.apple.security.files.bookmarks.app-scope`
 
 ## Tag And Publish

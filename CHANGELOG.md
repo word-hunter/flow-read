@@ -10,6 +10,10 @@ This project follows a simple semantic versioning flow:
 
 ## [Unreleased]
 
+### Fixed
+
+- 修复 macOS 自动安装更新时解压出的应用可能无法启动的问题。
+
 ## [1.4.0] - 2026-05-31
 
 ### Added
