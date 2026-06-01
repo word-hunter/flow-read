@@ -95,6 +95,7 @@ class RssArticle {
   final String? link;
   final String? description;
   final String? content;
+  final List<RssArticleBodyBlock> bodyBlocks;
   final List<RssArticleImage> images;
   final DateTime? pubDate;
   final String? author;
@@ -108,6 +109,7 @@ class RssArticle {
     this.link,
     this.description,
     this.content,
+    this.bodyBlocks = const [],
     this.images = const [],
     this.pubDate,
     this.author,
@@ -124,6 +126,7 @@ class RssArticle {
     String? link,
     String? description,
     String? content,
+    List<RssArticleBodyBlock>? bodyBlocks,
     List<RssArticleImage>? images,
     DateTime? pubDate,
     String? author,
@@ -137,6 +140,7 @@ class RssArticle {
       link: link ?? this.link,
       description: description ?? this.description,
       content: content ?? this.content,
+      bodyBlocks: bodyBlocks ?? this.bodyBlocks,
       images: images ?? this.images,
       pubDate: pubDate ?? this.pubDate,
       author: author ?? this.author,
@@ -144,6 +148,32 @@ class RssArticle {
       id: id ?? this.id,
     );
   }
+}
+
+enum RssArticleTextBlockType { paragraph, heading, listItem, blockquote }
+
+sealed class RssArticleBodyBlock {
+  const RssArticleBodyBlock();
+}
+
+class RssArticleTextBlock extends RssArticleBodyBlock {
+  final RssArticleTextBlockType type;
+  final String text;
+  final int headingLevel;
+  final int indent;
+
+  const RssArticleTextBlock({
+    required this.type,
+    required this.text,
+    this.headingLevel = 0,
+    this.indent = 0,
+  });
+}
+
+class RssArticleImageBlock extends RssArticleBodyBlock {
+  final RssArticleImage image;
+
+  const RssArticleImageBlock(this.image);
 }
 
 class RssArticleImage {

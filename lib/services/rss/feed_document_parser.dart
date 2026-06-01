@@ -102,13 +102,19 @@ class RssFeedDocumentAdapter extends FeedDocumentAdapter {
       final pubDate = _parseDate(_childText(item, ['pubDate', 'date']));
       final guid = _childText(item, ['guid']);
       final title = _childText(item, ['title']) ?? 'Untitled';
+      final body = _parseArticleBody(
+        content ?? description,
+        feedUrl: context.feedUrl,
+        articleLink: link,
+      );
       return RssArticle(
         feedUrl: context.feedUrl,
         feedTitle: feedTitle,
         title: title,
         link: link,
         description: description != null ? _stripHtml(description) : null,
-        content: _cleanArticleContent(content ?? description),
+        content: body.plainText,
+        bodyBlocks: body.blocks,
         images: _extractArticleImages(
           item,
           feedUrl: context.feedUrl,
@@ -162,13 +168,19 @@ class AtomFeedDocumentAdapter extends FeedDocumentAdapter {
       );
       final id = _childText(entry, ['id']);
       final title = _childText(entry, ['title']) ?? 'Untitled';
+      final body = _parseArticleBody(
+        content ?? summary,
+        feedUrl: context.feedUrl,
+        articleLink: link,
+      );
       return RssArticle(
         feedUrl: context.feedUrl,
         feedTitle: feedTitle,
         title: title,
         link: link,
         description: summary != null ? _stripHtml(summary) : null,
-        content: _cleanArticleContent(content ?? summary),
+        content: body.plainText,
+        bodyBlocks: body.blocks,
         images: _extractArticleImages(
           entry,
           feedUrl: context.feedUrl,
@@ -295,17 +307,320 @@ String _stripHtml(String htmlText) {
   }
 }
 
-String? _cleanArticleContent(String? value) {
-  final text = _cleanText(value);
-  if (text == null || text.isEmpty) return null;
-  return text;
-}
-
 String? _cleanText(String? value) {
   if (value == null) return null;
   final trimmed = value.trim();
   if (trimmed.isEmpty) return null;
   return _stripHtml(trimmed);
+}
+
+class _ParsedArticleBody {
+  const _ParsedArticleBody({this.plainText, this.blocks = const []});
+
+  final String? plainText;
+  final List<RssArticleBodyBlock> blocks;
+}
+
+_ParsedArticleBody _parseArticleBody(
+  String? value, {
+  String? feedUrl,
+  String? articleLink,
+}) {
+  final trimmed = value?.trim();
+  if (trimmed == null || trimmed.isEmpty) {
+    return const _ParsedArticleBody();
+  }
+
+  try {
+    final fragment = html.parseFragment(trimmed);
+    final blocks = <RssArticleBodyBlock>[];
+    final seenImages = <String>{};
+
+    void addTextBlock(
+      RssArticleTextBlockType type,
+      String text, {
+      int headingLevel = 0,
+      int indent = 0,
+    }) {
+      final normalized = _normalizeBodyText(text);
+      if (normalized.isEmpty) return;
+      blocks.add(
+        RssArticleTextBlock(
+          type: type,
+          text: normalized,
+          headingLevel: headingLevel,
+          indent: indent,
+        ),
+      );
+    }
+
+    void addTextParagraphs(
+      String text, {
+      RssArticleTextBlockType type = RssArticleTextBlockType.paragraph,
+      int indent = 0,
+    }) {
+      final paragraphs = _splitBodyParagraphs(text);
+      for (final paragraph in paragraphs) {
+        addTextBlock(type, paragraph, indent: indent);
+      }
+    }
+
+    void addImage(dom.Element image, {String? fallbackAlt}) {
+      final rawUrl = _htmlImageSource(image);
+      final resolvedUrl = feedUrl == null
+          ? rawUrl
+          : _resolveImageUrl(
+              rawUrl,
+              feedUrl: feedUrl,
+              articleLink: articleLink,
+            );
+      final url = resolvedUrl?.trim();
+      if (url == null || url.isEmpty || !seenImages.add(url)) return;
+      blocks.add(
+        RssArticleImageBlock(
+          RssArticleImage(
+            url: url,
+            alt: _cleanOptional(image.attributes['alt']) ?? fallbackAlt,
+            width:
+                _parseImageDimension(image.attributes['width']) ??
+                _parseCssDimension(image.attributes['style'], 'width'),
+            height:
+                _parseImageDimension(image.attributes['height']) ??
+                _parseCssDimension(image.attributes['style'], 'height'),
+          ),
+        ),
+      );
+    }
+
+    void visitNode(
+      dom.Node node, {
+      int listDepth = 0,
+      bool inBlockquote = false,
+    }) {
+      if (node is dom.Text) {
+        addTextParagraphs(
+          node.text,
+          type: inBlockquote
+              ? RssArticleTextBlockType.blockquote
+              : RssArticleTextBlockType.paragraph,
+          indent: listDepth,
+        );
+        return;
+      }
+      if (node is! dom.Element) return;
+
+      final tag = node.localName?.toLowerCase() ?? '';
+      if (_ignoredBodyTags.contains(tag)) return;
+
+      if (tag == 'br') {
+        addTextParagraphs('\n');
+        return;
+      }
+      if (tag == 'img') {
+        addImage(node);
+        return;
+      }
+      if (tag == 'figure') {
+        final caption = _cleanOptional(node.querySelector('figcaption')?.text);
+        final images = node.querySelectorAll('img');
+        if (images.isNotEmpty) {
+          for (final image in images) {
+            addImage(image, fallbackAlt: caption);
+          }
+          return;
+        }
+      }
+      if (_headingTags.contains(tag)) {
+        addTextBlock(
+          RssArticleTextBlockType.heading,
+          _textForNode(node),
+          headingLevel: int.tryParse(tag.substring(1)) ?? 2,
+        );
+        return;
+      }
+      if (tag == 'blockquote') {
+        if (_hasReadableBlockChildren(node)) {
+          for (final child in node.nodes) {
+            visitNode(child, listDepth: listDepth, inBlockquote: true);
+          }
+        } else {
+          addTextBlock(RssArticleTextBlockType.blockquote, _textForNode(node));
+        }
+        return;
+      }
+      if (tag == 'ul' || tag == 'ol') {
+        for (final child in node.children) {
+          if (child.localName?.toLowerCase() == 'li') {
+            visitNode(child, listDepth: listDepth + 1);
+          }
+        }
+        return;
+      }
+      if (tag == 'li') {
+        addTextBlock(
+          RssArticleTextBlockType.listItem,
+          _textForNode(node, skipNestedLists: true),
+          indent: listDepth.clamp(1, 4),
+        );
+        for (final child in node.children) {
+          final childTag = child.localName?.toLowerCase();
+          if (childTag == 'ul' || childTag == 'ol') {
+            visitNode(child, listDepth: listDepth + 1);
+          }
+        }
+        return;
+      }
+      if (_blockBodyTags.contains(tag)) {
+        if (_hasReadableBlockChildren(node)) {
+          for (final child in node.nodes) {
+            visitNode(child, listDepth: listDepth, inBlockquote: inBlockquote);
+          }
+        } else {
+          addTextParagraphs(
+            _textForNode(node),
+            type: inBlockquote
+                ? RssArticleTextBlockType.blockquote
+                : RssArticleTextBlockType.paragraph,
+            indent: listDepth,
+          );
+        }
+        return;
+      }
+
+      if (_hasReadableBlockChildren(node)) {
+        for (final child in node.nodes) {
+          visitNode(child, listDepth: listDepth, inBlockquote: inBlockquote);
+        }
+      } else {
+        addTextParagraphs(
+          _textForNode(node),
+          type: inBlockquote
+              ? RssArticleTextBlockType.blockquote
+              : RssArticleTextBlockType.paragraph,
+          indent: listDepth,
+        );
+      }
+    }
+
+    for (final node in fragment.nodes) {
+      visitNode(node);
+    }
+
+    final plainText = _plainTextFromBodyBlocks(blocks);
+    if (plainText != null || blocks.isNotEmpty) {
+      return _ParsedArticleBody(plainText: plainText, blocks: blocks);
+    }
+  } catch (_) {
+    // Fall through to the text-only sanitizer below.
+  }
+
+  final fallback = _stripHtml(trimmed);
+  if (fallback.isEmpty) return const _ParsedArticleBody();
+  return _ParsedArticleBody(
+    plainText: fallback,
+    blocks: [
+      RssArticleTextBlock(
+        type: RssArticleTextBlockType.paragraph,
+        text: fallback,
+      ),
+    ],
+  );
+}
+
+const _headingTags = {'h1', 'h2', 'h3', 'h4', 'h5', 'h6'};
+
+const _blockBodyTags = {
+  'article',
+  'aside',
+  'div',
+  'figcaption',
+  'footer',
+  'header',
+  'main',
+  'p',
+  'pre',
+  'section',
+  'table',
+  'tbody',
+  'td',
+  'th',
+  'thead',
+  'tr',
+};
+
+const _ignoredBodyTags = {
+  'audio',
+  'button',
+  'canvas',
+  'form',
+  'iframe',
+  'input',
+  'nav',
+  'noscript',
+  'script',
+  'select',
+  'style',
+  'svg',
+  'textarea',
+  'video',
+};
+
+bool _hasReadableBlockChildren(dom.Element element) {
+  return element.children.any((child) {
+    final tag = child.localName?.toLowerCase() ?? '';
+    return _headingTags.contains(tag) ||
+        _blockBodyTags.contains(tag) ||
+        tag == 'blockquote' ||
+        tag == 'figure' ||
+        tag == 'img' ||
+        tag == 'ul' ||
+        tag == 'ol';
+  });
+}
+
+String _textForNode(dom.Node node, {bool skipNestedLists = false}) {
+  if (node is dom.Text) return node.text;
+  if (node is! dom.Element) return '';
+
+  final tag = node.localName?.toLowerCase() ?? '';
+  if (tag == 'br') return '\n';
+  if (_ignoredBodyTags.contains(tag)) return '';
+  if (skipNestedLists && (tag == 'ul' || tag == 'ol')) return '';
+
+  final buffer = StringBuffer();
+  for (final child in node.nodes) {
+    buffer.write(_textForNode(child, skipNestedLists: skipNestedLists));
+  }
+  return buffer.toString();
+}
+
+String _normalizeBodyText(String value) {
+  return value
+      .replaceAll('\u00a0', ' ')
+      .replaceAll(RegExp(r'[ \t\r\f\v]+'), ' ')
+      .replaceAll(RegExp(r' *\n *'), '\n')
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
+}
+
+List<String> _splitBodyParagraphs(String value) {
+  final normalized = _normalizeBodyText(value);
+  if (normalized.isEmpty) return const [];
+  return normalized
+      .split(RegExp(r'\n\s*\n'))
+      .map(_normalizeBodyText)
+      .where((text) => text.isNotEmpty)
+      .toList(growable: false);
+}
+
+String? _plainTextFromBodyBlocks(List<RssArticleBodyBlock> blocks) {
+  final parts = blocks
+      .whereType<RssArticleTextBlock>()
+      .map((block) => block.text.trim())
+      .where((text) => text.isNotEmpty)
+      .toList(growable: false);
+  if (parts.isEmpty) return null;
+  return parts.join('\n\n');
 }
 
 List<RssArticleImage> _extractArticleImages(

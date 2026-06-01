@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/analysis_result.dart';
 import '../../models/rss_models.dart';
 import '../../providers/reading_provider.dart';
 import '../../services/analysis_service.dart';
@@ -412,33 +413,33 @@ class _RssArticleListState extends State<RssArticleList> {
     RssArticle article,
     ThemeData theme,
   ) {
+    final bodyBlocks = article.bodyBlocks;
     final text =
         (article.content?.isNotEmpty == true
                 ? article.content
                 : article.description)
             ?.trim();
-    if ((text == null || text.isEmpty) && article.images.isEmpty) {
+    final hasBodyBlocks = bodyBlocks.isNotEmpty;
+    if (!hasBodyBlocks &&
+        (text == null || text.isEmpty) &&
+        article.images.isEmpty) {
       return const SizedBox.shrink();
     }
-    if (text == null || text.isEmpty) {
+
+    if ((text == null || text.isEmpty) &&
+        bodyBlocks.whereType<RssArticleTextBlock>().isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: article.images
-            .map(
-              (image) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _buildArticleImage(image),
-              ),
-            )
-            .toList(),
+        children: _buildImageOnlyBody(article, bodyBlocks),
       );
     }
 
+    final bodyText = text ?? _textFromBodyBlocks(bodyBlocks) ?? '';
     final readingProvider = context.watch<ReadingProvider>();
     final settings = context.watch<SettingsService>();
     final result = AnalysisService.analyzeChapter(
       article.title,
-      text,
+      bodyText,
       readingProvider.userVocabulary,
       readingProvider.wordLevelService,
     );
@@ -446,33 +447,202 @@ class _RssArticleListState extends State<RssArticleList> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text.rich(
-          buildHighlightedParagraph(
-                text,
-                result,
-                theme,
-                onWordTapped: _showWordSheet,
-                fontSize: 14,
-                lineHeight: 1.7,
-                fontFamily: 'Serif',
-                colorSettings: settings.colors,
-                lookupHighlightWord: readingProvider.selectedWord,
-                wordLevelService: readingProvider.wordLevelService,
-              )
-              as TextSpan,
-          style: theme.textTheme.bodyMedium?.copyWith(height: 1.7),
-        ),
-        if (article.images.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          ...article.images.map(
-            (image) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _buildArticleImage(image),
+        if (hasBodyBlocks)
+          ..._buildBodyBlockWidgets(
+            bodyBlocks,
+            result,
+            theme,
+            readingProvider,
+            settings,
+          )
+        else
+          _buildTextBlock(
+            RssArticleTextBlock(
+              type: RssArticleTextBlockType.paragraph,
+              text: bodyText,
             ),
+            result,
+            theme,
+            readingProvider,
+            settings,
           ),
-        ],
+        ..._buildTrailingImages(article, bodyBlocks),
       ],
     );
+  }
+
+  List<Widget> _buildBodyBlockWidgets(
+    List<RssArticleBodyBlock> bodyBlocks,
+    AnalysisResult result,
+    ThemeData theme,
+    ReadingProvider readingProvider,
+    SettingsService settings,
+  ) {
+    return bodyBlocks
+        .map((block) {
+          return switch (block) {
+            RssArticleTextBlock() => _buildTextBlock(
+              block,
+              result,
+              theme,
+              readingProvider,
+              settings,
+            ),
+            RssArticleImageBlock() => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildArticleImage(block.image),
+            ),
+          };
+        })
+        .toList(growable: false);
+  }
+
+  String? _textFromBodyBlocks(List<RssArticleBodyBlock> bodyBlocks) {
+    final parts = bodyBlocks
+        .whereType<RssArticleTextBlock>()
+        .map((block) => block.text.trim())
+        .where((text) => text.isNotEmpty)
+        .toList(growable: false);
+    if (parts.isEmpty) return null;
+    return parts.join('\n\n');
+  }
+
+  Widget _buildTextBlock(
+    RssArticleTextBlock block,
+    AnalysisResult result,
+    ThemeData theme,
+    ReadingProvider readingProvider,
+    SettingsService settings,
+  ) {
+    final style = _rssTextStyle(block, theme);
+    final richText = Text.rich(
+      buildHighlightedParagraph(
+            block.text,
+            result,
+            theme,
+            onWordTapped: _showWordSheet,
+            fontSize: style.fontSize ?? 14,
+            lineHeight: _rssLineHeight(block),
+            fontFamily: style.fontFamily ?? 'Serif',
+            baseTextColor: style.color,
+            colorSettings: settings.colors,
+            searchQuery: widget.query,
+            lookupHighlightWord: readingProvider.selectedWord,
+            wordLevelService: readingProvider.wordLevelService,
+          )
+          as TextSpan,
+      style: style,
+    );
+
+    final content = switch (block.type) {
+      RssArticleTextBlockType.listItem => Padding(
+        padding: EdgeInsets.only(left: (block.indent - 1).clamp(0, 4) * 18.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 1, right: 8),
+              child: Text(
+                '•',
+                style: style.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Expanded(child: richText),
+          ],
+        ),
+      ),
+      RssArticleTextBlockType.blockquote => Container(
+        padding: const EdgeInsets.only(left: 12),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: theme.colorScheme.outlineVariant, width: 3),
+          ),
+        ),
+        child: richText,
+      ),
+      _ => richText,
+    };
+
+    return Padding(padding: _rssBlockPadding(block), child: content);
+  }
+
+  TextStyle _rssTextStyle(RssArticleTextBlock block, ThemeData theme) {
+    final color = block.type == RssArticleTextBlockType.blockquote
+        ? theme.colorScheme.onSurfaceVariant
+        : theme.colorScheme.onSurface;
+    final base = theme.textTheme.bodyMedium ?? const TextStyle();
+    final fontSize = switch (block.type) {
+      RssArticleTextBlockType.heading => switch (block.headingLevel) {
+        1 => 17.0,
+        2 => 16.0,
+        3 => 15.0,
+        _ => 14.5,
+      },
+      _ => 14.0,
+    };
+    return base.copyWith(
+      height: _rssLineHeight(block),
+      fontFamily: 'Serif',
+      fontSize: fontSize,
+      fontWeight: block.type == RssArticleTextBlockType.heading
+          ? FontWeight.w700
+          : null,
+      fontStyle: block.type == RssArticleTextBlockType.blockquote
+          ? FontStyle.italic
+          : null,
+      color: color,
+    );
+  }
+
+  double _rssLineHeight(RssArticleTextBlock block) {
+    return block.type == RssArticleTextBlockType.heading ? 1.35 : 1.7;
+  }
+
+  EdgeInsets _rssBlockPadding(RssArticleTextBlock block) {
+    return switch (block.type) {
+      RssArticleTextBlockType.heading => const EdgeInsets.only(
+        top: 4,
+        bottom: 8,
+      ),
+      RssArticleTextBlockType.listItem => const EdgeInsets.only(bottom: 6),
+      _ => const EdgeInsets.only(bottom: 10),
+    };
+  }
+
+  List<Widget> _buildImageOnlyBody(
+    RssArticle article,
+    List<RssArticleBodyBlock> bodyBlocks,
+  ) {
+    return [
+      ...bodyBlocks.whereType<RssArticleImageBlock>().map(
+        (block) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _buildArticleImage(block.image),
+        ),
+      ),
+      ..._buildTrailingImages(article, bodyBlocks),
+    ];
+  }
+
+  List<Widget> _buildTrailingImages(
+    RssArticle article,
+    List<RssArticleBodyBlock> bodyBlocks,
+  ) {
+    final inlineUrls = bodyBlocks
+        .whereType<RssArticleImageBlock>()
+        .map((block) => block.image.url)
+        .toSet();
+    return article.images
+        .where((image) => !inlineUrls.contains(image.url))
+        .map(
+          (image) => Padding(
+            padding: const EdgeInsets.only(top: 2, bottom: 10),
+            child: _buildArticleImage(image),
+          ),
+        )
+        .toList(growable: false);
   }
 
   Widget _buildArticleImage(RssArticleImage image) {

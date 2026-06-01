@@ -1,3 +1,4 @@
+import 'package:flow_read/models/rss_models.dart';
 import 'package:flow_read/services/rss/feed_document_parser.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart';
@@ -20,10 +21,54 @@ void main() {
     expect(articles.single.feedTitle, 'Flow News');
     expect(articles.single.description, 'Summary one');
     expect(articles.single.content, 'Full content');
+    expect(articles.single.bodyBlocks, hasLength(2));
+    expect(
+      (articles.single.bodyBlocks[0] as RssArticleTextBlock).type,
+      RssArticleTextBlockType.paragraph,
+    );
+    expect(
+      (articles.single.bodyBlocks[0] as RssArticleTextBlock).text,
+      'Full content',
+    );
+    expect(
+      (articles.single.bodyBlocks[1] as RssArticleImageBlock).image.url,
+      'https://example.com/images/full.png',
+    );
     expect(articles.single.pubDate?.toUtc(), DateTime.utc(2026, 5, 20, 7));
     expect(articles.single.images.map((image) => image.url), [
       'https://example.com/images/full.png',
       'https://cdn.example.com/thumb.jpg',
+    ]);
+  });
+
+  test('RSS adapter preserves structured article body blocks', () {
+    final document = XmlDocument.parse(_structuredBodyFeed);
+
+    final article = parser
+        .parseArticles(document, feedUrl: 'https://example.com/rss.xml')
+        .single;
+    final textBlocks = article.bodyBlocks.whereType<RssArticleTextBlock>();
+
+    expect(
+      article.content,
+      [
+        'Section title',
+        'First paragraph with emphasis.',
+        'First point',
+        'Quoted line',
+      ].join('\n\n'),
+    );
+    expect(textBlocks.map((block) => block.type), [
+      RssArticleTextBlockType.heading,
+      RssArticleTextBlockType.paragraph,
+      RssArticleTextBlockType.listItem,
+      RssArticleTextBlockType.blockquote,
+    ]);
+    expect(textBlocks.map((block) => block.text), [
+      'Section title',
+      'First paragraph with emphasis.',
+      'First point',
+      'Quoted line',
     ]);
   });
 
@@ -103,4 +148,26 @@ const _atomFeed = '''
     <content type="html">&lt;p&gt;Atom full content&lt;/p&gt;</content>
   </entry>
 </feed>
+''';
+
+const _structuredBodyFeed = '''
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Flow News</title>
+    <item>
+      <title>Structured Article</title>
+      <link>https://example.com/structured</link>
+      <content:encoded><![CDATA[
+        <article>
+          <h2>Section title</h2>
+          <p>First paragraph with <em>emphasis</em>.</p>
+          <ul><li>First point</li></ul>
+          <blockquote><p>Quoted line</p></blockquote>
+        </article>
+      ]]></content:encoded>
+      <guid>structured-guid</guid>
+    </item>
+  </channel>
+</rss>
 ''';
