@@ -1,3 +1,5 @@
+import 'package:flow_read/widgets/word_bottom_sheet.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flow_read/models/rss_models.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/rss_provider.dart';
@@ -100,6 +102,52 @@ void main() {
     await tester.pumpAndSettle();
     expect(_richTextContaining('First body.'), findsOneWidget);
   });
+
+  testWidgets('article detail inline word opens the shared dictionary sheet', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1000, 1000);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final articles = [
+      RssArticle(
+        feedUrl: 'https://example.com/rss.xml',
+        feedTitle: 'Example',
+        title: 'Vocabulary article',
+        content: 'Curious readers improve fluency through practice.',
+        id: 'vocab',
+      ),
+    ];
+    final rssProvider = await _createProvider(articles);
+    final readingProvider = ReadingProvider();
+    addTearDown(readingProvider.dispose);
+
+    await tester.pumpWidget(
+      _buildApp(
+        rssProvider,
+        RssArticleDetailScreen(
+          articles: rssProvider.visibleArticles,
+          initialArticleId: 'vocab',
+          showFeedName: false,
+        ),
+        readingProvider: readingProvider,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final fluencySpan = _findTextSpan(tester, 'fluency');
+    expect(fluencySpan.recognizer, isA<TapGestureRecognizer>());
+
+    (fluencySpan.recognizer! as TapGestureRecognizer).onTap!();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byType(WordBottomSheet), findsOneWidget);
+    expect(readingProvider.selectedWord?.toLowerCase(), 'fluency');
+    expect(readingProvider.selectedWordContext, contains('fluency'));
+  });
 }
 
 Future<RssProvider> _createProvider(List<RssArticle> articles) async {
@@ -119,11 +167,19 @@ Future<RssProvider> _createProvider(List<RssArticle> articles) async {
   return provider;
 }
 
-Widget _buildApp(RssProvider provider, Widget child) {
+Widget _buildApp(
+  RssProvider provider,
+  Widget child, {
+  ReadingProvider? readingProvider,
+}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider<RssProvider>.value(value: provider),
-      ChangeNotifierProvider(create: (_) => ReadingProvider()),
+      readingProvider == null
+          ? ChangeNotifierProvider(create: (_) => ReadingProvider())
+          : ChangeNotifierProvider<ReadingProvider>.value(
+              value: readingProvider,
+            ),
       ChangeNotifierProvider(create: (_) => SettingsService()),
     ],
     child: MaterialApp(home: child),
@@ -134,6 +190,24 @@ Finder _richTextContaining(String text) {
   return find.byWidgetPredicate((widget) {
     return widget is RichText && widget.text.toPlainText().contains(text);
   });
+}
+
+TextSpan _findTextSpan(WidgetTester tester, String text) {
+  for (final richText in tester.widgetList<RichText>(find.byType(RichText))) {
+    final span = _findSpan(richText.text, text);
+    if (span != null) return span;
+  }
+  fail('TextSpan containing "$text" was not found.');
+}
+
+TextSpan? _findSpan(InlineSpan span, String text) {
+  if (span is! TextSpan) return null;
+  if (span.text?.contains(text) == true) return span;
+  for (final child in span.children ?? const <InlineSpan>[]) {
+    final found = _findSpan(child, text);
+    if (found != null) return found;
+  }
+  return null;
 }
 
 class _FakeRssFeedService implements RssFeedService {
