@@ -15,11 +15,16 @@ class RssArticleList extends StatefulWidget {
   final String feedTitle;
   final int unreadCount;
   final String query;
+  final RssArticleFilter filter;
+  final Map<RssArticleFilter, int> filterCounts;
   final bool showFeedName;
   final VoidCallback onRefresh;
   final ValueChanged<String> onSearchChanged;
+  final ValueChanged<RssArticleFilter> onFilterChanged;
   final Future<void> Function(String id) onMarkRead;
   final Future<void> Function(String id) onMarkUnread;
+  final Future<void> Function(String id, bool isFavorite) onSetFavorite;
+  final Future<void> Function(String id, bool isReadLater) onSetReadLater;
   final ValueChanged<RssArticle> onOpenOriginal;
 
   const RssArticleList({
@@ -28,11 +33,16 @@ class RssArticleList extends StatefulWidget {
     required this.feedTitle,
     required this.unreadCount,
     required this.query,
+    required this.filter,
+    required this.filterCounts,
     required this.showFeedName,
     required this.onRefresh,
     required this.onSearchChanged,
+    required this.onFilterChanged,
     required this.onMarkRead,
     required this.onMarkUnread,
+    required this.onSetFavorite,
+    required this.onSetReadLater,
     required this.onOpenOriginal,
   });
 
@@ -88,7 +98,7 @@ class _RssArticleListState extends State<RssArticleList> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    widget.query.isEmpty ? '暂无文章' : '没有匹配的文章',
+                    _emptyMessage(),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -181,6 +191,36 @@ class _RssArticleListState extends State<RssArticleList> {
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<RssArticleFilter>(
+                segments: RssArticleFilter.values
+                    .map(
+                      (filter) => ButtonSegment(
+                        value: filter,
+                        icon: Icon(_filterIcon(filter), size: 16),
+                        label: Text(_filterLabel(filter)),
+                      ),
+                    )
+                    .toList(growable: false),
+                selected: {widget.filter},
+                onSelectionChanged: (selection) {
+                  final next = selection.firstOrNull;
+                  if (next != null) widget.onFilterChanged(next);
+                },
+                showSelectedIcon: false,
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: WidgetStatePropertyAll(
+                    theme.textTheme.labelMedium,
+                  ),
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           SizedBox(
@@ -369,6 +409,50 @@ class _RssArticleListState extends State<RssArticleList> {
                     ),
                   ],
                   const Spacer(),
+                  IconButton(
+                    icon: Icon(
+                      article.isFavorite
+                          ? Icons.star
+                          : Icons.star_border_outlined,
+                      size: 18,
+                    ),
+                    tooltip: article.isFavorite ? '取消收藏' : '收藏',
+                    onPressed: () =>
+                        widget.onSetFavorite(article.id, !article.isFavorite),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    color: article.isFavorite
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.45,
+                          ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      article.isReadLater
+                          ? Icons.watch_later
+                          : Icons.watch_later_outlined,
+                      size: 18,
+                    ),
+                    tooltip: article.isReadLater ? '移出稍后读' : '稍后读',
+                    onPressed: () =>
+                        widget.onSetReadLater(article.id, !article.isReadLater),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    color: article.isReadLater
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.45,
+                          ),
+                  ),
                   if (article.link?.trim().isNotEmpty == true)
                     IconButton(
                       icon: const Icon(Icons.open_in_new, size: 18),
@@ -381,22 +465,29 @@ class _RssArticleListState extends State<RssArticleList> {
                       ),
                       visualDensity: VisualDensity.compact,
                     ),
-                  GestureDetector(
-                    onTap: () {
+                  IconButton(
+                    icon: Icon(
+                      article.isRead
+                          ? Icons.mark_email_unread
+                          : Icons.mark_email_read,
+                      size: 18,
+                    ),
+                    tooltip: article.isRead ? '标记未读' : '标记已读',
+                    onPressed: () {
                       if (article.isRead) {
                         widget.onMarkUnread(article.id);
                       } else {
                         widget.onMarkRead(article.id);
                       }
                     },
-                    child: Icon(
-                      article.isRead
-                          ? Icons.mark_email_unread
-                          : Icons.mark_email_read,
-                      size: 18,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.4,
-                      ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.45,
                     ),
                   ),
                 ],
@@ -406,6 +497,36 @@ class _RssArticleListState extends State<RssArticleList> {
         ),
       ),
     );
+  }
+
+  String _emptyMessage() {
+    if (widget.query.trim().isNotEmpty) return '没有匹配的文章';
+    return switch (widget.filter) {
+      RssArticleFilter.all => '暂无文章',
+      RssArticleFilter.unread => '暂无未读文章',
+      RssArticleFilter.favorite => '暂无收藏文章',
+      RssArticleFilter.readLater => '暂无稍后读文章',
+    };
+  }
+
+  String _filterLabel(RssArticleFilter filter) {
+    final count = widget.filterCounts[filter] ?? 0;
+    final label = switch (filter) {
+      RssArticleFilter.all => '全部',
+      RssArticleFilter.unread => '未读',
+      RssArticleFilter.favorite => '收藏',
+      RssArticleFilter.readLater => '稍后读',
+    };
+    return count > 0 ? '$label $count' : label;
+  }
+
+  IconData _filterIcon(RssArticleFilter filter) {
+    return switch (filter) {
+      RssArticleFilter.all => Icons.inbox_outlined,
+      RssArticleFilter.unread => Icons.mark_email_unread_outlined,
+      RssArticleFilter.favorite => Icons.star_border_outlined,
+      RssArticleFilter.readLater => Icons.watch_later_outlined,
+    };
   }
 
   Widget _buildHighlightedContent(

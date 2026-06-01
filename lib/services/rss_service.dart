@@ -30,6 +30,8 @@ abstract class RssFeedService {
   Future<List<RssArticle>> fetchLatestArticles({bool forceRefresh = false});
   Future<void> markAsRead(String articleId);
   Future<void> markAsUnread(String articleId);
+  Future<void> setArticleFavorite(String articleId, bool isFavorite);
+  Future<void> setArticleReadLater(String articleId, bool isReadLater);
   void clearArticleCache([String? feedUrl]);
 }
 
@@ -55,6 +57,8 @@ class RssService implements RssFeedService {
   final RssFeedDocumentParser _parser;
   final Map<String, List<RssArticle>> _articleCache = {};
   final Set<String> _readArticleIds = {};
+  final Set<String> _favoriteArticleIds = {};
+  final Set<String> _readLaterArticleIds = {};
 
   @override
   Future<void> init() async {
@@ -62,6 +66,12 @@ class RssService implements RssFeedService {
     _readArticleIds
       ..clear()
       ..addAll(_repository.readArticleIds);
+    _favoriteArticleIds
+      ..clear()
+      ..addAll(_repository.favoriteArticleIds);
+    _readLaterArticleIds
+      ..clear()
+      ..addAll(_repository.readLaterArticleIds);
   }
 
   @override
@@ -173,9 +183,7 @@ class RssService implements RssFeedService {
       );
 
       for (final a in articles) {
-        if (_readArticleIds.contains(a.id)) {
-          a.isRead = true;
-        }
+        _applyArticleState(a);
       }
 
       _articleCache[feedUrl] = articles;
@@ -213,20 +221,57 @@ class RssService implements RssFeedService {
   Future<void> markAsRead(String articleId) async {
     _readArticleIds.add(articleId);
     await _repository.putReadArticleIds(_readArticleIds);
-    for (final articles in _articleCache.values) {
-      for (final a in articles) {
-        if (a.id == articleId) a.isRead = true;
-      }
-    }
+    _updateCachedArticle(articleId, (article) => article.isRead = true);
   }
 
   @override
   Future<void> markAsUnread(String articleId) async {
     _readArticleIds.remove(articleId);
     await _repository.putReadArticleIds(_readArticleIds);
+    _updateCachedArticle(articleId, (article) => article.isRead = false);
+  }
+
+  @override
+  Future<void> setArticleFavorite(String articleId, bool isFavorite) async {
+    if (isFavorite) {
+      _favoriteArticleIds.add(articleId);
+    } else {
+      _favoriteArticleIds.remove(articleId);
+    }
+    await _repository.putFavoriteArticleIds(_favoriteArticleIds);
+    _updateCachedArticle(
+      articleId,
+      (article) => article.isFavorite = isFavorite,
+    );
+  }
+
+  @override
+  Future<void> setArticleReadLater(String articleId, bool isReadLater) async {
+    if (isReadLater) {
+      _readLaterArticleIds.add(articleId);
+    } else {
+      _readLaterArticleIds.remove(articleId);
+    }
+    await _repository.putReadLaterArticleIds(_readLaterArticleIds);
+    _updateCachedArticle(
+      articleId,
+      (article) => article.isReadLater = isReadLater,
+    );
+  }
+
+  void _applyArticleState(RssArticle article) {
+    article.isRead = _readArticleIds.contains(article.id);
+    article.isFavorite = _favoriteArticleIds.contains(article.id);
+    article.isReadLater = _readLaterArticleIds.contains(article.id);
+  }
+
+  void _updateCachedArticle(
+    String articleId,
+    void Function(RssArticle article) update,
+  ) {
     for (final articles in _articleCache.values) {
       for (final a in articles) {
-        if (a.id == articleId) a.isRead = false;
+        if (a.id == articleId) update(a);
       }
     }
   }

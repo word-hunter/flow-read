@@ -157,6 +157,47 @@ void main() {
       ),
     );
   });
+
+  test(
+    'persists favorite and read-later article state across refreshes',
+    () async {
+      final repository = _MemoryRssRepository()
+        ..subscriptions.add(
+          RssFeedSubscription(
+            url: 'https://example.com/rss.xml',
+            title: 'Flow News',
+          ),
+        );
+      final service = RssService(
+        repository: repository,
+        httpGet: _respondWith(_rssFeed),
+      );
+      await service.init();
+
+      final firstFetch = await service.fetchArticles(
+        'https://example.com/rss.xml',
+      );
+      final articleId = firstFetch.first.id;
+
+      await service.setArticleFavorite(articleId, true);
+      await service.setArticleReadLater(articleId, true);
+      service.clearArticleCache('https://example.com/rss.xml');
+      final secondFetch = await service.fetchArticles(
+        'https://example.com/rss.xml',
+      );
+
+      expect(repository.favoriteArticleIds, {articleId});
+      expect(repository.readLaterArticleIds, {articleId});
+      expect(secondFetch.first.isFavorite, isTrue);
+      expect(secondFetch.first.isReadLater, isTrue);
+
+      await service.setArticleFavorite(articleId, false);
+      await service.setArticleReadLater(articleId, false);
+
+      expect(repository.favoriteArticleIds, isEmpty);
+      expect(repository.readLaterArticleIds, isEmpty);
+    },
+  );
 }
 
 RssHttpGet _respondWith(String body) {
@@ -175,6 +216,8 @@ class _MemoryRssRepository implements RssRepository {
   @override
   final List<RssFeedSubscription> subscriptions = [];
   Set<String> _readArticleIds = {};
+  Set<String> _favoriteArticleIds = {};
+  Set<String> _readLaterArticleIds = {};
   int updateLastFetchedCalls = 0;
   DateTime? lastFetchedUpdate;
 
@@ -217,6 +260,22 @@ class _MemoryRssRepository implements RssRepository {
   @override
   Future<void> putReadArticleIds(Set<String> ids) async {
     _readArticleIds = ids.toSet();
+  }
+
+  @override
+  Set<String> get favoriteArticleIds => _favoriteArticleIds;
+
+  @override
+  Future<void> putFavoriteArticleIds(Set<String> ids) async {
+    _favoriteArticleIds = ids.toSet();
+  }
+
+  @override
+  Set<String> get readLaterArticleIds => _readLaterArticleIds;
+
+  @override
+  Future<void> putReadLaterArticleIds(Set<String> ids) async {
+    _readLaterArticleIds = ids.toSet();
   }
 
   @override

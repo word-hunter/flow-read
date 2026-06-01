@@ -16,6 +16,7 @@ class RssProvider extends ChangeNotifier {
   bool _isFetchingArticles = false;
   String? _errorMessage;
   String _articleQuery = '';
+  RssArticleFilter _articleFilter = RssArticleFilter.all;
 
   // ---- getters ----
 
@@ -29,6 +30,10 @@ class RssProvider extends ChangeNotifier {
 
   List<RssArticle> get articles => _articles;
   List<RssArticle> get visibleArticles {
+    return _filteredArticles(_articleFilter);
+  }
+
+  List<RssArticle> _queryMatchedArticles() {
     final query = _articleQuery.trim().toLowerCase();
     if (query.isEmpty) return _articles;
     return _articles.where((article) {
@@ -39,11 +44,27 @@ class RssProvider extends ChangeNotifier {
     }).toList();
   }
 
+  List<RssArticle> _filteredArticles(RssArticleFilter filter) {
+    return _queryMatchedArticles().where((article) {
+      return switch (filter) {
+        RssArticleFilter.all => true,
+        RssArticleFilter.unread => !article.isRead,
+        RssArticleFilter.favorite => article.isFavorite,
+        RssArticleFilter.readLater => article.isReadLater,
+      };
+    }).toList();
+  }
+
   bool get isLoading => _isLoading;
   bool get isFetchingArticles => _isFetchingArticles;
   String? get errorMessage => _errorMessage;
   String get articleQuery => _articleQuery;
+  RssArticleFilter get articleFilter => _articleFilter;
   int get unreadCount => visibleArticles.where((a) => !a.isRead).length;
+  int articleCountForFilter(RssArticleFilter filter) {
+    return _filteredArticles(filter).length;
+  }
+
   String get currentTitle =>
       isLatestSelected ? '最新内容' : (selectedFeed?.title ?? 'RSS');
 
@@ -83,6 +104,7 @@ class RssProvider extends ChangeNotifier {
       _subscriptions = _service.subscriptions;
       _selectedFeedUrl = sub.url;
       _articleQuery = '';
+      _articleFilter = RssArticleFilter.all;
       await fetchArticlesForSelectedFeed();
     } catch (error, stackTrace) {
       AppLogger.instance.event(
@@ -157,6 +179,7 @@ class RssProvider extends ChangeNotifier {
     if (_selectedFeedUrl == null) return;
     _selectedFeedUrl = null;
     _articles = [];
+    _articleFilter = RssArticleFilter.all;
     notifyListeners();
     fetchArticlesForSelectedFeed();
   }
@@ -165,6 +188,7 @@ class RssProvider extends ChangeNotifier {
     if (url == _selectedFeedUrl) return;
     _selectedFeedUrl = url;
     _articles = [];
+    _articleFilter = RssArticleFilter.all;
     notifyListeners();
     fetchArticlesForSelectedFeed();
   }
@@ -216,8 +240,24 @@ class RssProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setArticleFavorite(String articleId, bool isFavorite) async {
+    await _service.setArticleFavorite(articleId, isFavorite);
+    notifyListeners();
+  }
+
+  Future<void> setArticleReadLater(String articleId, bool isReadLater) async {
+    await _service.setArticleReadLater(articleId, isReadLater);
+    notifyListeners();
+  }
+
   void updateArticleQuery(String query) {
     _articleQuery = query;
+    notifyListeners();
+  }
+
+  void updateArticleFilter(RssArticleFilter filter) {
+    if (_articleFilter == filter) return;
+    _articleFilter = filter;
     notifyListeners();
   }
 

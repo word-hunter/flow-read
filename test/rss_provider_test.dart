@@ -24,15 +24,73 @@ void main() {
     expect(provider.errorMessage, contains('network down'));
     expect(provider.articles, isEmpty);
   });
+
+  test('provider filters searched articles by list state', () async {
+    final service = _FakeRssFeedService(
+      subscriptions: [
+        RssFeedSubscription(
+          url: 'https://example.com/rss.xml',
+          title: 'Example',
+        ),
+      ],
+      articles: [
+        RssArticle(
+          feedUrl: 'https://example.com/rss.xml',
+          title: 'Unread article',
+          id: 'unread',
+        ),
+        RssArticle(
+          feedUrl: 'https://example.com/rss.xml',
+          title: 'Favorite article',
+          isRead: true,
+          isFavorite: true,
+          id: 'favorite',
+        ),
+        RssArticle(
+          feedUrl: 'https://example.com/rss.xml',
+          title: 'Read later article',
+          isRead: true,
+          isReadLater: true,
+          id: 'later',
+        ),
+      ],
+    );
+    final provider = RssProvider(service: service);
+    addTearDown(provider.dispose);
+
+    await provider.init();
+
+    expect(provider.visibleArticles.map((article) => article.id), [
+      'unread',
+      'favorite',
+      'later',
+    ]);
+
+    provider.updateArticleFilter(RssArticleFilter.favorite);
+    expect(provider.visibleArticles.map((article) => article.id), ['favorite']);
+
+    provider.updateArticleFilter(RssArticleFilter.readLater);
+    expect(provider.visibleArticles.map((article) => article.id), ['later']);
+
+    provider.updateArticleFilter(RssArticleFilter.unread);
+    expect(provider.visibleArticles.map((article) => article.id), ['unread']);
+
+    provider.updateArticleQuery('favorite');
+    expect(provider.visibleArticles, isEmpty);
+    expect(provider.articleCountForFilter(RssArticleFilter.favorite), 1);
+  });
 }
 
 class _FakeRssFeedService implements RssFeedService {
   _FakeRssFeedService({
     List<RssFeedSubscription>? subscriptions,
+    List<RssArticle>? articles,
     this.latestError,
-  }) : _subscriptions = subscriptions ?? [];
+  }) : _subscriptions = subscriptions ?? [],
+       _articles = articles ?? [];
 
   final List<RssFeedSubscription> _subscriptions;
+  final List<RssArticle> _articles;
   final Object? latestError;
 
   @override
@@ -65,7 +123,7 @@ class _FakeRssFeedService implements RssFeedService {
     String feedUrl, {
     bool forceRefresh = false,
   }) async {
-    return const [];
+    return _articles;
   }
 
   @override
@@ -74,7 +132,7 @@ class _FakeRssFeedService implements RssFeedService {
   }) async {
     final error = latestError;
     if (error != null) throw error;
-    return const [];
+    return _articles;
   }
 
   @override
@@ -82,6 +140,20 @@ class _FakeRssFeedService implements RssFeedService {
 
   @override
   Future<void> markAsUnread(String articleId) async {}
+
+  @override
+  Future<void> setArticleFavorite(String articleId, bool isFavorite) async {
+    for (final article in _articles) {
+      if (article.id == articleId) article.isFavorite = isFavorite;
+    }
+  }
+
+  @override
+  Future<void> setArticleReadLater(String articleId, bool isReadLater) async {
+    for (final article in _articles) {
+      if (article.id == articleId) article.isReadLater = isReadLater;
+    }
+  }
 
   @override
   void clearArticleCache([String? feedUrl]) {}

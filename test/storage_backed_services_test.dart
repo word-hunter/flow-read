@@ -325,6 +325,37 @@ void main() {
 
     expect(ids, isNot(contains('article-1')));
     expect(ids, contains('article-2'));
+
+    await service.setArticleFavorite('article-2', true);
+    await service.setArticleReadLater('article-3', true);
+
+    final favoriteIds =
+        (jsonDecode(settingsBox().get('rss_favorite_articles') as String)
+                as List<dynamic>)
+            .cast<String>();
+    final readLaterIds =
+        (jsonDecode(settingsBox().get('rss_read_later_articles') as String)
+                as List<dynamic>)
+            .cast<String>();
+
+    expect(favoriteIds, ['article-2']);
+    expect(readLaterIds, ['article-3']);
+
+    await service.setArticleFavorite('article-2', false);
+    await service.setArticleReadLater('article-3', false);
+
+    expect(
+      (jsonDecode(settingsBox().get('rss_favorite_articles') as String)
+              as List<dynamic>)
+          .cast<String>(),
+      isEmpty,
+    );
+    expect(
+      (jsonDecode(settingsBox().get('rss_read_later_articles') as String)
+              as List<dynamic>)
+          .cast<String>(),
+      isEmpty,
+    );
   });
 
   test(

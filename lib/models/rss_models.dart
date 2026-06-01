@@ -100,6 +100,8 @@ class RssArticle {
   final DateTime? pubDate;
   final String? author;
   bool isRead;
+  bool isFavorite;
+  bool isReadLater;
   final String id;
 
   RssArticle({
@@ -114,6 +116,8 @@ class RssArticle {
     this.pubDate,
     this.author,
     this.isRead = false,
+    this.isFavorite = false,
+    this.isReadLater = false,
     String? id,
   }) : id =
            id ??
@@ -131,6 +135,8 @@ class RssArticle {
     DateTime? pubDate,
     String? author,
     bool? isRead,
+    bool? isFavorite,
+    bool? isReadLater,
     String? id,
   }) {
     return RssArticle(
@@ -145,10 +151,14 @@ class RssArticle {
       pubDate: pubDate ?? this.pubDate,
       author: author ?? this.author,
       isRead: isRead ?? this.isRead,
+      isFavorite: isFavorite ?? this.isFavorite,
+      isReadLater: isReadLater ?? this.isReadLater,
       id: id ?? this.id,
     );
   }
 }
+
+enum RssArticleFilter { all, unread, favorite, readLater }
 
 enum RssArticleTextBlockType { paragraph, heading, listItem, blockquote }
 

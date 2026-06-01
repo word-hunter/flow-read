@@ -25,11 +25,16 @@ void main() {
             feedTitle: 'Example',
             unreadCount: 1,
             query: '',
+            filter: RssArticleFilter.all,
+            filterCounts: _filterCounts([article]),
             showFeedName: false,
             onRefresh: () {},
             onSearchChanged: (_) {},
+            onFilterChanged: (_) {},
             onMarkRead: (_) async {},
             onMarkUnread: (_) async {},
+            onSetFavorite: (_, _) async {},
+            onSetReadLater: (_, _) async {},
             onOpenOriginal: (value) => opened = value,
           ),
         ),
@@ -67,11 +72,16 @@ void main() {
             feedTitle: 'Example',
             unreadCount: 1,
             query: '',
+            filter: RssArticleFilter.all,
+            filterCounts: _filterCounts([article]),
             showFeedName: false,
             onRefresh: () {},
             onSearchChanged: (_) {},
+            onFilterChanged: (_) {},
             onMarkRead: (_) async {},
             onMarkUnread: (_) async {},
+            onSetFavorite: (_, _) async {},
+            onSetReadLater: (_, _) async {},
             onOpenOriginal: (_) {},
           ),
         ),
@@ -134,11 +144,16 @@ void main() {
               feedTitle: 'Example',
               unreadCount: 1,
               query: '',
+              filter: RssArticleFilter.all,
+              filterCounts: _filterCounts([article]),
               showFeedName: false,
               onRefresh: () {},
               onSearchChanged: (_) {},
+              onFilterChanged: (_) {},
               onMarkRead: (_) async {},
               onMarkUnread: (_) async {},
+              onSetFavorite: (_, _) async {},
+              onSetReadLater: (_, _) async {},
               onOpenOriginal: (_) {},
             ),
           ),
@@ -155,10 +170,86 @@ void main() {
     expect(_richTextContaining('Quoted line'), findsOneWidget);
     expect(find.text('•'), findsOneWidget);
   });
+
+  testWidgets('article list exposes filters and article state actions', (
+    tester,
+  ) async {
+    RssArticleFilter? selectedFilter;
+    String? favoriteArticleId;
+    bool? favoriteValue;
+    String? readLaterArticleId;
+    bool? readLaterValue;
+    final article = RssArticle(
+      feedUrl: 'https://example.com/rss.xml',
+      feedTitle: 'Example',
+      title: 'Action article',
+      isFavorite: false,
+      isReadLater: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RssArticleList(
+            articles: [article],
+            feedTitle: 'Example',
+            unreadCount: 1,
+            query: '',
+            filter: RssArticleFilter.all,
+            filterCounts: _filterCounts([article]),
+            showFeedName: false,
+            onRefresh: () {},
+            onSearchChanged: (_) {},
+            onFilterChanged: (filter) => selectedFilter = filter,
+            onMarkRead: (_) async {},
+            onMarkUnread: (_) async {},
+            onSetFavorite: (id, value) async {
+              favoriteArticleId = id;
+              favoriteValue = value;
+            },
+            onSetReadLater: (id, value) async {
+              readLaterArticleId = id;
+              readLaterValue = value;
+            },
+            onOpenOriginal: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('收藏'));
+    await tester.pump();
+    expect(selectedFilter, RssArticleFilter.favorite);
+
+    await tester.tap(find.byTooltip('收藏'));
+    await tester.pump();
+    expect(favoriteArticleId, article.id);
+    expect(favoriteValue, isTrue);
+
+    await tester.tap(find.byTooltip('移出稍后读'));
+    await tester.pump();
+    expect(readLaterArticleId, article.id);
+    expect(readLaterValue, isFalse);
+  });
 }
 
 Finder _richTextContaining(String text) {
   return find.byWidgetPredicate((widget) {
     return widget is RichText && widget.text.toPlainText().contains(text);
   });
+}
+
+Map<RssArticleFilter, int> _filterCounts(List<RssArticle> articles) {
+  return {
+    RssArticleFilter.all: articles.length,
+    RssArticleFilter.unread: articles
+        .where((article) => !article.isRead)
+        .length,
+    RssArticleFilter.favorite: articles
+        .where((article) => article.isFavorite)
+        .length,
+    RssArticleFilter.readLater: articles
+        .where((article) => article.isReadLater)
+        .length,
+  };
 }

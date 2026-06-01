@@ -232,11 +232,19 @@ class RssScreen extends StatelessWidget {
             feedTitle: provider.currentTitle,
             unreadCount: provider.unreadCount,
             query: provider.articleQuery,
+            filter: provider.articleFilter,
+            filterCounts: {
+              for (final filter in RssArticleFilter.values)
+                filter: provider.articleCountForFilter(filter),
+            },
             showFeedName: provider.isLatestSelected,
             onRefresh: provider.refreshAll,
             onSearchChanged: provider.updateArticleQuery,
+            onFilterChanged: provider.updateArticleFilter,
             onMarkRead: provider.markAsRead,
             onMarkUnread: provider.markAsUnread,
+            onSetFavorite: provider.setArticleFavorite,
+            onSetReadLater: provider.setArticleReadLater,
             onOpenOriginal: (article) =>
                 _openOriginalArticle(context, provider, article),
           ),

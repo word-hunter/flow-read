@@ -18,6 +18,10 @@ abstract class RssRepository {
   Future<bool> deleteSubscriptionByUrl(String url);
   Set<String> get readArticleIds;
   Future<void> putReadArticleIds(Set<String> ids);
+  Set<String> get favoriteArticleIds;
+  Future<void> putFavoriteArticleIds(Set<String> ids);
+  Set<String> get readLaterArticleIds;
+  Future<void> putReadLaterArticleIds(Set<String> ids);
   Future<void> updateLastFetched(String url, DateTime fetchedAt);
   Future<void> close();
 }
@@ -28,6 +32,8 @@ class HiveRssRepository implements RssRepository {
       _metaBox = metaBox;
 
   static const _readArticlesKey = 'rss_read_articles';
+  static const _favoriteArticlesKey = 'rss_favorite_articles';
+  static const _readLaterArticlesKey = 'rss_read_later_articles';
 
   Box<RssFeedSubscription>? _feedBox;
   Box<dynamic>? _metaBox;
@@ -84,7 +90,36 @@ class HiveRssRepository implements RssRepository {
 
   @override
   Set<String> get readArticleIds {
-    final encoded = _metaStorage.get(_readArticlesKey);
+    return _readStringSet(_readArticlesKey);
+  }
+
+  @override
+  Future<void> putReadArticleIds(Set<String> ids) async {
+    await _writeStringSet(_readArticlesKey, ids);
+  }
+
+  @override
+  Set<String> get favoriteArticleIds {
+    return _readStringSet(_favoriteArticlesKey);
+  }
+
+  @override
+  Future<void> putFavoriteArticleIds(Set<String> ids) async {
+    await _writeStringSet(_favoriteArticlesKey, ids);
+  }
+
+  @override
+  Set<String> get readLaterArticleIds {
+    return _readStringSet(_readLaterArticlesKey);
+  }
+
+  @override
+  Future<void> putReadLaterArticleIds(Set<String> ids) async {
+    await _writeStringSet(_readLaterArticlesKey, ids);
+  }
+
+  Set<String> _readStringSet(String key) {
+    final encoded = _metaStorage.get(key);
     if (encoded is! String || encoded.isEmpty) return {};
     try {
       final list = jsonDecode(encoded) as List<dynamic>;
@@ -94,9 +129,9 @@ class HiveRssRepository implements RssRepository {
     }
   }
 
-  @override
-  Future<void> putReadArticleIds(Set<String> ids) async {
-    await _metaStorage.put(_readArticlesKey, jsonEncode(ids.toList()));
+  Future<void> _writeStringSet(String key, Set<String> ids) async {
+    final sorted = ids.toList()..sort();
+    await _metaStorage.put(key, jsonEncode(sorted));
   }
 
   @override
