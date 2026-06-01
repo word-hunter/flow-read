@@ -6,7 +6,6 @@ import '../theme/app_constants.dart';
 import '../widgets/home/home_sidebar.dart';
 import '../widgets/home/bookshelf_content.dart';
 import '../widgets/theme_transition.dart';
-import 'browser_screen.dart';
 import 'bookshelf_screen.dart';
 import 'rss_screen.dart';
 import 'vocabulary_screen.dart';
@@ -19,13 +18,11 @@ class HomeScreen extends StatelessWidget {
 
   static const _bookshelfTabIndex = 0;
   static const _rssTabIndex = 1;
-  static const _browserTabIndex = 2;
   static const _vocabularyTabIndex = 3;
   static const _profileTabIndex = 4;
   static const _allTabIndexes = <int>[
     _bookshelfTabIndex,
     _rssTabIndex,
-    _browserTabIndex,
     _vocabularyTabIndex,
     _profileTabIndex,
   ];
@@ -41,11 +38,7 @@ class HomeScreen extends StatelessWidget {
       selectedIcon: Icon(Icons.rss_feed),
       label: 'RSS',
     ),
-    NavigationDestination(
-      icon: Icon(Icons.language_outlined),
-      selectedIcon: Icon(Icons.language),
-      label: '浏览器',
-    ),
+    NavigationDestination(icon: SizedBox.shrink(), label: ''),
     NavigationDestination(
       icon: Icon(Icons.text_fields_outlined),
       selectedIcon: Icon(Icons.text_fields),
@@ -61,7 +54,7 @@ class HomeScreen extends StatelessWidget {
   static const _narrowPanels = <Widget>[
     BookshelfScreen(),
     RssScreen(),
-    BrowserScreen(),
+    SizedBox.shrink(),
     VocabularyScreen(),
     ProfileScreen(),
   ];
@@ -81,14 +74,12 @@ class HomeScreen extends StatelessWidget {
           return _WideHomeLayout(
             provider: provider,
             showRss: settings.rssFeatureEnabled,
-            showBrowser: settings.browserFeatureEnabled,
           );
         }
         return _buildNarrowLayout(
           context,
           provider,
           showRss: settings.rssFeatureEnabled,
-          showBrowser: settings.browserFeatureEnabled,
         );
       },
     );
@@ -98,12 +89,8 @@ class HomeScreen extends StatelessWidget {
     BuildContext context,
     ReadingProvider provider, {
     required bool showRss,
-    required bool showBrowser,
   }) {
-    final visibleTabs = _visibleTabs(
-      showRss: showRss,
-      showBrowser: showBrowser,
-    );
+    final visibleTabs = _visibleTabs(showRss: showRss);
     _redirectHiddenTab(context, provider, visibleTabs);
     final selectedIndex = _visibleIndexFor(provider.currentTab, visibleTabs);
 
@@ -121,16 +108,9 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  static List<int> _visibleTabs({
-    required bool showRss,
-    required bool showBrowser,
-  }) {
+  static List<int> _visibleTabs({required bool showRss}) {
     return _allTabIndexes
-        .where(
-          (tabIndex) =>
-              (showRss || tabIndex != _rssTabIndex) &&
-              (showBrowser || tabIndex != _browserTabIndex),
-        )
+        .where((tabIndex) => showRss || tabIndex != _rssTabIndex)
         .toList(growable: false);
   }
 
@@ -159,18 +139,13 @@ class HomeScreen extends StatelessWidget {
 class _WideHomeLayout extends StatelessWidget {
   final ReadingProvider provider;
   final bool showRss;
-  final bool showBrowser;
 
-  const _WideHomeLayout({
-    required this.provider,
-    required this.showRss,
-    required this.showBrowser,
-  });
+  const _WideHomeLayout({required this.provider, required this.showRss});
 
   static const _widePanels = <Widget>[
     BookshelfContent(),
     RssScreen(),
-    BrowserScreen(),
+    SizedBox.shrink(),
     VocabularyScreen(),
     ProfileScreen(),
   ];
@@ -179,10 +154,7 @@ class _WideHomeLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final settings = context.watch<SettingsService>();
-    final visibleTabs = HomeScreen._visibleTabs(
-      showRss: showRss,
-      showBrowser: showBrowser,
-    );
+    final visibleTabs = HomeScreen._visibleTabs(showRss: showRss);
     HomeScreen._redirectHiddenTab(context, provider, visibleTabs);
     final selectedIndex = HomeScreen._visibleIndexFor(
       provider.currentTab,
@@ -207,7 +179,6 @@ class _WideHomeLayout extends StatelessWidget {
                 runThemeTransition(context, settings.toggleThemeMode),
             nextThemeMode: settings.nextThemeMode,
             showRss: showRss,
-            showBrowser: showBrowser,
           ),
           VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
           Expanded(

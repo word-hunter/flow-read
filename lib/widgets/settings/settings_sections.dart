@@ -915,14 +915,6 @@ class SettingsExperimentalFeaturesSection extends StatelessWidget {
               ),
               const Divider(height: 1),
               _ExperimentalFeatureTile(
-                icon: Icons.language_outlined,
-                title: '浏览器入口',
-                subtitle: '在首页显示网页阅读、单词标记与 AI 助手入口',
-                value: settings.browserFeatureEnabled,
-                onChanged: settings.setBrowserFeatureEnabled,
-              ),
-              const Divider(height: 1),
-              _ExperimentalFeatureTile(
                 icon: Icons.replay_outlined,
                 title: '轻量复习',
                 subtitle: '显示首页今日复习和训练页复习入口',

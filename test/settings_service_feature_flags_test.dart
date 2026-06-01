@@ -22,32 +22,35 @@ void main() {
     await settings.init();
 
     expect(settings.rssFeatureEnabled, isFalse);
-    expect(settings.browserFeatureEnabled, isFalse);
     expect(settings.reviewFeatureEnabled, isFalse);
 
     await settings.setRssFeatureEnabled(true);
-    await settings.setBrowserFeatureEnabled(true);
     await settings.setReviewFeatureEnabled(true);
     expect(settings.rssFeatureEnabled, isTrue);
-    expect(settings.browserFeatureEnabled, isTrue);
     expect(settings.reviewFeatureEnabled, isTrue);
 
     final reloaded = SettingsService();
     await reloaded.init();
     expect(reloaded.rssFeatureEnabled, isTrue);
-    expect(reloaded.browserFeatureEnabled, isTrue);
     expect(reloaded.reviewFeatureEnabled, isTrue);
 
     await reloaded.setRssFeatureEnabled(false);
     expect(reloaded.rssFeatureEnabled, isFalse);
-    expect(reloaded.browserFeatureEnabled, isTrue);
     expect(reloaded.reviewFeatureEnabled, isTrue);
 
-    await reloaded.setBrowserFeatureEnabled(false);
     await reloaded.setReviewFeatureEnabled(false);
-    expect(reloaded.browserFeatureEnabled, isFalse);
     expect(reloaded.reviewFeatureEnabled, isFalse);
     expect(reloaded.enabledExperimentalFeatures, isEmpty);
+  });
+
+  test('legacy browser feature flag is ignored', () async {
+    await settingsBox().put('enabledExperimentalFeatures', '["browser","rss"]');
+
+    final settings = SettingsService();
+    await settings.init();
+
+    expect(settings.rssFeatureEnabled, isTrue);
+    expect(settings.enabledExperimentalFeatures, {'rss'});
   });
 
   test(

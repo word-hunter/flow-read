@@ -18,7 +18,6 @@ class HomeSidebar extends StatefulWidget {
   final VoidCallback onThemeToggle;
   final ThemeMode nextThemeMode;
   final bool showRss;
-  final bool showBrowser;
 
   const HomeSidebar({
     super.key,
@@ -34,7 +33,6 @@ class HomeSidebar extends StatefulWidget {
     required this.onThemeToggle,
     required this.nextThemeMode,
     required this.showRss,
-    required this.showBrowser,
   });
 
   @override
@@ -138,12 +136,6 @@ class _HomeSidebarState extends State<HomeSidebar> {
       label: 'RSS',
     ),
     (
-      tabIndex: 2,
-      icon: Icons.language_outlined,
-      selectedIcon: Icons.language,
-      label: '浏览器',
-    ),
-    (
       tabIndex: 3,
       icon: Icons.text_fields_outlined,
       selectedIcon: Icons.text_fields,
@@ -198,11 +190,7 @@ class _HomeSidebarState extends State<HomeSidebar> {
 
   Widget _buildNavItems(ThemeData theme) {
     final navItems = _navItems
-        .where(
-          (item) =>
-              (widget.showRss || item.tabIndex != 1) &&
-              (widget.showBrowser || item.tabIndex != 2),
-        )
+        .where((item) => widget.showRss || item.tabIndex != 1)
         .toList(growable: false);
 
     return Column(

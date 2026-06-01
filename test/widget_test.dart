@@ -96,20 +96,16 @@ void main() {
     expect(find.text('开启测试功能'), findsNothing);
     expect(find.text('测试项列表'), findsOneWidget);
     expect(find.text('RSS 入口'), findsOneWidget);
-    expect(find.text('浏览器入口'), findsOneWidget);
+    expect(find.text('浏览器入口'), findsNothing);
     expect(find.text('轻量复习'), findsOneWidget);
     expect(settings.rssFeatureEnabled, isFalse);
-    expect(settings.browserFeatureEnabled, isFalse);
     expect(settings.reviewFeatureEnabled, isFalse);
 
     await tester.tap(find.widgetWithText(SwitchListTile, 'RSS 入口'));
-    await tester.tap(find.widgetWithText(SwitchListTile, '浏览器入口'));
     await tester.tap(find.widgetWithText(SwitchListTile, '轻量复习'));
     await tester.runAsync(() async {
       for (var i = 0; i < 10; i++) {
-        if (settings.rssFeatureEnabled &&
-            settings.browserFeatureEnabled &&
-            settings.reviewFeatureEnabled) {
+        if (settings.rssFeatureEnabled && settings.reviewFeatureEnabled) {
           return;
         }
         await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -117,7 +113,6 @@ void main() {
     });
     await tester.pump(const Duration(milliseconds: 300));
     expect(settings.rssFeatureEnabled, isTrue);
-    expect(settings.browserFeatureEnabled, isTrue);
     expect(settings.reviewFeatureEnabled, isTrue);
 
     await tester.tap(find.text('关于').first);

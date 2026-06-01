@@ -77,11 +77,9 @@ class SettingsService extends ChangeNotifier {
   static const maxDailyReadingGoalMinutes = 240;
   static const dailyReadingGoalStepMinutes = 15;
   static const experimentalFeatureRss = 'rss';
-  static const experimentalFeatureBrowser = 'browser';
   static const experimentalFeatureReview = 'review';
   static const supportedExperimentalFeatureIds = <String>{
     experimentalFeatureRss,
-    experimentalFeatureBrowser,
     experimentalFeatureReview,
   };
   static const _dailyReadingGoalMinutesKey = 'dailyReadingGoalMinutes';
@@ -167,8 +165,6 @@ class SettingsService extends ChangeNotifier {
   );
   bool get rssFeatureEnabled =>
       isExperimentalFeatureEnabled(experimentalFeatureRss);
-  bool get browserFeatureEnabled =>
-      isExperimentalFeatureEnabled(experimentalFeatureBrowser);
   bool get reviewFeatureEnabled =>
       isExperimentalFeatureEnabled(experimentalFeatureReview);
 
@@ -480,10 +476,6 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setRssFeatureEnabled(bool enabled) {
     return setExperimentalFeatureEnabled(experimentalFeatureRss, enabled);
-  }
-
-  Future<void> setBrowserFeatureEnabled(bool enabled) {
-    return setExperimentalFeatureEnabled(experimentalFeatureBrowser, enabled);
   }
 
   Future<void> setReviewFeatureEnabled(bool enabled) {

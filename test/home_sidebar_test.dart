@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('sidebar shows browser entry when enabled', (tester) async {
+  testWidgets('sidebar shows RSS entry when enabled', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -16,17 +16,16 @@ void main() {
             onThemeToggle: () {},
             nextThemeMode: ThemeMode.dark,
             showRss: true,
-            showBrowser: true,
           ),
         ),
       ),
     );
 
     expect(find.text('RSS'), findsOneWidget);
-    expect(find.text('浏览器'), findsOneWidget);
+    expect(find.text('浏览器'), findsNothing);
   });
 
-  testWidgets('sidebar hides browser entry when disabled', (tester) async {
+  testWidgets('sidebar hides RSS entry when disabled', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -38,14 +37,13 @@ void main() {
             onSettingsTap: () {},
             onThemeToggle: () {},
             nextThemeMode: ThemeMode.dark,
-            showRss: true,
-            showBrowser: false,
+            showRss: false,
           ),
         ),
       ),
     );
 
-    expect(find.text('RSS'), findsOneWidget);
+    expect(find.text('RSS'), findsNothing);
     expect(find.text('浏览器'), findsNothing);
   });
 
@@ -62,7 +60,6 @@ void main() {
             onThemeToggle: () {},
             nextThemeMode: ThemeMode.system,
             showRss: true,
-            showBrowser: false,
           ),
         ),
       ),
@@ -87,7 +84,6 @@ void main() {
             onThemeToggle: () {},
             nextThemeMode: ThemeMode.dark,
             showRss: true,
-            showBrowser: false,
           ),
         ),
       ),
@@ -119,7 +115,6 @@ void main() {
             onThemeToggle: () {},
             nextThemeMode: ThemeMode.dark,
             showRss: true,
-            showBrowser: false,
           ),
         ),
       ),
