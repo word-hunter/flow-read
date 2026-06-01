@@ -121,6 +121,94 @@ void main() {
     );
   });
 
+  testWidgets('structure hover keeps source text layout stable', (
+    tester,
+  ) async {
+    const selectedText =
+        'She would drop her book and leap up to slap him, '
+        'and he could jump aside and kick at her, '
+        'and for a few heavenly moments there would be a real '
+        'down-on-the-floor scuffle.';
+    final provider = _SelectedTextReadingProvider(
+      aiTextAnalysis: const AITextAnalysis(
+        translation: '她会扔下书跳起来打他。',
+        structureNotes: [
+          StructureNote(
+            source: 'She would drop her book and leap up to slap him',
+            role: 'main clause',
+            explanation: "'would' 表示过去习惯性动作。",
+          ),
+          StructureNote(
+            source: 'he could jump aside and kick at her',
+            role: 'coordinated clause',
+            explanation: "'could' 表示能力或可能性。",
+          ),
+          StructureNote(
+            source:
+                'for a few heavenly moments there would be a real down-on-the-floor scuffle',
+            role: 'time phrase',
+            explanation: '补充动作持续的时间和场景。',
+          ),
+        ],
+        grammarPoints: [],
+        vocabularyNotes: [],
+        expressionNotes: [],
+        readingTip: '',
+      ),
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ReadingProvider>.value(
+        value: provider,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 420,
+              height: 720,
+              child: SelectedTextSheet(
+                selectedText: selectedText,
+                analysis: null,
+                embedded: true,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final sourceFinder = find.byKey(const ValueKey('structure-source-text'));
+    final targetSpanBefore = _spanForStructureSource(
+      tester,
+      'he could jump aside and kick at her',
+    );
+    final sourceHeightBefore = tester.getSize(sourceFinder).height;
+    final sourceFontWeightBefore = targetSpanBefore?.style?.fontWeight;
+
+    final secondStructureExplanation = find.byKey(
+      const ValueKey('structure-explanation-1'),
+    );
+    await tester.ensureVisible(secondStructureExplanation);
+    await tester.pump();
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(
+      location: tester.getCenter(secondStructureExplanation),
+    );
+    await tester.pump();
+    await mouse.moveTo(tester.getCenter(secondStructureExplanation));
+    await tester.pump(const Duration(milliseconds: 150));
+
+    final targetSpanAfter = _spanForStructureSource(
+      tester,
+      'he could jump aside and kick at her',
+    );
+    final sourceHeightAfter = tester.getSize(sourceFinder).height;
+
+    expect(targetSpanAfter?.style?.backgroundColor, isNotNull);
+    expect(targetSpanAfter?.style?.fontWeight, sourceFontWeightBefore);
+    expect(sourceHeightAfter, sourceHeightBefore);
+  });
+
   testWidgets('embedded title aligns with collapse button', (tester) async {
     final provider = _SelectedTextReadingProvider(
       aiTextAnalysis: const AITextAnalysis(

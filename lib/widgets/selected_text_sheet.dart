@@ -616,10 +616,10 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
           text: sourceText.substring(range.start, range.end),
           style: baseStyle?.copyWith(
             color: isActive ? accent : theme.colorScheme.onSurface,
-            fontWeight: isActive ? FontWeight.w800 : FontWeight.w700,
+            fontWeight: FontWeight.w700,
             decoration: TextDecoration.underline,
             decorationColor: accent.withValues(alpha: isActive ? 0.95 : 0.72),
-            decorationThickness: isActive ? 2.5 : 1.7,
+            decorationThickness: 1.7,
             backgroundColor: isActive ? accent.withValues(alpha: 0.14) : null,
           ),
         ),
