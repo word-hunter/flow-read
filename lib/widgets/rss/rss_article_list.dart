@@ -1,14 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
-import 'package:provider/provider.dart';
 
-import '../../models/analysis_result.dart';
 import '../../models/rss_models.dart';
-import '../../providers/reading_provider.dart';
-import '../../services/analysis_service.dart';
-import '../../services/settings_service.dart';
-import '../reader_text_view.dart';
-import '../word_bottom_sheet.dart';
+import 'rss_article_body_view.dart';
 
 class RssArticleList extends StatefulWidget {
   final List<RssArticle> articles;
@@ -25,6 +18,7 @@ class RssArticleList extends StatefulWidget {
   final Future<void> Function(String id) onMarkUnread;
   final Future<void> Function(String id, bool isFavorite) onSetFavorite;
   final Future<void> Function(String id, bool isReadLater) onSetReadLater;
+  final ValueChanged<RssArticle>? onOpenArticle;
   final ValueChanged<RssArticle> onOpenOriginal;
 
   const RssArticleList({
@@ -43,6 +37,7 @@ class RssArticleList extends StatefulWidget {
     required this.onMarkUnread,
     required this.onSetFavorite,
     required this.onSetReadLater,
+    this.onOpenArticle,
     required this.onOpenOriginal,
   });
 
@@ -111,10 +106,11 @@ class _RssArticleListState extends State<RssArticleList> {
       );
     }
 
-    final effectiveExpandedId =
-        widget.articles.any((article) => article.id == _expandedArticleId)
-        ? _expandedArticleId
-        : widget.articles.first.id;
+    final effectiveExpandedId = widget.onOpenArticle == null
+        ? (widget.articles.any((article) => article.id == _expandedArticleId)
+              ? _expandedArticleId
+              : widget.articles.first.id)
+        : null;
 
     return Column(
       children: [
@@ -276,6 +272,11 @@ class _RssArticleListState extends State<RssArticleList> {
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: () {
+          final onOpenArticle = widget.onOpenArticle;
+          if (onOpenArticle != null) {
+            onOpenArticle(article);
+            return;
+          }
           setState(() => _expandedArticleId = article.id);
           if (!article.isRead) {
             widget.onMarkRead(article.id);
@@ -332,6 +333,7 @@ class _RssArticleListState extends State<RssArticleList> {
               if (isExpanded &&
                   (article.content?.isNotEmpty == true ||
                       article.description?.isNotEmpty == true ||
+                      article.bodyBlocks.isNotEmpty ||
                       article.images.isNotEmpty)) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -343,7 +345,7 @@ class _RssArticleListState extends State<RssArticleList> {
                     ),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: _buildHighlightedContent(context, article, theme),
+                  child: _buildHighlightedContent(article),
                 ),
               ],
               const SizedBox(height: 8),
@@ -529,282 +531,8 @@ class _RssArticleListState extends State<RssArticleList> {
     };
   }
 
-  Widget _buildHighlightedContent(
-    BuildContext context,
-    RssArticle article,
-    ThemeData theme,
-  ) {
-    final bodyBlocks = article.bodyBlocks;
-    final text =
-        (article.content?.isNotEmpty == true
-                ? article.content
-                : article.description)
-            ?.trim();
-    final hasBodyBlocks = bodyBlocks.isNotEmpty;
-    if (!hasBodyBlocks &&
-        (text == null || text.isEmpty) &&
-        article.images.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    if ((text == null || text.isEmpty) &&
-        bodyBlocks.whereType<RssArticleTextBlock>().isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: _buildImageOnlyBody(article, bodyBlocks),
-      );
-    }
-
-    final bodyText = text ?? _textFromBodyBlocks(bodyBlocks) ?? '';
-    final readingProvider = context.watch<ReadingProvider>();
-    final settings = context.watch<SettingsService>();
-    final result = AnalysisService.analyzeChapter(
-      article.title,
-      bodyText,
-      readingProvider.userVocabulary,
-      readingProvider.wordLevelService,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (hasBodyBlocks)
-          ..._buildBodyBlockWidgets(
-            bodyBlocks,
-            result,
-            theme,
-            readingProvider,
-            settings,
-          )
-        else
-          _buildTextBlock(
-            RssArticleTextBlock(
-              type: RssArticleTextBlockType.paragraph,
-              text: bodyText,
-            ),
-            result,
-            theme,
-            readingProvider,
-            settings,
-          ),
-        ..._buildTrailingImages(article, bodyBlocks),
-      ],
-    );
-  }
-
-  List<Widget> _buildBodyBlockWidgets(
-    List<RssArticleBodyBlock> bodyBlocks,
-    AnalysisResult result,
-    ThemeData theme,
-    ReadingProvider readingProvider,
-    SettingsService settings,
-  ) {
-    return bodyBlocks
-        .map((block) {
-          return switch (block) {
-            RssArticleTextBlock() => _buildTextBlock(
-              block,
-              result,
-              theme,
-              readingProvider,
-              settings,
-            ),
-            RssArticleImageBlock() => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _buildArticleImage(block.image),
-            ),
-          };
-        })
-        .toList(growable: false);
-  }
-
-  String? _textFromBodyBlocks(List<RssArticleBodyBlock> bodyBlocks) {
-    final parts = bodyBlocks
-        .whereType<RssArticleTextBlock>()
-        .map((block) => block.text.trim())
-        .where((text) => text.isNotEmpty)
-        .toList(growable: false);
-    if (parts.isEmpty) return null;
-    return parts.join('\n\n');
-  }
-
-  Widget _buildTextBlock(
-    RssArticleTextBlock block,
-    AnalysisResult result,
-    ThemeData theme,
-    ReadingProvider readingProvider,
-    SettingsService settings,
-  ) {
-    final style = _rssTextStyle(block, theme);
-    final richText = Text.rich(
-      buildHighlightedParagraph(
-            block.text,
-            result,
-            theme,
-            onWordTapped: _showWordSheet,
-            fontSize: style.fontSize ?? 14,
-            lineHeight: _rssLineHeight(block),
-            fontFamily: style.fontFamily ?? 'Serif',
-            baseTextColor: style.color,
-            colorSettings: settings.colors,
-            searchQuery: widget.query,
-            lookupHighlightWord: readingProvider.selectedWord,
-            wordLevelService: readingProvider.wordLevelService,
-          )
-          as TextSpan,
-      style: style,
-    );
-
-    final content = switch (block.type) {
-      RssArticleTextBlockType.listItem => Padding(
-        padding: EdgeInsets.only(left: (block.indent - 1).clamp(0, 4) * 18.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 1, right: 8),
-              child: Text(
-                '•',
-                style: style.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            Expanded(child: richText),
-          ],
-        ),
-      ),
-      RssArticleTextBlockType.blockquote => Container(
-        padding: const EdgeInsets.only(left: 12),
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(color: theme.colorScheme.outlineVariant, width: 3),
-          ),
-        ),
-        child: richText,
-      ),
-      _ => richText,
-    };
-
-    return Padding(padding: _rssBlockPadding(block), child: content);
-  }
-
-  TextStyle _rssTextStyle(RssArticleTextBlock block, ThemeData theme) {
-    final color = block.type == RssArticleTextBlockType.blockquote
-        ? theme.colorScheme.onSurfaceVariant
-        : theme.colorScheme.onSurface;
-    final base = theme.textTheme.bodyMedium ?? const TextStyle();
-    final fontSize = switch (block.type) {
-      RssArticleTextBlockType.heading => switch (block.headingLevel) {
-        1 => 17.0,
-        2 => 16.0,
-        3 => 15.0,
-        _ => 14.5,
-      },
-      _ => 14.0,
-    };
-    return base.copyWith(
-      height: _rssLineHeight(block),
-      fontFamily: 'Serif',
-      fontSize: fontSize,
-      fontWeight: block.type == RssArticleTextBlockType.heading
-          ? FontWeight.w700
-          : null,
-      fontStyle: block.type == RssArticleTextBlockType.blockquote
-          ? FontStyle.italic
-          : null,
-      color: color,
-    );
-  }
-
-  double _rssLineHeight(RssArticleTextBlock block) {
-    return block.type == RssArticleTextBlockType.heading ? 1.35 : 1.7;
-  }
-
-  EdgeInsets _rssBlockPadding(RssArticleTextBlock block) {
-    return switch (block.type) {
-      RssArticleTextBlockType.heading => const EdgeInsets.only(
-        top: 4,
-        bottom: 8,
-      ),
-      RssArticleTextBlockType.listItem => const EdgeInsets.only(bottom: 6),
-      _ => const EdgeInsets.only(bottom: 10),
-    };
-  }
-
-  List<Widget> _buildImageOnlyBody(
-    RssArticle article,
-    List<RssArticleBodyBlock> bodyBlocks,
-  ) {
-    return [
-      ...bodyBlocks.whereType<RssArticleImageBlock>().map(
-        (block) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _buildArticleImage(block.image),
-        ),
-      ),
-      ..._buildTrailingImages(article, bodyBlocks),
-    ];
-  }
-
-  List<Widget> _buildTrailingImages(
-    RssArticle article,
-    List<RssArticleBodyBlock> bodyBlocks,
-  ) {
-    final inlineUrls = bodyBlocks
-        .whereType<RssArticleImageBlock>()
-        .map((block) => block.image.url)
-        .toSet();
-    return article.images
-        .where((image) => !inlineUrls.contains(image.url))
-        .map(
-          (image) => Padding(
-            padding: const EdgeInsets.only(top: 2, bottom: 10),
-            child: _buildArticleImage(image),
-          ),
-        )
-        .toList(growable: false);
-  }
-
-  Widget _buildArticleImage(RssArticleImage image) {
-    final uri = Uri.tryParse(image.url);
-    if (uri == null) return const SizedBox.shrink();
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ReadableImagePreview(
-        resource: ReadableImageResource.network(
-          uri,
-          alt: image.alt,
-          suggestedFileName: uri.pathSegments
-              .where((segment) => segment.trim().isNotEmpty)
-              .lastOrNull,
-          width: image.width?.toDouble(),
-          height: image.height?.toDouble(),
-        ),
-        maxHeight: 320,
-        maxWidth: 520,
-      ),
-    );
-  }
-
-  void _showWordSheet(
-    String word,
-    String contextText, {
-    int? contextWordStart,
-    int? contextWordEnd,
-  }) {
-    final provider = context.read<ReadingProvider>();
-    provider.lookupWord(
-      word,
-      contextText: contextText,
-      contextWordStart: contextWordStart,
-      contextWordEnd: contextWordEnd,
-    );
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => WordBottomSheet(word: word),
-    ).whenComplete(provider.clearWordLookup);
+  Widget _buildHighlightedContent(RssArticle article) {
+    return RssArticleBodyView(article: article, searchQuery: widget.query);
   }
 
   String _formatDate(DateTime date) {

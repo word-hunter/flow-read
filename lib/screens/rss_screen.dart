@@ -7,6 +7,7 @@ import '../theme/app_constants.dart';
 import '../widgets/rss/rss_article_list.dart';
 import '../widgets/rss/rss_feed_sidebar.dart';
 import 'browser_screen.dart';
+import 'rss_article_detail_screen.dart';
 
 class RssScreen extends StatelessWidget {
   const RssScreen({super.key});
@@ -245,6 +246,8 @@ class RssScreen extends StatelessWidget {
             onMarkUnread: provider.markAsUnread,
             onSetFavorite: provider.setArticleFavorite,
             onSetReadLater: provider.setArticleReadLater,
+            onOpenArticle: (article) =>
+                _openArticleDetail(context, provider, article),
             onOpenOriginal: (article) =>
                 _openOriginalArticle(context, provider, article),
           ),
@@ -265,6 +268,22 @@ class RssScreen extends StatelessWidget {
       MaterialPageRoute<void>(
         builder: (_) =>
             BrowserScreen(initialUrl: link, initialTitle: article.title),
+      ),
+    );
+  }
+
+  void _openArticleDetail(
+    BuildContext context,
+    RssProvider provider,
+    RssArticle article,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RssArticleDetailScreen(
+          articles: List<RssArticle>.of(provider.visibleArticles),
+          initialArticleId: article.id,
+          showFeedName: provider.isLatestSelected,
+        ),
       ),
     );
   }
