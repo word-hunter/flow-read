@@ -70,3 +70,5 @@ android/.gradle/
 .deepseek
 .opencode
 private
+.agents
+skills-lock.json
