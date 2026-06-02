@@ -26,6 +26,7 @@ class RssArticleDetailScreen extends StatefulWidget {
 
 class _RssArticleDetailScreenState extends State<RssArticleDetailScreen> {
   late String _currentArticleId;
+  bool _isIntensiveReading = false;
 
   @override
   void initState() {
@@ -176,6 +177,17 @@ class _RssArticleDetailScreenState extends State<RssArticleDetailScreen> {
                   tooltip: '查看原文',
                   onPressed: () => _openOriginalArticle(context, article),
                 ),
+              const SizedBox(width: 8),
+              FilledButton.tonalIcon(
+                onPressed: _toggleIntensiveReading,
+                icon: Icon(
+                  _isIntensiveReading
+                      ? Icons.chrome_reader_mode_outlined
+                      : Icons.local_library_outlined,
+                  size: 18,
+                ),
+                label: Text(_isIntensiveReading ? '退出精读' : '进入精读'),
+              ),
             ],
           ),
         ),
@@ -193,39 +205,79 @@ class _RssArticleDetailScreenState extends State<RssArticleDetailScreen> {
         ? 32.0
         : 16.0;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: 24,
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildMetadata(article, theme),
-              const SizedBox(height: 12),
-              Text(
-                article.title,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  height: 1.25,
+    return ColoredBox(
+      color: _isIntensiveReading
+          ? Color.alphaBlend(
+              theme.colorScheme.primaryContainer.withValues(alpha: 0.08),
+              theme.colorScheme.surface,
+            )
+          : theme.colorScheme.surface,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: 24,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildMetadata(article, theme),
+                const SizedBox(height: 12),
+                Text(
+                  article.title,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              if (_hasBody(article))
-                RssArticleBodyView(
-                  article: article,
-                  mode: RssArticleBodyMode.detail,
-                  maxImageHeight: 460,
-                  maxImageWidth: 720,
-                )
-              else
-                _buildNoBodyState(article, theme),
-            ],
+                const SizedBox(height: 18),
+                _buildModeSwitch(theme),
+                const SizedBox(height: 24),
+                if (_hasBody(article))
+                  RssArticleBodyView(
+                    article: article,
+                    mode: _isIntensiveReading
+                        ? RssArticleBodyMode.intensive
+                        : RssArticleBodyMode.detail,
+                    maxImageHeight: 460,
+                    maxImageWidth: 720,
+                  )
+                else
+                  _buildNoBodyState(article, theme),
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildModeSwitch(ThemeData theme) {
+    return SegmentedButton<bool>(
+      segments: const [
+        ButtonSegment(
+          value: false,
+          icon: Icon(Icons.chrome_reader_mode_outlined, size: 16),
+          label: Text('阅读模式'),
+        ),
+        ButtonSegment(
+          value: true,
+          icon: Icon(Icons.school_outlined, size: 16),
+          label: Text('学习模式'),
+        ),
+      ],
+      selected: {_isIntensiveReading},
+      showSelectedIcon: false,
+      onSelectionChanged: (selection) {
+        final next = selection.firstOrNull;
+        if (next == null || next == _isIntensiveReading) return;
+        setState(() => _isIntensiveReading = next);
+      },
+      style: ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        textStyle: WidgetStatePropertyAll(theme.textTheme.labelMedium),
       ),
     );
   }
@@ -310,6 +362,10 @@ class _RssArticleDetailScreenState extends State<RssArticleDetailScreen> {
   void _selectArticle(RssArticle article) {
     setState(() => _currentArticleId = article.id);
     _markAsRead(article);
+  }
+
+  void _toggleIntensiveReading() {
+    setState(() => _isIntensiveReading = !_isIntensiveReading);
   }
 
   void _markCurrentAsRead() {

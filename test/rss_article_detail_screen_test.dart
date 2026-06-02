@@ -148,6 +148,44 @@ void main() {
     expect(readingProvider.selectedWord?.toLowerCase(), 'fluency');
     expect(readingProvider.selectedWordContext, contains('fluency'));
   });
+
+  testWidgets('article detail exposes local intensive reading mode', (
+    tester,
+  ) async {
+    final articles = [
+      RssArticle(
+        feedUrl: 'https://example.com/rss.xml',
+        feedTitle: 'Example',
+        title: 'Study article',
+        content: 'Readers can inspect vocabulary without network calls.',
+        id: 'study',
+      ),
+    ];
+    final rssProvider = await _createProvider(articles);
+
+    await tester.pumpWidget(
+      _buildApp(
+        rssProvider,
+        RssArticleDetailScreen(
+          articles: rssProvider.visibleArticles,
+          initialArticleId: 'study',
+          showFeedName: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('阅读模式'), findsOneWidget);
+    expect(find.text('学习模式'), findsOneWidget);
+    expect(find.text('进入精读'), findsOneWidget);
+    expect(find.byType(SelectionArea), findsNothing);
+
+    await tester.tap(find.text('进入精读'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('退出精读'), findsOneWidget);
+    expect(find.byType(SelectionArea), findsOneWidget);
+  });
 }
 
 Future<RssProvider> _createProvider(List<RssArticle> articles) async {

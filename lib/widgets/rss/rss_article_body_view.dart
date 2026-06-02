@@ -6,11 +6,14 @@ import '../../models/analysis_result.dart';
 import '../../models/rss_models.dart';
 import '../../providers/reading_provider.dart';
 import '../../services/analysis_service.dart';
+import '../../services/app_logger.dart';
 import '../../services/settings_service.dart';
 import '../reader_text_view.dart';
+import '../selected_text_action_toolbar.dart';
+import '../selected_text_sheet.dart';
 import '../word_bottom_sheet.dart';
 
-enum RssArticleBodyMode { preview, detail }
+enum RssArticleBodyMode { preview, detail, intensive }
 
 class RssArticleBodyView extends StatelessWidget {
   final RssArticle article;
@@ -55,14 +58,9 @@ class RssArticleBodyView extends StatelessWidget {
     final bodyText = text ?? _textFromBodyBlocks(bodyBlocks) ?? '';
     final readingProvider = context.watch<ReadingProvider>();
     final settings = context.watch<SettingsService>();
-    final result = AnalysisService.analyzeChapter(
-      article.title,
-      bodyText,
-      readingProvider.userVocabulary,
-      readingProvider.wordLevelService,
-    );
+    final result = _analyzeArticleBody(readingProvider, bodyText);
 
-    return Column(
+    final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (hasBodyBlocks)
@@ -89,12 +87,59 @@ class RssArticleBodyView extends StatelessWidget {
         ..._buildTrailingImages(article, bodyBlocks),
       ],
     );
+
+    if (mode != RssArticleBodyMode.intensive) {
+      return content;
+    }
+
+    return SelectedTextActionRegion(
+      actionsBuilder: (context, selectedText, closeToolbar) => [
+        SelectedTextAction.copy(
+          context: context,
+          selectedText: selectedText,
+          closeToolbar: closeToolbar,
+        ),
+        SelectedTextAction(
+          icon: Icons.segment_outlined,
+          tooltip: '解析选中内容',
+          enabled: selectedText.trim().isNotEmpty,
+          onPressed: () {
+            closeToolbar();
+            _showSelectedTextSheet(context, selectedText);
+          },
+        ),
+      ],
+      child: content,
+    );
+  }
+
+  AnalysisResult? _analyzeArticleBody(
+    ReadingProvider readingProvider,
+    String bodyText,
+  ) {
+    try {
+      return AnalysisService.analyzeChapter(
+        article.title,
+        bodyText,
+        readingProvider.userVocabulary,
+        readingProvider.wordLevelService,
+      );
+    } catch (error, stackTrace) {
+      AppLogger.instance.event(
+        'rss.article_body_analysis_failed',
+        level: AppLogLevel.warning,
+        source: 'rss_article_body_view',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return null;
+    }
   }
 
   List<Widget> _buildBodyBlockWidgets(
     BuildContext context,
     List<RssArticleBodyBlock> bodyBlocks,
-    AnalysisResult result,
+    AnalysisResult? result,
     ThemeData theme,
     ReadingProvider readingProvider,
     SettingsService settings,
@@ -132,39 +177,41 @@ class RssArticleBodyView extends StatelessWidget {
   Widget _buildTextBlock(
     BuildContext context,
     RssArticleTextBlock block,
-    AnalysisResult result,
+    AnalysisResult? result,
     ThemeData theme,
     ReadingProvider readingProvider,
     SettingsService settings,
   ) {
     final style = _rssTextStyle(block, theme);
-    final richText = Text.rich(
-      buildHighlightedParagraph(
-            block.text,
-            result,
-            theme,
-            onWordTapped:
-                (word, contextText, {contextWordStart, contextWordEnd}) {
-                  _showWordSheet(
-                    context,
-                    word,
-                    contextText,
-                    contextWordStart: contextWordStart,
-                    contextWordEnd: contextWordEnd,
-                  );
-                },
-            fontSize: style.fontSize ?? 14,
-            lineHeight: _rssLineHeight(block),
-            fontFamily: style.fontFamily ?? 'Serif',
-            baseTextColor: style.color,
-            colorSettings: settings.colors,
-            searchQuery: searchQuery,
-            lookupHighlightWord: readingProvider.selectedWord,
-            wordLevelService: readingProvider.wordLevelService,
-          )
-          as TextSpan,
-      style: style,
-    );
+    final richText = result == null
+        ? Text(block.text, style: style)
+        : Text.rich(
+            buildHighlightedParagraph(
+                  block.text,
+                  result,
+                  theme,
+                  onWordTapped:
+                      (word, contextText, {contextWordStart, contextWordEnd}) {
+                        _showWordSheet(
+                          context,
+                          word,
+                          contextText,
+                          contextWordStart: contextWordStart,
+                          contextWordEnd: contextWordEnd,
+                        );
+                      },
+                  fontSize: style.fontSize ?? 14,
+                  lineHeight: _rssLineHeight(block),
+                  fontFamily: style.fontFamily ?? 'Serif',
+                  baseTextColor: style.color,
+                  colorSettings: settings.colors,
+                  searchQuery: searchQuery,
+                  lookupHighlightWord: readingProvider.selectedWord,
+                  wordLevelService: readingProvider.wordLevelService,
+                )
+                as TextSpan,
+            style: style,
+          );
 
     final content = switch (block.type) {
       RssArticleTextBlockType.listItem => Padding(
@@ -207,12 +254,32 @@ class RssArticleBodyView extends StatelessWidget {
     final base = theme.textTheme.bodyMedium ?? const TextStyle();
     final fontSize = switch (block.type) {
       RssArticleTextBlockType.heading => switch (block.headingLevel) {
-        1 => mode == RssArticleBodyMode.detail ? 24.0 : 17.0,
-        2 => mode == RssArticleBodyMode.detail ? 21.0 : 16.0,
-        3 => mode == RssArticleBodyMode.detail ? 18.0 : 15.0,
-        _ => mode == RssArticleBodyMode.detail ? 17.0 : 14.5,
+        1 => switch (mode) {
+          RssArticleBodyMode.intensive => 25.0,
+          RssArticleBodyMode.detail => 24.0,
+          RssArticleBodyMode.preview => 17.0,
+        },
+        2 => switch (mode) {
+          RssArticleBodyMode.intensive => 22.0,
+          RssArticleBodyMode.detail => 21.0,
+          RssArticleBodyMode.preview => 16.0,
+        },
+        3 => switch (mode) {
+          RssArticleBodyMode.intensive => 19.0,
+          RssArticleBodyMode.detail => 18.0,
+          RssArticleBodyMode.preview => 15.0,
+        },
+        _ => switch (mode) {
+          RssArticleBodyMode.intensive => 18.0,
+          RssArticleBodyMode.detail => 17.0,
+          RssArticleBodyMode.preview => 14.5,
+        },
       },
-      _ => mode == RssArticleBodyMode.detail ? 16.0 : 14.0,
+      _ => switch (mode) {
+        RssArticleBodyMode.intensive => 18.0,
+        RssArticleBodyMode.detail => 16.0,
+        RssArticleBodyMode.preview => 14.0,
+      },
     };
     return base.copyWith(
       height: _rssLineHeight(block),
@@ -230,20 +297,36 @@ class RssArticleBodyView extends StatelessWidget {
 
   double _rssLineHeight(RssArticleTextBlock block) {
     if (block.type == RssArticleTextBlockType.heading) {
-      return mode == RssArticleBodyMode.detail ? 1.3 : 1.35;
+      return switch (mode) {
+        RssArticleBodyMode.intensive => 1.38,
+        RssArticleBodyMode.detail => 1.3,
+        RssArticleBodyMode.preview => 1.35,
+      };
     }
-    return mode == RssArticleBodyMode.detail ? 1.75 : 1.7;
+    return switch (mode) {
+      RssArticleBodyMode.intensive => 2.0,
+      RssArticleBodyMode.detail => 1.75,
+      RssArticleBodyMode.preview => 1.7,
+    };
   }
 
   EdgeInsets _rssBlockPadding(RssArticleTextBlock block) {
-    final bottom = mode == RssArticleBodyMode.detail ? 14.0 : 10.0;
+    final bottom = switch (mode) {
+      RssArticleBodyMode.intensive => 18.0,
+      RssArticleBodyMode.detail => 14.0,
+      RssArticleBodyMode.preview => 10.0,
+    };
     return switch (block.type) {
       RssArticleTextBlockType.heading => EdgeInsets.only(
-        top: mode == RssArticleBodyMode.detail ? 12 : 4,
-        bottom: mode == RssArticleBodyMode.detail ? 12 : 8,
+        top: mode == RssArticleBodyMode.preview ? 4 : 12,
+        bottom: mode == RssArticleBodyMode.intensive ? 14 : 8,
       ),
       RssArticleTextBlockType.listItem => EdgeInsets.only(
-        bottom: mode == RssArticleBodyMode.detail ? 9 : 6,
+        bottom: mode == RssArticleBodyMode.intensive
+            ? 12
+            : mode == RssArticleBodyMode.detail
+            ? 9
+            : 6,
       ),
       _ => EdgeInsets.only(bottom: bottom),
     };
@@ -323,5 +406,22 @@ class RssArticleBodyView extends StatelessWidget {
       isScrollControlled: true,
       builder: (_) => WordBottomSheet(word: word),
     ).whenComplete(provider.clearWordLookup);
+  }
+
+  void _showSelectedTextSheet(BuildContext context, String text) {
+    final selectedText = text.trim();
+    if (selectedText.isEmpty) return;
+    final provider = context.read<ReadingProvider>();
+    provider.analyzeSelectedText(selectedText);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SelectedTextSheet(
+        selectedText: selectedText,
+        analysis: provider.selectedAnalysis,
+        breakdowns: provider.selectedBreakdowns,
+      ),
+    );
   }
 }
