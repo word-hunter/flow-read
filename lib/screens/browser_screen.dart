@@ -16,6 +16,11 @@ import '../widgets/reader_text_view.dart';
 import '../widgets/selected_text_sheet.dart';
 import '../widgets/word_bottom_sheet.dart';
 
+/// INTERNAL SUBSTRATE - not exposed as a standalone app surface.
+///
+/// Browser is used by RSS to show original article pages. Keep the legal entry
+/// points limited to RSS article actions; do not add a home tab, settings entry,
+/// or named route for this screen.
 class BrowserScreen extends StatefulWidget {
   final String? initialUrl;
   final String? initialTitle;
