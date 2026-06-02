@@ -10,8 +10,12 @@ class RssArticleList extends StatefulWidget {
   final String query;
   final RssArticleFilter filter;
   final Map<RssArticleFilter, int> filterCounts;
+  final RssLoadStatus articlesStatus;
+  final RssError? articlesError;
+  final bool hasCachedArticles;
   final bool showFeedName;
-  final VoidCallback onRefresh;
+  final Future<void> Function() onRefresh;
+  final VoidCallback onRetry;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<RssArticleFilter> onFilterChanged;
   final Future<void> Function(String id) onMarkRead;
@@ -29,8 +33,12 @@ class RssArticleList extends StatefulWidget {
     required this.query,
     required this.filter,
     required this.filterCounts,
+    required this.articlesStatus,
+    this.articlesError,
+    required this.hasCachedArticles,
     required this.showFeedName,
     required this.onRefresh,
+    required this.onRetry,
     required this.onSearchChanged,
     required this.onFilterChanged,
     required this.onMarkRead,
@@ -74,34 +82,32 @@ class _RssArticleListState extends State<RssArticleList> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isLoading = widget.articlesStatus == RssLoadStatus.loading;
+    final isError = widget.articlesStatus == RssLoadStatus.error;
+
+    if (isLoading && widget.articles.isEmpty) {
+      return Column(
+        children: [
+          _buildHeader(context, theme),
+          Expanded(child: _buildLoadingState(theme)),
+        ],
+      );
+    }
+
+    if (isError && widget.articles.isEmpty && !widget.hasCachedArticles) {
+      return Column(
+        children: [
+          _buildHeader(context, theme),
+          Expanded(child: _buildErrorState(theme)),
+        ],
+      );
+    }
 
     if (widget.articles.isEmpty) {
       return Column(
         children: [
           _buildHeader(context, theme),
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.article_outlined,
-                    size: 48,
-                    color: theme.colorScheme.onSurfaceVariant.withValues(
-                      alpha: 0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _emptyMessage(),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          Expanded(child: _buildEmptyState(theme)),
         ],
       );
     }
@@ -115,9 +121,11 @@ class _RssArticleListState extends State<RssArticleList> {
     return Column(
       children: [
         _buildHeader(context, theme),
+        if (isLoading) const LinearProgressIndicator(minHeight: 2),
+        if (isError) _buildCachedErrorBanner(theme),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () async => widget.onRefresh(),
+            onRefresh: widget.onRefresh,
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               itemCount: widget.articles.length,
@@ -180,9 +188,19 @@ class _RssArticleListState extends State<RssArticleList> {
                 ),
               const SizedBox(width: 8),
               IconButton(
-                icon: const Icon(Icons.refresh, size: 20),
-                tooltip: '刷新',
-                onPressed: widget.onRefresh,
+                icon: widget.articlesStatus == RssLoadStatus.loading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh, size: 20),
+                tooltip: widget.articlesStatus == RssLoadStatus.loading
+                    ? '刷新中'
+                    : '刷新',
+                onPressed: widget.articlesStatus == RssLoadStatus.loading
+                    ? null
+                    : () => widget.onRefresh(),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
@@ -244,6 +262,114 @@ class _RssArticleListState extends State<RssArticleList> {
               onChanged: widget.onSearchChanged,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 14),
+          Text(
+            '正在加载文章…',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 44, color: theme.colorScheme.error),
+            const SizedBox(height: 12),
+            Text(
+              widget.articlesError?.message ?? '文章加载失败',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: widget.onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('重试'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme) {
+    final isFiltered =
+        widget.query.trim().isNotEmpty || widget.filter != RssArticleFilter.all;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.article_outlined,
+            size: 48,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _emptyMessage(),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          if (isFiltered) ...[
+            const SizedBox(height: 6),
+            Text(
+              '尝试其他筛选条件',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.68,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCachedErrorBanner(ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.72),
+      child: Row(
+        children: [
+          Icon(
+            Icons.warning_amber_outlined,
+            size: 18,
+            color: theme.colorScheme.onTertiaryContainer,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '正在显示缓存内容，上次刷新失败。${widget.articlesError?.message ?? ''}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onTertiaryContainer,
+              ),
+            ),
+          ),
+          TextButton(onPressed: widget.onRetry, child: const Text('重试')),
         ],
       ),
     );

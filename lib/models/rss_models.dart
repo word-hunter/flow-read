@@ -1,5 +1,17 @@
 import 'package:hive/hive.dart';
 
+enum RssLoadStatus { idle, loading, loaded, empty, error }
+
+enum RssErrorType { network, parse, empty, unknown }
+
+class RssError {
+  final RssErrorType type;
+  final String message;
+  final String? detail;
+
+  const RssError({required this.type, required this.message, this.detail});
+}
+
 @HiveType(typeId: 10)
 class RssFeedSubscription extends HiveObject {
   @HiveField(0)

@@ -46,14 +46,22 @@ class RssScreen extends StatelessWidget {
           child: RssFeedSidebar(
             subscriptions: provider.subscriptions,
             selectedUrl: provider.selectedFeedUrl,
-            isLoading: provider.isLoading,
+            subscriptionStatus: provider.subscriptionStatus,
+            subscriptionError: provider.subscriptionError,
+            articleFilter: provider.articleFilter,
+            filterCounts: {
+              for (final filter in RssArticleFilter.values)
+                filter: provider.articleCountForFilter(filter),
+            },
             isLatestSelected: provider.isLatestSelected,
             onSelectLatest: provider.selectLatest,
             onSelectFeed: provider.selectFeed,
+            onSelectArticleFilter: provider.updateArticleFilter,
             onAddFeed: () => _showAddFeedDialog(context),
             onEditFeed: (subscription) =>
                 _showEditFeedDialog(context, subscription),
             onRemoveFeed: (url) => provider.removeFeed(url),
+            onRetry: () => provider.retry(),
           ),
         ),
         VerticalDivider(
@@ -184,13 +192,12 @@ class RssScreen extends StatelessWidget {
       );
     }
 
-    if (provider.isFetchingArticles && provider.articles.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     return Column(
       children: [
-        if (provider.errorMessage != null)
+        if (provider.errorMessage != null &&
+            (provider.subscriptionError != null ||
+                (provider.articlesError != null &&
+                    provider.articlesStatus != RssLoadStatus.error)))
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -211,6 +218,7 @@ class RssScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                TextButton(onPressed: provider.retry, child: const Text('重试')),
                 IconButton(
                   icon: Icon(
                     Icons.close,
@@ -238,8 +246,12 @@ class RssScreen extends StatelessWidget {
               for (final filter in RssArticleFilter.values)
                 filter: provider.articleCountForFilter(filter),
             },
+            articlesStatus: provider.articlesStatus,
+            articlesError: provider.articlesError,
+            hasCachedArticles: provider.articles.isNotEmpty,
             showFeedName: provider.isLatestSelected,
             onRefresh: provider.refreshAll,
+            onRetry: provider.retry,
             onSearchChanged: provider.updateArticleQuery,
             onFilterChanged: provider.updateArticleFilter,
             onMarkRead: provider.markAsRead,
@@ -293,6 +305,45 @@ class RssScreen extends StatelessWidget {
     RssProvider provider,
     ThemeData theme,
   ) {
+    if (provider.subscriptionStatus == RssLoadStatus.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (provider.subscriptionStatus == RssLoadStatus.error) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 52,
+                  color: theme.colorScheme.error,
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  provider.subscriptionError?.message ?? 'RSS 加载失败',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                OutlinedButton.icon(
+                  onPressed: provider.retry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('重试'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,

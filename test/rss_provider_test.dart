@@ -21,8 +21,54 @@ void main() {
     await provider.init();
 
     expect(provider.isLoading, isFalse);
-    expect(provider.errorMessage, contains('network down'));
+    expect(provider.subscriptionStatus, RssLoadStatus.loaded);
+    expect(provider.articlesStatus, RssLoadStatus.error);
+    expect(provider.articlesError?.type, RssErrorType.network);
+    expect(provider.articlesError?.detail, contains('network down'));
     expect(provider.articles, isEmpty);
+  });
+
+  test('provider tracks empty subscription and article states', () async {
+    final provider = RssProvider(service: _FakeRssFeedService());
+    addTearDown(provider.dispose);
+
+    await provider.init();
+
+    expect(provider.subscriptionStatus, RssLoadStatus.empty);
+    expect(provider.articlesStatus, RssLoadStatus.empty);
+    expect(provider.subscriptions, isEmpty);
+    expect(provider.articles, isEmpty);
+  });
+
+  test('retry refetches articles after an article error', () async {
+    final service = _FakeRssFeedService(
+      subscriptions: [
+        RssFeedSubscription(
+          url: 'https://example.com/rss.xml',
+          title: 'Example',
+        ),
+      ],
+      articles: [
+        RssArticle(
+          feedUrl: 'https://example.com/rss.xml',
+          title: 'Recovered article',
+          id: 'recovered',
+        ),
+      ],
+      latestError: StateError('network down'),
+    );
+    final provider = RssProvider(service: service);
+    addTearDown(provider.dispose);
+
+    await provider.init();
+    expect(provider.articlesStatus, RssLoadStatus.error);
+
+    service.latestError = null;
+    await provider.retry();
+
+    expect(provider.articlesStatus, RssLoadStatus.loaded);
+    expect(provider.articles.map((article) => article.id), ['recovered']);
+    expect(provider.articlesError, isNull);
   });
 
   test('provider filters searched articles by list state', () async {
@@ -91,7 +137,7 @@ class _FakeRssFeedService implements RssFeedService {
 
   final List<RssFeedSubscription> _subscriptions;
   final List<RssArticle> _articles;
-  final Object? latestError;
+  Object? latestError;
 
   @override
   Future<void> init() async {}

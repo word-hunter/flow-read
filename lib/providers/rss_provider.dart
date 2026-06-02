@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/rss_models.dart';
@@ -12,9 +15,10 @@ class RssProvider extends ChangeNotifier {
   List<RssFeedSubscription> _subscriptions = [];
   String? _selectedFeedUrl;
   List<RssArticle> _articles = [];
-  bool _isLoading = false;
-  bool _isFetchingArticles = false;
-  String? _errorMessage;
+  RssLoadStatus _subscriptionStatus = RssLoadStatus.idle;
+  RssLoadStatus _articlesStatus = RssLoadStatus.idle;
+  RssError? _subscriptionError;
+  RssError? _articlesError;
   String _articleQuery = '';
   RssArticleFilter _articleFilter = RssArticleFilter.all;
 
@@ -55,9 +59,16 @@ class RssProvider extends ChangeNotifier {
     }).toList();
   }
 
-  bool get isLoading => _isLoading;
-  bool get isFetchingArticles => _isFetchingArticles;
-  String? get errorMessage => _errorMessage;
+  RssLoadStatus get subscriptionStatus => _subscriptionStatus;
+  RssLoadStatus get articlesStatus => _articlesStatus;
+  RssError? get subscriptionError => _subscriptionError;
+  RssError? get articlesError => _articlesError;
+  bool get isLoading =>
+      _subscriptionStatus == RssLoadStatus.loading ||
+      _articlesStatus == RssLoadStatus.loading;
+  bool get isFetchingArticles => _articlesStatus == RssLoadStatus.loading;
+  String? get errorMessage =>
+      _subscriptionError?.message ?? _articlesError?.message;
   String get articleQuery => _articleQuery;
   RssArticleFilter get articleFilter => _articleFilter;
   int get unreadCount => visibleArticles.where((a) => !a.isRead).length;
@@ -71,14 +82,13 @@ class RssProvider extends ChangeNotifier {
   // ---- init ----
 
   Future<void> init() async {
-    _isLoading = true;
+    _subscriptionStatus = RssLoadStatus.loading;
+    _articlesStatus = RssLoadStatus.idle;
+    _subscriptionError = null;
+    _articlesError = null;
     notifyListeners();
     try {
       await _service.init();
-      _subscriptions = _service.subscriptions;
-      if (_subscriptions.isNotEmpty) {
-        _articles = await _service.fetchLatestArticles();
-      }
     } catch (error, stackTrace) {
       AppLogger.instance.event(
         'rss.init_failed',
@@ -87,17 +97,32 @@ class RssProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      _errorMessage = '加载 RSS 失败: $error';
+      _subscriptionStatus = RssLoadStatus.error;
+      _subscriptionError = _classifyError(error, stackTrace);
+      notifyListeners();
+      return;
     }
-    _isLoading = false;
+
+    _subscriptions = _service.subscriptions;
+    _subscriptionStatus = _statusForItems(_subscriptions);
+    _subscriptionError = null;
+    if (_subscriptions.isEmpty) {
+      _articles = [];
+      _articlesStatus = RssLoadStatus.empty;
+      notifyListeners();
+      return;
+    }
+
     notifyListeners();
+    await _loadArticles();
   }
 
   // ---- actions ----
 
   Future<void> addFeed(String url) async {
-    _errorMessage = null;
-    _isLoading = true;
+    _subscriptionError = null;
+    _articlesError = null;
+    _subscriptionStatus = RssLoadStatus.loading;
     notifyListeners();
     try {
       final sub = await _service.addSubscription(url);
@@ -105,6 +130,9 @@ class RssProvider extends ChangeNotifier {
       _selectedFeedUrl = sub.url;
       _articleQuery = '';
       _articleFilter = RssArticleFilter.all;
+      _subscriptionStatus = RssLoadStatus.loaded;
+      _subscriptionError = null;
+      notifyListeners();
       await fetchArticlesForSelectedFeed();
     } catch (error, stackTrace) {
       AppLogger.instance.event(
@@ -114,10 +142,14 @@ class RssProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      _errorMessage = '添加订阅失败: $error';
+      _subscriptionStatus = RssLoadStatus.error;
+      _subscriptionError = _classifyError(
+        error,
+        stackTrace,
+        fallbackMessage: '添加订阅失败',
+      );
+      notifyListeners();
     }
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<void> updateFeed({
@@ -127,8 +159,9 @@ class RssProvider extends ChangeNotifier {
     String? description,
     bool refreshMetadata = false,
   }) async {
-    _errorMessage = null;
-    _isLoading = true;
+    _subscriptionError = null;
+    _articlesError = null;
+    _subscriptionStatus = RssLoadStatus.loading;
     notifyListeners();
     try {
       final updated = await _service.updateSubscription(
@@ -141,9 +174,16 @@ class RssProvider extends ChangeNotifier {
       _subscriptions = _service.subscriptions;
       if (_selectedFeedUrl == originalUrl) {
         _selectedFeedUrl = updated?.url;
+        _subscriptionStatus = _statusForItems(_subscriptions);
+        notifyListeners();
         await fetchArticlesForSelectedFeed();
       } else if (_selectedFeedUrl == null) {
+        _subscriptionStatus = _statusForItems(_subscriptions);
+        notifyListeners();
         await fetchArticlesForSelectedFeed();
+      } else {
+        _subscriptionStatus = _statusForItems(_subscriptions);
+        notifyListeners();
       }
     } catch (error, stackTrace) {
       AppLogger.instance.event(
@@ -153,26 +193,58 @@ class RssProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      _errorMessage = '更新订阅失败: $error';
+      _subscriptionStatus = RssLoadStatus.error;
+      _subscriptionError = _classifyError(
+        error,
+        stackTrace,
+        fallbackMessage: '更新订阅失败',
+      );
+      notifyListeners();
     }
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<void> removeFeed(String url) async {
-    await _service.removeSubscription(url);
-    _service.clearArticleCache(url);
-    _subscriptions = _service.subscriptions;
-    if (_selectedFeedUrl == url) {
-      _selectedFeedUrl = null;
-      _articles = [];
-      if (_subscriptions.isNotEmpty) {
-        await fetchArticlesForSelectedFeed();
-      }
-    } else if (_selectedFeedUrl == null) {
-      await fetchArticlesForSelectedFeed();
-    }
+    _subscriptionError = null;
+    _articlesError = null;
+    _subscriptionStatus = RssLoadStatus.loading;
     notifyListeners();
+    try {
+      await _service.removeSubscription(url);
+      _service.clearArticleCache(url);
+      _subscriptions = _service.subscriptions;
+      _subscriptionStatus = _statusForItems(_subscriptions);
+      if (_selectedFeedUrl == url) {
+        _selectedFeedUrl = null;
+        _articles = [];
+        _articlesStatus = _subscriptions.isEmpty
+            ? RssLoadStatus.empty
+            : RssLoadStatus.idle;
+        notifyListeners();
+        if (_subscriptions.isNotEmpty) {
+          await fetchArticlesForSelectedFeed();
+        }
+      } else if (_selectedFeedUrl == null) {
+        notifyListeners();
+        await fetchArticlesForSelectedFeed();
+      } else {
+        notifyListeners();
+      }
+    } catch (error, stackTrace) {
+      AppLogger.instance.event(
+        'rss.remove_feed_failed',
+        level: AppLogLevel.warning,
+        source: 'rss_provider',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _subscriptionStatus = RssLoadStatus.error;
+      _subscriptionError = _classifyError(
+        error,
+        stackTrace,
+        fallbackMessage: '移除订阅失败',
+      );
+      notifyListeners();
+    }
   }
 
   void selectLatest() {
@@ -194,18 +266,31 @@ class RssProvider extends ChangeNotifier {
   }
 
   Future<void> fetchArticlesForSelectedFeed() async {
+    await _loadArticles();
+  }
+
+  Future<void> _loadArticles({bool forceRefresh = false}) async {
     if (_subscriptions.isEmpty) {
       _articles = [];
+      _articlesStatus = RssLoadStatus.empty;
+      _articlesError = null;
       notifyListeners();
       return;
     }
-    _isFetchingArticles = true;
-    _errorMessage = null;
+    _articlesStatus = RssLoadStatus.loading;
+    _articlesError = null;
     notifyListeners();
     try {
       _articles = _selectedFeedUrl == null
-          ? await _service.fetchLatestArticles()
-          : await _service.fetchArticles(_selectedFeedUrl!);
+          ? await _service.fetchLatestArticles(forceRefresh: forceRefresh)
+          : await _service.fetchArticles(
+              _selectedFeedUrl!,
+              forceRefresh: forceRefresh,
+            );
+      _articlesStatus = _articles.isEmpty
+          ? RssLoadStatus.empty
+          : RssLoadStatus.loaded;
+      _articlesError = null;
     } catch (error, stackTrace) {
       AppLogger.instance.event(
         'rss.fetch_articles_failed',
@@ -215,9 +300,13 @@ class RssProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      _errorMessage = '获取文章失败: $error';
+      _articlesStatus = RssLoadStatus.error;
+      _articlesError = _classifyError(
+        error,
+        stackTrace,
+        fallbackMessage: '获取文章失败',
+      );
     }
-    _isFetchingArticles = false;
     notifyListeners();
   }
 
@@ -227,7 +316,17 @@ class RssProvider extends ChangeNotifier {
     } else {
       _service.clearArticleCache(_selectedFeedUrl);
     }
-    await fetchArticlesForSelectedFeed();
+    await _loadArticles(forceRefresh: true);
+  }
+
+  Future<void> retry() async {
+    if (_subscriptionStatus == RssLoadStatus.error) {
+      await init();
+      return;
+    }
+    if (_articlesStatus == RssLoadStatus.error) {
+      await fetchArticlesForSelectedFeed();
+    }
   }
 
   Future<void> markAsRead(String articleId) async {
@@ -262,7 +361,63 @@ class RssProvider extends ChangeNotifier {
   }
 
   void clearError() {
-    _errorMessage = null;
+    _subscriptionError = null;
+    _articlesError = null;
+    if (_subscriptionStatus == RssLoadStatus.error) {
+      _subscriptionStatus = _statusForItems(_subscriptions);
+    }
+    if (_articlesStatus == RssLoadStatus.error) {
+      _articlesStatus = _statusForItems(_articles);
+    }
     notifyListeners();
+  }
+
+  RssLoadStatus _statusForItems(List<Object?> items) {
+    return items.isEmpty ? RssLoadStatus.empty : RssLoadStatus.loaded;
+  }
+
+  RssError _classifyError(
+    Object error,
+    StackTrace stackTrace, {
+    String fallbackMessage = '加载失败',
+  }) {
+    final detail = error.toString();
+    final normalized = detail.toLowerCase();
+    if (error is SocketException ||
+        error is HandshakeException ||
+        error is TimeoutException ||
+        normalized.contains('socketexception') ||
+        normalized.contains('handshakeexception') ||
+        normalized.contains('timeoutexception') ||
+        normalized.contains('connection refused') ||
+        normalized.contains('network')) {
+      return RssError(
+        type: RssErrorType.network,
+        message: _networkErrorMessage(),
+        detail: detail,
+      );
+    }
+    if (error is FormatException ||
+        normalized.contains('xmlparser') ||
+        normalized.contains('format') ||
+        normalized.contains('parse')) {
+      return RssError(
+        type: RssErrorType.parse,
+        message: '无法解析该 RSS 源，格式可能不支持',
+        detail: detail,
+      );
+    }
+    return RssError(
+      type: RssErrorType.unknown,
+      message: '$fallbackMessage：$detail',
+      detail: detail,
+    );
+  }
+
+  String _networkErrorMessage() {
+    if (!kIsWeb && Platform.isMacOS) {
+      return '网络连接失败。请检查网络设置，或前往 设置 → 关于 → 系统权限 排查。';
+    }
+    return '网络连接失败，请检查网络设置';
   }
 }
