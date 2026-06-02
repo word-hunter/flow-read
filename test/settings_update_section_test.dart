@@ -78,6 +78,7 @@ void main() {
               onDownloadUpdate: () {},
               onOpenUpdateReleasePage: () {},
               onOpenLogsFolder: () {},
+              onExportDiagnostics: () {},
               onOpenRepository: () {},
               onOpenIssueFeedback: () {},
             ),

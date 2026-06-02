@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ import '../services/dictionary/dictionary_cache_service.dart';
 import '../services/dictionary/dictionary_source_config.dart';
 import '../services/dictionary/dictionary_source_registry.dart';
 import '../services/dictionary/dictionary_source_test_service.dart';
+import '../services/diagnostic_export_service.dart';
 import '../services/external_url_launcher.dart';
 import '../services/log_folder_opener.dart';
 import '../services/llm_client.dart';
@@ -73,6 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int? _aiCacheEntryCount;
   int? _dictionaryCacheEntryCount;
   bool _cacheStatsLoading = true;
+  bool _exportingDiagnostics = false;
   SettingsSection _selectedSection = SettingsSection.appearance;
   final BackupFolderAccess _backupFolderAccess = const BackupFolderAccess();
   late final AppUpdateService _appUpdateService;
@@ -383,6 +386,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ? null
                     : () => unawaited(_openAvailableUpdateReleasePage()),
                 onOpenLogsFolder: () => unawaited(_openLogsFolder()),
+                onExportDiagnostics: () =>
+                    unawaited(_exportDiagnostics(settings)),
+                exportingDiagnostics: _exportingDiagnostics,
                 onOpenRepository: () => unawaited(_openRepositoryUrl()),
                 onOpenIssueFeedback: () => unawaited(_openIssueFeedbackUrl()),
               ),
@@ -940,6 +946,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
       _showSnackBar('打开日志文件夹失败');
+    }
+  }
+
+  Future<void> _exportDiagnostics(SettingsService settings) async {
+    if (_exportingDiagnostics) return;
+    setState(() => _exportingDiagnostics = true);
+    try {
+      final service = DiagnosticExportService();
+      final tempPath = await service.export(settings: settings);
+      if (!mounted) return;
+
+      final fileName = tempPath.split(Platform.pathSeparator).last;
+      final targetPath = await FilePicker.saveFile(
+        dialogTitle: '保存诊断报告',
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: const ['zip'],
+      );
+      if (targetPath == null || targetPath.trim().isEmpty) {
+        if (mounted) _showSnackBar('已取消导出');
+        return;
+      }
+
+      if (targetPath != tempPath) {
+        await File(tempPath).copy(targetPath);
+      }
+      if (mounted) _showSnackBar('诊断报告已导出');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnackBar('导出诊断报告失败：$error');
+    } finally {
+      if (mounted) {
+        setState(() => _exportingDiagnostics = false);
+      }
     }
   }
 

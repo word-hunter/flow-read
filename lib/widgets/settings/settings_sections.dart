@@ -1167,6 +1167,8 @@ class SettingsAboutSection extends StatelessWidget {
     this.onInstallUpdate,
     required this.onOpenUpdateReleasePage,
     required this.onOpenLogsFolder,
+    required this.onExportDiagnostics,
+    this.exportingDiagnostics = false,
     required this.onOpenRepository,
     required this.onOpenIssueFeedback,
   });
@@ -1187,6 +1189,8 @@ class SettingsAboutSection extends StatelessWidget {
   final VoidCallback? onInstallUpdate;
   final VoidCallback? onOpenUpdateReleasePage;
   final VoidCallback onOpenLogsFolder;
+  final VoidCallback onExportDiagnostics;
+  final bool exportingDiagnostics;
   final VoidCallback onOpenRepository;
   final VoidCallback onOpenIssueFeedback;
 
@@ -1233,7 +1237,11 @@ class SettingsAboutSection extends StatelessWidget {
               SettingsCard(
                 icon: Icons.plagiarism_outlined,
                 title: '诊断日志',
-                child: _DiagnosticsContent(onOpenLogsFolder: onOpenLogsFolder),
+                child: _DiagnosticsContent(
+                  onOpenLogsFolder: onOpenLogsFolder,
+                  onExportDiagnostics: onExportDiagnostics,
+                  exportingDiagnostics: exportingDiagnostics,
+                ),
               ),
             ];
 
@@ -1557,9 +1565,15 @@ class _ProjectFeedbackContent extends StatelessWidget {
 }
 
 class _DiagnosticsContent extends StatelessWidget {
-  const _DiagnosticsContent({required this.onOpenLogsFolder});
+  const _DiagnosticsContent({
+    required this.onOpenLogsFolder,
+    required this.onExportDiagnostics,
+    required this.exportingDiagnostics,
+  });
 
   final VoidCallback onOpenLogsFolder;
+  final VoidCallback onExportDiagnostics;
+  final bool exportingDiagnostics;
 
   @override
   Widget build(BuildContext context) {
@@ -1574,11 +1588,35 @@ class _DiagnosticsContent extends StatelessWidget {
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        const Divider(height: 48),
-        OutlinedButton.icon(
-          onPressed: onOpenLogsFolder,
-          icon: const Icon(Icons.folder_outlined),
-          label: const Text('打开日志文件夹'),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            OutlinedButton.icon(
+              onPressed: exportingDiagnostics ? null : onExportDiagnostics,
+              icon: exportingDiagnostics
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.bug_report_outlined),
+              label: Text(exportingDiagnostics ? '导出中...' : '导出诊断报告'),
+            ),
+            OutlinedButton.icon(
+              onPressed: onOpenLogsFolder,
+              icon: const Icon(Icons.folder_outlined),
+              label: const Text('打开日志文件夹'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '包含最近日志和应用状态摘要，不含密钥、正文内容或本地文件路径。',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
+          ),
         ),
       ],
     );
