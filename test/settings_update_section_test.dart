@@ -2,6 +2,7 @@ import 'package:flow_read/services/app_update_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_config.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_registry.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_test_service.dart';
+import 'package:flow_read/services/mac_permission_diagnostics.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/settings/settings_sections.dart';
 import 'package:flow_read/widgets/settings/update_check_result_dialog.dart';
@@ -79,6 +80,12 @@ void main() {
               onOpenUpdateReleasePage: () {},
               onOpenLogsFolder: () {},
               onExportDiagnostics: () {},
+              backupFolderPath: '',
+              backupFolderBookmark: '',
+              onReauthorizeBackupFolder: () {},
+              macPermissionDiagnostics: MacPermissionDiagnostics(
+                isMacOSProvider: () => false,
+              ),
               onOpenRepository: () {},
               onOpenIssueFeedback: () {},
             ),

@@ -389,6 +389,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onExportDiagnostics: () =>
                     unawaited(_exportDiagnostics(settings)),
                 exportingDiagnostics: _exportingDiagnostics,
+                backupFolderPath: settings.backupFolderPath,
+                backupFolderBookmark: settings.backupFolderBookmark,
+                onReauthorizeBackupFolder: () =>
+                    unawaited(_chooseBackupFolder()),
                 onOpenRepository: () => unawaited(_openRepositoryUrl()),
                 onOpenIssueFeedback: () => unawaited(_openIssueFeedbackUrl()),
               ),

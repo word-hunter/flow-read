@@ -6,6 +6,7 @@ import '../../services/app_version.dart';
 import '../../services/backup_service.dart';
 import '../../services/dictionary/dictionary_source_config.dart';
 import '../../services/dictionary/dictionary_source_test_service.dart';
+import '../../services/mac_permission_diagnostics.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_theme.dart';
 import '../theme_transition.dart';
@@ -1149,7 +1150,7 @@ class SettingsBackupSection extends StatelessWidget {
 }
 
 class SettingsAboutSection extends StatelessWidget {
-  const SettingsAboutSection({
+  SettingsAboutSection({
     super.key,
     required this.onShowReleaseNotes,
     required this.onCheckForUpdates,
@@ -1169,9 +1170,14 @@ class SettingsAboutSection extends StatelessWidget {
     required this.onOpenLogsFolder,
     required this.onExportDiagnostics,
     this.exportingDiagnostics = false,
+    required this.backupFolderPath,
+    required this.backupFolderBookmark,
+    required this.onReauthorizeBackupFolder,
+    MacPermissionDiagnostics? macPermissionDiagnostics,
     required this.onOpenRepository,
     required this.onOpenIssueFeedback,
-  });
+  }) : macPermissionDiagnostics =
+           macPermissionDiagnostics ?? MacPermissionDiagnostics();
 
   final VoidCallback onShowReleaseNotes;
   final VoidCallback onCheckForUpdates;
@@ -1191,6 +1197,10 @@ class SettingsAboutSection extends StatelessWidget {
   final VoidCallback onOpenLogsFolder;
   final VoidCallback onExportDiagnostics;
   final bool exportingDiagnostics;
+  final String backupFolderPath;
+  final String backupFolderBookmark;
+  final VoidCallback onReauthorizeBackupFolder;
+  final MacPermissionDiagnostics macPermissionDiagnostics;
   final VoidCallback onOpenRepository;
   final VoidCallback onOpenIssueFeedback;
 
@@ -1268,6 +1278,19 @@ class SettingsAboutSection extends StatelessWidget {
             );
           },
         ),
+        if (macPermissionDiagnostics.isMacOS) ...[
+          const SizedBox(height: 20),
+          SettingsCard(
+            icon: Icons.security_outlined,
+            title: '系统权限状态',
+            child: _MacPermissionDiagnosticsContent(
+              diagnostics: macPermissionDiagnostics,
+              backupFolderPath: backupFolderPath,
+              backupFolderBookmark: backupFolderBookmark,
+              onReauthorizeBackupFolder: onReauthorizeBackupFolder,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1620,6 +1643,199 @@ class _DiagnosticsContent extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _MacPermissionDiagnosticsContent extends StatefulWidget {
+  const _MacPermissionDiagnosticsContent({
+    required this.diagnostics,
+    required this.backupFolderPath,
+    required this.backupFolderBookmark,
+    required this.onReauthorizeBackupFolder,
+  });
+
+  final MacPermissionDiagnostics diagnostics;
+  final String backupFolderPath;
+  final String backupFolderBookmark;
+  final VoidCallback onReauthorizeBackupFolder;
+
+  @override
+  State<_MacPermissionDiagnosticsContent> createState() =>
+      _MacPermissionDiagnosticsContentState();
+}
+
+class _MacPermissionDiagnosticsContentState
+    extends State<_MacPermissionDiagnosticsContent> {
+  List<PermissionDiagnostic>? _items;
+  bool _checking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MacPermissionDiagnosticsContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.backupFolderPath != widget.backupFolderPath ||
+        oldWidget.backupFolderBookmark != widget.backupFolderBookmark) {
+      _check();
+    }
+  }
+
+  Future<void> _check() async {
+    if (_checking) return;
+    setState(() => _checking = true);
+    final results = await widget.diagnostics.diagnose(
+      backupFolderPath: widget.backupFolderPath,
+      backupFolderBookmark: widget.backupFolderBookmark,
+    );
+    if (!mounted) return;
+    setState(() {
+      _items = results;
+      _checking = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final items = _items;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '用于排查 RSS 网络访问和备份文件夹授权。',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: _checking ? null : () => _check(),
+              icon: _checking
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh),
+              tooltip: '重新检查',
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (items == null)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: LinearProgressIndicator(),
+          )
+        else
+          for (final item in items)
+            _PermissionDiagnosticRow(
+              item: item,
+              onReauthorizeBackupFolder: widget.onReauthorizeBackupFolder,
+            ),
+        const SizedBox(height: 8),
+        Text(
+          '若权限异常，可检查系统设置中的网络、隐私与安全性，必要时重新选择备份文件夹。',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PermissionDiagnosticRow extends StatelessWidget {
+  const _PermissionDiagnosticRow({
+    required this.item,
+    required this.onReauthorizeBackupFolder,
+  });
+
+  final PermissionDiagnostic item;
+  final VoidCallback onReauthorizeBackupFolder;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = _statusColor(theme);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(_statusIcon(), size: 20, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  item.description,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (item.detail?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    item.detail!.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.68,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (item.fixAction != null &&
+              item.name == '备份文件夹访问' &&
+              item.status != PermissionDiagnosticStatus.ok) ...[
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: onReauthorizeBackupFolder,
+              child: Text(item.fixAction!),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  IconData _statusIcon() {
+    return switch (item.status) {
+      PermissionDiagnosticStatus.ok => Icons.check_circle_outline,
+      PermissionDiagnosticStatus.warning => Icons.warning_amber_outlined,
+      PermissionDiagnosticStatus.error => Icons.error_outline,
+      PermissionDiagnosticStatus.unknown => Icons.info_outline,
+    };
+  }
+
+  Color _statusColor(ThemeData theme) {
+    return switch (item.status) {
+      PermissionDiagnosticStatus.ok => theme.colorScheme.primary,
+      PermissionDiagnosticStatus.warning => theme.colorScheme.tertiary,
+      PermissionDiagnosticStatus.error => theme.colorScheme.error,
+      PermissionDiagnosticStatus.unknown => theme.colorScheme.onSurfaceVariant,
+    };
   }
 }
 
