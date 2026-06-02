@@ -17,6 +17,7 @@ void main() {
   });
 
   tearDown(() async {
+    await logger.drain();
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
     }
