@@ -827,7 +827,10 @@ class _FakeWordRepository implements WordRepository {
   const _FakeWordRepository();
 
   @override
-  Future<DictionaryEntry?> lookup(String word) async {
+  Future<DictionaryEntry?> lookup(
+    String word, {
+    String languageCode = 'en',
+  }) async {
     return DictionaryEntry(
       word: word,
       phonetic: "/əˈvɔɪdəns/",

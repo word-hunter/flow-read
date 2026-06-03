@@ -6,7 +6,11 @@ class DictionaryRepository implements WordRepository {
   static final Map<String, DictionaryEntry?> _cache = {};
 
   @override
-  Future<DictionaryEntry?> lookup(String word) async {
+  Future<DictionaryEntry?> lookup(
+    String word, {
+    String languageCode = 'en',
+  }) async {
+    if (languageCode != 'en') return null;
     final lower = word.toLowerCase().trim();
     if (lower.isEmpty) return null;
 

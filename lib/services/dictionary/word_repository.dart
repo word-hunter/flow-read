@@ -63,18 +63,24 @@ class Meaning {
 
 class DictionaryLookupRequest {
   final String word;
+  final String languageCode;
+  final String canonicalForm;
+  final String? reading;
   final String? contextText;
   final int? contextWordStart;
   final int? contextWordEnd;
 
-  const DictionaryLookupRequest({
+  DictionaryLookupRequest({
     required this.word,
+    this.languageCode = 'en',
+    String? canonicalForm,
+    this.reading,
     this.contextText,
     this.contextWordStart,
     this.contextWordEnd,
-  });
+  }) : canonicalForm = canonicalForm ?? word;
 
-  String get query => word.trim().toLowerCase();
+  String get query => canonicalForm.trim().toLowerCase();
   String get displayWord {
     final trimmed = word.trim();
     return trimmed.isEmpty ? word : trimmed;
@@ -107,14 +113,17 @@ class DictionaryLookupResult {
 }
 
 abstract class WordRepository {
-  Future<DictionaryEntry?> lookup(String word);
+  Future<DictionaryEntry?> lookup(String word, {String languageCode = 'en'});
 }
 
 extension WordRepositoryLookupRequest on WordRepository {
   Future<DictionaryLookupResult> lookupRequest(
     DictionaryLookupRequest request,
   ) async {
-    final entry = await lookup(request.query);
+    final entry = await lookup(
+      request.query,
+      languageCode: request.languageCode,
+    );
     return DictionaryLookupResult.fromEntry(request: request, entry: entry);
   }
 }

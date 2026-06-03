@@ -27,7 +27,10 @@ class DictionaryManagerService implements WordRepository {
       .toList(growable: false);
 
   @override
-  Future<DictionaryEntry?> lookup(String word) async {
+  Future<DictionaryEntry?> lookup(
+    String word, {
+    String languageCode = 'en',
+  }) async {
     final query = word.toLowerCase().trim();
     if (query.isEmpty) return null;
 
@@ -46,7 +49,10 @@ class DictionaryManagerService implements WordRepository {
       if (repository == null) continue;
 
       try {
-        final entry = await repository.lookup(query);
+        final entry = await repository.lookup(
+          query,
+          languageCode: languageCode,
+        );
         if (entry == null || entry.isEmpty) continue;
         return entry.copyWith(
           sourceName: entry.sourceName ?? config.type.label,

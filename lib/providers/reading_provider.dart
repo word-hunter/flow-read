@@ -1177,6 +1177,8 @@ class ReadingProvider extends ChangeNotifier {
     await _lookupWord(
       DictionaryLookupRequest(
         word: word,
+        languageCode: activeLanguageModule.languageCode,
+        canonicalForm: activeLanguageModule.canonicalize(word),
         contextText: normalizedContext.text,
         contextWordStart: normalizedContext.wordStart,
         contextWordEnd: normalizedContext.wordEnd,
@@ -1190,7 +1192,13 @@ class ReadingProvider extends ChangeNotifier {
     if (current != null) {
       _wordLookupHistory.add(current);
     }
-    await _lookupWord(DictionaryLookupRequest(word: word));
+    await _lookupWord(
+      DictionaryLookupRequest(
+        word: word,
+        languageCode: activeLanguageModule.languageCode,
+        canonicalForm: activeLanguageModule.canonicalize(word),
+      ),
+    );
   }
 
   Future<void> _lookupWord(

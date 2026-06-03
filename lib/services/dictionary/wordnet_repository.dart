@@ -9,7 +9,11 @@ class WordNetRepository implements WordRepository {
   static final _alphaRe = RegExp(r'^[a-zA-Z]');
 
   @override
-  Future<DictionaryEntry?> lookup(String word) async {
+  Future<DictionaryEntry?> lookup(
+    String word, {
+    String languageCode = 'en',
+  }) async {
+    if (languageCode != 'en') return null;
     final lower = word.toLowerCase().trim();
     if (lower.isEmpty) return null;
 

@@ -14,11 +14,15 @@ class LongmanRepository implements WordRepository {
   LongmanRepository(this._cache);
 
   @override
-  Future<DictionaryEntry?> lookup(String word) async {
+  Future<DictionaryEntry?> lookup(
+    String word, {
+    String languageCode = 'en',
+  }) async {
+    if (languageCode != 'en') return null;
     final lower = word.toLowerCase().trim();
     if (lower.isEmpty) return null;
 
-    final cached = _cache.get(_name, lower);
+    final cached = _cache.get(_name, lower, languageCode: languageCode);
     if (cached != null) {
       return parseHtml(lower, cached, fromCache: true);
     }
@@ -32,7 +36,7 @@ class LongmanRepository implements WordRepository {
       if (response.statusCode != 200) return null;
 
       final rawHtml = response.body;
-      await _cache.set(_name, lower, rawHtml);
+      await _cache.set(_name, lower, rawHtml, languageCode: languageCode);
       return parseHtml(lower, rawHtml);
     } catch (_) {
       return null;

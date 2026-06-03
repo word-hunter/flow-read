@@ -387,6 +387,37 @@ void main() {
       expect(entry.meanings.single.definitions.single, 'collins result');
     });
 
+    test('dictionary manager forwards language code to repositories', () async {
+      final settings = SettingsService();
+      await settings.init();
+      final collins = _CountingRepository(
+        DictionaryEntry(
+          word: 'flow',
+          meanings: const [
+            Meaning(partOfSpeech: 'noun', definitions: ['collins result']),
+          ],
+        ),
+      );
+
+      final manager = DictionaryManagerService(
+        settings: settings,
+        sources: [
+          DictionarySourceAdapter(
+            type: DictionarySourceType.collins,
+            repository: collins,
+          ),
+        ],
+      );
+
+      await manager.lookup('flow', languageCode: 'ja');
+
+      expect(collins.lastLanguageCode, 'ja');
+      expect(
+        await WordNetRepository().lookup('flow', languageCode: 'ja'),
+        isNull,
+      );
+    });
+
     test('disabled Collins source is skipped', () async {
       final settings = SettingsService();
       await settings.init();
@@ -1302,12 +1333,17 @@ void main() {
 class _CountingRepository implements WordRepository {
   final DictionaryEntry? entry;
   int calls = 0;
+  String? lastLanguageCode;
 
   _CountingRepository(this.entry);
 
   @override
-  Future<DictionaryEntry?> lookup(String word) async {
+  Future<DictionaryEntry?> lookup(
+    String word, {
+    String languageCode = 'en',
+  }) async {
     calls += 1;
+    lastLanguageCode = languageCode;
     return entry;
   }
 }
@@ -1318,7 +1354,10 @@ class _MappedRepository implements WordRepository {
   _MappedRepository(this.entries);
 
   @override
-  Future<DictionaryEntry?> lookup(String word) async {
+  Future<DictionaryEntry?> lookup(
+    String word, {
+    String languageCode = 'en',
+  }) async {
     return entries[word.toLowerCase().trim()];
   }
 }
@@ -1647,7 +1686,10 @@ class _ThrowingRepository implements WordRepository {
   const _ThrowingRepository();
 
   @override
-  Future<DictionaryEntry?> lookup(String word) async {
+  Future<DictionaryEntry?> lookup(
+    String word, {
+    String languageCode = 'en',
+  }) async {
     throw Exception('network down');
   }
 }

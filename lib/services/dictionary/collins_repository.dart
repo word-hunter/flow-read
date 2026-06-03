@@ -21,11 +21,15 @@ class CollinsRepository implements WordRepository {
     : _httpClient = httpClient;
 
   @override
-  Future<DictionaryEntry?> lookup(String word) async {
+  Future<DictionaryEntry?> lookup(
+    String word, {
+    String languageCode = 'en',
+  }) async {
+    if (languageCode != 'en') return null;
     final lower = word.toLowerCase().trim();
     if (lower.isEmpty) return null;
 
-    final cached = _cache.get(_cacheSource, lower);
+    final cached = _cache.get(_cacheSource, lower, languageCode: languageCode);
     if (cached != null) {
       return parseHtml(lower, cached, fromCache: true);
     }
@@ -40,7 +44,12 @@ class CollinsRepository implements WordRepository {
       if (response.statusCode != 200) return null;
 
       final rawHtml = utf8.decode(response.bodyBytes, allowMalformed: true);
-      await _cache.set(_cacheSource, lower, rawHtml);
+      await _cache.set(
+        _cacheSource,
+        lower,
+        rawHtml,
+        languageCode: languageCode,
+      );
       return parseHtml(lower, rawHtml);
     } catch (_) {
       return null;

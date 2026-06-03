@@ -1,9 +1,18 @@
 import '../../storage/repositories/dictionary_cache_repository.dart';
+import '../../storage/repositories/hive_repository_box.dart';
 
 class DictionaryCacheService {
-  DictionaryCacheService({DictionaryCacheRepository? repository})
-    : _repository = repository ?? HiveDictionaryCacheRepository();
+  DictionaryCacheService({
+    DictionaryCacheRepository? repository,
+    String? languageCode,
+  }) : languageCode = activeHiveLanguageCode(languageCode),
+       _repository =
+           repository ??
+           HiveDictionaryCacheRepository(
+             languageCode: activeHiveLanguageCode(languageCode),
+           );
 
+  final String languageCode;
   final DictionaryCacheRepository _repository;
   bool _initialized = false;
 
@@ -14,14 +23,19 @@ class DictionaryCacheService {
     _initialized = true;
   }
 
-  String? get(String source, String word) {
+  String? get(String source, String word, {String languageCode = 'en'}) {
     if (!_initialized) return null;
     return _repository.get(_cacheKey(source, word));
   }
 
   int get entryCount => _initialized ? _repository.length : 0;
 
-  Future<void> set(String source, String word, String content) async {
+  Future<void> set(
+    String source,
+    String word,
+    String content, {
+    String languageCode = 'en',
+  }) async {
     if (!_initialized) return;
 
     await _repository.put(_cacheKey(source, word), content);
@@ -36,7 +50,7 @@ class DictionaryCacheService {
     }
   }
 
-  bool hasWord(String source, String word) {
+  bool hasWord(String source, String word, {String languageCode = 'en'}) {
     if (!_initialized) return false;
     return _repository.containsKey(_cacheKey(source, word));
   }
