@@ -1001,6 +1001,7 @@ class _ReaderPageState extends State<ReaderPage> {
       searchQuery: searchQuery,
       lookupHighlightWord: lookupHighlightWord,
       wordLevelService: provider.wordLevelService,
+      languageModule: provider.activeLanguageModule,
     );
   }
 
@@ -1083,6 +1084,7 @@ class _ReaderPageState extends State<ReaderPage> {
           searchQuery: searchQuery,
           lookupHighlightWord: lookupHighlightWord,
           wordLevelService: provider.wordLevelService,
+          languageModule: provider.activeLanguageModule,
         ),
         style: baseStyle,
       ),
@@ -1129,6 +1131,7 @@ class _ReaderPageState extends State<ReaderPage> {
               colorSettings: colorSettings,
               lookupHighlightWord: provider.selectedWord,
               wordLevelService: provider.wordLevelService,
+              languageModule: provider.activeLanguageModule,
             ),
             style: baseStyle,
           ),

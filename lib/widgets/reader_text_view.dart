@@ -6,6 +6,7 @@ import '../models/content_block.dart';
 import '../providers/reading_provider.dart';
 import '../services/common_words.dart';
 import '../services/english_word_utils.dart';
+import '../services/language/language_module.dart';
 import '../services/settings_service.dart';
 import '../services/word_level_service.dart';
 import '../theme/app_colors.dart';
@@ -217,6 +218,7 @@ InlineSpan buildHighlightedText(
   String? searchQuery,
   String? lookupHighlightWord,
   WordLevelService? wordLevelService,
+  LanguageModule? languageModule,
 }) {
   return _HighlightBuilder(
     result,
@@ -230,6 +232,7 @@ InlineSpan buildHighlightedText(
     searchQuery,
     lookupHighlightWord,
     wordLevelService,
+    languageModule,
   ).build();
 }
 
@@ -246,6 +249,7 @@ InlineSpan buildHighlightedParagraph(
   String? searchQuery,
   String? lookupHighlightWord,
   WordLevelService? wordLevelService,
+  LanguageModule? languageModule,
 }) {
   return _HighlightBuilder(
     result,
@@ -259,6 +263,7 @@ InlineSpan buildHighlightedParagraph(
     searchQuery,
     lookupHighlightWord,
     wordLevelService,
+    languageModule,
   ).buildParagraph(paragraph);
 }
 
@@ -275,6 +280,7 @@ InlineSpan buildStyledBlock(
   String? searchQuery,
   String? lookupHighlightWord,
   WordLevelService? wordLevelService,
+  LanguageModule? languageModule,
 }) {
   return _StyledBlockBuilder(
     block,
@@ -289,6 +295,7 @@ InlineSpan buildStyledBlock(
     searchQuery,
     lookupHighlightWord,
     wordLevelService,
+    languageModule,
   ).build();
 }
 
@@ -307,6 +314,7 @@ Widget buildBlockWidget(
   String? searchQuery,
   String? lookupHighlightWord,
   WordLevelService? wordLevelService,
+  LanguageModule? languageModule,
 }) {
   switch (block) {
     case TextBlock():
@@ -336,6 +344,7 @@ Widget buildBlockWidget(
         searchQuery: searchQuery,
         lookupHighlightWord: lookupHighlightWord,
         wordLevelService: wordLevelService,
+        languageModule: languageModule,
       );
 
       final richText = Text.rich(
@@ -506,6 +515,7 @@ class _HighlightBuilder {
   final String? searchQuery;
   final String? lookupHighlightWord;
   final WordLevelService? wordLevelService;
+  final LanguageModule? languageModule;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
   late final Set<String> learningSet;
@@ -523,6 +533,7 @@ class _HighlightBuilder {
     this.searchQuery,
     this.lookupHighlightWord,
     this.wordLevelService,
+    this.languageModule,
   ) {
     vocabWords = {};
     for (final v in result.vocabulary) {
@@ -559,11 +570,11 @@ class _HighlightBuilder {
   }
 
   String _keyFor(String word) {
-    final lower = normalizeEnglishApostrophes(word).toLowerCase().trim();
-    if (lower.isEmpty) return lower;
-    return wordLevelService?.canonicalForm(lower) ??
-        canonicalEnglishContraction(lower) ??
-        lower;
+    final key =
+        languageModule?.canonicalize(word) ??
+        normalizeEnglishApostrophes(word).toLowerCase().trim();
+    if (key.isEmpty) return key;
+    return wordLevelService?.canonicalForm(key) ?? key;
   }
 
   String? _lookupKeyFor(String? word) {
@@ -581,7 +592,7 @@ class _HighlightBuilder {
 
   InlineSpan buildParagraph(String paragraph) {
     final spans = <InlineSpan>[];
-    final wordPattern = englishWordPattern;
+    final wordPattern = languageModule?.wordPattern ?? englishWordPattern;
     final matches = wordPattern.allMatches(paragraph).toList();
     int lastIndex = 0;
 
@@ -639,7 +650,7 @@ class _HighlightBuilder {
         );
       } else if (isKnown ||
           key.length < AppConstants.minWordLength ||
-          _isCommonContraction(word, key)) {
+          _isCommonContraction(word, key, languageModule)) {
         spans.add(
           buildPlainLookupWordSpan(
             word: word,
@@ -704,6 +715,7 @@ class _StyledBlockBuilder {
   final String? searchQuery;
   final String? lookupHighlightWord;
   final WordLevelService? wordLevelService;
+  final LanguageModule? languageModule;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
   late final Set<String> learningSet;
@@ -722,6 +734,7 @@ class _StyledBlockBuilder {
     this.searchQuery,
     this.lookupHighlightWord,
     this.wordLevelService,
+    this.languageModule,
   ) {
     vocabWords = {};
     for (final v in result.vocabulary) {
@@ -747,11 +760,11 @@ class _StyledBlockBuilder {
   }
 
   String _keyFor(String word) {
-    final lower = normalizeEnglishApostrophes(word).toLowerCase().trim();
-    if (lower.isEmpty) return lower;
-    return wordLevelService?.canonicalForm(lower) ??
-        canonicalEnglishContraction(lower) ??
-        lower;
+    final key =
+        languageModule?.canonicalize(word) ??
+        normalizeEnglishApostrophes(word).toLowerCase().trim();
+    if (key.isEmpty) return key;
+    return wordLevelService?.canonicalForm(key) ?? key;
   }
 
   String? _lookupKeyFor(String? word) {
@@ -766,7 +779,7 @@ class _StyledBlockBuilder {
   InlineSpan build() {
     final fullText = block.plainText;
     final spans = <InlineSpan>[];
-    final wordPattern = englishWordPattern;
+    final wordPattern = languageModule?.wordPattern ?? englishWordPattern;
     final matches = wordPattern.allMatches(fullText).toList();
     int lastIndex = 0;
 
@@ -839,7 +852,7 @@ class _StyledBlockBuilder {
         );
       } else if (isKnown ||
           key.length < AppConstants.minWordLength ||
-          _isCommonContraction(word, key)) {
+          _isCommonContraction(word, key, languageModule)) {
         spans.add(
           buildPlainLookupWordSpan(
             word: word,
@@ -916,7 +929,12 @@ class _StyledBlockBuilder {
   }
 }
 
-bool _isCommonContraction(String word, String key) {
+bool _isCommonContraction(
+  String word,
+  String key,
+  LanguageModule? languageModule,
+) {
+  if (languageModule != null) return languageModule.isCommonWord(key);
   final contractionKey = canonicalEnglishContraction(word) ?? key;
   return isCommonWord(contractionKey);
 }

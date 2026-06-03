@@ -123,6 +123,7 @@ class RssArticleBodyView extends StatelessWidget {
         bodyText,
         readingProvider.userVocabulary,
         readingProvider.wordLevelService,
+        readingProvider.activeLanguageModule,
       );
     } catch (error, stackTrace) {
       AppLogger.instance.event(
@@ -208,6 +209,7 @@ class RssArticleBodyView extends StatelessWidget {
                   searchQuery: searchQuery,
                   lookupHighlightWord: readingProvider.selectedWord,
                   wordLevelService: readingProvider.wordLevelService,
+                  languageModule: readingProvider.activeLanguageModule,
                 )
                 as TextSpan,
             style: style,

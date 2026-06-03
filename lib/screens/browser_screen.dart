@@ -87,6 +87,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
         page.plainText,
         readingProvider.userVocabulary,
         readingProvider.wordLevelService,
+        readingProvider.activeLanguageModule,
       );
       setState(() {
         _page = page;
@@ -420,6 +421,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                         colorSettings: settings.colors,
                         lookupHighlightWord: readingProvider.selectedWord,
                         wordLevelService: readingProvider.wordLevelService,
+                        languageModule: readingProvider.activeLanguageModule,
                       ),
                       style: theme.textTheme.bodyLarge?.copyWith(
                         height: 1.75,

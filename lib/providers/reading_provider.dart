@@ -39,6 +39,8 @@ import '../services/epub_service.dart';
 import '../services/epub_import_source.dart';
 import '../services/learning_item_service.dart';
 import '../services/learning_analytics_service.dart';
+import '../services/language/english_language_module.dart';
+import '../services/language/language_module.dart';
 import '../services/language/language_registry.dart';
 import '../services/passage_request_builder.dart';
 import '../services/prompt_builder.dart';
@@ -53,7 +55,7 @@ import '../services/word_context_service.dart';
 import '../services/word_level_service.dart';
 import '../services/dictionary/word_repository.dart';
 import '../services/dictionary/wordnet_repository.dart';
-import '../services/english_word_utils.dart';
+import '../storage/hive_box_names.dart';
 
 class ReadingProvider extends ChangeNotifier {
   static const _difficultyRefreshDebounce = Duration(seconds: 2);
@@ -298,6 +300,7 @@ class ReadingProvider extends ChangeNotifier {
         final studyWords = AnalysisService.collectBookStudyWords(
           book,
           _wordLevelService,
+          activeLanguageModule,
         );
         final rating = AnalysisService.rateBookDifficulty(
           studyWords,
@@ -440,6 +443,14 @@ class ReadingProvider extends ChangeNotifier {
   bool isWordLearning(String word) =>
       _userVocab?.isLearning(_canonicalWord(word)) ?? false;
   UserVocabularyService? get userVocabulary => _userVocab;
+  LanguageModule get activeLanguageModule {
+    final code =
+        _settings?.activeSourceLanguage ?? HiveBoxNames.defaultLanguageCode;
+    return LanguageRegistry.instance.get(code) ??
+        LanguageRegistry.instance.defaultModule ??
+        const EnglishLanguageModule();
+  }
+
   WordLevelService? get wordLevelService => _wordLevelService;
   WordContextService? get wordContextService => _wordContextService;
   List<LearningItem> get learningItems =>
@@ -881,6 +892,7 @@ class ReadingProvider extends ChangeNotifier {
       chapter.plainText,
       _userVocab,
       _wordLevelService,
+      activeLanguageModule,
     );
     _updateAllVocab();
     notifyListeners();
@@ -954,7 +966,11 @@ class ReadingProvider extends ChangeNotifier {
     final book = _book;
     _currentBookStudyWords = book == null
         ? {}
-        : AnalysisService.collectBookStudyWords(book, _wordLevelService);
+        : AnalysisService.collectBookStudyWords(
+            book,
+            _wordLevelService,
+            activeLanguageModule,
+          );
     if (_activeBookId != null) {
       _bookStudyWordsById[_activeBookId!] = _currentBookStudyWords;
     }
@@ -1284,6 +1300,7 @@ class ReadingProvider extends ChangeNotifier {
       text,
       _userVocab,
       _wordLevelService,
+      activeLanguageModule,
     );
     _selectedBreakdowns = _sentenceAnalyzer.analyze(text);
     notifyListeners();
@@ -2061,11 +2078,9 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   String _canonicalWord(String word) {
-    final lower = normalizeEnglishApostrophes(word).toLowerCase().trim();
-    if (lower.isEmpty) return lower;
-    return _wordLevelService?.canonicalForm(lower) ??
-        canonicalEnglishContraction(lower) ??
-        lower;
+    final key = activeLanguageModule.canonicalize(word);
+    if (key.isEmpty) return key;
+    return _wordLevelService?.canonicalForm(key) ?? key;
   }
 
   @override
