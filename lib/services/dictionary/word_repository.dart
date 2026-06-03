@@ -1,3 +1,5 @@
+import '../compound_word_analyzer.dart';
+
 class DictionaryEntry {
   final String word;
   final String? phonetic;
@@ -91,12 +93,36 @@ class DictionaryLookupResult {
   final DictionaryLookupRequest request;
   final DictionaryEntry? entry;
   final String? primaryDefinition;
+  final CompoundAnalysisResult? compoundAnalysis;
+  final List<BookContextSnippet> bookContexts;
 
   const DictionaryLookupResult({
     required this.request,
     required this.entry,
     required this.primaryDefinition,
+    this.compoundAnalysis,
+    this.bookContexts = const [],
   });
+
+  bool get hasDictionaryContent {
+    final current = entry;
+    if (current == null) return false;
+    return current.meanings.isNotEmpty ||
+        (current.phonetic?.trim().isNotEmpty ?? false) ||
+        (current.htmlContent?.trim().isNotEmpty ?? false);
+  }
+
+  bool get hasDictionaryError =>
+      entry?.errorMessage?.trim().isNotEmpty ?? false;
+
+  bool get fromDictionary => hasDictionaryContent;
+
+  bool get hasAnyResult =>
+      hasDictionaryContent ||
+      hasDictionaryError ||
+      (primaryDefinition?.trim().isNotEmpty ?? false) ||
+      compoundAnalysis != null ||
+      bookContexts.isNotEmpty;
 
   factory DictionaryLookupResult.fromEntry({
     required DictionaryLookupRequest request,
@@ -110,6 +136,33 @@ class DictionaryLookupResult {
           .firstOrNull,
     );
   }
+
+  DictionaryLookupResult copyWith({
+    DictionaryEntry? entry,
+    String? primaryDefinition,
+    CompoundAnalysisResult? compoundAnalysis,
+    List<BookContextSnippet>? bookContexts,
+  }) {
+    return DictionaryLookupResult(
+      request: request,
+      entry: entry ?? this.entry,
+      primaryDefinition: primaryDefinition ?? this.primaryDefinition,
+      compoundAnalysis: compoundAnalysis ?? this.compoundAnalysis,
+      bookContexts: bookContexts ?? this.bookContexts,
+    );
+  }
+}
+
+class BookContextSnippet {
+  final String text;
+  final int chapterIndex;
+  final String chapterTitle;
+
+  const BookContextSnippet({
+    required this.text,
+    required this.chapterIndex,
+    required this.chapterTitle,
+  });
 }
 
 abstract class WordRepository {

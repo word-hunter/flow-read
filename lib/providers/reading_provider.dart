@@ -35,6 +35,7 @@ import '../services/app_logger.dart';
 import '../services/book_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/chapter_ai_job.dart';
+import '../services/compound_word_analyzer.dart';
 import '../services/epub_service.dart';
 import '../services/epub_import_source.dart';
 import '../services/learning_item_service.dart';
@@ -46,6 +47,7 @@ import '../services/passage_request_builder.dart';
 import '../services/prompt_builder.dart';
 import '../services/pronunciation_service.dart';
 import '../services/reading_config_service.dart';
+import '../services/reading_search_service.dart';
 import '../services/review_schedule_service.dart';
 import '../services/reading_time_service.dart';
 import '../services/sentence_analyzer.dart';
@@ -61,6 +63,15 @@ class ReadingProvider extends ChangeNotifier {
   static const _difficultyRefreshDebounce = Duration(seconds: 2);
   static const _difficultyRefreshBatchSize = 4;
   static const _difficultyRefreshBatchPause = Duration(milliseconds: 16);
+  static const _compoundMeaningHints = <String, String>{
+    'god': '神',
+    'gods': '众神',
+    'wood': '树林',
+    'dragon': '龙',
+    'glass': '玻璃',
+    'king': '国王',
+    'road': '道路',
+  };
 
   // ============================================================
   // Dependencies
@@ -1226,7 +1237,9 @@ class ReadingProvider extends ChangeNotifier {
     }
     if (requestVersion != _wordLookupRequestVersion) return;
 
-    final result = await _wordRepo.lookupRequest(request);
+    var result = await _wordRepo.lookupRequest(request);
+    if (requestVersion != _wordLookupRequestVersion) return;
+    result = await _withDictionaryFallbacks(result);
     if (requestVersion != _wordLookupRequestVersion) return;
     _applyWordLookupResult(result);
     _isLoadingWord = false;
@@ -1263,6 +1276,68 @@ class ReadingProvider extends ChangeNotifier {
     _selectedWordContextEnd = result.request.contextWordEnd;
     _selectedWordEntry = result.entry;
     _selectedWordTranslation = result.primaryDefinition;
+  }
+
+  Future<DictionaryLookupResult> _withDictionaryFallbacks(
+    DictionaryLookupResult result,
+  ) async {
+    if (result.hasDictionaryContent || result.hasDictionaryError) {
+      return result;
+    }
+
+    final request = result.request;
+    final compoundAnalysis = request.languageCode == 'en'
+        ? _compoundAnalyzer().analyze(request.query)
+        : null;
+    final bookContexts = await _bookContextSnippets(request);
+
+    if (compoundAnalysis == null && bookContexts.isEmpty) return result;
+    return result.copyWith(
+      compoundAnalysis: compoundAnalysis,
+      bookContexts: bookContexts,
+    );
+  }
+
+  CompoundWordAnalyzer _compoundAnalyzer() {
+    return CompoundWordAnalyzer(
+      isKnownWord: (word) {
+        final normalized = activeLanguageModule.canonicalize(word);
+        return _compoundMeaningHints.containsKey(word) ||
+            _compoundMeaningHints.containsKey(normalized) ||
+            (_wordLevelService?.hasWord(word) ?? false) ||
+            (_wordLevelService?.hasWord(normalized) ?? false);
+      },
+      getMeaning: (word) {
+        final normalized = activeLanguageModule.canonicalize(word);
+        return _compoundMeaningHints[word] ?? _compoundMeaningHints[normalized];
+      },
+    );
+  }
+
+  Future<List<BookContextSnippet>> _bookContextSnippets(
+    DictionaryLookupRequest request,
+  ) async {
+    final book = _book;
+    final query = request.query;
+    if (book == null || query.isEmpty) return const [];
+
+    final snippets = <BookContextSnippet>[];
+    await for (final progress in ReadingSearchService.search(
+      book,
+      query,
+      limit: 5,
+    )) {
+      final result = progress.result;
+      if (result == null) continue;
+      snippets.add(
+        BookContextSnippet(
+          text: result.snippet,
+          chapterIndex: result.chapterIndex,
+          chapterTitle: result.chapterTitle,
+        ),
+      );
+    }
+    return snippets;
   }
 
   ({String? text, int? wordStart, int? wordEnd}) _normalizeLookupContext(

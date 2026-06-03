@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/word_context_example.dart';
 import '../models/word_level.dart';
 import '../providers/reading_provider.dart';
+import '../services/compound_word_analyzer.dart';
 import '../services/dictionary/word_repository.dart';
 import '../services/english_word_utils.dart';
 import 'imported_word_examples.dart';
@@ -18,6 +19,8 @@ class DictionaryDetailView extends StatelessWidget {
   final int? contextWordStart;
   final int? contextWordEnd;
   final List<WordContextExample> importedExamples;
+  final CompoundAnalysisResult? compoundAnalysis;
+  final List<BookContextSnippet> bookContexts;
   final LevelKey? level;
   final bool showWordHeader;
   final bool showContext;
@@ -36,6 +39,8 @@ class DictionaryDetailView extends StatelessWidget {
     this.contextWordStart,
     this.contextWordEnd,
     this.importedExamples = const [],
+    this.compoundAnalysis,
+    this.bookContexts = const [],
     this.level,
     this.showWordHeader = true,
     this.showContext = false,
@@ -68,6 +73,8 @@ class DictionaryDetailView extends StatelessWidget {
       contextWordStart: provider.selectedWordContextStart,
       contextWordEnd: provider.selectedWordContextEnd,
       importedExamples: provider.importedExamplesFor(word),
+      compoundAnalysis: provider.selectedWordLookupResult?.compoundAnalysis,
+      bookContexts: provider.selectedWordLookupResult?.bookContexts ?? const [],
       level: level,
       showWordHeader: showWordHeader,
       showContext: showContext,
@@ -95,7 +102,11 @@ class DictionaryDetailView extends StatelessWidget {
     final hasPrimaryDefinition =
         primaryDefinition != null && primaryDefinition!.trim().isNotEmpty;
     final hasContent =
-        hasEntryContent || hasPrimaryDefinition || importedExamples.isNotEmpty;
+        hasEntryContent ||
+        hasPrimaryDefinition ||
+        importedExamples.isNotEmpty ||
+        compoundAnalysis != null ||
+        bookContexts.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,6 +171,13 @@ class DictionaryDetailView extends StatelessWidget {
           if (importedExamples.isNotEmpty) ...[
             const SizedBox(height: 2),
             ImportedWordExamples(examples: importedExamples),
+          ],
+          if (compoundAnalysis != null || bookContexts.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _DictionaryFallbackSection(
+              analysis: compoundAnalysis,
+              contexts: bookContexts,
+            ),
           ],
         ],
         if (showContext) ...[
@@ -671,6 +689,187 @@ class _InteractiveDictionaryTextState
     return token
         .replaceAll(RegExp(r"(^[^A-Za-z]+|[^A-Za-z]+$)"), '')
         .toLowerCase();
+  }
+}
+
+class _DictionaryFallbackSection extends StatelessWidget {
+  const _DictionaryFallbackSection({
+    required this.analysis,
+    required this.contexts,
+  });
+
+  final CompoundAnalysisResult? analysis;
+  final List<BookContextSnippet> contexts;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StatusHint(
+          icon: Icons.manage_search_outlined,
+          text: '通用词典未命中，以下为规则推测结果。',
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        if (analysis != null) ...[
+          const SizedBox(height: 12),
+          _CompoundAnalysisBlock(analysis: analysis!),
+        ],
+        if (contexts.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _BookContextsBlock(contexts: contexts),
+        ],
+      ],
+    );
+  }
+}
+
+class _CompoundAnalysisBlock extends StatelessWidget {
+  const _CompoundAnalysisBlock({required this.analysis});
+
+  final CompoundAnalysisResult analysis;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.secondary.withValues(alpha: 0.14),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.account_tree_outlined,
+                size: 17,
+                color: theme.colorScheme.secondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '构词分析',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSecondaryContainer,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            analysis.components.join(' + '),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (final item in analysis.components.asMap().entries)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Text(
+                _componentText(
+                  item.value,
+                  analysis.componentMeanings.elementAtOrNull(item.key),
+                ),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.35,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _componentText(String component, String? meaning) {
+    final text = component.trim();
+    final definition = meaning?.trim();
+    if (definition == null || definition.isEmpty) return text;
+    return '$text: $definition';
+  }
+}
+
+class _BookContextsBlock extends StatelessWidget {
+  const _BookContextsBlock({required this.contexts});
+
+  final List<BookContextSnippet> contexts;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.menu_book_outlined,
+              size: 17,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '在本书中出现',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        for (final contextSnippet in contexts.take(3))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.32,
+                ),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.42,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    contextSnippet.chapterTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    contextSnippet.text,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(height: 1.38),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 

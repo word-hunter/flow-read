@@ -9,6 +9,7 @@ import 'package:flow_read/models/word_context_example.dart';
 import 'package:flow_read/models/word_analysis.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/services/dictionary/collins_repository.dart';
+import 'package:flow_read/services/compound_word_analyzer.dart';
 import 'package:flow_read/storage/repositories/dictionary_cache_repository.dart';
 import 'package:flow_read/services/dictionary/dictionary_cache_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_manager_service.dart';
@@ -506,7 +507,81 @@ void main() {
         expect(provider.selectedWordEntry!.errorMessage, contains('WordNet'));
       },
     );
+
+    test(
+      'ReadingProvider adds compound fallback when dictionaries miss',
+      () async {
+        final provider = ReadingProvider()
+          ..setWordRepository(_CountingRepository(null));
+
+        await provider.lookupWord('godswood');
+
+        expect(provider.selectedWordEntry, isNull);
+        expect(provider.selectedWordTranslation, isNull);
+        expect(
+          provider.selectedWordLookupResult?.compoundAnalysis?.components,
+          ['gods', 'wood'],
+        );
+        expect(
+          provider
+              .selectedWordLookupResult
+              ?.compoundAnalysis
+              ?.componentMeanings,
+          ['众神', '树林'],
+        );
+        expect(
+          provider.selectedWordLookupResult?.compoundAnalysis?.confidence,
+          greaterThan(0.8),
+        );
+
+        provider.dispose();
+      },
+    );
   });
+
+  testWidgets(
+    'DictionaryDetailView shows fallback analysis and book contexts',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: DictionaryDetailView(
+                word: 'godswood',
+                entry: null,
+                primaryDefinition: null,
+                isLoading: false,
+                compoundAnalysis: const CompoundAnalysisResult(
+                  components: ['gods', 'wood'],
+                  componentMeanings: ['众神', '树林'],
+                  confidence: 1,
+                ),
+                bookContexts: const [
+                  BookContextSnippet(
+                    text: 'The godswood was silent beneath the old trees.',
+                    chapterIndex: 1,
+                    chapterTitle: 'Winterfell',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('godswood'), findsOneWidget);
+      expect(find.text('构词分析'), findsOneWidget);
+      expect(find.text('gods + wood'), findsOneWidget);
+      expect(find.text('gods: 众神'), findsOneWidget);
+      expect(find.text('wood: 树林'), findsOneWidget);
+      expect(find.text('在本书中出现'), findsOneWidget);
+      expect(find.text('Winterfell'), findsOneWidget);
+      expect(
+        find.text('The godswood was silent beneath the old trees.'),
+        findsOneWidget,
+      );
+    },
+  );
 
   group('DictionarySourceTestService', () {
     test(
