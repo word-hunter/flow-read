@@ -9,6 +9,8 @@ import 'book_cover_view.dart';
 enum FeaturedBookAction { rename, remove }
 
 class FeaturedBookCard extends StatelessWidget {
+  static const double _progressMaxWidth = 560;
+
   final String title;
   final String author;
   final Uint8List? coverBytes;
@@ -158,37 +160,7 @@ class FeaturedBookCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
-        Row(
-          children: [
-            Text(
-              '阅读进度',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              '$progressPercent%',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: progressPercent.clamp(0, 100) / 100,
-            minHeight: 8,
-            backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.58),
-            valueColor: AlwaysStoppedAnimation<Color>(
-              theme.colorScheme.primary,
-            ),
-          ),
-        ),
+        _buildProgress(theme),
         const SizedBox(height: 10),
         Row(
           children: [
@@ -273,6 +245,50 @@ class FeaturedBookCard extends StatelessWidget {
         onRemove?.call();
         return;
     }
+  }
+
+  Widget _buildProgress(ThemeData theme) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _progressMaxWidth),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '阅读进度',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$progressPercent%',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progressPercent.clamp(0, 100) / 100,
+              minHeight: 8,
+              backgroundColor: theme.colorScheme.surface.withValues(
+                alpha: 0.58,
+              ),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                theme.colorScheme.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String _chapterLabel() {
