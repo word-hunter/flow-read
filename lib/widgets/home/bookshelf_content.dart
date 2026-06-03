@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -101,11 +102,6 @@ class _BookshelfContentState extends State<BookshelfContent> {
               readingTimeSeconds: provider.readingTimeSecondsForBook(
                 featuredBook.id,
               ),
-              dailyReadingGoalSeconds: settings.dailyReadingGoalSeconds,
-              noteCount: provider.noteCountForBook(featuredBook.id),
-              latestExcerpt: provider.latestReadingExcerptForBook(
-                featuredBook.id,
-              ),
               difficulty: provider.difficultyForBook(featuredBook.id),
               isDifficultyLoading: provider.isBookDifficultyLoading(
                 featuredBook.id,
@@ -117,12 +113,11 @@ class _BookshelfContentState extends State<BookshelfContent> {
             ),
             const SizedBox(height: 34),
           ],
-          _buildSectionHeader(
+          _buildBookshelfHeader(
             theme,
-            title: '全部书籍',
-            trailing:
-                '${filteredBooks.length} 本'
-                '${provider.isLoadingBookDifficulties ? ' · 计算中' : ''}',
+            provider,
+            bookCount: filteredBooks.length,
+            isDifficultyLoading: provider.isLoadingBookDifficulties,
           ),
           const SizedBox(height: 12),
           BookShelfRow(
@@ -215,7 +210,6 @@ class _BookshelfContentState extends State<BookshelfContent> {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final sortMenu = _buildSortMenu(theme, provider);
           final addButton = FilledButton.icon(
             onPressed: provider.isLoading ? null : () => _importEpub(provider),
             icon: const Icon(Icons.add, size: 18),
@@ -225,42 +219,32 @@ class _BookshelfContentState extends State<BookshelfContent> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
             ),
           );
-          final title = Text(
-            '我的书架',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-            ),
-          );
 
-          if (constraints.maxWidth < 860) {
+          if (constraints.maxWidth < 620) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                title,
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(child: _buildSearchField(theme)),
-                    const SizedBox(width: 12),
-                    sortMenu,
-                    const SizedBox(width: 12),
-                    addButton,
-                  ],
-                ),
+                _buildSearchField(theme),
+                const SizedBox(height: 12),
+                Align(alignment: Alignment.centerRight, child: addButton),
               ],
             );
           }
 
+          final searchWidth = math.min(
+            560.0,
+            math.max(280.0, constraints.maxWidth - 190),
+          );
           return Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              title,
-              const Spacer(),
-              _buildSearchField(theme, width: 320),
-              const SizedBox(width: 12),
-              sortMenu,
-              const SizedBox(width: 12),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: _buildSearchField(theme, width: searchWidth),
+                ),
+              ),
+              const SizedBox(width: 16),
               addButton,
             ],
           );
@@ -367,6 +351,61 @@ class _BookshelfContentState extends State<BookshelfContent> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildBookshelfHeader(
+    ThemeData theme,
+    ReadingProvider provider, {
+    required int bookCount,
+    required bool isDifficultyLoading,
+  }) {
+    final countText = '$bookCount 本${isDifficultyLoading ? ' · 计算中' : ''}';
+    final titleGroup = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '书架',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          countText,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+    final sortMenu = _buildSortMenu(theme, provider);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 520) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleGroup,
+                const SizedBox(height: 12),
+                Align(alignment: Alignment.centerRight, child: sortMenu),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: titleGroup),
+              const SizedBox(width: 16),
+              sortMenu,
+            ],
+          );
+        },
       ),
     );
   }

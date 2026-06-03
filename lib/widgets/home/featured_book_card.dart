@@ -16,9 +16,6 @@ class FeaturedBookCard extends StatelessWidget {
   final int currentChapter;
   final int totalChapters;
   final int readingTimeSeconds;
-  final int dailyReadingGoalSeconds;
-  final int noteCount;
-  final String? latestExcerpt;
   final BookDifficultyRating? difficulty;
   final bool isDifficultyLoading;
   final DateTime? lastReadAt;
@@ -35,9 +32,6 @@ class FeaturedBookCard extends StatelessWidget {
     required this.currentChapter,
     required this.totalChapters,
     required this.readingTimeSeconds,
-    required this.dailyReadingGoalSeconds,
-    required this.noteCount,
-    this.latestExcerpt,
     this.difficulty,
     this.isDifficultyLoading = false,
     this.lastReadAt,
@@ -62,21 +56,13 @@ class FeaturedBookCard extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 780;
-          if (compact) {
+          if (constraints.maxWidth < 540) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildCover(),
-                    const SizedBox(width: 22),
-                    Expanded(child: _buildDetails(context, theme)),
-                  ],
-                ),
+                _buildCover(),
                 const SizedBox(height: 20),
-                _buildInsightPanel(theme),
+                _buildDetails(context, theme),
               ],
             );
           }
@@ -85,10 +71,8 @@ class FeaturedBookCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               _buildCover(),
-              const SizedBox(width: 28),
+              const SizedBox(width: 32),
               Expanded(child: _buildDetails(context, theme)),
-              const SizedBox(width: 28),
-              SizedBox(width: 340, child: _buildInsightPanel(theme)),
             ],
           );
         },
@@ -97,11 +81,36 @@ class FeaturedBookCard extends StatelessWidget {
   }
 
   Widget _buildCover() {
-    return BookCoverView(
-      coverBytes: coverBytes,
-      progressPercent: progressPercent,
+    final showDifficulty = difficulty != null || isDifficultyLoading;
+
+    return SizedBox(
       width: BookCoverView.featuredSize.width,
       height: BookCoverView.featuredSize.height,
+      child: Stack(
+        children: [
+          BookCoverView(
+            coverBytes: coverBytes,
+            progressPercent: progressPercent,
+            width: BookCoverView.featuredSize.width,
+            height: BookCoverView.featuredSize.height,
+            showProgressBadge: false,
+          ),
+          if (showDifficulty)
+            Positioned(
+              left: 8,
+              right: 8,
+              bottom: 8,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _FeaturedDifficultySummary(
+                  rating: difficulty,
+                  isLoading: isDifficultyLoading,
+                  compact: true,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -118,8 +127,8 @@ class FeaturedBookCard extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.w800,
+            color: theme.colorScheme.primary,
           ),
         ),
         const SizedBox(height: 6),
@@ -131,14 +140,56 @@ class FeaturedBookCard extends StatelessWidget {
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        if (difficulty != null || isDifficultyLoading) ...[
-          const SizedBox(height: 12),
-          _FeaturedDifficultySummary(
-            rating: difficulty,
-            isLoading: isDifficultyLoading,
+        const SizedBox(height: 18),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _FeaturedMetric(
+              icon: Icons.timer_outlined,
+              label: '本书已读',
+              value: _durationText(readingTimeSeconds),
+            ),
+            _FeaturedMetric(
+              icon: Icons.bookmark_border,
+              label: '上次章节',
+              value: _chapterLabel(),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Text(
+              '阅读进度',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '$progressPercent%',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: progressPercent.clamp(0, 100) / 100,
+            minHeight: 8,
+            backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.58),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              theme.colorScheme.primary,
+            ),
           ),
-        ],
-        const SizedBox(height: 20),
+        ),
+        const SizedBox(height: 10),
         Row(
           children: [
             Icon(
@@ -147,50 +198,17 @@ class FeaturedBookCard extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 6),
-            Text(
-              '阅读进度',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
             Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: progressPercent / 100,
-                  minHeight: 8,
-                  backgroundColor: theme.colorScheme.surface.withValues(
-                    alpha: 0.58,
-                  ),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    theme.colorScheme.primary,
-                  ),
+              child: Text(
+                lastReadText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Text(
-              '$progressPercent%',
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
           ],
-        ),
-        const SizedBox(height: 10),
-        Text(
-          '$lastReadText · ${_chapterLabel()}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
         ),
         const SizedBox(height: 20),
         Wrap(
@@ -246,98 +264,6 @@ class FeaturedBookCard extends StatelessWidget {
     );
   }
 
-  Widget _buildInsightPanel(ThemeData theme) {
-    final excerpt = latestExcerpt?.trim();
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.36),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.42),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _InfoMetric(
-                  icon: Icons.timer_outlined,
-                  label: '本书已读',
-                  value: _durationText(readingTimeSeconds),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: _InfoMetric(
-                  icon: Icons.event_available_outlined,
-                  label: '预计剩余',
-                  value: _remainingText(),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Divider(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _InfoMetric(
-                  icon: Icons.sticky_note_2_outlined,
-                  label: '笔记与书签',
-                  value: '$noteCount 条',
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: _InfoMetric(
-                  icon: Icons.bookmark_border,
-                  label: '上次章节',
-                  value: _chapterLabel(),
-                ),
-              ),
-            ],
-          ),
-          if (excerpt != null && excerpt.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Divider(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              '最近摘录',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              excerpt,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface,
-                height: 1.45,
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
-          _GoalStrip(
-            theme: theme,
-            dailyGoalText: _durationText(dailyReadingGoalSeconds),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _handleAction(FeaturedBookAction action) {
     switch (action) {
       case FeaturedBookAction.rename:
@@ -353,15 +279,6 @@ class FeaturedBookCard extends StatelessWidget {
     final chapterNumber = min(currentChapter + 1, max(totalChapters, 1));
     if (totalChapters <= 0) return '第 $chapterNumber 章';
     return '第 $chapterNumber / $totalChapters 章';
-  }
-
-  String _remainingText() {
-    if (progressPercent >= 100) return '已读完';
-    if (progressPercent <= 0 || readingTimeSeconds <= 0) return '待估算';
-    final remainingSeconds =
-        (readingTimeSeconds * (100 - progressPercent) / progressPercent)
-            .round();
-    return _durationText(remainingSeconds);
   }
 
   String _durationText(int seconds) {
@@ -381,10 +298,12 @@ class FeaturedBookCard extends StatelessWidget {
 class _FeaturedDifficultySummary extends StatelessWidget {
   final BookDifficultyRating? rating;
   final bool isLoading;
+  final bool compact;
 
   const _FeaturedDifficultySummary({
     required this.rating,
     required this.isLoading,
+    this.compact = false,
   });
 
   @override
@@ -403,7 +322,11 @@ class _FeaturedDifficultySummary extends StatelessWidget {
       message: tooltip,
       waitDuration: const Duration(milliseconds: 300),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        constraints: compact ? const BoxConstraints(maxWidth: 124) : null,
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 7 : 10,
+          vertical: compact ? 4 : 6,
+        ),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
@@ -412,15 +335,22 @@ class _FeaturedDifficultySummary extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.speed_outlined, size: 16, color: color),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w800,
+            Icon(Icons.speed_outlined, size: compact ? 13 : 16, color: color),
+            SizedBox(width: compact ? 4 : 6),
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    (compact
+                            ? theme.textTheme.labelSmall
+                            : theme.textTheme.labelLarge)
+                        ?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w800,
+                          fontSize: compact ? 10 : null,
+                        ),
               ),
             ),
           ],
@@ -445,12 +375,12 @@ class _FeaturedDifficultySummary extends StatelessWidget {
   }
 }
 
-class _InfoMetric extends StatelessWidget {
+class _FeaturedMetric extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
 
-  const _InfoMetric({
+  const _FeaturedMetric({
     required this.icon,
     required this.label,
     required this.value,
@@ -460,76 +390,45 @@ class _InfoMetric extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 19, color: theme.colorScheme.primary),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _GoalStrip extends StatelessWidget {
-  final ThemeData theme;
-  final String dailyGoalText;
-
-  const _GoalStrip({required this.theme, required this.dailyGoalText});
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      constraints: const BoxConstraints(minWidth: 144, maxWidth: 220),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.1),
+        color: theme.colorScheme.surface.withValues(alpha: 0.62),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.62),
+        ),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.flag_outlined, size: 16, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '阅读目标 · 每日 $dailyGoalText',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-              ),
+          Icon(icon, size: 20, color: theme.colorScheme.primary),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

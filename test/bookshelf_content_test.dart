@@ -24,6 +24,13 @@ void main() {
       ),
     );
 
+    expect(find.text('我的书架'), findsNothing);
+    expect(find.text('全部书籍'), findsNothing);
+    expect(find.text('书架'), findsOneWidget);
+    expect(find.text('最近阅读'), findsOneWidget);
+    expect(find.text('本书已读'), findsOneWidget);
+    expect(find.text('上次章节'), findsOneWidget);
+
     await tester.tap(find.widgetWithText(FilledButton, '继续阅读'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
