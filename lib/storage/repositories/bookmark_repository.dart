@@ -15,26 +15,40 @@ abstract class BookmarkRepository {
 }
 
 class HiveBookmarkRepository implements BookmarkRepository {
-  HiveBookmarkRepository({Box<String>? wordBox, Box<String>? readingBox})
-    : _wordBox = wordBox,
-      _readingBox = readingBox;
+  HiveBookmarkRepository({
+    Box<String>? wordBox,
+    Box<String>? readingBox,
+    String? languageCode,
+  }) : _wordBox = wordBox,
+       _readingBox = readingBox,
+       _languageCode = activeHiveLanguageCode(languageCode);
 
   Box<String>? _wordBox;
   Box<String>? _readingBox;
+  final String _languageCode;
 
   Box<String> get _wordStorage {
-    return _wordBox ?? requireOpenHiveBox<String>(HiveBoxNames.wordBookmarks);
+    return _wordBox ??
+        requireOpenHiveBox<String>(
+          HiveBoxNames.wordBookmarksFor(_languageCode),
+        );
   }
 
   Box<String> get _readingStorage {
     return _readingBox ??
-        requireOpenHiveBox<String>(HiveBoxNames.readingBookmarks);
+        requireOpenHiveBox<String>(
+          HiveBoxNames.readingBookmarksFor(_languageCode),
+        );
   }
 
   @override
   Future<void> init() async {
-    _wordBox ??= requireOpenHiveBox<String>(HiveBoxNames.wordBookmarks);
-    _readingBox ??= requireOpenHiveBox<String>(HiveBoxNames.readingBookmarks);
+    _wordBox ??= requireOpenHiveBox<String>(
+      HiveBoxNames.wordBookmarksFor(_languageCode),
+    );
+    _readingBox ??= requireOpenHiveBox<String>(
+      HiveBoxNames.readingBookmarksFor(_languageCode),
+    );
   }
 
   @override

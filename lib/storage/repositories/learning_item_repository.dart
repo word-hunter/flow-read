@@ -18,17 +18,25 @@ abstract class LearningItemRepository {
 }
 
 class HiveLearningItemRepository implements LearningItemRepository {
-  HiveLearningItemRepository({Box<LearningItem>? box}) : _box = box;
+  HiveLearningItemRepository({Box<LearningItem>? box, String? languageCode})
+    : _box = box,
+      _languageCode = activeHiveLanguageCode(languageCode);
 
   Box<LearningItem>? _box;
+  final String _languageCode;
 
   Box<LearningItem> get _storage {
-    return _box ?? requireOpenHiveBox<LearningItem>(HiveBoxNames.learningItems);
+    return _box ??
+        requireOpenHiveBox<LearningItem>(
+          HiveBoxNames.learningItemsFor(_languageCode),
+        );
   }
 
   @override
   Future<void> init() async {
-    _box ??= requireOpenHiveBox<LearningItem>(HiveBoxNames.learningItems);
+    _box ??= requireOpenHiveBox<LearningItem>(
+      HiveBoxNames.learningItemsFor(_languageCode),
+    );
   }
 
   @override

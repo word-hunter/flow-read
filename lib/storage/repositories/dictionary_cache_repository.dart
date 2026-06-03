@@ -16,17 +16,25 @@ abstract class DictionaryCacheRepository {
 }
 
 class HiveDictionaryCacheRepository implements DictionaryCacheRepository {
-  HiveDictionaryCacheRepository({Box<String>? box}) : _box = box;
+  HiveDictionaryCacheRepository({Box<String>? box, String? languageCode})
+    : _box = box,
+      _languageCode = activeHiveLanguageCode(languageCode);
 
   Box<String>? _box;
+  final String _languageCode;
 
   Box<String> get _storage {
-    return _box ?? requireOpenHiveBox<String>(HiveBoxNames.dictionaryCache);
+    return _box ??
+        requireOpenHiveBox<String>(
+          HiveBoxNames.dictionaryCacheFor(_languageCode),
+        );
   }
 
   @override
   Future<void> init() async {
-    _box ??= requireOpenHiveBox<String>(HiveBoxNames.dictionaryCache);
+    _box ??= requireOpenHiveBox<String>(
+      HiveBoxNames.dictionaryCacheFor(_languageCode),
+    );
   }
 
   @override

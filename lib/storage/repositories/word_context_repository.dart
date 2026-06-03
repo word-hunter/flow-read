@@ -11,16 +11,22 @@ abstract class WordContextRepository {
 }
 
 class HiveWordContextRepository implements WordContextRepository {
-  HiveWordContextRepository({Box<String>? box}) : _box = box;
+  HiveWordContextRepository({Box<String>? box, String? languageCode})
+    : _box = box,
+      _languageCode = activeHiveLanguageCode(languageCode);
 
   Box<String>? _box;
+  final String _languageCode;
 
   Box<String> get _storage =>
-      _box ?? requireOpenHiveBox<String>(HiveBoxNames.wordContexts);
+      _box ??
+      requireOpenHiveBox<String>(HiveBoxNames.wordContextsFor(_languageCode));
 
   @override
   Future<void> init() async {
-    _box ??= requireOpenHiveBox<String>(HiveBoxNames.wordContexts);
+    _box ??= requireOpenHiveBox<String>(
+      HiveBoxNames.wordContextsFor(_languageCode),
+    );
   }
 
   @override

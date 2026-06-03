@@ -35,38 +35,60 @@ Future<void> openFlowReadTestBoxes() {
 
 Box<dynamic> settingsBox() => Hive.box<dynamic>(HiveBoxNames.settings);
 
-Box<BookMetadata> booksBox() => Hive.box<BookMetadata>(HiveBoxNames.books);
+Box<BookMetadata> booksBox({
+  String languageCode = HiveBoxNames.defaultLanguageCode,
+}) => Hive.box<BookMetadata>(HiveBoxNames.booksFor(languageCode));
 
-Box<String> userVocabularyBox() {
+Box<BookMetadata> v1BooksBox() => Hive.box<BookMetadata>(HiveBoxNames.books);
+
+Box<String> userVocabularyBox({
+  String languageCode = HiveBoxNames.defaultLanguageCode,
+}) {
+  return Hive.box<String>(HiveBoxNames.userVocabularyFor(languageCode));
+}
+
+Box<String> v1UserVocabularyBox() {
   return Hive.box<String>(HiveBoxNames.userVocabulary);
 }
 
-Box<String> readingConfigBox() {
-  return Hive.box<String>(HiveBoxNames.readingConfig);
+Box<String> readingConfigBox({
+  String languageCode = HiveBoxNames.defaultLanguageCode,
+}) {
+  return Hive.box<String>(HiveBoxNames.readingConfigFor(languageCode));
 }
 
-Box<int> readingTimeBox() => Hive.box<int>(HiveBoxNames.readingTime);
+Box<int> readingTimeBox({
+  String languageCode = HiveBoxNames.defaultLanguageCode,
+}) => Hive.box<int>(HiveBoxNames.readingTimeFor(languageCode));
 
 Box<WordLevelInfo> wordLevelsBox() {
   return Hive.box<WordLevelInfo>(HiveBoxNames.wordLevels);
 }
 
-Box<String> dictionaryCacheBox() {
-  return Hive.box<String>(HiveBoxNames.dictionaryCache);
+Box<String> dictionaryCacheBox({
+  String languageCode = HiveBoxNames.defaultLanguageCode,
+}) {
+  return Hive.box<String>(HiveBoxNames.dictionaryCacheFor(languageCode));
 }
 
 Box<RssFeedSubscription> rssSubscriptionsBox() {
   return Hive.box<RssFeedSubscription>(HiveBoxNames.rssSubscriptions);
 }
 
-Box<String> wordContextsBox() {
-  return Hive.box<String>(HiveBoxNames.wordContexts);
+Box<String> wordContextsBox({
+  String languageCode = HiveBoxNames.defaultLanguageCode,
+}) {
+  return Hive.box<String>(HiveBoxNames.wordContextsFor(languageCode));
 }
 
-Box<LearningItem> learningItemsBox() {
-  return Hive.box<LearningItem>(HiveBoxNames.learningItems);
+Box<LearningItem> learningItemsBox({
+  String languageCode = HiveBoxNames.defaultLanguageCode,
+}) {
+  return Hive.box<LearningItem>(HiveBoxNames.learningItemsFor(languageCode));
 }
 
-Box<int> learningAnalyticsBox() {
-  return Hive.box<int>(HiveBoxNames.learningAnalytics);
+Box<int> learningAnalyticsBox({
+  String languageCode = HiveBoxNames.defaultLanguageCode,
+}) {
+  return Hive.box<int>(HiveBoxNames.learningAnalyticsFor(languageCode));
 }

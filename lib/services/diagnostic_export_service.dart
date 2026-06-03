@@ -98,12 +98,13 @@ class DiagnosticExportService {
   }
 
   Map<String, Object?> _collectAppStats() {
+    const lang = HiveBoxNames.defaultLanguageCode;
     return {
-      'bookCount': _boxLength(HiveBoxNames.books),
-      'vocabularyCount': _boxLength(HiveBoxNames.userVocabulary),
+      'bookCount': _boxLength(HiveBoxNames.booksFor(lang)),
+      'vocabularyCount': _boxLength(HiveBoxNames.userVocabularyFor(lang)),
       'rssSubscriptionCount': _boxLength(HiveBoxNames.rssSubscriptions),
-      'learningItemCount': _boxLength(HiveBoxNames.learningItems),
-      'dictionaryCacheCount': _boxLength(HiveBoxNames.dictionaryCache),
+      'learningItemCount': _boxLength(HiveBoxNames.learningItemsFor(lang)),
+      'dictionaryCacheCount': _boxLength(HiveBoxNames.dictionaryCacheFor(lang)),
     };
   }
 

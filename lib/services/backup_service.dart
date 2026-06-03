@@ -38,8 +38,9 @@ class WordHunterImportResult {
 }
 
 class BackupService extends ChangeNotifier {
-  static const schemaVersion = 1;
+  static const schemaVersion = 2;
   static const appId = 'flow_read';
+  static const _defaultLang = HiveBoxNames.defaultLanguageCode;
 
   static const _localSettingKeys = <String>{
     'backupEnabled',
@@ -53,68 +54,74 @@ class BackupService extends ChangeNotifier {
   static const _secretSettingKeys = <String>{'apiKey', 'aiApiKeys'};
 
   // Regenerable caches stay out of this table: wordLevels and dictionaryCache.
-  static final List<_BackupDataSegment> _backupDataSegments =
-      List.unmodifiable([
-        _BackupDataSegment.box<BookMetadata>(
-          boxName: HiveBoxNames.books,
-          box: () => Hive.box<BookMetadata>(HiveBoxNames.books),
-          encode: (value) => value.toJson(),
-          decode: (value) => BookMetadata.fromJson(_asStringKeyMap(value)),
-        ),
-        _BackupDataSegment.box<String>(
-          boxName: HiveBoxNames.userVocabulary,
-          box: () => Hive.box<String>(HiveBoxNames.userVocabulary),
-        ),
-        _BackupDataSegment.box<dynamic>(
-          boxName: HiveBoxNames.settings,
-          box: () => Hive.box<dynamic>(HiveBoxNames.settings),
-          clearBeforeRestore: false,
-          skipSnapshotKey: (key, includeSecretsInBackup) {
-            if (_localSettingKeys.contains(key)) return true;
-            return !includeSecretsInBackup && _secretSettingKeys.contains(key);
-          },
-          skipRestoreKey: (key) => _localSettingKeys.contains(key),
-        ),
-        _BackupDataSegment.box<String>(
-          boxName: HiveBoxNames.wordBookmarks,
-          box: () => Hive.box<String>(HiveBoxNames.wordBookmarks),
-        ),
-        _BackupDataSegment.box<String>(
-          boxName: HiveBoxNames.readingBookmarks,
-          box: () => Hive.box<String>(HiveBoxNames.readingBookmarks),
-        ),
-        _BackupDataSegment.box<String>(
-          boxName: HiveBoxNames.readingConfig,
-          box: () => Hive.box<String>(HiveBoxNames.readingConfig),
-        ),
-        _BackupDataSegment.box<int>(
-          boxName: HiveBoxNames.readingTime,
-          box: () => Hive.box<int>(HiveBoxNames.readingTime),
-          decode: _decodeInt,
-        ),
-        _BackupDataSegment.box<RssFeedSubscription>(
-          boxName: HiveBoxNames.rssSubscriptions,
-          box: () =>
-              Hive.box<RssFeedSubscription>(HiveBoxNames.rssSubscriptions),
-          encode: _rssSubscriptionToJson,
-          decode: (value) => _rssSubscriptionFromJson(_asStringKeyMap(value)),
-        ),
-        _BackupDataSegment.box<String>(
-          boxName: HiveBoxNames.wordContexts,
-          box: () => Hive.box<String>(HiveBoxNames.wordContexts),
-        ),
-        _BackupDataSegment.box<LearningItem>(
-          boxName: HiveBoxNames.learningItems,
-          box: () => Hive.box<LearningItem>(HiveBoxNames.learningItems),
-          encode: (value) => value.toJson(),
-          decode: (value) => LearningItem.fromJson(_asStringKeyMap(value)),
-        ),
-        _BackupDataSegment.box<int>(
-          boxName: HiveBoxNames.learningAnalytics,
-          box: () => Hive.box<int>(HiveBoxNames.learningAnalytics),
-          decode: _decodeInt,
-        ),
-      ]);
+  static final List<_BackupDataSegment> _backupDataSegments = List.unmodifiable(
+    [
+      _BackupDataSegment.box<BookMetadata>(
+        boxName: HiveBoxNames.booksFor(_defaultLang),
+        box: () => Hive.box<BookMetadata>(HiveBoxNames.booksFor(_defaultLang)),
+        encode: (value) => value.toJson(),
+        decode: (value) => BookMetadata.fromJson(_asStringKeyMap(value)),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.userVocabularyFor(_defaultLang),
+        box: () =>
+            Hive.box<String>(HiveBoxNames.userVocabularyFor(_defaultLang)),
+      ),
+      _BackupDataSegment.box<dynamic>(
+        boxName: HiveBoxNames.settings,
+        box: () => Hive.box<dynamic>(HiveBoxNames.settings),
+        clearBeforeRestore: false,
+        skipSnapshotKey: (key, includeSecretsInBackup) {
+          if (_localSettingKeys.contains(key)) return true;
+          return !includeSecretsInBackup && _secretSettingKeys.contains(key);
+        },
+        skipRestoreKey: (key) => _localSettingKeys.contains(key),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.wordBookmarksFor(_defaultLang),
+        box: () =>
+            Hive.box<String>(HiveBoxNames.wordBookmarksFor(_defaultLang)),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.readingBookmarksFor(_defaultLang),
+        box: () =>
+            Hive.box<String>(HiveBoxNames.readingBookmarksFor(_defaultLang)),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.readingConfigFor(_defaultLang),
+        box: () =>
+            Hive.box<String>(HiveBoxNames.readingConfigFor(_defaultLang)),
+      ),
+      _BackupDataSegment.box<int>(
+        boxName: HiveBoxNames.readingTimeFor(_defaultLang),
+        box: () => Hive.box<int>(HiveBoxNames.readingTimeFor(_defaultLang)),
+        decode: _decodeInt,
+      ),
+      _BackupDataSegment.box<RssFeedSubscription>(
+        boxName: HiveBoxNames.rssSubscriptions,
+        box: () => Hive.box<RssFeedSubscription>(HiveBoxNames.rssSubscriptions),
+        encode: _rssSubscriptionToJson,
+        decode: (value) => _rssSubscriptionFromJson(_asStringKeyMap(value)),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.wordContextsFor(_defaultLang),
+        box: () => Hive.box<String>(HiveBoxNames.wordContextsFor(_defaultLang)),
+      ),
+      _BackupDataSegment.box<LearningItem>(
+        boxName: HiveBoxNames.learningItemsFor(_defaultLang),
+        box: () =>
+            Hive.box<LearningItem>(HiveBoxNames.learningItemsFor(_defaultLang)),
+        encode: (value) => value.toJson(),
+        decode: (value) => LearningItem.fromJson(_asStringKeyMap(value)),
+      ),
+      _BackupDataSegment.box<int>(
+        boxName: HiveBoxNames.learningAnalyticsFor(_defaultLang),
+        box: () =>
+            Hive.box<int>(HiveBoxNames.learningAnalyticsFor(_defaultLang)),
+        decode: _decodeInt,
+      ),
+    ],
+  );
 
   @visibleForTesting
   static List<String> get backupDataBoxNames {
@@ -325,7 +332,8 @@ class BackupService extends ChangeNotifier {
 
     final manifestIds = archive.manifestBookIds(manifest);
     final boxes = data['boxes'] as Map<String, dynamic>;
-    final booksBox = boxes[HiveBoxNames.books] as Map<String, dynamic>?;
+    final booksBox =
+        boxes[HiveBoxNames.booksFor(_defaultLang)] as Map<String, dynamic>?;
     final bookEntries = booksBox?['entries'] as List<dynamic>? ?? [];
     final dataBookIds = bookEntries
         .whereType<Map>()
@@ -392,7 +400,9 @@ class BackupService extends ChangeNotifier {
         }
       }
 
-      final booksBoxRef = Hive.box<BookMetadata>(HiveBoxNames.books);
+      final booksBoxRef = Hive.box<BookMetadata>(
+        HiveBoxNames.booksFor(_defaultLang),
+      );
       for (final id in manifestIds) {
         final canonicalSource = _bookSourcePath(booksDir, id);
         final staging = stagingPaths[id]!;
@@ -483,7 +493,9 @@ class BackupService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final vocabBox = Hive.box<String>(HiveBoxNames.userVocabulary);
+      final vocabBox = Hive.box<String>(
+        HiveBoxNames.userVocabularyFor(_defaultLang),
+      );
       final currentKnown = <String>{
         for (final key in vocabBox.keys)
           if (vocabBox.get(key) == 'known') key.toString(),
@@ -502,7 +514,9 @@ class BackupService extends ChangeNotifier {
         await vocabBox.putAll(learningUpdates);
       }
 
-      final contextBox = Hive.box<String>(HiveBoxNames.wordContexts);
+      final contextBox = Hive.box<String>(
+        HiveBoxNames.wordContextsFor(_defaultLang),
+      );
       var exampleCount = 0;
       for (final entry in contexts.entries) {
         final merged = _mergeContextExamples(
@@ -564,7 +578,9 @@ class BackupService extends ChangeNotifier {
     final hasCover = <String, bool>{};
     var totalBytes = 0;
 
-    final booksBox = Hive.box<BookMetadata>(HiveBoxNames.books);
+    final booksBox = Hive.box<BookMetadata>(
+      HiveBoxNames.booksFor(_defaultLang),
+    );
     for (final meta in booksBox.values) {
       final sourceFile = File(meta.sourcePath);
       if (!await sourceFile.exists()) {

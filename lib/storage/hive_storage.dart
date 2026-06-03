@@ -42,20 +42,27 @@ void registerFlowReadLanguageModules() {
 }
 
 Future<void> openFlowReadHiveBoxes() async {
+  registerFlowReadLanguageModules();
+  await Hive.openBox(HiveBoxNames.settings);
+  final activeLang = _activeSourceLanguageCode();
+  final module = LanguageRegistry.instance.get(activeLang);
+  final languageCode = module == null
+      ? HiveBoxNames.defaultLanguageCode
+      : activeLang;
+
   await Future.wait([
-    Hive.openBox<BookMetadata>(HiveBoxNames.books),
-    Hive.openBox<String>(HiveBoxNames.userVocabulary),
-    Hive.openBox(HiveBoxNames.settings),
-    Hive.openBox<String>(HiveBoxNames.wordBookmarks),
-    Hive.openBox<String>(HiveBoxNames.readingBookmarks),
-    Hive.openBox<String>(HiveBoxNames.readingConfig),
-    Hive.openBox<int>(HiveBoxNames.readingTime),
+    Hive.openBox<BookMetadata>(HiveBoxNames.booksFor(languageCode)),
+    Hive.openBox<String>(HiveBoxNames.userVocabularyFor(languageCode)),
+    Hive.openBox<String>(HiveBoxNames.wordBookmarksFor(languageCode)),
+    Hive.openBox<String>(HiveBoxNames.readingBookmarksFor(languageCode)),
+    Hive.openBox<String>(HiveBoxNames.readingConfigFor(languageCode)),
+    Hive.openBox<int>(HiveBoxNames.readingTimeFor(languageCode)),
     Hive.openBox<WordLevelInfo>(HiveBoxNames.wordLevels),
-    Hive.openBox<String>(HiveBoxNames.dictionaryCache),
+    Hive.openBox<String>(HiveBoxNames.dictionaryCacheFor(languageCode)),
     Hive.openBox<RssFeedSubscription>(HiveBoxNames.rssSubscriptions),
-    Hive.openBox<String>(HiveBoxNames.wordContexts),
-    Hive.openBox<LearningItem>(HiveBoxNames.learningItems),
-    Hive.openBox<int>(HiveBoxNames.learningAnalytics),
+    Hive.openBox<String>(HiveBoxNames.wordContextsFor(languageCode)),
+    Hive.openBox<LearningItem>(HiveBoxNames.learningItemsFor(languageCode)),
+    Hive.openBox<int>(HiveBoxNames.learningAnalyticsFor(languageCode)),
   ]);
 }
 
@@ -63,4 +70,13 @@ void _registerHiveAdapter<T>(int typeId, TypeAdapter<T> adapter) {
   if (!Hive.isAdapterRegistered(typeId)) {
     Hive.registerAdapter(adapter);
   }
+}
+
+String _activeSourceLanguageCode() {
+  final raw = Hive.box(HiveBoxNames.settings).get(
+    HiveBoxNames.activeSourceLanguageKey,
+    defaultValue: HiveBoxNames.defaultLanguageCode,
+  );
+  final code = raw?.toString().trim().toLowerCase();
+  return code == null || code.isEmpty ? HiveBoxNames.defaultLanguageCode : code;
 }

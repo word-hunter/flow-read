@@ -11,16 +11,22 @@ abstract class ReadingConfigRepository {
 }
 
 class HiveReadingConfigRepository implements ReadingConfigRepository {
-  HiveReadingConfigRepository({Box<String>? box}) : _box = box;
+  HiveReadingConfigRepository({Box<String>? box, String? languageCode})
+    : _box = box,
+      _languageCode = activeHiveLanguageCode(languageCode);
 
   Box<String>? _box;
+  final String _languageCode;
 
   Box<String> get _storage =>
-      _box ?? requireOpenHiveBox<String>(HiveBoxNames.readingConfig);
+      _box ??
+      requireOpenHiveBox<String>(HiveBoxNames.readingConfigFor(_languageCode));
 
   @override
   Future<void> init() async {
-    _box ??= requireOpenHiveBox<String>(HiveBoxNames.readingConfig);
+    _box ??= requireOpenHiveBox<String>(
+      HiveBoxNames.readingConfigFor(_languageCode),
+    );
   }
 
   @override

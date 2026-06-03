@@ -1,12 +1,21 @@
 import '../models/user_vocabulary.dart';
+import '../storage/repositories/hive_repository_box.dart';
 import '../storage/repositories/user_vocabulary_repository.dart';
 
 class UserVocabularyService {
   static const emptyRevisionSignature = '811c9dc5';
 
-  UserVocabularyService({UserVocabularyRepository? repository})
-    : _repository = repository ?? HiveUserVocabularyRepository();
+  UserVocabularyService({
+    UserVocabularyRepository? repository,
+    String? languageCode,
+  }) : languageCode = activeHiveLanguageCode(languageCode),
+       _repository =
+           repository ??
+           HiveUserVocabularyRepository(
+             languageCode: activeHiveLanguageCode(languageCode),
+           );
 
+  final String languageCode;
   final UserVocabularyRepository _repository;
 
   Future<void> init() async {

@@ -86,7 +86,7 @@ class SettingsService extends ChangeNotifier {
   static const _dailyReadingGoalMinutesKey = 'dailyReadingGoalMinutes';
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
   static const _dictionarySourcesKey = 'dictionarySources';
-  static const _activeSourceLanguageKey = 'active_source_language';
+  static const _activeSourceLanguageKey = HiveBoxNames.activeSourceLanguageKey;
   static const _targetExplanationLanguageKey = 'target_explanation_language';
   static const _themeModeCycle = <ThemeMode>[
     ThemeMode.system,

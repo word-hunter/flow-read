@@ -21,7 +21,9 @@ import 'package:flow_read/services/rss_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/services/word_context_service.dart';
+import 'package:flow_read/storage/hive_box_names.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 
 import 'support/hive_test_storage.dart';
 
@@ -56,6 +58,23 @@ void main() {
 
     expect(service.getStatus('flow'), isNull);
     expect(service.revisionSignature, isNot(populatedSignature));
+  });
+
+  test('user vocabulary can read and write isolated language boxes', () async {
+    await Hive.openBox<String>(HiveBoxNames.userVocabularyFor('ja'));
+
+    final english = UserVocabularyService(languageCode: 'en');
+    await english.init();
+    final japanese = UserVocabularyService(languageCode: 'ja');
+    await japanese.init();
+
+    await english.setKnown('flow');
+    await japanese.setLearning('flow');
+
+    expect(english.getStatus('flow'), UserWordStatus.known);
+    expect(japanese.getStatus('flow'), UserWordStatus.learning);
+    expect(userVocabularyBox().get('flow'), 'known');
+    expect(userVocabularyBox(languageCode: 'ja').get('flow'), 'learning');
   });
 
   test('reading config persists clamped display settings', () async {

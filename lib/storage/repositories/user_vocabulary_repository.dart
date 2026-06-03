@@ -15,16 +15,22 @@ abstract class UserVocabularyRepository {
 }
 
 class HiveUserVocabularyRepository implements UserVocabularyRepository {
-  HiveUserVocabularyRepository({Box<String>? box}) : _box = box;
+  HiveUserVocabularyRepository({Box<String>? box, String? languageCode})
+    : _box = box,
+      _languageCode = activeHiveLanguageCode(languageCode);
 
   Box<String>? _box;
+  final String _languageCode;
 
   Box<String> get _storage =>
-      _box ?? requireOpenHiveBox<String>(HiveBoxNames.userVocabulary);
+      _box ??
+      requireOpenHiveBox<String>(HiveBoxNames.userVocabularyFor(_languageCode));
 
   @override
   Future<void> init() async {
-    _box ??= requireOpenHiveBox<String>(HiveBoxNames.userVocabulary);
+    _box ??= requireOpenHiveBox<String>(
+      HiveBoxNames.userVocabularyFor(_languageCode),
+    );
   }
 
   @override

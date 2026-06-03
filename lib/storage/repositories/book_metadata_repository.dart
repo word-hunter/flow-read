@@ -14,17 +14,23 @@ abstract class BookMetadataRepository {
 }
 
 class HiveBookMetadataRepository implements BookMetadataRepository {
-  HiveBookMetadataRepository({Box<BookMetadata>? box}) : _box = box;
+  HiveBookMetadataRepository({Box<BookMetadata>? box, String? languageCode})
+    : _box = box,
+      _languageCode = activeHiveLanguageCode(languageCode);
 
   Box<BookMetadata>? _box;
+  final String _languageCode;
 
   Box<BookMetadata> get _storage {
-    return _box ?? requireOpenHiveBox<BookMetadata>(HiveBoxNames.books);
+    return _box ??
+        requireOpenHiveBox<BookMetadata>(HiveBoxNames.booksFor(_languageCode));
   }
 
   @override
   Future<void> init() async {
-    _box ??= requireOpenHiveBox<BookMetadata>(HiveBoxNames.books);
+    _box ??= requireOpenHiveBox<BookMetadata>(
+      HiveBoxNames.booksFor(_languageCode),
+    );
   }
 
   @override

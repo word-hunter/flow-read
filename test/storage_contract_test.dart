@@ -28,9 +28,12 @@ void main() {
     );
     expect(backupDataBoxes.toSet(), hasLength(backupDataBoxes.length));
     expect(backupDataBoxes, everyElement(isIn(HiveBoxNames.bootstrapBoxes)));
-    expect(backupDataBoxes, contains(HiveBoxNames.learningAnalytics));
+    expect(backupDataBoxes, contains(HiveBoxNames.learningAnalyticsFor('en')));
     expect(backupDataBoxes, isNot(contains(HiveBoxNames.wordLevels)));
-    expect(backupDataBoxes, isNot(contains(HiveBoxNames.dictionaryCache)));
+    expect(
+      backupDataBoxes,
+      isNot(contains(HiveBoxNames.dictionaryCacheFor('en'))),
+    );
 
     expect(HiveTypeIds.reserved, hasLength(7));
   });

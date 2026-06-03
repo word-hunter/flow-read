@@ -12,17 +12,25 @@ abstract class LearningAnalyticsRepository {
 }
 
 class HiveLearningAnalyticsRepository implements LearningAnalyticsRepository {
-  HiveLearningAnalyticsRepository({Box<int>? box}) : _box = box;
+  HiveLearningAnalyticsRepository({Box<int>? box, String? languageCode})
+    : _box = box,
+      _languageCode = activeHiveLanguageCode(languageCode);
 
   Box<int>? _box;
+  final String _languageCode;
 
   Box<int> get _storage {
-    return _box ?? requireOpenHiveBox<int>(HiveBoxNames.learningAnalytics);
+    return _box ??
+        requireOpenHiveBox<int>(
+          HiveBoxNames.learningAnalyticsFor(_languageCode),
+        );
   }
 
   @override
   Future<void> init() async {
-    _box ??= requireOpenHiveBox<int>(HiveBoxNames.learningAnalytics);
+    _box ??= requireOpenHiveBox<int>(
+      HiveBoxNames.learningAnalyticsFor(_languageCode),
+    );
   }
 
   @override
