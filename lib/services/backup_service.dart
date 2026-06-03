@@ -12,8 +12,10 @@ import '../models/learning_item.dart';
 import '../models/rss_models.dart';
 import '../models/word_context_example.dart';
 import '../storage/hive_box_names.dart';
+import '../storage/storage_migrations.dart';
 import 'backup_archive.dart' as archive;
 import 'backup_folder_access.dart';
+import 'language/language_registry.dart';
 import 'settings_service.dart';
 
 class BackupException implements Exception {
@@ -53,20 +55,9 @@ class BackupService extends ChangeNotifier {
   };
   static const _secretSettingKeys = <String>{'apiKey', 'aiApiKeys'};
 
-  // Regenerable caches stay out of this table: wordLevels and dictionaryCache.
-  static final List<_BackupDataSegment> _backupDataSegments = List.unmodifiable(
-    [
-      _BackupDataSegment.box<BookMetadata>(
-        boxName: HiveBoxNames.booksFor(_defaultLang),
-        box: () => Hive.box<BookMetadata>(HiveBoxNames.booksFor(_defaultLang)),
-        encode: (value) => value.toJson(),
-        decode: (value) => BookMetadata.fromJson(_asStringKeyMap(value)),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.userVocabularyFor(_defaultLang),
-        box: () =>
-            Hive.box<String>(HiveBoxNames.userVocabularyFor(_defaultLang)),
-      ),
+  // Regenerable/reference data stays out of backups: wordLevels and dictionaryCache.
+  static List<_BackupDataSegment> _globalBackupSegments() {
+    return [
       _BackupDataSegment.box<dynamic>(
         boxName: HiveBoxNames.settings,
         box: () => Hive.box<dynamic>(HiveBoxNames.settings),
@@ -77,56 +68,116 @@ class BackupService extends ChangeNotifier {
         },
         skipRestoreKey: (key) => _localSettingKeys.contains(key),
       ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.wordBookmarksFor(_defaultLang),
-        box: () =>
-            Hive.box<String>(HiveBoxNames.wordBookmarksFor(_defaultLang)),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.readingBookmarksFor(_defaultLang),
-        box: () =>
-            Hive.box<String>(HiveBoxNames.readingBookmarksFor(_defaultLang)),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.readingConfigFor(_defaultLang),
-        box: () =>
-            Hive.box<String>(HiveBoxNames.readingConfigFor(_defaultLang)),
-      ),
-      _BackupDataSegment.box<int>(
-        boxName: HiveBoxNames.readingTimeFor(_defaultLang),
-        box: () => Hive.box<int>(HiveBoxNames.readingTimeFor(_defaultLang)),
-        decode: _decodeInt,
-      ),
       _BackupDataSegment.box<RssFeedSubscription>(
         boxName: HiveBoxNames.rssSubscriptions,
         box: () => Hive.box<RssFeedSubscription>(HiveBoxNames.rssSubscriptions),
         encode: _rssSubscriptionToJson,
         decode: (value) => _rssSubscriptionFromJson(_asStringKeyMap(value)),
       ),
+    ];
+  }
+
+  static List<_BackupDataSegment> _languageBackupSegments(String lang) {
+    return [
+      _BackupDataSegment.box<BookMetadata>(
+        boxName: HiveBoxNames.booksFor(lang),
+        box: () => Hive.box<BookMetadata>(HiveBoxNames.booksFor(lang)),
+        encode: (value) => value.toJson(),
+        decode: (value) => BookMetadata.fromJson(_asStringKeyMap(value)),
+      ),
       _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.wordContextsFor(_defaultLang),
-        box: () => Hive.box<String>(HiveBoxNames.wordContextsFor(_defaultLang)),
+        boxName: HiveBoxNames.userVocabularyFor(lang),
+        box: () => Hive.box<String>(HiveBoxNames.userVocabularyFor(lang)),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.wordBookmarksFor(lang),
+        box: () => Hive.box<String>(HiveBoxNames.wordBookmarksFor(lang)),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.readingBookmarksFor(lang),
+        box: () => Hive.box<String>(HiveBoxNames.readingBookmarksFor(lang)),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.readingConfigFor(lang),
+        box: () => Hive.box<String>(HiveBoxNames.readingConfigFor(lang)),
+      ),
+      _BackupDataSegment.box<int>(
+        boxName: HiveBoxNames.readingTimeFor(lang),
+        box: () => Hive.box<int>(HiveBoxNames.readingTimeFor(lang)),
+        decode: _decodeInt,
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.wordContextsFor(lang),
+        box: () => Hive.box<String>(HiveBoxNames.wordContextsFor(lang)),
       ),
       _BackupDataSegment.box<LearningItem>(
-        boxName: HiveBoxNames.learningItemsFor(_defaultLang),
-        box: () =>
-            Hive.box<LearningItem>(HiveBoxNames.learningItemsFor(_defaultLang)),
+        boxName: HiveBoxNames.learningItemsFor(lang),
+        box: () => Hive.box<LearningItem>(HiveBoxNames.learningItemsFor(lang)),
         encode: (value) => value.toJson(),
         decode: (value) => LearningItem.fromJson(_asStringKeyMap(value)),
       ),
       _BackupDataSegment.box<int>(
-        boxName: HiveBoxNames.learningAnalyticsFor(_defaultLang),
-        box: () =>
-            Hive.box<int>(HiveBoxNames.learningAnalyticsFor(_defaultLang)),
+        boxName: HiveBoxNames.learningAnalyticsFor(lang),
+        box: () => Hive.box<int>(HiveBoxNames.learningAnalyticsFor(lang)),
         decode: _decodeInt,
       ),
-    ],
-  );
+    ];
+  }
+
+  static List<_BackupDataSegment> _v1BackupSegments() {
+    return [
+      _BackupDataSegment.box<BookMetadata>(
+        boxName: HiveBoxNames.books,
+        box: () => Hive.box<BookMetadata>(HiveBoxNames.books),
+        encode: (value) => value.toJson(),
+        decode: (value) => BookMetadata.fromJson(_asStringKeyMap(value)),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.userVocabulary,
+        box: () => Hive.box<String>(HiveBoxNames.userVocabulary),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.wordBookmarks,
+        box: () => Hive.box<String>(HiveBoxNames.wordBookmarks),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.readingBookmarks,
+        box: () => Hive.box<String>(HiveBoxNames.readingBookmarks),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.readingConfig,
+        box: () => Hive.box<String>(HiveBoxNames.readingConfig),
+      ),
+      _BackupDataSegment.box<int>(
+        boxName: HiveBoxNames.readingTime,
+        box: () => Hive.box<int>(HiveBoxNames.readingTime),
+        decode: _decodeInt,
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.wordContexts,
+        box: () => Hive.box<String>(HiveBoxNames.wordContexts),
+      ),
+      _BackupDataSegment.box<LearningItem>(
+        boxName: HiveBoxNames.learningItems,
+        box: () => Hive.box<LearningItem>(HiveBoxNames.learningItems),
+        encode: (value) => value.toJson(),
+        decode: (value) => LearningItem.fromJson(_asStringKeyMap(value)),
+      ),
+      _BackupDataSegment.box<int>(
+        boxName: HiveBoxNames.learningAnalytics,
+        box: () => Hive.box<int>(HiveBoxNames.learningAnalytics),
+        decode: _decodeInt,
+      ),
+    ];
+  }
 
   @visibleForTesting
   static List<String> get backupDataBoxNames {
     return List.unmodifiable(
-      _backupDataSegments.map((segment) => segment.boxName),
+      [
+        ..._globalBackupSegments(),
+        ..._languageBackupSegments(_defaultLang),
+      ].map((segment) => segment.boxName),
     );
   }
 
@@ -196,8 +247,9 @@ class BackupService extends ChangeNotifier {
     );
     try {
       final createdAt = DateTime.now();
-      final bookFiles = await _collectBookFiles();
-      final dataPayload = _buildDataPayload();
+      final dataSegments = await _buildBackupSegments();
+      final bookFiles = await _collectBookFiles(dataSegments);
+      final dataPayload = _buildDataPayload(dataSegments);
       final dataJson = const JsonEncoder().convert(dataPayload);
       final bookIds = bookFiles.books.keys.toList();
       final manifest = archive.buildManifest(
@@ -329,16 +381,11 @@ class BackupService extends ChangeNotifier {
 
     archive.validateManifest(manifest, appId);
     archive.validateDataSchema(data, schemaVersion);
+    final importedSchemaVersion = _dataSchemaVersion(data);
 
     final manifestIds = archive.manifestBookIds(manifest);
     final boxes = data['boxes'] as Map<String, dynamic>;
-    final booksBox =
-        boxes[HiveBoxNames.booksFor(_defaultLang)] as Map<String, dynamic>?;
-    final bookEntries = booksBox?['entries'] as List<dynamic>? ?? [];
-    final dataBookIds = bookEntries
-        .whereType<Map>()
-        .map((e) => _decodeKey(e['key']).toString())
-        .toSet();
+    final dataBookIds = _dataBookIds(boxes, importedSchemaVersion);
 
     if (!setEquals(manifestIds, dataBookIds)) {
       throw const BackupException('备份文件不完整：书籍索引与数据不一致');
@@ -393,15 +440,32 @@ class BackupService extends ChangeNotifier {
         stagingPaths[id] = (source: stagingSource, cover: stagingCover);
       }
 
-      for (final segment in _backupDataSegments) {
+      if (importedSchemaVersion < 2) {
+        await _clearV1BackupBoxes();
+      }
+
+      final restoreSegments = await _buildRestoreSegments(
+        boxNames: boxes.keys.map((key) => key.toString()).toSet(),
+        importedSchemaVersion: importedSchemaVersion,
+      );
+      for (final segment in restoreSegments) {
         final boxData = boxes[segment.boxName];
         if (boxData is Map) {
           await _restoreSegment(segment, _asStringKeyMap(boxData));
         }
       }
 
-      final booksBoxRef = Hive.box<BookMetadata>(
-        HiveBoxNames.booksFor(_defaultLang),
+      if (importedSchemaVersion < 2) {
+        await _clearLanguageBackupBoxes(_defaultLang);
+        await migrateV1BoxesToLanguageBoxes();
+        await Hive.box<dynamic>(
+          HiveBoxNames.settings,
+        ).put(StorageSchema.versionKey, StorageSchema.currentVersion);
+      }
+
+      final restoredBookBoxNames = _restoredBookBoxNames(
+        boxes,
+        importedSchemaVersion,
       );
       for (final id in manifestIds) {
         final canonicalSource = _bookSourcePath(booksDir, id);
@@ -422,17 +486,23 @@ class BackupService extends ChangeNotifier {
           }
         }
 
-        final meta = booksBoxRef.get(id);
-        if (meta != null) {
-          await booksBoxRef.put(
-            id,
-            meta.copyWith(
-              sourcePath: canonicalSource,
-              coverPath: staging.cover != null
-                  ? _bookCoverPath(booksDir, id)
-                  : null,
-            ),
-          );
+        for (final boxName in restoredBookBoxNames) {
+          if (!Hive.isBoxOpen(boxName)) {
+            await Hive.openBox<BookMetadata>(boxName);
+          }
+          final booksBoxRef = Hive.box<BookMetadata>(boxName);
+          final meta = booksBoxRef.get(id);
+          if (meta != null) {
+            await booksBoxRef.put(
+              id,
+              meta.copyWith(
+                sourcePath: canonicalSource,
+                coverPath: staging.cover != null
+                    ? _bookCoverPath(booksDir, id)
+                    : null,
+              ),
+            );
+          }
         }
       }
 
@@ -545,14 +615,179 @@ class BackupService extends ChangeNotifier {
     }
   }
 
-  Map<String, dynamic> _buildDataPayload() {
+  Map<String, dynamic> _buildDataPayload(List<_BackupDataSegment> segments) {
     return archive.buildDataPayload(
       schemaVersion: schemaVersion,
       boxes: {
-        for (final segment in _backupDataSegments)
+        for (final segment in segments)
           segment.boxName: _snapshotSegment(segment),
       },
     );
+  }
+
+  Future<List<_BackupDataSegment>> _buildBackupSegments() async {
+    final segments = <_BackupDataSegment>[];
+    for (final segment in _globalBackupSegments()) {
+      await segment.ensureOpen();
+      segments.add(segment);
+    }
+
+    for (final languageCode in _backupLanguageCodes()) {
+      for (final segment in _languageBackupSegments(languageCode)) {
+        if (await _segmentBoxExistsOrOpen(segment.boxName)) {
+          await segment.ensureOpen();
+          segments.add(segment);
+        }
+      }
+    }
+    return segments;
+  }
+
+  Set<String> _backupLanguageCodes() {
+    return {
+      _defaultLang,
+      settings.activeSourceLanguage.trim().toLowerCase(),
+      for (final module in LanguageRegistry.instance.modules)
+        module.languageCode.trim().toLowerCase(),
+    }.where((code) => code.isNotEmpty).toSet();
+  }
+
+  Future<List<_BackupDataSegment>> _buildRestoreSegments({
+    required Set<String> boxNames,
+    required int importedSchemaVersion,
+  }) async {
+    final candidates = importedSchemaVersion < 2
+        ? [..._globalBackupSegments(), ..._v1BackupSegments()]
+        : [
+            for (final boxName in boxNames)
+              if (_segmentForBoxName(boxName) != null)
+                _segmentForBoxName(boxName)!,
+          ];
+    final segments = <_BackupDataSegment>[];
+    for (final segment in candidates) {
+      if (!boxNames.contains(segment.boxName)) continue;
+      await segment.ensureOpen();
+      segments.add(segment);
+    }
+    return segments;
+  }
+
+  _BackupDataSegment? _segmentForBoxName(String boxName) {
+    if (boxName == HiveBoxNames.settings) {
+      return _globalBackupSegments().firstWhere(
+        (segment) => segment.boxName == boxName,
+      );
+    }
+    if (boxName == HiveBoxNames.rssSubscriptions) {
+      return _globalBackupSegments().firstWhere(
+        (segment) => segment.boxName == boxName,
+      );
+    }
+    if (boxName.startsWith('${HiveBoxNames.books}_')) {
+      return _BackupDataSegment.box<BookMetadata>(
+        boxName: boxName,
+        box: () => Hive.box<BookMetadata>(boxName),
+        encode: (value) => value.toJson(),
+        decode: (value) => BookMetadata.fromJson(_asStringKeyMap(value)),
+      );
+    }
+    if (boxName.startsWith('${HiveBoxNames.learningItems}_')) {
+      return _BackupDataSegment.box<LearningItem>(
+        boxName: boxName,
+        box: () => Hive.box<LearningItem>(boxName),
+        encode: (value) => value.toJson(),
+        decode: (value) => LearningItem.fromJson(_asStringKeyMap(value)),
+      );
+    }
+    if (boxName.startsWith('${HiveBoxNames.readingTime}_') ||
+        boxName.startsWith('${HiveBoxNames.learningAnalytics}_')) {
+      return _BackupDataSegment.box<int>(
+        boxName: boxName,
+        box: () => Hive.box<int>(boxName),
+        decode: _decodeInt,
+      );
+    }
+    if (_isLanguageStringBoxName(boxName)) {
+      return _BackupDataSegment.box<String>(
+        boxName: boxName,
+        box: () => Hive.box<String>(boxName),
+      );
+    }
+    return null;
+  }
+
+  int _dataSchemaVersion(Map<String, dynamic> data) {
+    final raw = data['schemaVersion'];
+    return raw is int ? raw : int.parse(raw.toString());
+  }
+
+  Set<String> _dataBookIds(
+    Map<String, dynamic> boxes,
+    int importedSchemaVersion,
+  ) {
+    final bookBoxNames = importedSchemaVersion < 2
+        ? [HiveBoxNames.books]
+        : boxes.keys
+              .map((key) => key.toString())
+              .where(_isLanguageBooksBoxName)
+              .toList();
+    return {
+      for (final boxName in bookBoxNames)
+        for (final entry in _boxEntries(boxes[boxName]))
+          _decodeKey(entry['key']).toString(),
+    };
+  }
+
+  List<String> _restoredBookBoxNames(
+    Map<String, dynamic> boxes,
+    int importedSchemaVersion,
+  ) {
+    if (importedSchemaVersion < 2) {
+      return [HiveBoxNames.booksFor(_defaultLang)];
+    }
+    return boxes.keys
+        .map((key) => key.toString())
+        .where(_isLanguageBooksBoxName)
+        .toList();
+  }
+
+  Iterable<Map<dynamic, dynamic>> _boxEntries(dynamic boxData) {
+    if (boxData is! Map) return const [];
+    final entries = boxData['entries'];
+    if (entries is! List) return const [];
+    return entries.whereType<Map>();
+  }
+
+  Future<void> _clearLanguageBackupBoxes(String languageCode) async {
+    for (final segment in _languageBackupSegments(languageCode)) {
+      if (await _segmentBoxExistsOrOpen(segment.boxName)) {
+        await segment.ensureOpen();
+        await segment.clear();
+      }
+    }
+  }
+
+  Future<void> _clearV1BackupBoxes() async {
+    for (final segment in _v1BackupSegments()) {
+      await segment.ensureOpen();
+      await segment.clear();
+    }
+  }
+
+  Future<bool> _segmentBoxExistsOrOpen(String boxName) async {
+    return Hive.isBoxOpen(boxName) || await Hive.boxExists(boxName);
+  }
+
+  bool _isLanguageBooksBoxName(String boxName) {
+    return boxName.startsWith('${HiveBoxNames.books}_');
+  }
+
+  bool _isLanguageStringBoxName(String boxName) {
+    return boxName.startsWith('${HiveBoxNames.userVocabulary}_') ||
+        boxName.startsWith('${HiveBoxNames.wordBookmarks}_') ||
+        boxName.startsWith('${HiveBoxNames.readingBookmarks}_') ||
+        boxName.startsWith('${HiveBoxNames.readingConfig}_') ||
+        boxName.startsWith('${HiveBoxNames.wordContexts}_');
   }
 
   Map<String, dynamic> _snapshotSegment(_BackupDataSegment segment) {
@@ -573,49 +808,53 @@ class BackupService extends ChangeNotifier {
     return {'entries': entries};
   }
 
-  Future<_BookFilesCollection> _collectBookFiles() async {
+  Future<_BookFilesCollection> _collectBookFiles(
+    List<_BackupDataSegment> segments,
+  ) async {
     final books = <String, _BookFile>{};
     final hasCover = <String, bool>{};
     var totalBytes = 0;
 
-    final booksBox = Hive.box<BookMetadata>(
-      HiveBoxNames.booksFor(_defaultLang),
-    );
-    for (final meta in booksBox.values) {
-      final sourceFile = File(meta.sourcePath);
-      if (!await sourceFile.exists()) {
-        throw BackupException('备份失败：《${meta.title}》的 EPUB 文件缺失，请重新导入该书后再备份。');
-      }
-      final sourceLen = await sourceFile.length();
-      if (sourceLen <= 0) {
-        throw BackupException('备份失败：《${meta.title}》的 EPUB 文件为空。');
-      }
-      totalBytes += sourceLen;
+    for (final segment in segments.where(
+      (segment) => _isLanguageBooksBoxName(segment.boxName),
+    )) {
+      final booksBox = Hive.box<BookMetadata>(segment.boxName);
+      for (final meta in booksBox.values) {
+        final sourceFile = File(meta.sourcePath);
+        if (!await sourceFile.exists()) {
+          throw BackupException('备份失败：《${meta.title}》的 EPUB 文件缺失，请重新导入该书后再备份。');
+        }
+        final sourceLen = await sourceFile.length();
+        if (sourceLen <= 0) {
+          throw BackupException('备份失败：《${meta.title}》的 EPUB 文件为空。');
+        }
+        totalBytes += sourceLen;
 
-      var coverBytes = Uint8List(0);
-      var hasValidCover = false;
-      final coverPath = meta.coverPath;
-      if (coverPath != null) {
-        final coverFile = File(coverPath);
-        if (await coverFile.exists()) {
-          final coverLen = await coverFile.length();
-          if (coverLen > 0) {
-            totalBytes += coverLen;
-            coverBytes = await coverFile.readAsBytes();
-            hasValidCover = true;
+        var coverBytes = Uint8List(0);
+        var hasValidCover = false;
+        final coverPath = meta.coverPath;
+        if (coverPath != null) {
+          final coverFile = File(coverPath);
+          if (await coverFile.exists()) {
+            final coverLen = await coverFile.length();
+            if (coverLen > 0) {
+              totalBytes += coverLen;
+              coverBytes = await coverFile.readAsBytes();
+              hasValidCover = true;
+            }
           }
         }
-      }
 
-      if (totalBytes > archive.maxBackupBookBytes) {
-        throw const BackupException('备份内容较大，暂不支持一次性导出超过 500 MB 的书籍文件。');
-      }
+        if (totalBytes > archive.maxBackupBookBytes) {
+          throw const BackupException('备份内容较大，暂不支持一次性导出超过 500 MB 的书籍文件。');
+        }
 
-      books[meta.id] = _BookFile(
-        sourceBytes: await sourceFile.readAsBytes(),
-        coverBytes: hasValidCover ? coverBytes : null,
-      );
-      hasCover[meta.id] = hasValidCover;
+        books[meta.id] = _BookFile(
+          sourceBytes: await sourceFile.readAsBytes(),
+          coverBytes: hasValidCover ? coverBytes : null,
+        );
+        hasCover[meta.id] = hasValidCover;
+      }
     }
 
     return _BookFilesCollection(books: books, hasCover: hasCover);
@@ -890,6 +1129,7 @@ typedef _BackupRestoreSkip = bool Function(dynamic key);
 class _BackupDataSegment {
   _BackupDataSegment._({
     required this.boxName,
+    required this.ensureOpen,
     required this.keys,
     required this.getValue,
     required this.clear,
@@ -912,6 +1152,11 @@ class _BackupDataSegment {
   }) {
     return _BackupDataSegment._(
       boxName: boxName,
+      ensureOpen: () async {
+        if (!Hive.isBoxOpen(boxName)) {
+          await Hive.openBox<T>(boxName);
+        }
+      },
       keys: () => box().keys,
       getValue: (key) => box().get(key),
       clear: () => box().clear(),
@@ -931,6 +1176,7 @@ class _BackupDataSegment {
   }
 
   final String boxName;
+  final Future<void> Function() ensureOpen;
   final Iterable<dynamic> Function() keys;
   final dynamic Function(dynamic key) getValue;
   final Future<int> Function() clear;

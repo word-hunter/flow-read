@@ -11,6 +11,12 @@ class LanguageRegistry {
     _modules[module.languageCode] = module;
   }
 
+  List<LanguageModule> get modules {
+    final values = _modules.values.toList()
+      ..sort((a, b) => a.languageCode.compareTo(b.languageCode));
+    return List.unmodifiable(values);
+  }
+
   LanguageModule? get(String code) => _modules[code];
 
   LanguageModule? get defaultModule => _modules['en'];

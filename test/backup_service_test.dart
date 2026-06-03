@@ -156,8 +156,13 @@ void main() {
     final boxes = data['boxes'] as Map<String, dynamic>;
     expect(boxes.keys, containsAll(BackupService.backupDataBoxNames));
     expect(boxes, isNot(containsPair(HiveBoxNames.dictionaryCache, anything)));
+    expect(
+      boxes,
+      isNot(containsPair(HiveBoxNames.dictionaryCacheFor('en'), anything)),
+    );
     final analyticsEntries =
-        boxes[HiveBoxNames.learningAnalytics]['entries'] as List<dynamic>;
+        boxes[HiveBoxNames.learningAnalyticsFor('en')]['entries']
+            as List<dynamic>;
     expect(analyticsEntries, hasLength(1));
     expect(analyticsEntries.single, {
       'key': {'type': 'int', 'value': 20260515},
@@ -316,11 +321,89 @@ void main() {
 
     final boxes = _decodeBackupBoxes(preImportFiles.single);
     final vocabEntries =
-        boxes[HiveBoxNames.userVocabulary]['entries'] as List<dynamic>;
+        boxes[HiveBoxNames.userVocabularyFor('en')]['entries'] as List<dynamic>;
     expect(vocabEntries.single, {
       'key': {'type': 'string', 'value': 'current'},
       'value': 'learning',
     });
+  });
+
+  test('imports v1 backup data into English language boxes', () async {
+    await userVocabularyBox().put('current', 'learning');
+
+    final sourceBytes = utf8.encode('legacy epub bytes');
+    final legacyBook = BookMetadata(
+      id: 'legacy-book',
+      title: 'Legacy Book',
+      author: 'Author',
+      sourcePath: '/legacy/source.epub',
+      totalChapters: 2,
+      currentChapter: 1,
+      chapterProgress: 0.5,
+    );
+    final backupFile = await _writeFlowBackup(
+      path: '${tempDir.path}/legacy.flow.bak',
+      schemaVersion: 1,
+      bookIds: [legacyBook.id],
+      bookHasCover: const {'legacy-book': false},
+      sourceBytesByBookId: {'legacy-book': Uint8List.fromList(sourceBytes)},
+      boxes: {
+        HiveBoxNames.books: {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': legacyBook.id},
+              'value': legacyBook.toJson(),
+            },
+          ],
+        },
+        HiveBoxNames.userVocabulary: {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': 'legacy'},
+              'value': 'known',
+            },
+          ],
+        },
+        HiveBoxNames.wordBookmarks: {'entries': <Map<String, dynamic>>[]},
+        HiveBoxNames.readingBookmarks: {'entries': <Map<String, dynamic>>[]},
+        HiveBoxNames.readingConfig: {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': 'fontSize'},
+              'value': '19',
+            },
+          ],
+        },
+        HiveBoxNames.readingTime: {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': 'legacy-book'},
+              'value': 75,
+            },
+          ],
+        },
+        HiveBoxNames.wordContexts: {'entries': <Map<String, dynamic>>[]},
+        HiveBoxNames.learningItems: {'entries': <Map<String, dynamic>>[]},
+        HiveBoxNames.learningAnalytics: {'entries': <Map<String, dynamic>>[]},
+      },
+    );
+
+    await backup.importBackupFile(backupFile.path);
+
+    final restoredBook = booksBox().get('legacy-book');
+    expect(restoredBook?.title, 'Legacy Book');
+    expect(
+      restoredBook?.sourcePath,
+      '${documentsDir.path}/books/legacy-book.epub',
+    );
+    expect(await File(restoredBook!.sourcePath).readAsBytes(), sourceBytes);
+    expect(userVocabularyBox().get('legacy'), 'known');
+    expect(userVocabularyBox().get('current'), isNull);
+    expect(readingConfigBox().get('fontSize'), '19');
+    expect(readingTimeBox().get('legacy-book'), 75);
+    expect(settings.activeSourceLanguage, 'en');
+    expect(v1BooksBox().get('legacy-book')?.title, 'Legacy Book');
+    expect(v1UserVocabularyBox().get('legacy'), 'known');
   });
 
   test('exportNow writes a .flow.bak file into the selected folder', () async {
@@ -462,4 +545,40 @@ Map<String, dynamic> _decodeBackupBoxes(File file) {
       jsonDecode(utf8.decode(zipArchive.findFile('data/app.json')!.content))
           as Map<String, dynamic>;
   return data['boxes'] as Map<String, dynamic>;
+}
+
+Future<File> _writeFlowBackup({
+  required String path,
+  required int schemaVersion,
+  required List<String> bookIds,
+  required Map<String, bool> bookHasCover,
+  required Map<String, Uint8List> sourceBytesByBookId,
+  required Map<String, dynamic> boxes,
+}) async {
+  final manifest = archive.buildManifest(
+    appId: BackupService.appId,
+    formatVersion: archive.supportedManifestFormatVersion,
+    createdAt: DateTime.utc(2026, 6, 3, 8),
+    bookIds: bookIds,
+    bookHasCover: bookHasCover,
+  );
+  final data = archive.buildDataPayload(
+    schemaVersion: schemaVersion,
+    boxes: boxes,
+  );
+  final entries = <String, Map<String, dynamic>>{
+    for (final id in bookIds)
+      archive.bookSourceEntryPath(id): {
+        'bytes': sourceBytesByBookId[id]!,
+        'compress': false,
+      },
+  };
+  final bytes = archive.encodeZipArchive({
+    'manifestJson': jsonEncode(manifest),
+    'dataJson': jsonEncode(data),
+    'entries': entries,
+  });
+  final file = File(path);
+  await file.writeAsBytes(bytes, flush: true);
+  return file;
 }

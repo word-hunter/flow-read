@@ -6,6 +6,7 @@ import '../../services/app_version.dart';
 import '../../services/backup_service.dart';
 import '../../services/dictionary/dictionary_source_config.dart';
 import '../../services/dictionary/dictionary_source_test_service.dart';
+import '../../services/language/language_registry.dart';
 import '../../services/mac_permission_diagnostics.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_theme.dart';
@@ -186,6 +187,23 @@ class SettingsReadingSection extends StatelessWidget {
     final theme = Theme.of(context);
     final currentMinutes = settings.dailyReadingGoalMinutes;
     final weeklyMinutes = currentMinutes * 6;
+    final languageModules = LanguageRegistry.instance.modules;
+    final languageOptions = languageModules.isEmpty
+        ? const [_LanguageOption(code: 'en', name: 'English')]
+        : languageModules
+              .map(
+                (module) => _LanguageOption(
+                  code: module.languageCode,
+                  name: module.languageName,
+                ),
+              )
+              .toList();
+    final selectedLanguage =
+        languageOptions.any(
+          (option) => option.code == settings.activeSourceLanguage,
+        )
+        ? settings.activeSourceLanguage
+        : 'en';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -257,6 +275,25 @@ class SettingsReadingSection extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          icon: Icons.translate_outlined,
+          title: '内容语言',
+          child: SegmentedButton<String>(
+            segments: [
+              for (final option in languageOptions)
+                ButtonSegment<String>(
+                  value: option.code,
+                  label: Text(option.name),
+                ),
+            ],
+            selected: {selectedLanguage},
+            onSelectionChanged: (value) {
+              if (value.isEmpty) return;
+              settings.setActiveSourceLanguage(value.first);
+            },
+          ),
+        ),
       ],
     );
   }
@@ -268,6 +305,13 @@ class SettingsReadingSection extends StatelessWidget {
     if (remain == 0) return '$hours 小时';
     return '$hours 小时 $remain 分钟';
   }
+}
+
+class _LanguageOption {
+  const _LanguageOption({required this.code, required this.name});
+
+  final String code;
+  final String name;
 }
 
 class SettingsAISection extends StatelessWidget {
