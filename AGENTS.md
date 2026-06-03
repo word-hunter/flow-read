@@ -167,6 +167,45 @@ Build with the existing app design instead of introducing a marketing-style expe
 - Build complete states: loading, empty, error, disabled, selected, saving, and success states where the workflow needs them.
 - Do not use visible in-app text to explain implementation details, keyboard shortcuts, or how a visual element was built.
 
+## Documentation Freshness
+
+`docs/` contains architecture reference docs used as context for code generation. These docs describe **current** code structure. Stale docs produce incorrect code.
+
+### Before trusting any `docs/*.md` claim
+
+1. **Find the `@source` annotation** at the top of the doc or section. It points to the canonical code location.
+2. **If the doc says "class X has fields A, B, C"** but your code change added field D, update the doc.
+3. **If a file path in a doc returns 404**, the doc is stale — flag it, don't trust adjacent claims.
+4. **If a Hive type ID, box name, or key constant in a doc differs from the actual source** (`lib/storage/hive_type_ids.dart`, `lib/storage/hive_box_names.dart`), prefer the source file.
+
+### Doc writing rules
+
+- Every `docs/*.md` doc must have a `@source` line linking to the primary file(s) it documents.
+- When adding/removing a Hive type, service class, provider field, or route — check `docs/` for impacted files.
+- Docs describe **what is**, not what will be. Plans go in `private/`.
+- Run `dart run tool/verify_docs.dart` after structural changes to catch stale references.
+
+### verify_docs.dart checks
+
+```bash
+dart run tool/verify_docs.dart
+```
+
+Validates:
+- All `@source` file paths in docs exist in the repo
+- Hive type IDs in `docs/data-model.md` match `lib/storage/hive_type_ids.dart`
+- Box names in `docs/storage-contract.md` match `lib/storage/hive_box_names.dart`
+- Key service classes referenced in docs exist in `lib/services/`
+
+This is NOT a CI gate — it's a quick sanity check before trusting docs for code generation.
+
+### When generating code from docs
+
+1. Run `dart run tool/verify_docs.dart` first
+2. For any claim you intend to act on, read the `@source` file to confirm
+3. If docs and code disagree, **trust the code** and flag the stale doc
+4. After making a structural change (new Hive type, new box, renamed class), update the relevant doc
+
 ## Verification Expectations
 
 - Choose tests based on risk and touched code. A narrow parser or service change should get a focused unit test; shared UI or state changes should get widget/provider coverage.
