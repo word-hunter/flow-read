@@ -2,6 +2,7 @@ import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/book.dart';
+import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/models/content_block.dart';
 import 'package:flow_read/pages/reader_page.dart';
@@ -9,6 +10,7 @@ import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/screens/reading_desk_screen.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/dictionary/word_repository.dart';
+import 'package:flow_read/widgets/book_difficulty_chip.dart';
 import 'package:flow_read/widgets/font_settings_sheet.dart';
 import 'package:flow_read/widgets/toc_bottom_sheet.dart';
 import 'package:flutter/material.dart';
@@ -34,7 +36,18 @@ void main() {
     );
 
     expect(find.textContaining('第一章顶部标记00'), findsOneWidget);
-    expect(find.text('Chapter One · 1 / 2 · 0%'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('reader-toolbar-title')))
+          .data,
+      'Chapter One',
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('reader-toolbar-meta')))
+          .data,
+      '1 / 2 · 0%',
+    );
     expect(find.text('位置 1 / 2 · 0%'), findsNothing);
     expect(find.byTooltip('上一页'), findsNothing);
     expect(find.byTooltip('下一页'), findsNothing);
@@ -67,7 +80,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Chapter One · 1 / 2 · 60%'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('reader-toolbar-title')))
+          .data,
+      'Chapter One',
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('reader-toolbar-meta')))
+          .data,
+      '1 / 2 · 60%',
+    );
     expect(find.textContaining('第一章顶部标记00'), findsNothing);
   });
 
@@ -285,6 +309,142 @@ void main() {
     });
     expect(moreHoverColor, isNotNull);
     expect(moreHoverColor, isNot(Colors.transparent));
+  });
+
+  testWidgets('reader toolbar keeps chapter controls fixed for long titles', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 760);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    const longTitle =
+        'George R. R. Martin’s Song of Ice and Fire 4-Book Bundle: '
+        'A Game of Thrones, A Clash of Kings, A Storm of Swords';
+    final settings = SettingsService();
+    final longTitleProvider = _FakeReadingProvider(
+      chapters: [
+        Chapter(title: longTitle, plainText: _shortChapterText, rawHtml: ''),
+        const Chapter(title: 'Next', plainText: _shortChapterText, rawHtml: ''),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(
+            value: longTitleProvider,
+          ),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+      ),
+    );
+
+    final longTitleNextX = tester
+        .getCenter(find.widgetWithIcon(IconButton, Icons.chevron_right))
+        .dx;
+    final toolbarTitle = tester.widget<Text>(
+      find.byKey(const ValueKey('reader-toolbar-title')),
+    );
+    expect(toolbarTitle.overflow, TextOverflow.ellipsis);
+
+    final shortTitleProvider = _FakeReadingProvider(
+      chapters: const [
+        Chapter(title: 'Section 5', plainText: _shortChapterText, rawHtml: ''),
+        Chapter(title: 'Next', plainText: _shortChapterText, rawHtml: ''),
+      ],
+    );
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(
+            value: shortTitleProvider,
+          ),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+      ),
+    );
+
+    final shortTitleNextX = tester
+        .getCenter(find.widgetWithIcon(IconButton, Icons.chevron_right))
+        .dx;
+    expect(shortTitleNextX, closeTo(longTitleNextX, 0.1));
+  });
+
+  testWidgets('reader toolbar separates icon buttons with a stable gap', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1100, 760);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final provider = _FakeReadingProvider();
+    final settings = SettingsService();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+      ),
+    );
+
+    final backX = tester
+        .getCenter(find.byKey(const ValueKey('reader-toolbar-back')))
+        .dx;
+    final tocX = tester
+        .getCenter(find.byKey(const ValueKey('reader-toolbar-toc')))
+        .dx;
+    expect(tocX - backX, greaterThanOrEqualTo(40));
+  });
+
+  testWidgets('reader toolbar uses compact difficulty chip', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1100, 760);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final provider = _FakeReadingProvider(
+      difficulty: const BookDifficultyRating(
+        studyWordCount: 120,
+        masteredWordCount: 40,
+        userKnownWordCount: 1000,
+        learningWordCount: 8,
+        newWordCount: 22,
+        weightedNewWordCount: 26,
+        newWordToKnownRatio: 0.08,
+        score: 60,
+        level: BookDifficultyLevel.l3,
+      ),
+    );
+    final settings = SettingsService();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+          ChangeNotifierProvider<SettingsService>.value(value: settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+      ),
+    );
+
+    expect(find.byType(BookDifficultyChip), findsOneWidget);
+    expect(find.text('L3'), findsOneWidget);
+    expect(find.textContaining('需要查词'), findsNothing);
+    expect(find.textContaining('L3 ·'), findsNothing);
   });
 
   testWidgets('table of contents items show a desktop hover state', (
@@ -662,6 +822,9 @@ void main() {
   });
 }
 
+const _shortChapterText =
+    'By the time school was actually ready to start, the year had begun.';
+
 List<Chapter> _manyChapters(int count) {
   return List.generate(
     count,
@@ -680,9 +843,11 @@ class _FakeReadingProvider extends ReadingProvider {
     double? initialScrollOffset,
     List<Chapter>? chapters,
     int initialChapter = 0,
+    BookDifficultyRating? difficulty,
   }) : _isReading = isReading,
        _readingProgress = initialProgress.clamp(0.0, 1.0),
-       _readingScrollOffset = initialScrollOffset {
+       _readingScrollOffset = initialScrollOffset,
+       _difficulty = difficulty {
     _book = Book(
       title: 'Test Book',
       author: 'Tester',
@@ -700,6 +865,7 @@ class _FakeReadingProvider extends ReadingProvider {
   int _currentChapter = 0;
   double _readingProgress = 0.0;
   double? _readingScrollOffset;
+  final BookDifficultyRating? _difficulty;
 
   static List<Chapter> _defaultChapters() {
     return [
@@ -756,6 +922,9 @@ class _FakeReadingProvider extends ReadingProvider {
 
   @override
   int get chapterCount => _book.chapters.length;
+
+  @override
+  BookDifficultyRating? get currentBookDifficulty => _difficulty;
 
   @override
   double get fontSize => 16;

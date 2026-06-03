@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/analysis_result.dart';
+import '../models/book_difficulty.dart';
 import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
+import '../widgets/book_difficulty_chip.dart';
 import '../widgets/bookmark_sheet.dart';
 import '../widgets/font_settings_sheet.dart';
 import '../widgets/reader/reader_word_sidebar.dart';
@@ -31,6 +33,10 @@ class _ReaderPageState extends State<ReaderPage> {
   static const double _keyboardLineScrollDelta = 92;
   static const int _maxViewportRestorePasses = 10;
   static const double _viewportRestorePixelTolerance = 0.5;
+  static const double _toolbarIconGap = 8;
+  static const double _toolbarButtonWidth = 40;
+  static const double _toolbarButtonHeight = 32;
+  static const double _toolbarInfoWidth = 540;
 
   final ScrollController _scrollController = ScrollController();
   final MenuController _tocMenuController = MenuController();
@@ -1141,6 +1147,7 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   Widget _compactIconButton({
+    Key? key,
     required IconData icon,
     required String tooltip,
     required VoidCallback? onPressed,
@@ -1150,11 +1157,15 @@ class _ReaderPageState extends State<ReaderPage> {
     final theme = Theme.of(context);
     final isDarkReader = _isDarkReadingTheme(context.read<ReadingProvider>());
     return IconButton(
+      key: key,
       icon: Icon(icon, size: size),
       tooltip: tooltip,
       onPressed: onPressed,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+      constraints: const BoxConstraints.tightFor(
+        width: _toolbarButtonWidth,
+        height: _toolbarButtonHeight,
+      ),
       visualDensity: VisualDensity.compact,
       style: _toolbarIconButtonStyle(
         theme,
@@ -1176,7 +1187,10 @@ class _ReaderPageState extends State<ReaderPage> {
       tooltip: tooltip,
       onPressed: onPressed,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+      constraints: const BoxConstraints.tightFor(
+        width: _toolbarButtonWidth,
+        height: _toolbarButtonHeight,
+      ),
       visualDensity: VisualDensity.compact,
       style: _toolbarIconButtonStyle(theme, darkReader: isDarkReader).copyWith(
         shape: WidgetStatePropertyAll(
@@ -1257,18 +1271,13 @@ class _ReaderPageState extends State<ReaderPage> {
         : theme.colorScheme.onSurfaceVariant;
     final showSearch = _layoutWidth >= 520;
     final showChapterStep = _layoutWidth >= 680 && provider.chapterCount > 1;
+    final compactToolbar = _layoutWidth < 760;
     final contentTitle = chapterTitle.trim().isNotEmpty
         ? chapterTitle.trim()
         : '当前位置';
-    final difficultyLabel = provider.currentBookDifficulty?.level.shortLabel;
-    final locationLabel = provider.hasBook
-        ? [
-            contentTitle,
-            '${provider.currentChapter + 1} / ${provider.chapterCount}',
-            '$progressPercent%',
-            ?difficultyLabel,
-          ].join(' · ')
-        : contentTitle;
+    final chapterMetaLabel = provider.hasBook
+        ? '${provider.currentChapter + 1} / ${provider.chapterCount} · $progressPercent%'
+        : null;
     final canGoPreviousChapter =
         provider.hasBook && provider.currentChapter > 0;
     final canGoNextChapter =
@@ -1285,144 +1294,180 @@ class _ReaderPageState extends State<ReaderPage> {
       ),
       child: Row(
         children: [
-          _compactIconButton(
-            icon: Icons.arrow_back,
-            tooltip: '返回',
-            onPressed: () => context.read<ReadingProvider>().exitReader(),
+          _buildToolbarGroup(
+            children: [
+              _compactIconButton(
+                key: const ValueKey('reader-toolbar-back'),
+                icon: Icons.arrow_back,
+                tooltip: '返回',
+                onPressed: () => context.read<ReadingProvider>().exitReader(),
+              ),
+              _buildTocButton(provider, useDropdown: showSidebarToggle),
+            ],
           ),
-          _buildTocButton(provider, useDropdown: showSidebarToggle),
           Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (showChapterStep)
-                  _chapterStepButton(
-                    icon: Icons.chevron_left,
-                    tooltip: '上一个目录项',
-                    onPressed: canGoPreviousChapter
-                        ? () =>
-                              provider.goToChapter(provider.currentChapter - 1)
-                        : null,
-                  ),
-                Flexible(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      locationLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: toolbarTextColor,
-                        fontWeight: FontWeight.w600,
-                        height: 1.1,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: compactToolbar ? 320 : _toolbarInfoWidth,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    if (showChapterStep) ...[
+                      _chapterStepButton(
+                        icon: Icons.chevron_left,
+                        tooltip: '上一个目录项',
+                        onPressed: canGoPreviousChapter
+                            ? () => provider.goToChapter(
+                                provider.currentChapter - 1,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: _toolbarIconGap),
+                    ],
+                    Expanded(
+                      child: _ReaderLocationSummary(
+                        title: contentTitle,
+                        metaLabel: chapterMetaLabel,
+                        difficulty: provider.currentBookDifficulty,
+                        textColor: toolbarTextColor,
                       ),
                     ),
-                  ),
+                    if (showChapterStep) ...[
+                      const SizedBox(width: _toolbarIconGap),
+                      _chapterStepButton(
+                        icon: Icons.chevron_right,
+                        tooltip: '下一个目录项',
+                        onPressed: canGoNextChapter
+                            ? () => provider.goToChapter(
+                                provider.currentChapter + 1,
+                              )
+                            : null,
+                      ),
+                    ],
+                  ],
                 ),
-                if (showChapterStep)
-                  _chapterStepButton(
-                    icon: Icons.chevron_right,
-                    tooltip: '下一个目录项',
-                    onPressed: canGoNextChapter
-                        ? () =>
-                              provider.goToChapter(provider.currentChapter + 1)
-                        : null,
-                  ),
-              ],
+              ),
             ),
           ),
-          if (showSidebarToggle)
-            _compactIconButton(
-              icon: _sidebarOpen
-                  ? Icons.vertical_split
-                  : Icons.vertical_split_outlined,
-              tooltip: _sidebarOpen ? '收起侧栏' : '展开侧栏',
-              onPressed: () {
-                final closingWordSidebar =
-                    _sidebarOpen && _sidebarMode == _ReaderSidebarMode.word;
-                if (closingWordSidebar) {
-                  context.read<ReadingProvider>().clearWordLookup();
-                }
-                setState(() {
-                  if (!_sidebarOpen && _sidebarSelectedText.isEmpty) {
-                    _sidebarMode = _ReaderSidebarMode.word;
-                  }
-                  _sidebarOpen = !_sidebarOpen;
-                });
-              },
-            ),
-          if (showSearch)
-            _compactIconButton(
-              icon: Icons.search,
-              tooltip: '搜索',
-              onPressed: () => unawaited(_showSearchSheet()),
-            ),
-          _buildFontSettingsButton(useDropdown: showSidebarToggle),
-          _compactIconButton(
-            icon: provider.isCurrentPositionBookmarked()
-                ? Icons.bookmark
-                : Icons.bookmark_outline,
-            tooltip: '书签',
-            onPressed: _onBookmarkTap,
-          ),
-          PopupMenuButton<String>(
-            position: PopupMenuPosition.under,
-            tooltip: '更多',
-            icon: const Icon(Icons.more_horiz, size: 20),
-            padding: EdgeInsets.zero,
-            style: _toolbarIconButtonStyle(theme, darkReader: isDark).copyWith(
-              fixedSize: const WidgetStatePropertyAll(Size.square(32)),
-              minimumSize: const WidgetStatePropertyAll(Size.square(32)),
-              maximumSize: const WidgetStatePropertyAll(Size.square(32)),
-            ),
-            onSelected: (value) {
-              switch (value) {
-                case 'search':
-                  unawaited(_showSearchSheet());
-                  break;
-                case 'prevChapter':
-                  if (canGoPreviousChapter) {
-                    provider.goToChapter(provider.currentChapter - 1);
-                  }
-                  break;
-                case 'nextChapter':
-                  if (canGoNextChapter) {
-                    provider.goToChapter(provider.currentChapter + 1);
-                  }
-                  break;
-                case 'bookmarks':
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => const BookmarkSheet(),
-                  );
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              if (!showSearch)
-                const PopupMenuItem(value: 'search', child: Text('搜索')),
-              if (!showSearch) const PopupMenuDivider(),
-              if (provider.hasBook && provider.chapterCount > 1) ...[
-                PopupMenuItem(
-                  value: 'prevChapter',
-                  enabled: canGoPreviousChapter,
-                  child: const Text('上一个目录项'),
+          _buildToolbarGroup(
+            children: [
+              if (showSidebarToggle)
+                _compactIconButton(
+                  icon: _sidebarOpen
+                      ? Icons.vertical_split
+                      : Icons.vertical_split_outlined,
+                  tooltip: _sidebarOpen ? '收起侧栏' : '展开侧栏',
+                  onPressed: () {
+                    final closingWordSidebar =
+                        _sidebarOpen && _sidebarMode == _ReaderSidebarMode.word;
+                    if (closingWordSidebar) {
+                      context.read<ReadingProvider>().clearWordLookup();
+                    }
+                    setState(() {
+                      if (!_sidebarOpen && _sidebarSelectedText.isEmpty) {
+                        _sidebarMode = _ReaderSidebarMode.word;
+                      }
+                      _sidebarOpen = !_sidebarOpen;
+                    });
+                  },
                 ),
-                PopupMenuItem(
-                  value: 'nextChapter',
-                  enabled: canGoNextChapter,
-                  child: const Text('下一个目录项'),
+              if (showSearch)
+                _compactIconButton(
+                  icon: Icons.search,
+                  tooltip: '搜索',
+                  onPressed: () => unawaited(_showSearchSheet()),
                 ),
-                const PopupMenuDivider(),
-              ],
-              const PopupMenuItem(value: 'bookmarks', child: Text('历史书签')),
+              _buildFontSettingsButton(useDropdown: showSidebarToggle),
+              _compactIconButton(
+                icon: provider.isCurrentPositionBookmarked()
+                    ? Icons.bookmark
+                    : Icons.bookmark_outline,
+                tooltip: '书签',
+                onPressed: _onBookmarkTap,
+              ),
+              PopupMenuButton<String>(
+                position: PopupMenuPosition.under,
+                tooltip: '更多',
+                icon: const Icon(Icons.more_vert, size: 20),
+                padding: EdgeInsets.zero,
+                style: _toolbarIconButtonStyle(theme, darkReader: isDark)
+                    .copyWith(
+                      fixedSize: const WidgetStatePropertyAll(
+                        Size(_toolbarButtonWidth, _toolbarButtonHeight),
+                      ),
+                      minimumSize: const WidgetStatePropertyAll(
+                        Size(_toolbarButtonWidth, _toolbarButtonHeight),
+                      ),
+                      maximumSize: const WidgetStatePropertyAll(
+                        Size(_toolbarButtonWidth, _toolbarButtonHeight),
+                      ),
+                    ),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'search':
+                      unawaited(_showSearchSheet());
+                      break;
+                    case 'prevChapter':
+                      if (canGoPreviousChapter) {
+                        provider.goToChapter(provider.currentChapter - 1);
+                      }
+                      break;
+                    case 'nextChapter':
+                      if (canGoNextChapter) {
+                        provider.goToChapter(provider.currentChapter + 1);
+                      }
+                      break;
+                    case 'bookmarks':
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => const BookmarkSheet(),
+                      );
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  if (!showSearch)
+                    const PopupMenuItem(value: 'search', child: Text('搜索')),
+                  if (!showSearch) const PopupMenuDivider(),
+                  if (provider.hasBook && provider.chapterCount > 1) ...[
+                    PopupMenuItem(
+                      value: 'prevChapter',
+                      enabled: canGoPreviousChapter,
+                      child: const Text('上一个目录项'),
+                    ),
+                    PopupMenuItem(
+                      value: 'nextChapter',
+                      enabled: canGoNextChapter,
+                      child: const Text('下一个目录项'),
+                    ),
+                    const PopupMenuDivider(),
+                  ],
+                  const PopupMenuItem(value: 'bookmarks', child: Text('历史书签')),
+                ],
+              ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildToolbarGroup({required List<Widget> children}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final (index, child) in children.indexed)
+          Padding(
+            padding: EdgeInsetsDirectional.only(
+              start: index > 0 ? _toolbarIconGap : 0,
+            ),
+            child: child,
+          ),
+      ],
     );
   }
 
@@ -1436,6 +1481,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
     if (!useDropdown) {
       return _compactIconButton(
+        key: const ValueKey('reader-toolbar-toc'),
         icon: Icons.menu,
         tooltip: '目录',
         onPressed: _showTocSheet,
@@ -1458,14 +1504,13 @@ class _ReaderPageState extends State<ReaderPage> {
           onChapterSelected: (_) => _tocMenuController.close(),
         ),
       ],
-      builder: (context, controller, _) {
-        return _compactIconButton(
-          icon: controller.isOpen ? Icons.menu_open : Icons.menu,
-          tooltip: '目录',
-          selected: controller.isOpen,
-          onPressed: () => _toggleTocMenu(controller),
-        );
-      },
+      child: _compactIconButton(
+        key: const ValueKey('reader-toolbar-toc'),
+        icon: Icons.menu,
+        tooltip: '目录',
+        selected: _tocMenuOpen,
+        onPressed: () => _toggleTocMenu(_tocMenuController),
+      ),
     );
   }
 
@@ -1525,6 +1570,67 @@ class _ReaderPageState extends State<ReaderPage> {
         onClose: () => setState(() => _sidebarOpen = false),
       ),
     };
+  }
+}
+
+class _ReaderLocationSummary extends StatelessWidget {
+  final String title;
+  final String? metaLabel;
+  final BookDifficultyRating? difficulty;
+  final Color textColor;
+
+  const _ReaderLocationSummary({
+    required this.title,
+    required this.metaLabel,
+    required this.difficulty,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final meta = metaLabel;
+
+    return Row(
+      mainAxisSize: MainAxisSize.max,
+      children: [
+        Expanded(
+          child: Text(
+            key: const ValueKey('reader-toolbar-title'),
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: textColor,
+              fontWeight: FontWeight.w700,
+              height: 1.1,
+            ),
+          ),
+        ),
+        if (meta != null) ...[
+          const SizedBox(width: 8),
+          Text(
+            key: const ValueKey('reader-toolbar-meta'),
+            meta,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: textColor,
+              fontWeight: FontWeight.w600,
+              height: 1.1,
+            ),
+          ),
+        ],
+        if (difficulty != null) ...[
+          const SizedBox(width: 8),
+          BookDifficultyChip(
+            rating: difficulty,
+            isLoading: false,
+            labelOnly: true,
+          ),
+        ],
+      ],
+    );
   }
 }
 
