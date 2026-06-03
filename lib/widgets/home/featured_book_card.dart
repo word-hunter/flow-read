@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/book_difficulty.dart';
 import 'book_cover_view.dart';
+import 'book_difficulty_chip.dart';
 import 'home_hover_surface.dart';
 
 enum FeaturedBookAction { rename, remove }
@@ -105,7 +106,7 @@ class FeaturedBookCard extends StatelessWidget {
               bottom: 8,
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: _FeaturedDifficultySummary(
+                child: BookDifficultyChip(
                   rating: difficulty,
                   isLoading: isDifficultyLoading,
                   compact: true,
@@ -256,6 +257,9 @@ class FeaturedBookCard extends StatelessWidget {
   }
 
   Widget _buildProgress(ThemeData theme) {
+    final progressFillColor = _progressFillColor(theme);
+    final progressTextColor = _progressTextColor(theme);
+
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: _progressMaxWidth),
       child: Column(
@@ -275,7 +279,7 @@ class FeaturedBookCard extends StatelessWidget {
                 '$progressPercent%',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.primary,
+                  color: progressTextColor,
                 ),
               ),
             ],
@@ -286,17 +290,27 @@ class FeaturedBookCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progressPercent.clamp(0, 100) / 100,
               minHeight: 8,
-              backgroundColor: theme.colorScheme.surface.withValues(
-                alpha: 0.58,
+              backgroundColor: theme.colorScheme.outlineVariant.withValues(
+                alpha: 0.72,
               ),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                theme.colorScheme.primary,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(progressFillColor),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Color _progressFillColor(ThemeData theme) {
+    final level = difficulty?.level;
+    if (level == null) return theme.colorScheme.primary;
+    return BookDifficultyChipPalette.forLevel(level).border;
+  }
+
+  Color _progressTextColor(ThemeData theme) {
+    final level = difficulty?.level;
+    if (level == null) return theme.colorScheme.primary;
+    return BookDifficultyChipPalette.forLevel(level).foreground;
   }
 
   String _chapterLabel() {
@@ -316,86 +330,6 @@ class FeaturedBookCard extends StatelessWidget {
 
   String _dateText(DateTime value) {
     return '${value.year}.${value.month.toString().padLeft(2, '0')}.${value.day.toString().padLeft(2, '0')}';
-  }
-}
-
-class _FeaturedDifficultySummary extends StatelessWidget {
-  final BookDifficultyRating? rating;
-  final bool isLoading;
-  final bool compact;
-
-  const _FeaturedDifficultySummary({
-    required this.rating,
-    required this.isLoading,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = rating == null
-        ? theme.colorScheme.onSurfaceVariant
-        : _difficultyColor(rating!.level);
-    final showLoading = isLoading && rating == null;
-    final title = showLoading ? '难度计算中' : rating?.levelText ?? '暂无评级';
-    final tooltip = showLoading
-        ? '正在异步计算难易度\n完成后会根据当前生词量和已掌握词汇给出评级。'
-        : rating?.tooltipText ?? '暂无足够内容生成难度说明。';
-
-    return Tooltip(
-      message: tooltip,
-      waitDuration: const Duration(milliseconds: 300),
-      child: Container(
-        constraints: compact ? const BoxConstraints(maxWidth: 124) : null,
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 7 : 10,
-          vertical: compact ? 4 : 6,
-        ),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.22)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.speed_outlined, size: compact ? 13 : 16, color: color),
-            SizedBox(width: compact ? 4 : 6),
-            Flexible(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style:
-                    (compact
-                            ? theme.textTheme.labelSmall
-                            : theme.textTheme.labelLarge)
-                        ?.copyWith(
-                          color: color,
-                          fontWeight: FontWeight.w800,
-                          fontSize: compact ? 10 : null,
-                        ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _difficultyColor(BookDifficultyLevel level) {
-    switch (level) {
-      case BookDifficultyLevel.l1:
-        return const Color(0xFF2E7D32);
-      case BookDifficultyLevel.l2:
-        return const Color(0xFF00897B);
-      case BookDifficultyLevel.l3:
-        return const Color(0xFFF9A825);
-      case BookDifficultyLevel.l4:
-        return const Color(0xFFE67E22);
-      case BookDifficultyLevel.l5:
-        return const Color(0xFFC62828);
-    }
   }
 }
 
