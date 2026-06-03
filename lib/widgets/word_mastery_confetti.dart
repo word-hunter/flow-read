@@ -45,7 +45,6 @@ class WordMasteryConfettiHost extends StatefulWidget {
 }
 
 class _WordMasteryConfettiHostState extends State<WordMasteryConfettiHost> {
-  final _stackKey = GlobalKey();
   late final ConfettiController _controller;
   int _lastCelebrationTick = 0;
 
@@ -96,10 +95,10 @@ class _WordMasteryConfettiHostState extends State<WordMasteryConfettiHost> {
           celebration.origin,
           Size(width, height),
           MediaQuery.paddingOf(context),
+          context,
         );
 
         return Stack(
-          key: _stackKey,
           clipBehavior: Clip.none,
           children: [
             widget.child,
@@ -131,9 +130,14 @@ class _WordMasteryConfettiHostState extends State<WordMasteryConfettiHost> {
     );
   }
 
-  Offset _localOrigin(Offset? globalOrigin, Size size, EdgeInsets padding) {
+  Offset _localOrigin(
+    Offset? globalOrigin,
+    Size size,
+    EdgeInsets padding,
+    BuildContext layoutContext,
+  ) {
     Offset local;
-    final stackRenderObject = _stackKey.currentContext?.findRenderObject();
+    final stackRenderObject = layoutContext.findRenderObject();
     if (globalOrigin != null &&
         stackRenderObject is RenderBox &&
         stackRenderObject.hasSize) {
