@@ -4,6 +4,10 @@ import '../../models/book_difficulty.dart';
 import 'book_shelf_item.dart';
 
 class BookShelfRow extends StatelessWidget {
+  static const double _horizontalPadding = 24;
+  static const double _itemSpacing = 20;
+  static const double _rowSpacing = 24;
+
   final List<BookShelfData> books;
   final String emptyText;
 
@@ -30,28 +34,27 @@ class BookShelfRow extends StatelessWidget {
       );
     }
 
-    return SizedBox(
-      height: BookShelfItem.itemHeight,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        itemCount: books.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 20),
-        itemBuilder: (context, index) {
-          final book = books[index];
-          return BookShelfItem(
-            title: book.title,
-            author: book.author,
-            coverBytes: book.coverBytes,
-            progressPercent: book.progressPercent,
-            difficulty: book.difficulty,
-            isDifficultyLoading: book.isDifficultyLoading,
-            onTap: book.onTap,
-            onRename: book.onRename,
-            onRemove: book.onRemove,
-          );
-        },
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
+      child: Wrap(
+        spacing: _itemSpacing,
+        runSpacing: _rowSpacing,
+        children: books.map(_buildItem).toList(growable: false),
       ),
+    );
+  }
+
+  Widget _buildItem(BookShelfData book) {
+    return BookShelfItem(
+      title: book.title,
+      author: book.author,
+      coverBytes: book.coverBytes,
+      progressPercent: book.progressPercent,
+      difficulty: book.difficulty,
+      isDifficultyLoading: book.isDifficultyLoading,
+      onTap: book.onTap,
+      onRename: book.onRename,
+      onRemove: book.onRemove,
     );
   }
 }
