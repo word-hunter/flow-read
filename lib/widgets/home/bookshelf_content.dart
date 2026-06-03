@@ -9,6 +9,7 @@ import '../../services/epub_import_source.dart';
 import '../../services/settings_service.dart';
 import 'featured_book_card.dart';
 import 'book_shelf_row.dart';
+import 'home_hover_surface.dart';
 import 'today_review_card.dart';
 
 enum _BookSortMode { recent, title, author, progress, difficulty }
@@ -422,23 +423,39 @@ class _BookshelfContentState extends State<BookshelfContent> {
         _sortMenuItem(_BookSortMode.progress, '阅读进度', Icons.trending_up),
         _sortMenuItem(_BookSortMode.difficulty, '难易度', Icons.speed_outlined),
       ],
-      child: Container(
+      child: HomeHoverSurface(
         height: 40,
         padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.outline),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.sort, size: 18, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
-            Text(_sortLabel(_sortMode), style: theme.textTheme.labelLarge),
-            const SizedBox(width: 4),
-            const Icon(Icons.arrow_drop_down, size: 18),
-          ],
-        ),
+        borderRadius: BorderRadius.circular(12),
+        backgroundColor: Colors.transparent,
+        hoverBackgroundColor: theme.colorScheme.primary.withValues(alpha: 0.06),
+        borderColor: theme.colorScheme.outline,
+        hoverBorderColor: theme.colorScheme.primary.withValues(alpha: 0.46),
+        hoverBoxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        builder: (context, isHovering) {
+          final foreground = isHovering
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurface;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.sort, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                _sortLabel(_sortMode),
+                style: theme.textTheme.labelLarge?.copyWith(color: foreground),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.arrow_drop_down, size: 18, color: foreground),
+            ],
+          );
+        },
       ),
     );
   }

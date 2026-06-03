@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/book_difficulty.dart';
 import 'book_cover_view.dart';
+import 'home_hover_surface.dart';
 
 enum FeaturedBookAction { rename, remove }
 
@@ -217,16 +218,23 @@ class FeaturedBookCard extends StatelessWidget {
                       ),
                     ),
                 ],
-                child: Container(
+                child: HomeHoverSurface(
                   height: 40,
                   width: 48,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: theme.colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(12),
+                  backgroundColor: Colors.transparent,
+                  hoverBackgroundColor: theme.colorScheme.primary.withValues(
+                    alpha: 0.07,
                   ),
-                  child: Icon(
+                  borderColor: theme.colorScheme.outlineVariant,
+                  hoverBorderColor: theme.colorScheme.primary.withValues(
+                    alpha: 0.46,
+                  ),
+                  builder: (context, isHovering) => Icon(
                     Icons.more_horiz,
-                    color: theme.colorScheme.onSurface,
+                    color: isHovering
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface,
                   ),
                 ),
               ),

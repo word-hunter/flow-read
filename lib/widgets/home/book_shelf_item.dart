@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/book_difficulty.dart';
 import 'book_cover_view.dart';
+import 'home_hover_surface.dart';
 
 enum BookShelfAction { open, rename, remove }
 
@@ -44,6 +45,9 @@ class _BookShelfItemState extends State<BookShelfItem> {
     final theme = Theme.of(context);
 
     return MouseRegion(
+      cursor: widget.onTap == null
+          ? MouseCursor.defer
+          : SystemMouseCursors.click,
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       child: GestureDetector(
@@ -58,9 +62,34 @@ class _BookShelfItemState extends State<BookShelfItem> {
             children: [
               Stack(
                 children: [
-                  BookCoverView(
-                    coverBytes: widget.coverBytes,
-                    progressPercent: widget.progressPercent,
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    curve: Curves.easeOut,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                        BookCoverView.borderRadius,
+                      ),
+                      border: Border.all(
+                        color: _isHovering
+                            ? theme.colorScheme.primary.withValues(alpha: 0.46)
+                            : Colors.transparent,
+                      ),
+                      boxShadow: _isHovering
+                          ? [
+                              BoxShadow(
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.12,
+                                ),
+                                blurRadius: 16,
+                                offset: const Offset(0, 8),
+                              ),
+                            ]
+                          : const [],
+                    ),
+                    child: BookCoverView(
+                      coverBytes: widget.coverBytes,
+                      progressPercent: widget.progressPercent,
+                    ),
                   ),
                   Positioned(
                     top: 8,
@@ -279,29 +308,36 @@ class _BookActionsButton extends StatelessWidget {
             ),
           ),
       ],
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.65),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+      child: HomeHoverSurface(
+        width: 34,
+        height: 34,
+        borderRadius: BorderRadius.circular(8),
+        backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.9),
+        hoverBackgroundColor: theme.colorScheme.primaryContainer.withValues(
+          alpha: 0.96,
         ),
-        child: SizedBox(
-          width: 34,
-          height: 34,
-          child: Icon(
-            Icons.more_horiz,
-            size: 20,
-            color: theme.colorScheme.onSurface,
+        borderColor: theme.colorScheme.outlineVariant.withValues(alpha: 0.65),
+        hoverBorderColor: theme.colorScheme.primary.withValues(alpha: 0.48),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
+        ],
+        hoverBoxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withValues(alpha: 0.2),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+        builder: (context, isHovering) => Icon(
+          Icons.more_horiz,
+          size: 20,
+          color: isHovering
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurface,
         ),
       ),
     );
