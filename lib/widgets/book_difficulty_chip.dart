@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../models/book_difficulty.dart';
+import '../models/book_difficulty.dart';
 
 class BookDifficultyChip extends StatelessWidget {
   final BookDifficultyRating? rating;
   final bool isLoading;
   final bool compact;
+  final bool labelOnly;
   final double? maxWidth;
 
   const BookDifficultyChip({
@@ -13,6 +14,7 @@ class BookDifficultyChip extends StatelessWidget {
     required this.rating,
     required this.isLoading,
     this.compact = false,
+    this.labelOnly = false,
     this.maxWidth,
   });
 
@@ -23,7 +25,11 @@ class BookDifficultyChip extends StatelessWidget {
         ? BookDifficultyChipPalette.neutral(theme.colorScheme)
         : BookDifficultyChipPalette.forLevel(rating!.level);
     final showLoading = isLoading && rating == null;
-    final title = showLoading ? '难度计算中' : _titleText;
+    final title = labelOnly
+        ? _shortTitleText(showLoading: showLoading)
+        : showLoading
+        ? '难度计算中'
+        : _titleText;
     final tooltip = showLoading
         ? '正在异步计算难易度\n完成后会根据当前生词量和已掌握词汇给出评级。'
         : rating?.tooltipText ?? '暂无足够内容生成难度说明。';
@@ -33,29 +39,55 @@ class BookDifficultyChip extends StatelessWidget {
       waitDuration: const Duration(milliseconds: 300),
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: maxWidth ?? (compact ? 124 : 156),
+          minWidth: labelOnly ? 30 : 0,
+          maxWidth:
+              maxWidth ??
+              (labelOnly
+                  ? 44
+                  : compact
+                  ? 124
+                  : 156),
         ),
         padding: EdgeInsets.symmetric(
-          horizontal: compact ? 7 : 10,
-          vertical: compact ? 4 : 5,
+          horizontal: labelOnly
+              ? 6
+              : compact
+              ? 7
+              : 10,
+          vertical: labelOnly
+              ? 3
+              : compact
+              ? 4
+              : 5,
         ),
         decoration: BoxDecoration(
           color: palette.background,
-          borderRadius: BorderRadius.circular(compact ? 8 : 10),
+          borderRadius: BorderRadius.circular(
+            labelOnly
+                ? 7
+                : compact
+                ? 8
+                : 10,
+          ),
           border: Border.all(color: palette.border),
         ),
         child: Text(
           title,
+          textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style:
-              (compact
+              (labelOnly || compact
                       ? theme.textTheme.labelSmall
                       : theme.textTheme.labelMedium)
                   ?.copyWith(
                     color: palette.foreground,
                     fontWeight: FontWeight.w800,
-                    fontSize: compact ? 10 : null,
+                    fontSize: labelOnly
+                        ? 10
+                        : compact
+                        ? 10
+                        : null,
                   ),
         ),
       ),
@@ -66,6 +98,11 @@ class BookDifficultyChip extends StatelessWidget {
     final level = rating?.level;
     if (level == null) return '暂无评级';
     return '${level.shortLabel} · ${level.label}';
+  }
+
+  String _shortTitleText({required bool showLoading}) {
+    if (showLoading) return '...';
+    return rating?.level.shortLabel ?? 'L?';
   }
 }
 

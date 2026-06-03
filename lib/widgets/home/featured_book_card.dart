@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../models/book_difficulty.dart';
+import '../book_difficulty_chip.dart';
 import 'book_cover_view.dart';
-import 'book_difficulty_chip.dart';
 import 'home_hover_surface.dart';
 
 enum FeaturedBookAction { rename, remove }

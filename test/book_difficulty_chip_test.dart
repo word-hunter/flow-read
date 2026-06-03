@@ -1,5 +1,5 @@
 import 'package:flow_read/models/book_difficulty.dart';
-import 'package:flow_read/widgets/home/book_difficulty_chip.dart';
+import 'package:flow_read/widgets/book_difficulty_chip.dart';
 import 'package:flow_read/widgets/home/featured_book_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -29,6 +29,35 @@ void main() {
     expect(decoration.color, BookDifficultyChipPalette.l3.background);
     expect(border.top.color, BookDifficultyChipPalette.l3.border);
     expect(text.style?.color, BookDifficultyChipPalette.l3.foreground);
+  });
+
+  testWidgets('renders label-only difficulty chip for inline reading marks', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BookDifficultyChip(
+            rating: _rating(BookDifficultyLevel.l1),
+            isLoading: false,
+            labelOnly: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('L1'), findsOneWidget);
+    expect(find.textContaining('轻松读'), findsNothing);
+    expect(find.textContaining('·'), findsNothing);
+
+    final container = _chipContainer(tester);
+    final decoration = container.decoration! as BoxDecoration;
+    final border = decoration.border as Border;
+
+    expect(container.constraints?.minWidth, 30);
+    expect(container.constraints?.maxWidth, 44);
+    expect(decoration.color, BookDifficultyChipPalette.l1.background);
+    expect(border.top.color, BookDifficultyChipPalette.l1.border);
   });
 
   testWidgets('featured progress uses visible track and difficulty color', (
@@ -61,13 +90,17 @@ void main() {
 }
 
 BoxDecoration _chipDecoration(WidgetTester tester) {
-  final container = tester.widget<Container>(
+  final container = _chipContainer(tester);
+  return container.decoration! as BoxDecoration;
+}
+
+Container _chipContainer(WidgetTester tester) {
+  return tester.widget<Container>(
     find.descendant(
       of: find.byType(BookDifficultyChip),
       matching: find.byType(Container),
     ),
   );
-  return container.decoration! as BoxDecoration;
 }
 
 BookDifficultyRating _rating(BookDifficultyLevel level) {
