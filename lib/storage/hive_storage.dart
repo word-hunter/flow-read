@@ -7,6 +7,8 @@ import '../models/reading_bookmark.dart';
 import '../models/reading_config.dart';
 import '../models/rss_models.dart';
 import '../models/word_level.dart';
+import '../services/language/english_language_module.dart';
+import '../services/language/language_registry.dart';
 import 'hive_box_names.dart';
 import 'hive_type_ids.dart';
 import 'storage_migrations.dart';
@@ -14,6 +16,7 @@ import 'storage_migrations.dart';
 Future<void> bootstrapStorage() async {
   await Hive.initFlutter();
   registerFlowReadHiveAdapters();
+  registerFlowReadLanguageModules();
   await openFlowReadHiveBoxes();
   await runStorageMigrations();
 }
@@ -29,6 +32,13 @@ void registerFlowReadHiveAdapters() {
     RssFeedSubscriptionAdapter(),
   );
   _registerHiveAdapter(HiveTypeIds.learningItem, LearningItemAdapter());
+}
+
+void registerFlowReadLanguageModules() {
+  final registry = LanguageRegistry.instance;
+  if (registry.get('en') == null) {
+    registry.register(const EnglishLanguageModule());
+  }
 }
 
 Future<void> openFlowReadHiveBoxes() async {

@@ -41,6 +41,8 @@ void main() {
     expect(provider.allBooks, hasLength(1));
 
     final metadata = provider.allBooks.single;
+    expect(metadata.sourceLanguage, 'en');
+    expect(metadata.effectiveSourceLanguage, 'en');
     expect(metadata.sourcePath, startsWith('${documentsDir.path}/books/'));
     expect(metadata.sourcePath, endsWith('.epub'));
     expect(await File(metadata.sourcePath).readAsBytes(), bytes);
@@ -276,6 +278,7 @@ Uint8List _buildEpub() {
         <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
           <dc:title>Fixture Book</dc:title>
           <dc:creator>Fixture Author</dc:creator>
+          <dc:language>en-US</dc:language>
         </metadata>
         <manifest>
           <item id="chapter1" href="Text/chapter1.xhtml" media-type="application/xhtml+xml"/>

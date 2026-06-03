@@ -39,6 +39,7 @@ import '../services/epub_service.dart';
 import '../services/epub_import_source.dart';
 import '../services/learning_item_service.dart';
 import '../services/learning_analytics_service.dart';
+import '../services/language/language_registry.dart';
 import '../services/passage_request_builder.dart';
 import '../services/prompt_builder.dart';
 import '../services/pronunciation_service.dart';
@@ -646,6 +647,9 @@ class ReadingProvider extends ChangeNotifier {
               coverPath: coverPath,
               totalChapters: book.chapters.length,
               lastReadAt: DateTime.now(),
+              sourceLanguage: LanguageRegistry.normalizeLanguageCode(
+                book.language,
+              ),
             )
           : restoredMeta.copyWith(
               title: book.title,
@@ -653,6 +657,9 @@ class ReadingProvider extends ChangeNotifier {
               sourcePath: copiedPath,
               coverPath: coverPath ?? restoredMeta.coverPath,
               totalChapters: book.chapters.length,
+              sourceLanguage:
+                  LanguageRegistry.normalizeLanguageCode(book.language) ??
+                  restoredMeta.sourceLanguage,
               currentChapter: _clampChapterIndex(
                 restoredMeta.currentChapter,
                 book.chapters.length,

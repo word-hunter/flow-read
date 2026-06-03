@@ -78,4 +78,24 @@ void main() {
       expect(settings.aiFeaturesEnabled, isTrue);
     },
   );
+
+  test(
+    'active source language and target explanation language persist',
+    () async {
+      final settings = SettingsService();
+      await settings.init();
+
+      expect(settings.activeSourceLanguage, 'en');
+      expect(settings.targetExplanationLanguage, 'zh');
+
+      await settings.setActiveSourceLanguage('ja');
+      await settings.setTargetExplanationLanguage('en');
+
+      final reloaded = SettingsService();
+      await reloaded.init();
+
+      expect(reloaded.activeSourceLanguage, 'ja');
+      expect(reloaded.targetExplanationLanguage, 'en');
+    },
+  );
 }

@@ -51,6 +51,12 @@ class BookMetadata {
   @HiveField(14)
   final double? chapterScrollOffset;
 
+  @HiveField(15)
+  final String? sourceLanguage;
+
+  @HiveField(16)
+  final String? sourceLanguageOverride;
+
   const BookMetadata({
     required this.id,
     required this.title,
@@ -67,7 +73,12 @@ class BookMetadata {
     this.difficultyVocabularySignature,
     this.difficultyComputedAt,
     this.chapterScrollOffset,
+    this.sourceLanguage,
+    this.sourceLanguageOverride,
   });
+
+  String get effectiveSourceLanguage =>
+      sourceLanguageOverride ?? sourceLanguage ?? 'en';
 
   BookDifficultyRating? get difficultyRating {
     final json = difficultyRatingJson;
@@ -95,6 +106,8 @@ class BookMetadata {
     String? difficultyVocabularySignature,
     DateTime? difficultyComputedAt,
     double? chapterScrollOffset,
+    String? sourceLanguage,
+    String? sourceLanguageOverride,
   }) {
     return BookMetadata(
       id: id ?? this.id,
@@ -113,6 +126,9 @@ class BookMetadata {
           difficultyVocabularySignature ?? this.difficultyVocabularySignature,
       difficultyComputedAt: difficultyComputedAt ?? this.difficultyComputedAt,
       chapterScrollOffset: chapterScrollOffset ?? this.chapterScrollOffset,
+      sourceLanguage: sourceLanguage ?? this.sourceLanguage,
+      sourceLanguageOverride:
+          sourceLanguageOverride ?? this.sourceLanguageOverride,
     );
   }
 
@@ -132,6 +148,8 @@ class BookMetadata {
     'difficultyVocabularySignature': difficultyVocabularySignature,
     'difficultyComputedAt': difficultyComputedAt?.toIso8601String(),
     'chapterScrollOffset': chapterScrollOffset,
+    'sourceLanguage': sourceLanguage,
+    'sourceLanguageOverride': sourceLanguageOverride,
   };
 
   factory BookMetadata.fromJson(Map<String, dynamic> json) {
@@ -165,6 +183,8 @@ class BookMetadata {
           ? DateTime.tryParse(rawDifficultyComputedAt)
           : null,
       chapterScrollOffset: (json['chapterScrollOffset'] as num?)?.toDouble(),
+      sourceLanguage: json['sourceLanguage']?.toString(),
+      sourceLanguageOverride: json['sourceLanguageOverride']?.toString(),
     );
   }
 }

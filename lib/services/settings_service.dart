@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -85,6 +86,8 @@ class SettingsService extends ChangeNotifier {
   static const _dailyReadingGoalMinutesKey = 'dailyReadingGoalMinutes';
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
   static const _dictionarySourcesKey = 'dictionarySources';
+  static const _activeSourceLanguageKey = 'active_source_language';
+  static const _targetExplanationLanguageKey = 'target_explanation_language';
   static const _themeModeCycle = <ThemeMode>[
     ThemeMode.system,
     ThemeMode.light,
@@ -110,6 +113,8 @@ class SettingsService extends ChangeNotifier {
   DateTime? _lastBackupAt;
   String? _lastBackupPath;
   String _lastSeenReleaseNotesVersion = '';
+  String _activeSourceLanguage = 'en';
+  String _targetExplanationLanguage = 'zh';
   Set<String> _enabledExperimentalFeatures = {};
   List<DictionarySourceConfig> _dictionarySources =
       DictionarySourceConfig.defaults;
@@ -156,6 +161,8 @@ class SettingsService extends ChangeNotifier {
   DateTime? get lastBackupAt => _lastBackupAt;
   String? get lastBackupPath => _lastBackupPath;
   String get lastSeenReleaseNotesVersion => _lastSeenReleaseNotesVersion;
+  String get activeSourceLanguage => _activeSourceLanguage;
+  String get targetExplanationLanguage => _targetExplanationLanguage;
   Set<String> get enabledExperimentalFeatures =>
       Set.unmodifiable(_enabledExperimentalFeatures);
   List<DictionarySourceConfig> get dictionarySources =>
@@ -233,6 +240,14 @@ class SettingsService extends ChangeNotifier {
     _lastBackupPath = _box.get('lastBackupPath') as String?;
     _lastSeenReleaseNotesVersion =
         _box.get('lastSeenReleaseNotesVersion', defaultValue: '') as String;
+    _activeSourceLanguage = _readLanguageCode(
+      _activeSourceLanguageKey,
+      defaultValue: 'en',
+    );
+    _targetExplanationLanguage = _readLanguageCode(
+      _targetExplanationLanguageKey,
+      defaultValue: 'zh',
+    );
     _enabledExperimentalFeatures = _readStringSet(
       _enabledExperimentalFeaturesKey,
     );
@@ -303,6 +318,11 @@ class SettingsService extends ChangeNotifier {
       return DictionarySourceConfig.migrateLegacyOrder(configs);
     }
     return DictionarySourceConfig.defaults;
+  }
+
+  String _readLanguageCode(String key, {required String defaultValue}) {
+    final value = _box.get(key, defaultValue: defaultValue).toString().trim();
+    return value.isEmpty ? defaultValue : value.toLowerCase();
   }
 
   Future<void> _writeStringMap(String key, Map<String, String> value) async {
@@ -443,6 +463,43 @@ class SettingsService extends ChangeNotifier {
     _lastSeenReleaseNotesVersion = version;
     await _box.put('lastSeenReleaseNotesVersion', version);
     notifyListeners();
+  }
+
+  Future<void> setActiveSourceLanguage(String code) async {
+    final normalized = _normalizeLanguageSetting(code, fallback: 'en');
+    if (_activeSourceLanguage == normalized) return;
+    _activeSourceLanguage = normalized;
+    await _box.put(_activeSourceLanguageKey, normalized);
+    notifyListeners();
+  }
+
+  set activeSourceLanguage(String code) {
+    final normalized = _normalizeLanguageSetting(code, fallback: 'en');
+    if (_activeSourceLanguage == normalized) return;
+    _activeSourceLanguage = normalized;
+    unawaited(_box.put(_activeSourceLanguageKey, normalized));
+    notifyListeners();
+  }
+
+  Future<void> setTargetExplanationLanguage(String code) async {
+    final normalized = _normalizeLanguageSetting(code, fallback: 'zh');
+    if (_targetExplanationLanguage == normalized) return;
+    _targetExplanationLanguage = normalized;
+    await _box.put(_targetExplanationLanguageKey, normalized);
+    notifyListeners();
+  }
+
+  set targetExplanationLanguage(String code) {
+    final normalized = _normalizeLanguageSetting(code, fallback: 'zh');
+    if (_targetExplanationLanguage == normalized) return;
+    _targetExplanationLanguage = normalized;
+    unawaited(_box.put(_targetExplanationLanguageKey, normalized));
+    notifyListeners();
+  }
+
+  String _normalizeLanguageSetting(String code, {required String fallback}) {
+    final normalized = code.trim().toLowerCase();
+    return normalized.isEmpty ? fallback : normalized;
   }
 
   bool isExperimentalFeatureEnabled(String featureId) {

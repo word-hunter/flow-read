@@ -39,6 +39,7 @@ void main() {
 
     final book = await EpubService.parseBytes(epubBytes);
 
+    expect(book.language, 'en-US');
     expect(book.chapters, hasLength(1));
     expect(book.chapters.single.title, 'Chapter One');
     expect(book.chapters.single.plainText, contains('Map caption'));
@@ -238,6 +239,7 @@ Uint8List _buildEpub(Map<String, String> extraFiles) {
         <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
           <dc:title>Fixture Book</dc:title>
           <dc:creator>Fixture Author</dc:creator>
+          <dc:language>en-US</dc:language>
         </metadata>
         <manifest>
           <item id="chapter1" href="Text/chapter1.xhtml" media-type="application/xhtml+xml"/>

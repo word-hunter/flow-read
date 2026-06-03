@@ -3,12 +3,14 @@ import 'dart:typed_data';
 class ParsedEpubBook {
   final String title;
   final String author;
+  final String? language;
   final List<ParsedEpubChapter> chapters;
   final Uint8List? coverBytes;
 
   const ParsedEpubBook({
     required this.title,
     required this.author,
+    this.language,
     required this.chapters,
     this.coverBytes,
   });

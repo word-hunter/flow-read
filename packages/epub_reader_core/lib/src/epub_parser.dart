@@ -38,6 +38,7 @@ class EpubParser {
 
     final title = _findDcElement(package, 'title') ?? 'Unknown Title';
     final author = _findDcElement(package, 'creator') ?? 'Unknown Author';
+    final language = _findDcElement(package, 'language');
 
     final manifest =
         <String, ({String href, String mediaType, String? properties})>{};
@@ -126,6 +127,7 @@ class EpubParser {
     return ParsedEpubBook(
       title: title,
       author: author,
+      language: language,
       chapters: chapters,
       coverBytes: coverBytes,
     );

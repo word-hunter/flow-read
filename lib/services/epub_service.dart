@@ -37,6 +37,7 @@ class EpubService {
     return Book(
       title: parsed.title,
       author: parsed.author,
+      language: parsed.language,
       chapters: chapters,
       coverBytes: parsed.coverBytes,
     );

@@ -38,6 +38,7 @@ void main() {
     final book = await EpubParser.parseBytes(epubBytes);
 
     expect(book.title, 'Fixture Book');
+    expect(book.language, 'en-US');
     expect(book.chapters, hasLength(1));
     expect(book.chapters.single.documentTitle, 'Chapter One');
 
@@ -88,6 +89,7 @@ Uint8List _buildEpub(
         <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
           <dc:title>Fixture Book</dc:title>
           <dc:creator>Fixture Author</dc:creator>
+          <dc:language>en-US</dc:language>
         </metadata>
         <manifest>
           <item id="chapter1" href="Text/chapter1.xhtml" media-type="application/xhtml+xml"/>
