@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/analysis_service.dart';
+import 'package:flow_read/services/language/language_module.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -105,4 +106,51 @@ void main() {
     expect(words, isNot(contains('twas')));
     expect(words, isNot(contains('til')));
   });
+
+  test('analysis uses an explicit language module when supplied', () {
+    final result = AnalysisService.analyzeChapter(
+      'Custom',
+      '#terra #skip plain',
+      null,
+      null,
+      const _HashLanguageModule(),
+    );
+
+    expect(result.vocabulary.map((item) => item.word), ['terra']);
+  });
+}
+
+class _HashLanguageModule implements LanguageModule {
+  const _HashLanguageModule();
+
+  @override
+  String get languageCode => 'x-test';
+
+  @override
+  String get languageName => 'Test';
+
+  @override
+  RegExp get wordPattern => RegExp(r'#[A-Za-z]+');
+
+  @override
+  List<String> tokenize(String text) {
+    return wordPattern
+        .allMatches(text)
+        .map((match) => match.group(0)!)
+        .toList();
+  }
+
+  @override
+  String canonicalize(String word) {
+    return word.replaceFirst('#', '').toLowerCase();
+  }
+
+  @override
+  bool isCommonWord(String word, {int? maxLength}) => word == 'skip';
+
+  @override
+  List<String> splitSentences(String text) => [text];
+
+  @override
+  Set<String> get subordinatingMarkers => const {};
 }

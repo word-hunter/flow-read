@@ -1,5 +1,7 @@
 import '../models/sentence_breakdown.dart';
-import 'english_word_utils.dart';
+import 'language/english_language_module.dart';
+import 'language/language_module.dart';
+import 'language/language_registry.dart';
 
 // ============================================================
 // 抽象接口 —— AI 接入点：实现 SentenceAnalyzer 即可替换
@@ -19,6 +21,11 @@ abstract class SentenceAnalyzer {
 // 规则引擎实现（离线，纯 Dart）
 // ============================================================
 class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
+  RuleBasedSentenceAnalyzer({LanguageModule? languageModule})
+    : _languageModule = languageModule;
+
+  final LanguageModule? _languageModule;
+
   @override
   String get analyzerName => '规则引擎';
 
@@ -224,11 +231,14 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
 
   // ---------- 断句 ----------
 
-  static final _sentenceSplitter = RegExp(r'(?<=[.!?])\s+(?=[A-Z])');
+  LanguageModule get _lm =>
+      _languageModule ??
+      LanguageRegistry.instance.defaultModule ??
+      const EnglishLanguageModule();
 
   List<String> _splitSentences(String text) {
-    final raw = text
-        .split(_sentenceSplitter)
+    final raw = _lm
+        .splitSentences(text)
         .where((s) => s.trim().isNotEmpty)
         .toList();
 
@@ -252,10 +262,8 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
 
   // ---------- 词组抽取 ----------
 
-  static final _wordRe = englishWordPattern;
-
   List<String> _words(String text) =>
-      _wordRe.allMatches(text).map((m) => m.group(0)!).toList();
+      _lm.wordPattern.allMatches(text).map((m) => m.group(0)!).toList();
 
   // ---------- 主入口 ----------
 

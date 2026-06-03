@@ -65,5 +65,11 @@ class EnglishLanguageModule implements LanguageModule {
     'whereas',
     'whereby',
     'wherein',
+    'wherever',
+    'whenever',
+    'even',
+    'as',
+    'whether',
+    'what',
   };
 }

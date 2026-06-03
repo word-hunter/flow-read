@@ -3,53 +3,43 @@ import '../models/book.dart';
 import '../models/book_difficulty.dart';
 import '../models/word_level.dart';
 import '../theme/app_constants.dart';
-import 'common_words.dart';
-import 'english_word_utils.dart';
+import 'language/english_language_module.dart';
+import 'language/language_module.dart';
+import 'language/language_registry.dart';
 import 'user_vocabulary_service.dart';
 import 'word_level_service.dart';
 
 class AnalysisService {
-  static final RegExp _sentenceSplitter = RegExp(r'(?<=[.!?])\s+');
-  static final RegExp _wordSplitter = englishWordPattern;
-  static final Set<String> _subordinatingMarkers = {
-    'which',
-    'who',
-    'whom',
-    'whose',
-    'that',
-    'although',
-    'though',
-    'because',
-    'since',
-    'unless',
-    'until',
-    'while',
-    'whereas',
-    'wherever',
-    'whenever',
-    'where',
-    'when',
-    'if',
-    'even',
-  };
-
   static AnalysisResult analyzeChapter(
     String title,
     String text, [
     UserVocabularyService? userVocab,
     WordLevelService? wordLevelService,
+    LanguageModule? languageModule,
   ]) {
-    final sentences = _splitSentences(text);
-    final words = _extractWords(text);
+    final lm = _resolveLanguageModule(languageModule);
+    final sentences = _splitSentences(text, lm);
+    final words = _extractWords(text, lm);
 
-    final vocabulary = _analyzeVocabulary(words, userVocab, wordLevelService);
-    final knownWords = _extractKnownWords(words, userVocab, wordLevelService);
+    final vocabulary = _analyzeVocabulary(
+      words,
+      userVocab,
+      wordLevelService,
+      lm,
+    );
+    final knownWords = _extractKnownWords(
+      words,
+      userVocab,
+      wordLevelService,
+      lm,
+    );
     final learningWords = _extractLearningWords(
       words,
       userVocab,
       wordLevelService,
+      lm,
     );
-    final syntaxPatterns = _analyzeSyntax(sentences);
+    final syntaxPatterns = _analyzeSyntax(sentences, lm);
     final comprehension = _buildComprehension(
       sentences,
       vocabulary,
@@ -75,25 +65,30 @@ class AnalysisService {
     );
   }
 
-  static List<String> _splitSentences(String text) {
-    return text
-        .split(_sentenceSplitter)
-        .where((s) => s.trim().isNotEmpty)
-        .toList();
+  static LanguageModule _resolveLanguageModule(LanguageModule? module) {
+    return module ??
+        LanguageRegistry.instance.defaultModule ??
+        const EnglishLanguageModule();
   }
 
-  static List<String> _extractWords(String text) {
-    return _wordSplitter.allMatches(text).map((m) => m.group(0)!).toList();
+  static List<String> _splitSentences(String text, LanguageModule lm) {
+    return lm.splitSentences(text).where((s) => s.trim().isNotEmpty).toList();
+  }
+
+  static List<String> _extractWords(String text, LanguageModule lm) {
+    return lm.tokenize(text);
   }
 
   static Set<String> collectStudyWords(
     String text, [
     WordLevelService? wordLevelService,
+    LanguageModule? languageModule,
   ]) {
+    final lm = _resolveLanguageModule(languageModule);
     final result = <String>{};
-    for (final word in _extractWords(text)) {
-      final lower = _canonicalWord(word, wordLevelService);
-      if (!_isStudyWord(lower)) continue;
+    for (final word in _extractWords(text, lm)) {
+      final lower = _canonicalWord(word, wordLevelService, lm);
+      if (!_isStudyWord(lower, lm)) continue;
       result.add(lower);
     }
     return result;
@@ -103,9 +98,10 @@ class AnalysisService {
     Book book, [
     UserVocabularyService? userVocab,
     WordLevelService? wordLevelService,
+    LanguageModule? languageModule,
   ]) {
     return rateBookDifficulty(
-      collectBookStudyWords(book, wordLevelService),
+      collectBookStudyWords(book, wordLevelService, languageModule),
       userVocab,
     );
   }
@@ -113,10 +109,14 @@ class AnalysisService {
   static Set<String> collectBookStudyWords(
     Book book, [
     WordLevelService? wordLevelService,
+    LanguageModule? languageModule,
   ]) {
+    final lm = _resolveLanguageModule(languageModule);
     final studyWords = <String>{};
     for (final chapter in book.chapters) {
-      studyWords.addAll(collectStudyWords(chapter.plainText, wordLevelService));
+      studyWords.addAll(
+        collectStudyWords(chapter.plainText, wordLevelService, lm),
+      );
     }
     return studyWords;
   }
@@ -169,20 +169,22 @@ class AnalysisService {
     List<String> words, [
     UserVocabularyService? userVocab,
     WordLevelService? wordLevelService,
+    LanguageModule? languageModule,
   ]) {
+    final lm = _resolveLanguageModule(languageModule);
     final result = <Vocabulary>[];
     final seen = <String>{};
 
     for (final word in words) {
-      final lower = _canonicalWord(word, wordLevelService);
-      if (!_isStudyWord(lower) || seen.contains(lower)) continue;
+      final lower = _canonicalWord(word, wordLevelService, lm);
+      if (!_isStudyWord(lower, lm) || seen.contains(lower)) continue;
 
       if (userVocab != null && userVocab.isKnown(lower)) continue;
 
       seen.add(lower);
 
-      final context = _extractContext(words, word, wordLevelService);
-      final meaning = _generateSimpleMeaning(lower);
+      final context = _extractContext(words, word, wordLevelService, lm);
+      final meaning = _generateSimpleMeaning(lower, lm);
       double familiarity = userVocab != null && userVocab.isLearning(lower)
           ? 0.45
           : 0.2;
@@ -220,11 +222,13 @@ class AnalysisService {
     List<String> words, [
     UserVocabularyService? userVocab,
     WordLevelService? wordLevelService,
+    LanguageModule? languageModule,
   ]) {
+    final lm = _resolveLanguageModule(languageModule);
     if (userVocab == null) return {};
     final seen = <String>{};
     for (final w in words) {
-      final lower = _canonicalWord(w, wordLevelService);
+      final lower = _canonicalWord(w, wordLevelService, lm);
       if (lower.length < AppConstants.minWordLength) continue;
       if (seen.contains(lower)) continue;
       if (userVocab.isKnown(lower)) {
@@ -238,11 +242,13 @@ class AnalysisService {
     List<String> words, [
     UserVocabularyService? userVocab,
     WordLevelService? wordLevelService,
+    LanguageModule? languageModule,
   ]) {
+    final lm = _resolveLanguageModule(languageModule);
     if (userVocab == null) return {};
     final seen = <String>{};
     for (final w in words) {
-      final lower = _canonicalWord(w, wordLevelService);
+      final lower = _canonicalWord(w, wordLevelService, lm);
       if (lower.length < AppConstants.minWordLength) continue;
       if (seen.contains(lower)) continue;
       if (userVocab.isLearning(lower)) {
@@ -256,10 +262,12 @@ class AnalysisService {
     List<String> allWords,
     String targetWord, [
     WordLevelService? wordLevelService,
+    LanguageModule? languageModule,
   ]) {
-    final targetCanonical = _canonicalWord(targetWord, wordLevelService);
+    final lm = _resolveLanguageModule(languageModule);
+    final targetCanonical = _canonicalWord(targetWord, wordLevelService, lm);
     final idx = allWords.indexWhere(
-      (w) => _canonicalWord(w, wordLevelService) == targetCanonical,
+      (w) => _canonicalWord(w, wordLevelService, lm) == targetCanonical,
     );
     if (idx == -1) return targetWord;
 
@@ -273,21 +281,21 @@ class AnalysisService {
   static String _canonicalWord(
     String word, [
     WordLevelService? wordLevelService,
+    LanguageModule? languageModule,
   ]) {
-    final lower = normalizeEnglishApostrophes(word).toLowerCase().trim();
-    if (lower.isEmpty) return lower;
-    return wordLevelService?.canonicalForm(lower) ??
-        canonicalEnglishContraction(lower) ??
-        lower;
+    final lm = _resolveLanguageModule(languageModule);
+    final canonical = lm.canonicalize(word);
+    if (canonical.isEmpty) return canonical;
+    return wordLevelService?.canonicalForm(canonical) ?? canonical;
   }
 
-  static bool _isStudyWord(String word) {
+  static bool _isStudyWord(String word, LanguageModule lm) {
     if (word.length < AppConstants.minWordLength) return false;
-    if (isCommonWord(word) && word.length <= 6) return false;
+    if (lm.isCommonWord(word, maxLength: 6)) return false;
     return true;
   }
 
-  static String _generateSimpleMeaning(String word) {
+  static String _generateSimpleMeaning(String word, LanguageModule lm) {
     if (word.endsWith('ing') && word.length > 6) {
       final base = word.substring(0, word.length - 3);
       if (base.endsWith('nn')) {
@@ -296,13 +304,13 @@ class AnalysisService {
       }
       if (base.endsWith(base[base.length - 1])) {
         final root = base.substring(0, base.length - 1);
-        if (isCommonWord(root)) return 'Present participle of "$root"';
+        if (lm.isCommonWord(root)) return 'Present participle of "$root"';
       }
-      if (isCommonWord(base)) return 'Present participle of "$base"';
+      if (lm.isCommonWord(base)) return 'Present participle of "$base"';
     }
     if (word.endsWith('ly') && word.length > 5) {
       final base = word.substring(0, word.length - 2);
-      if (isCommonWord(base)) return 'Adverb form of "$base"';
+      if (lm.isCommonWord(base)) return 'Adverb form of "$base"';
     }
     if (word.endsWith('ment') ||
         word.endsWith('tion') ||
@@ -319,7 +327,10 @@ class AnalysisService {
     return 'Tap to look up definition';
   }
 
-  static List<SyntaxPattern> _analyzeSyntax(List<String> sentences) {
+  static List<SyntaxPattern> _analyzeSyntax(
+    List<String> sentences,
+    LanguageModule lm,
+  ) {
     final patterns = <SyntaxPattern>[];
 
     for (final sentence in sentences) {
@@ -342,7 +353,7 @@ class AnalysisService {
         continue;
       }
 
-      for (final marker in _subordinatingMarkers) {
+      for (final marker in lm.subordinatingMarkers) {
         if (lower.contains(' $marker ')) {
           patterns.add(
             SyntaxPattern(
