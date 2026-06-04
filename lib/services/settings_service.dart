@@ -73,10 +73,11 @@ class VocabularyColorSettings {
 }
 
 class SettingsService extends ChangeNotifier {
-  static const defaultDailyReadingGoalMinutes = 1440;
+  static const defaultDailyReadingGoalMinutes = 60;
   static const minDailyReadingGoalMinutes = 15;
   static const maxDailyReadingGoalMinutes = 240;
   static const dailyReadingGoalStepMinutes = 15;
+  static const defaultBackupIntervalMinutes = 1440;
   static const experimentalFeatureRss = 'rss';
   static const experimentalFeatureReview = 'review';
   static const supportedExperimentalFeatureIds = <String>{
@@ -109,7 +110,7 @@ class SettingsService extends ChangeNotifier {
   bool _includeSecretsInBackup = false;
   String _backupFolderPath = '';
   String _backupFolderBookmark = '';
-  int _backupIntervalMinutes = 60;
+  int _backupIntervalMinutes = defaultBackupIntervalMinutes;
   DateTime? _lastBackupAt;
   String? _lastBackupPath;
   String _lastSeenReleaseNotesVersion = '';
@@ -241,7 +242,11 @@ class SettingsService extends ChangeNotifier {
     _backupFolderBookmark =
         _box.get('backupFolderBookmark', defaultValue: '') as String;
     _backupIntervalMinutes =
-        _box.get('backupIntervalMinutes', defaultValue: 60) as int;
+        _box.get(
+              'backupIntervalMinutes',
+              defaultValue: defaultBackupIntervalMinutes,
+            )
+            as int;
     final lastBackupAtValue = _box.get('lastBackupAt') as String?;
     _lastBackupAt = lastBackupAtValue == null
         ? null

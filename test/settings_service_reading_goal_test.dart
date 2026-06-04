@@ -49,4 +49,21 @@ void main() {
       );
     },
   );
+
+  test('backup interval defaults to one day and persists changes', () async {
+    final settings = SettingsService();
+    await settings.init();
+
+    expect(
+      settings.backupIntervalMinutes,
+      SettingsService.defaultBackupIntervalMinutes,
+    );
+
+    await settings.setBackupIntervalMinutes(360);
+    expect(settings.backupIntervalMinutes, 360);
+
+    final reloaded = SettingsService();
+    await reloaded.init();
+    expect(reloaded.backupIntervalMinutes, 360);
+  });
 }

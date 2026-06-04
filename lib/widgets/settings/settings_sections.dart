@@ -1026,7 +1026,7 @@ class SettingsBackupSection extends StatelessWidget {
                           settings.backupIntervalMinutes,
                         )
                         ? settings.backupIntervalMinutes
-                        : 60,
+                        : SettingsService.defaultBackupIntervalMinutes,
                     decoration: const InputDecoration(
                       labelText: '同步间隔',
                       prefixIcon: Icon(Icons.schedule_outlined, size: 20),

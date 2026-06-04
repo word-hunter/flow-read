@@ -10,6 +10,13 @@ This project follows a simple semantic versioning flow:
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-06-04
+
+### Fixed
+
+- 修复阅读器单词高亮没有正确初始化词形规范化服务的问题，避免学习中和已掌握状态无法按单词原形识别。
+- 将默认备份间隔调整为 1 天，减少首次使用时自动备份等待过长的问题。
+
 ## [1.6.0] - 2026-06-04
 
 ### Added
