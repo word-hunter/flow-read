@@ -10,6 +10,13 @@ class CurrentBookController {
   final ReadingProvider _reader;
 
   AnalysisResult? get result => _reader.result;
+  bool get isReading => _reader.isReading;
+  bool get hasBook => _reader.hasBook;
+  int get currentTab => _reader.currentTab;
+
+  void switchTab(int index) {
+    _reader.switchTab(index);
+  }
 }
 
 final currentBookProvider = Provider<CurrentBookController>((ref) {

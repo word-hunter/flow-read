@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
+import '../providers/reading/current_book_provider.dart';
 import '../providers/reading/reading_time_provider.dart';
-import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
 import '../widgets/home/home_sidebar.dart';
@@ -15,7 +15,7 @@ import 'profile_screen.dart';
 import 'reading_desk_screen.dart';
 import 'settings_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends riverpod.ConsumerWidget {
   const HomeScreen({super.key});
 
   static const _bookshelfTabIndex = 0;
@@ -62,11 +62,11 @@ class HomeScreen extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
+    final currentBook = ref.watch(currentBookProvider);
     final settings = context.watch<SettingsService>();
 
-    if (provider.isReading && provider.hasBook) {
+    if (currentBook.isReading && currentBook.hasBook) {
       return const ReadingDeskScreen();
     }
 
@@ -74,13 +74,13 @@ class HomeScreen extends StatelessWidget {
       builder: (context, constraints) {
         if (constraints.maxWidth >= AppConstants.wideBreakpoint) {
           return _WideHomeLayout(
-            provider: provider,
+            currentBook: currentBook,
             showRss: settings.rssFeatureEnabled,
           );
         }
         return _buildNarrowLayout(
           context,
-          provider,
+          currentBook,
           showRss: settings.rssFeatureEnabled,
         );
       },
@@ -89,12 +89,12 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildNarrowLayout(
     BuildContext context,
-    ReadingProvider provider, {
+    CurrentBookController currentBook, {
     required bool showRss,
   }) {
     final visibleTabs = _visibleTabs(showRss: showRss);
-    _redirectHiddenTab(context, provider, visibleTabs);
-    final selectedIndex = _visibleIndexFor(provider.currentTab, visibleTabs);
+    _redirectHiddenTab(context, currentBook, visibleTabs);
+    final selectedIndex = _visibleIndexFor(currentBook.currentTab, visibleTabs);
 
     return Scaffold(
       body: IndexedStack(
@@ -104,7 +104,7 @@ class HomeScreen extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) =>
-            provider.switchTab(visibleTabs[index]),
+            currentBook.switchTab(visibleTabs[index]),
         destinations: _visibleWidgets(_navDestinations, visibleTabs),
       ),
     );
@@ -127,22 +127,24 @@ class HomeScreen extends StatelessWidget {
 
   static void _redirectHiddenTab(
     BuildContext context,
-    ReadingProvider provider,
+    CurrentBookController currentBook,
     List<int> visibleTabs,
   ) {
-    if (visibleTabs.contains(provider.currentTab)) return;
+    if (visibleTabs.contains(currentBook.currentTab)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted || visibleTabs.contains(provider.currentTab)) return;
-      provider.switchTab(visibleTabs.first);
+      if (!context.mounted || visibleTabs.contains(currentBook.currentTab)) {
+        return;
+      }
+      currentBook.switchTab(visibleTabs.first);
     });
   }
 }
 
 class _WideHomeLayout extends riverpod.ConsumerWidget {
-  final ReadingProvider provider;
+  final CurrentBookController currentBook;
   final bool showRss;
 
-  const _WideHomeLayout({required this.provider, required this.showRss});
+  const _WideHomeLayout({required this.currentBook, required this.showRss});
 
   static const _widePanels = <Widget>[
     BookshelfContent(),
@@ -158,9 +160,9 @@ class _WideHomeLayout extends riverpod.ConsumerWidget {
     final readingTime = ref.watch(readingTimeProvider);
     final settings = context.watch<SettingsService>();
     final visibleTabs = HomeScreen._visibleTabs(showRss: showRss);
-    HomeScreen._redirectHiddenTab(context, provider, visibleTabs);
+    HomeScreen._redirectHiddenTab(context, currentBook, visibleTabs);
     final selectedIndex = HomeScreen._visibleIndexFor(
-      provider.currentTab,
+      currentBook.currentTab,
       visibleTabs,
     );
 
@@ -168,8 +170,8 @@ class _WideHomeLayout extends riverpod.ConsumerWidget {
       body: Row(
         children: [
           HomeSidebar(
-            currentTab: provider.currentTab,
-            onTabChanged: provider.switchTab,
+            currentTab: currentBook.currentTab,
+            onTabChanged: currentBook.switchTab,
             readingTimeSeconds: readingTime.weekReadingTimeSeconds,
             monthReadingTimeSeconds: readingTime.monthReadingTimeSeconds,
             weekDailyReadingSeconds: readingTime.weekDailyReadingSeconds,
