@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/analysis_result.dart';
 import '../models/book_difficulty.dart';
 import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
+import '../providers/reading/reading_search_provider.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
@@ -430,15 +432,17 @@ class _ReaderPageState extends State<ReaderPage> {
     if (_searchSheetOpen) return;
 
     _hideReadingReminder();
-    context.read<ReadingProvider>().clearSourceHighlight();
+    final search = riverpod.ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(readingSearchProvider);
+    search.clearSourceHighlight();
     setState(() {
       _searchSheetOpen = true;
       _searchShowingAll = false;
     });
     if (_searchController.text.trim().isNotEmpty) {
-      unawaited(
-        context.read<ReadingProvider>().searchInBook(_searchController.text),
-      );
+      unawaited(search.searchInBook(_searchController.text));
     }
     await showModalBottomSheet<void>(
       context: context,
@@ -457,8 +461,12 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _onSearchChanged(String value) {
+    final search = riverpod.ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(readingSearchProvider);
     unawaited(
-      context.read<ReadingProvider>().searchInBook(
+      search.searchInBook(
         value,
         includeAll: _searchShowingAll,
       ),
@@ -467,12 +475,19 @@ class _ReaderPageState extends State<ReaderPage> {
 
   void _showAllSearchResults() {
     setState(() => _searchShowingAll = true);
-    unawaited(context.read<ReadingProvider>().searchAllInBook());
+    final search = riverpod.ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(readingSearchProvider);
+    unawaited(search.searchAllInBook());
   }
 
   Future<void> _onSearchResultTap(ReadingSearchResult result) async {
-    final provider = context.read<ReadingProvider>();
-    await provider.goToSearchResult(result);
+    final search = riverpod.ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(readingSearchProvider);
+    await search.goToSearchResult(result);
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _scrollToSearchResult(result);
@@ -1688,7 +1703,7 @@ class _ReaderSearchSheet extends StatelessWidget {
   }
 }
 
-class _ReaderSearchPanel extends StatelessWidget {
+class _ReaderSearchPanel extends riverpod.ConsumerWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool expanded;
@@ -1710,53 +1725,50 @@ class _ReaderSearchPanel extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<ReadingProvider>(
-      builder: (context, provider, _) {
-        final results = provider.searchResults;
-        final query = provider.searchQuery;
-        return Padding(
-          padding: expanded
-              ? const EdgeInsets.fromLTRB(18, 12, 18, 14)
-              : const EdgeInsets.fromLTRB(14, 10, 14, 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              _SearchField(
-                controller: controller,
-                focusNode: focusNode,
-                expanded: expanded,
-                onChanged: onChanged,
-                onClose: onClose,
-              ),
-              const SizedBox(height: 8),
-              _SearchStatus(provider: provider, expanded: expanded),
-              const SizedBox(height: 6),
-              Expanded(
-                child: _SearchResultsList(
-                  query: query,
-                  results: results,
-                  isSearching: provider.isSearching,
-                  activeResult: provider.activeSearchResult,
-                  scrollController: resultsScrollController,
-                  onResultTap: onResultTap,
-                ),
-              ),
-              if (!expanded && provider.searchStoppedAtLimit) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: onMore,
-                    icon: const Icon(Icons.open_in_full, size: 18),
-                    label: const Text('显示更多'),
-                  ),
-                ),
-              ],
-            ],
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
+    final search = ref.watch(readingSearchProvider);
+    final results = search.results;
+    final query = search.query;
+    return Padding(
+      padding: expanded
+          ? const EdgeInsets.fromLTRB(18, 12, 18, 14)
+          : const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          _SearchField(
+            controller: controller,
+            focusNode: focusNode,
+            expanded: expanded,
+            onChanged: onChanged,
+            onClose: onClose,
           ),
-        );
-      },
+          const SizedBox(height: 8),
+          _SearchStatus(search: search, expanded: expanded),
+          const SizedBox(height: 6),
+          Expanded(
+            child: _SearchResultsList(
+              query: query,
+              results: results,
+              isSearching: search.isSearching,
+              activeResult: search.activeResult,
+              scrollController: resultsScrollController,
+              onResultTap: onResultTap,
+            ),
+          ),
+          if (!expanded && search.stoppedAtLimit) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onMore,
+                icon: const Icon(Icons.open_in_full, size: 18),
+                label: const Text('显示更多'),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -1825,27 +1837,27 @@ class _SearchField extends StatelessWidget {
 }
 
 class _SearchStatus extends StatelessWidget {
-  final ReadingProvider provider;
+  final ReadingSearchFacade search;
   final bool expanded;
 
-  const _SearchStatus({required this.provider, required this.expanded});
+  const _SearchStatus({required this.search, required this.expanded});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final resultCount = provider.searchResults.length;
-    final query = provider.searchQuery;
+    final resultCount = search.results.length;
+    final query = search.query;
     final text = query.isEmpty
         ? '输入关键词'
-        : provider.isSearching
+        : search.isSearching
         ? '正在搜索... $resultCount'
-        : provider.searchStoppedAtLimit && !expanded
+        : search.stoppedAtLimit && !expanded
         ? '已显示前 $resultCount 条'
         : '共 $resultCount 条结果';
 
     return Row(
       children: [
-        if (provider.isSearching) ...[
+        if (search.isSearching) ...[
           SizedBox(
             width: 14,
             height: 14,
