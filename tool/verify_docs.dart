@@ -175,10 +175,7 @@ void main(List<String> args) {
         codeBoxNames.add(m.group(2)!);
       }
     }
-    // Also check computed names (For pattern)
-    for (final m in RegExp(r"return '(\w+|{lang})'").allMatches(boxNamesCode)) {
-      // Skip, these are dynamic patterns
-    }
+    // Computed names are dynamic patterns and are intentionally ignored here.
 
     stdout.writeln(
       '  storage-contract.md: ~${docBoxNames.length} names referenced, '
