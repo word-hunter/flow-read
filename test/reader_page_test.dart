@@ -9,6 +9,8 @@ import 'package:flow_read/pages/reader_page.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/settings_provider.dart'
+    as riverpod_settings;
 import 'package:flow_read/screens/reading_desk_screen.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/dictionary/word_repository.dart';
@@ -32,6 +34,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -81,6 +84,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -119,6 +123,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -147,6 +152,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -191,6 +197,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -229,6 +236,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -272,6 +280,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -310,6 +319,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -381,6 +391,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith(
             (ref) => longTitleProvider,
           ),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -414,6 +425,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith(
             (ref) => shortTitleProvider,
           ),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -450,6 +462,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -497,6 +510,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -531,6 +545,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -578,6 +593,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -625,6 +641,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -682,6 +699,7 @@ void main() {
         riverpod.ProviderScope(
           overrides: [
             riverpod_reading.readingProvider.overrideWith((ref) => provider),
+            riverpod_settings.settingsProvider.overrideWith((ref) => settings),
           ],
           child: MultiProvider(
             providers: [
@@ -752,6 +770,7 @@ void main() {
         riverpod.ProviderScope(
           overrides: [
             riverpod_reading.readingProvider.overrideWith((ref) => provider),
+            riverpod_settings.settingsProvider.overrideWith((ref) => settings),
           ],
           child: MultiProvider(
             providers: [
@@ -794,6 +813,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -827,6 +847,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [
@@ -863,6 +884,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MultiProvider(
           providers: [

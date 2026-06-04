@@ -10,6 +10,7 @@ class ReadingSearchFacade {
   final ReadingProvider _reader;
 
   String get query => _reader.searchQuery;
+  String get sourceHighlightQuery => _reader.sourceHighlightQuery;
   List<ReadingSearchResult> get results => _reader.searchResults;
   bool get isSearching => _reader.isSearching;
   bool get stoppedAtLimit => _reader.searchStoppedAtLimit;

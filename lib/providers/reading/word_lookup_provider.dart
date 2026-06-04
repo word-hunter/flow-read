@@ -40,12 +40,14 @@ class WordLookupController {
     String? contextText,
     int? contextWordStart,
     int? contextWordEnd,
+    bool trackReadingLookup = false,
   }) {
     return _reader.lookupWord(
       word,
       contextText: contextText,
       contextWordStart: contextWordStart,
       contextWordEnd: contextWordEnd,
+      trackReadingLookup: trackReadingLookup,
     );
   }
 

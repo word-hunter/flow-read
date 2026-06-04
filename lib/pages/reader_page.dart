@@ -3,15 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import '../models/analysis_result.dart';
 import '../models/book_difficulty.dart';
 import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
 import '../providers/reading/bookmark_provider.dart';
+import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/reading_config_provider.dart';
 import '../providers/reading/reading_search_provider.dart';
-import '../providers/reading_provider.dart';
-import '../services/settings_service.dart';
+import '../providers/reading/reading_time_provider.dart';
+import '../providers/reading/text_selection_provider.dart';
+import '../providers/reading/word_lookup_provider.dart';
+import '../providers/settings_provider.dart';
+import '../services/settings_service.dart' show VocabularyColorSettings;
 import '../theme/app_constants.dart';
 import '../widgets/book_difficulty_chip.dart';
 import '../widgets/bookmark_sheet.dart';
@@ -25,14 +29,14 @@ import '../widgets/word_bottom_sheet.dart';
 
 enum _ReaderSidebarMode { word, textAnalysis }
 
-class ReaderPage extends StatefulWidget {
+class ReaderPage extends riverpod.ConsumerStatefulWidget {
   const ReaderPage({super.key});
 
   @override
-  State<ReaderPage> createState() => _ReaderPageState();
+  riverpod.ConsumerState<ReaderPage> createState() => _ReaderPageState();
 }
 
-class _ReaderPageState extends State<ReaderPage> {
+class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
   static const double _keyboardLineScrollDelta = 92;
   static const int _maxViewportRestorePasses = 10;
   static const double _viewportRestorePixelTolerance = 0.5;
@@ -50,7 +54,6 @@ class _ReaderPageState extends State<ReaderPage> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final Map<int, GlobalKey> _contentKeys = {};
-  ReadingProvider? _readingProvider;
   String? _lastReaderLocationKey;
   String? _lastReaderViewportKey;
   bool _hadReaderResult = false;
@@ -86,32 +89,9 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final provider = context.read<ReadingProvider>();
-    if (identical(_readingProvider, provider)) return;
-
-    _readingProvider?.removeListener(_onReadingProviderChanged);
-    _readingProvider = provider;
-    _lastReaderLocationKey = _readerLocationKey(provider);
-    _lastReaderViewportKey = _readerViewportKey(provider);
-    _hadReaderResult = provider.result != null;
-    provider.addListener(_onReadingProviderChanged);
-    _syncDailyGoalWatcher(provider);
-    if (_hadReaderResult) {
-      _queueViewportSync(
-        progress: provider.readingProgress,
-        scrollOffset: provider.readingScrollOffset,
-        locationChanged: false,
-      );
-    }
-  }
-
-  @override
   void dispose() {
     _dailyGoalCheckTimer?.cancel();
     _readingReminderHideTimer?.cancel();
-    _readingProvider?.removeListener(_onReadingProviderChanged);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _readerFocusNode.dispose();
@@ -120,43 +100,61 @@ class _ReaderPageState extends State<ReaderPage> {
     super.dispose();
   }
 
-  String _readerLocationKey(ReadingProvider provider) {
-    final book = provider.book;
+  void _primeReaderState(
+    CurrentBookController currentBook,
+    ReadingTimeController readingTime,
+  ) {
+    _lastReaderLocationKey = _readerLocationKey(currentBook);
+    _lastReaderViewportKey = _readerViewportKey(currentBook);
+    _hadReaderResult = currentBook.result != null;
+    _syncDailyGoalWatcher(currentBook, readingTime);
+    if (_hadReaderResult) {
+      _queueViewportSync(
+        progress: currentBook.readingProgress,
+        scrollOffset: currentBook.readingScrollOffset,
+        locationChanged: false,
+      );
+    }
+  }
+
+  String _readerLocationKey(CurrentBookController currentBook) {
+    final book = currentBook.book;
     final bookKey =
-        provider.activeBookId ??
+        currentBook.activeBookId ??
         (book == null
             ? 'standalone'
             : '${identityHashCode(book)}:${book.title}');
-    return '$bookKey:${provider.currentChapter}';
+    return '$bookKey:${currentBook.currentChapter}';
   }
 
-  String _readerViewportKey(ReadingProvider provider) {
-    final progress = provider.readingProgress.clamp(0.0, 1.0);
-    final scrollOffset = provider.readingScrollOffset;
+  String _readerViewportKey(CurrentBookController currentBook) {
+    final progress = currentBook.readingProgress.clamp(0.0, 1.0);
+    final scrollOffset = currentBook.readingScrollOffset;
     final offsetKey = scrollOffset == null
         ? 'ratio'
         : scrollOffset.toStringAsFixed(1);
-    return '${_readerLocationKey(provider)}:${progress.toStringAsFixed(4)}:$offsetKey';
+    return '${_readerLocationKey(currentBook)}:${progress.toStringAsFixed(4)}:$offsetKey';
   }
 
-  void _onReadingProviderChanged() {
-    final provider = _readingProvider;
-    if (provider == null) return;
-    _syncDailyGoalWatcher(provider);
+  void _onReaderStateChanged(
+    CurrentBookController currentBook,
+    ReadingTimeController readingTime,
+  ) {
+    _syncDailyGoalWatcher(currentBook, readingTime);
 
-    final hasResult = provider.result != null;
+    final hasResult = currentBook.result != null;
     final resultBecameReady = !_hadReaderResult && hasResult;
     _hadReaderResult = hasResult;
 
-    final nextLocationKey = _readerLocationKey(provider);
-    final nextViewportKey = _readerViewportKey(provider);
+    final nextLocationKey = _readerLocationKey(currentBook);
+    final nextViewportKey = _readerViewportKey(currentBook);
     if (_lastReaderLocationKey == null || _lastReaderViewportKey == null) {
       _lastReaderLocationKey = nextLocationKey;
       _lastReaderViewportKey = nextViewportKey;
       if (hasResult) {
         _queueViewportSync(
-          progress: provider.readingProgress,
-          scrollOffset: provider.readingScrollOffset,
+          progress: currentBook.readingProgress,
+          scrollOffset: currentBook.readingScrollOffset,
           locationChanged: false,
         );
       }
@@ -170,8 +168,8 @@ class _ReaderPageState extends State<ReaderPage> {
     _lastReaderViewportKey = nextViewportKey;
     if (hasResult) {
       _queueViewportSync(
-        progress: provider.readingProgress,
-        scrollOffset: provider.readingScrollOffset,
+        progress: currentBook.readingProgress,
+        scrollOffset: currentBook.readingScrollOffset,
         locationChanged: locationChanged,
       );
     }
@@ -243,27 +241,30 @@ class _ReaderPageState extends State<ReaderPage> {
     }
     final progress = (_scrollController.offset / maxScroll).clamp(0.0, 1.0);
     _displayProgress = progress;
-    final provider = context.read<ReadingProvider>();
-    provider.updateReadingProgress(
+    final currentBook = ref.read(currentBookProvider);
+    currentBook.updateReadingProgress(
       progress,
       scrollOffset: _scrollController.offset,
     );
-    _lastReaderViewportKey = _readerViewportKey(provider);
+    _lastReaderViewportKey = _readerViewportKey(currentBook);
     _checkDailyReadingGoal();
     setState(() {});
   }
 
-  void _syncDailyGoalWatcher(ReadingProvider provider) {
-    if (!provider.isReading) {
+  void _syncDailyGoalWatcher(
+    CurrentBookController currentBook,
+    ReadingTimeController readingTime,
+  ) {
+    if (!currentBook.isReading) {
       _dailyGoalCheckTimer?.cancel();
       _dailyGoalCheckTimer = null;
       _dailyGoalPromptShown = false;
-      _wasDailyGoalReached = provider.dailyReadingGoalReached;
+      _wasDailyGoalReached = readingTime.dailyReadingGoalReached;
       return;
     }
 
     if (_dailyGoalCheckTimer != null) return;
-    _wasDailyGoalReached = provider.dailyReadingGoalReached;
+    _wasDailyGoalReached = readingTime.dailyReadingGoalReached;
     _dailyGoalCheckTimer = Timer.periodic(
       const Duration(seconds: 10),
       (_) => _checkDailyReadingGoal(),
@@ -272,8 +273,8 @@ class _ReaderPageState extends State<ReaderPage> {
 
   void _checkDailyReadingGoal() {
     if (!mounted) return;
-    final provider = context.read<ReadingProvider>();
-    final reached = provider.dailyReadingGoalReached;
+    final readingTime = ref.read(readingTimeProvider);
+    final reached = readingTime.dailyReadingGoalReached;
     if (!reached) {
       _wasDailyGoalReached = false;
       _dailyGoalPromptShown = false;
@@ -283,7 +284,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
     _wasDailyGoalReached = true;
     _dailyGoalPromptShown = true;
-    final goalText = _formatGoalDuration(provider.dailyReadingGoalSeconds);
+    final goalText = _formatGoalDuration(readingTime.dailyReadingGoalSeconds);
     _showReadingReminder('今日阅读目标已达成：$goalText');
   }
 
@@ -319,8 +320,8 @@ class _ReaderPageState extends State<ReaderPage> {
     int? contextWordEnd,
   }) {
     _hideReadingReminder();
-    final provider = context.read<ReadingProvider>();
-    provider.lookupWord(
+    final lookup = ref.read(wordLookupProvider);
+    lookup.lookupWord(
       word,
       contextText: contextText,
       contextWordStart: contextWordStart,
@@ -338,20 +339,19 @@ class _ReaderPageState extends State<ReaderPage> {
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (_) => WordBottomSheet(word: word),
-      ).whenComplete(provider.clearWordLookup);
+      ).whenComplete(lookup.clearWordLookup);
     }
   }
 
   void _onAnalyzeSelected(String text) {
-    final settings = context.read<SettingsService>();
+    final settings = ref.read(settingsProvider);
     if (!settings.aiFeaturesEnabled) return;
     final selectedText = text.trim();
     if (selectedText.isEmpty) return;
-    final provider = context.read<ReadingProvider>();
     final analyzerName = '${settings.aiProvider.label} AI';
-    provider.analyzeSelectedTextAI(selectedText);
+    ref.read(textSelectionProvider).analyzeSelectedTextAI(selectedText);
     if (_isWideScreen) {
-      provider.clearWordLookup();
+      ref.read(wordLookupProvider).clearWordLookup();
       setState(() {
         _sidebarMode = _ReaderSidebarMode.textAnalysis;
         _sidebarSelectedText = selectedText;
@@ -374,8 +374,8 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _showTocSheet() {
-    final provider = context.read<ReadingProvider>();
-    if (!provider.hasBook) return;
+    final currentBook = ref.read(currentBookProvider);
+    if (!currentBook.hasBook) return;
     _hideReadingReminder();
     showModalBottomSheet(
       context: context,
@@ -602,13 +602,13 @@ class _ReaderPageState extends State<ReaderPage> {
   void _turnChapter(int direction) {
     if (direction == 0) return;
 
-    final provider = context.read<ReadingProvider>();
-    if (!provider.hasBook || provider.chapterCount <= 1) return;
+    final currentBook = ref.read(currentBookProvider);
+    if (!currentBook.hasBook || currentBook.chapterCount <= 1) return;
 
-    final nextChapter = provider.currentChapter + direction;
-    if (nextChapter < 0 || nextChapter >= provider.chapterCount) return;
+    final nextChapter = currentBook.currentChapter + direction;
+    if (nextChapter < 0 || nextChapter >= currentBook.chapterCount) return;
 
-    unawaited(provider.goToChapter(nextChapter));
+    unawaited(currentBook.goToChapter(nextChapter));
   }
 
   void _onBookmarkTap() {
@@ -632,8 +632,8 @@ class _ReaderPageState extends State<ReaderPage> {
     }
   }
 
-  Color _readerBackgroundColor(ReadingProvider provider) {
-    switch (provider.readingTheme) {
+  Color _readerBackgroundColor(ReadingConfigController config) {
+    switch (config.readingTheme) {
       case 'sepia':
         return const Color(0xFFF5ECD7);
       case 'dark':
@@ -643,8 +643,8 @@ class _ReaderPageState extends State<ReaderPage> {
     }
   }
 
-  Color _readerTextColor(ReadingProvider provider) {
-    switch (provider.readingTheme) {
+  Color _readerTextColor(ReadingConfigController config) {
+    switch (config.readingTheme) {
       case 'dark':
         return const Color(0xFFE8E2D6);
       case 'sepia':
@@ -654,8 +654,8 @@ class _ReaderPageState extends State<ReaderPage> {
     }
   }
 
-  Color _readerMutedTextColor(ReadingProvider provider) {
-    switch (provider.readingTheme) {
+  Color _readerMutedTextColor(ReadingConfigController config) {
+    switch (config.readingTheme) {
       case 'dark':
         return const Color(0xFFC8C1B7);
       case 'sepia':
@@ -665,43 +665,58 @@ class _ReaderPageState extends State<ReaderPage> {
     }
   }
 
-  bool _isDarkReadingTheme(ReadingProvider provider) {
-    return provider.readingTheme == 'dark';
+  bool _isDarkReadingTheme(ReadingConfigController config) {
+    return config.readingTheme == 'dark';
   }
 
-  TextStyle _buildBaseTextStyle(ThemeData theme, ReadingProvider provider) {
+  TextStyle _buildBaseTextStyle(
+    ThemeData theme,
+    ReadingConfigController config,
+  ) {
     return (theme.textTheme.bodyLarge ?? const TextStyle()).copyWith(
-      fontSize: provider.fontSize,
-      height: provider.lineHeight,
+      fontSize: config.fontSize,
+      height: config.lineHeight,
       letterSpacing: 0.3,
-      fontFamily: provider.fontFamily,
-      color: _readerTextColor(provider),
+      fontFamily: config.fontFamily,
+      color: _readerTextColor(config),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
-    final settings = context.watch<SettingsService>();
-    final result = provider.result;
+    ref.listen<CurrentBookController>(currentBookProvider, (_, currentBook) {
+      _onReaderStateChanged(currentBook, ref.read(readingTimeProvider));
+    });
+    final currentBook = ref.watch(currentBookProvider);
+    final config = ref.watch(readingConfigProvider);
+    final readingTime = ref.watch(readingTimeProvider);
+    final settings = ref.watch(settingsProvider);
+    if (_lastReaderLocationKey == null) {
+      _primeReaderState(currentBook, readingTime);
+    }
+    final result = currentBook.result;
     if (result == null) {
       return _buildKeyboardScope(
         _buildPageScaffold(
+          config: config,
           child: const Center(child: CircularProgressIndicator()),
         ),
       );
     }
 
     final paragraphs = splitIntoParagraphs(result.passageText);
-    final blocks = provider.hasBook && provider.chapterCount > 0
-        ? provider.book!.chapters[provider.currentChapter].blocks
+    final blocks = currentBook.hasBook && currentBook.chapterCount > 0
+        ? currentBook.book!.chapters[currentBook.currentChapter].blocks
         : const <ContentBlock>[];
     final theme = Theme.of(context);
     final progressPercent = (_displayProgress * 100).round();
-    final chapterTitle = provider.hasBook && provider.chapterCount > 0
-        ? provider.book!.chapters[provider.currentChapter].title
+    final chapterTitle = currentBook.hasBook && currentBook.chapterCount > 0
+        ? currentBook.book!.chapters[currentBook.currentChapter].title
         : result.title;
     final colorSettings = settings.colors;
+    final search = ref.watch(readingSearchProvider);
+    final lookup = ref.watch(wordLookupProvider);
+    final bookmarks = ref.watch(bookmarkProvider);
 
     return _buildKeyboardScope(
       LayoutBuilder(
@@ -710,10 +725,13 @@ class _ReaderPageState extends State<ReaderPage> {
           final isWide = _isWideScreen;
 
           return _buildPageScaffold(
+            config: config,
             child: Column(
               children: [
                 _buildNavBar(
-                  provider,
+                  currentBook,
+                  config,
+                  bookmarks,
                   theme,
                   chapterTitle,
                   progressPercent: progressPercent,
@@ -738,6 +756,10 @@ class _ReaderPageState extends State<ReaderPage> {
                                   theme,
                                   colorSettings,
                                   settings.aiFeaturesEnabled,
+                                  currentBook,
+                                  config,
+                                  search,
+                                  lookup,
                                 ),
                               ),
                               AnimatedSize(
@@ -757,6 +779,10 @@ class _ReaderPageState extends State<ReaderPage> {
                             theme,
                             colorSettings,
                             settings.aiFeaturesEnabled,
+                            currentBook,
+                            config,
+                            search,
+                            lookup,
                           ),
                   ),
                 ),
@@ -768,9 +794,11 @@ class _ReaderPageState extends State<ReaderPage> {
     );
   }
 
-  Widget _buildPageScaffold({required Widget child}) {
-    final provider = context.watch<ReadingProvider>();
-    return ColoredBox(color: _readerBackgroundColor(provider), child: child);
+  Widget _buildPageScaffold({
+    required ReadingConfigController config,
+    required Widget child,
+  }) {
+    return ColoredBox(color: _readerBackgroundColor(config), child: child);
   }
 
   Widget _buildReadingProgressLine(ThemeData theme, double progress) {
@@ -868,6 +896,10 @@ class _ReaderPageState extends State<ReaderPage> {
     ThemeData theme,
     VocabularyColorSettings colorSettings,
     bool aiFeaturesEnabled,
+    CurrentBookController currentBook,
+    ReadingConfigController config,
+    ReadingSearchFacade search,
+    WordLookupController lookup,
   ) {
     return SelectedTextActionRegion(
       actionsBuilder: (context, selectedText, closeToolbar) =>
@@ -879,8 +911,7 @@ class _ReaderPageState extends State<ReaderPage> {
           ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final provider = context.read<ReadingProvider>();
-          final showTitleBlock = !provider.hasBook;
+          final showTitleBlock = !currentBook.hasBook;
           final topPadding = showTitleBlock ? 14.0 : 10.0;
           final wide = _isWideScreen;
           final compactWide = wide && constraints.maxWidth < 760;
@@ -913,7 +944,7 @@ class _ReaderPageState extends State<ReaderPage> {
                 itemCount: contentCount + (showTitleBlock ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (showTitleBlock && index == 0) {
-                    return _buildTitleBlock(result, theme);
+                    return _buildTitleBlock(result, theme, config);
                   }
                   final contentIndex = showTitleBlock ? index - 1 : index;
                   if (contentIndex >= contentCount) {
@@ -928,7 +959,10 @@ class _ReaderPageState extends State<ReaderPage> {
                         result,
                         theme,
                         colorSettings: colorSettings,
-                        isFirstBlock: contentIndex == 0 && provider.hasBook,
+                        config: config,
+                        search: search,
+                        lookup: lookup,
+                        isFirstBlock: contentIndex == 0 && currentBook.hasBook,
                       ),
                     );
                   }
@@ -940,7 +974,11 @@ class _ReaderPageState extends State<ReaderPage> {
                       result,
                       theme,
                       colorSettings: colorSettings,
-                      isFirstParagraph: contentIndex == 0 && provider.hasBook,
+                      config: config,
+                      search: search,
+                      lookup: lookup,
+                      isFirstParagraph:
+                          contentIndex == 0 && currentBook.hasBook,
                     ),
                   );
                 },
@@ -981,11 +1019,13 @@ class _ReaderPageState extends State<ReaderPage> {
     AnalysisResult result,
     ThemeData theme, {
     required VocabularyColorSettings colorSettings,
+    required ReadingConfigController config,
+    required ReadingSearchFacade search,
+    required WordLookupController lookup,
     bool isFirstBlock = false,
   }) {
-    final provider = context.read<ReadingProvider>();
-    final searchQuery = _effectiveHighlightQuery(provider);
-    final lookupHighlightWord = provider.selectedWord;
+    final searchQuery = _effectiveHighlightQuery(search);
+    final lookupHighlightWord = lookup.selectedWord;
     final hasLookupHighlight =
         lookupHighlightWord != null && lookupHighlightWord.trim().isNotEmpty;
 
@@ -1002,7 +1042,9 @@ class _ReaderPageState extends State<ReaderPage> {
           result,
           theme,
           colorSettings,
-          _buildBaseTextStyle(theme, provider),
+          _buildBaseTextStyle(theme, config),
+          config,
+          lookup,
         ),
       );
     }
@@ -1012,29 +1054,30 @@ class _ReaderPageState extends State<ReaderPage> {
       result,
       theme,
       onWordTapped: _onWordTapped,
-      fontSize: provider.fontSize,
-      lineHeight: provider.lineHeight,
-      fontFamily: provider.fontFamily,
-      baseTextColor: _readerTextColor(provider),
-      mutedTextColor: _readerMutedTextColor(provider),
+      fontSize: config.fontSize,
+      lineHeight: config.lineHeight,
+      fontFamily: config.fontFamily,
+      baseTextColor: _readerTextColor(config),
+      mutedTextColor: _readerMutedTextColor(config),
       colorSettings: colorSettings,
       searchQuery: searchQuery,
       lookupHighlightWord: lookupHighlightWord,
-      wordLevelService: provider.wordLevelService,
-      languageModule: provider.activeLanguageModule,
+      wordLevelService: lookup.wordLevelService,
+      languageModule: lookup.activeLanguageModule,
     );
   }
 
-  String _effectiveHighlightQuery(ReadingProvider provider) {
-    return _isSearchPanelVisible
-        ? provider.searchQuery
-        : provider.sourceHighlightQuery;
+  String _effectiveHighlightQuery(ReadingSearchFacade search) {
+    return _isSearchPanelVisible ? search.query : search.sourceHighlightQuery;
   }
 
-  Widget _buildTitleBlock(AnalysisResult result, ThemeData theme) {
-    final provider = context.read<ReadingProvider>();
-    final titleColor = _readerTextColor(provider);
-    final dividerColor = _isDarkReadingTheme(provider)
+  Widget _buildTitleBlock(
+    AnalysisResult result,
+    ThemeData theme,
+    ReadingConfigController config,
+  ) {
+    final titleColor = _readerTextColor(config);
+    final dividerColor = _isDarkReadingTheme(config)
         ? const Color(0xFF3A3A3A)
         : const Color(0xFFEEEEEE);
     return Padding(
@@ -1047,7 +1090,7 @@ class _ReaderPageState extends State<ReaderPage> {
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
               color: titleColor,
-              fontFamily: provider.fontFamily,
+              fontFamily: config.fontFamily,
             ),
           ),
           const SizedBox(height: 8),
@@ -1063,12 +1106,14 @@ class _ReaderPageState extends State<ReaderPage> {
     AnalysisResult result,
     ThemeData theme, {
     required VocabularyColorSettings colorSettings,
+    required ReadingConfigController config,
+    required ReadingSearchFacade search,
+    required WordLookupController lookup,
     bool isFirstParagraph = false,
   }) {
-    final provider = context.read<ReadingProvider>();
-    final baseStyle = _buildBaseTextStyle(theme, provider);
-    final searchQuery = _effectiveHighlightQuery(provider);
-    final lookupHighlightWord = provider.selectedWord;
+    final baseStyle = _buildBaseTextStyle(theme, config);
+    final searchQuery = _effectiveHighlightQuery(search);
+    final lookupHighlightWord = lookup.selectedWord;
     final hasLookupHighlight =
         lookupHighlightWord != null && lookupHighlightWord.trim().isNotEmpty;
 
@@ -1084,6 +1129,8 @@ class _ReaderPageState extends State<ReaderPage> {
           theme,
           colorSettings,
           baseStyle,
+          config,
+          lookup,
         ),
       );
     }
@@ -1096,15 +1143,15 @@ class _ReaderPageState extends State<ReaderPage> {
           result,
           theme,
           onWordTapped: _onWordTapped,
-          fontSize: provider.fontSize,
-          lineHeight: provider.lineHeight,
-          fontFamily: provider.fontFamily,
-          baseTextColor: _readerTextColor(provider),
+          fontSize: config.fontSize,
+          lineHeight: config.lineHeight,
+          fontFamily: config.fontFamily,
+          baseTextColor: _readerTextColor(config),
           colorSettings: colorSettings,
           searchQuery: searchQuery,
           lookupHighlightWord: lookupHighlightWord,
-          wordLevelService: provider.wordLevelService,
-          languageModule: provider.activeLanguageModule,
+          wordLevelService: lookup.wordLevelService,
+          languageModule: lookup.activeLanguageModule,
         ),
         style: baseStyle,
       ),
@@ -1117,8 +1164,9 @@ class _ReaderPageState extends State<ReaderPage> {
     ThemeData theme,
     VocabularyColorSettings colorSettings,
     TextStyle baseStyle,
+    ReadingConfigController config,
+    WordLookupController lookup,
   ) {
-    final provider = context.read<ReadingProvider>();
     final firstLetter = paragraph.substring(0, 1).toUpperCase();
     final restText = paragraph.substring(1).trimLeft();
 
@@ -1130,7 +1178,7 @@ class _ReaderPageState extends State<ReaderPage> {
           child: Text(
             firstLetter,
             style: baseStyle.copyWith(
-              fontSize: provider.fontSize * 3.05,
+              fontSize: config.fontSize * 3.05,
               height: 0.84,
               fontWeight: FontWeight.w800,
               letterSpacing: 0,
@@ -1144,14 +1192,14 @@ class _ReaderPageState extends State<ReaderPage> {
               result,
               theme,
               onWordTapped: _onWordTapped,
-              fontSize: provider.fontSize,
-              lineHeight: provider.lineHeight,
-              fontFamily: provider.fontFamily,
-              baseTextColor: _readerTextColor(provider),
+              fontSize: config.fontSize,
+              lineHeight: config.lineHeight,
+              fontFamily: config.fontFamily,
+              baseTextColor: _readerTextColor(config),
               colorSettings: colorSettings,
-              lookupHighlightWord: provider.selectedWord,
-              wordLevelService: provider.wordLevelService,
-              languageModule: provider.activeLanguageModule,
+              lookupHighlightWord: lookup.selectedWord,
+              wordLevelService: lookup.wordLevelService,
+              languageModule: lookup.activeLanguageModule,
             ),
             style: baseStyle,
           ),
@@ -1169,7 +1217,7 @@ class _ReaderPageState extends State<ReaderPage> {
     bool selected = false,
   }) {
     final theme = Theme.of(context);
-    final isDarkReader = _isDarkReadingTheme(context.read<ReadingProvider>());
+    final isDarkReader = _isDarkReadingTheme(ref.read(readingConfigProvider));
     return IconButton(
       key: key,
       icon: Icon(icon, size: size),
@@ -1195,7 +1243,7 @@ class _ReaderPageState extends State<ReaderPage> {
     required VoidCallback? onPressed,
   }) {
     final theme = Theme.of(context);
-    final isDarkReader = _isDarkReadingTheme(context.read<ReadingProvider>());
+    final isDarkReader = _isDarkReadingTheme(ref.read(readingConfigProvider));
     return IconButton(
       icon: Icon(icon, size: 22),
       tooltip: tooltip,
@@ -1270,13 +1318,15 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   Widget _buildNavBar(
-    ReadingProvider provider,
+    CurrentBookController currentBook,
+    ReadingConfigController config,
+    BookmarkController bookmarks,
     ThemeData theme,
     String chapterTitle, {
     required int progressPercent,
     bool showSidebarToggle = false,
   }) {
-    final isDark = _isDarkReadingTheme(provider);
+    final isDark = _isDarkReadingTheme(config);
     final borderColor = isDark
         ? const Color(0xFF3A3A3A).withValues(alpha: 0.72)
         : theme.colorScheme.outlineVariant.withValues(alpha: 0.48);
@@ -1284,18 +1334,19 @@ class _ReaderPageState extends State<ReaderPage> {
         ? const Color(0xFFC8C1B7)
         : theme.colorScheme.onSurfaceVariant;
     final showSearch = _layoutWidth >= 520;
-    final showChapterStep = _layoutWidth >= 680 && provider.chapterCount > 1;
+    final showChapterStep = _layoutWidth >= 680 && currentBook.chapterCount > 1;
     final compactToolbar = _layoutWidth < 760;
     final contentTitle = chapterTitle.trim().isNotEmpty
         ? chapterTitle.trim()
         : '当前位置';
-    final chapterMetaLabel = provider.hasBook
-        ? '${provider.currentChapter + 1} / ${provider.chapterCount} · $progressPercent%'
+    final chapterMetaLabel = currentBook.hasBook
+        ? '${currentBook.currentChapter + 1} / ${currentBook.chapterCount} · $progressPercent%'
         : null;
     final canGoPreviousChapter =
-        provider.hasBook && provider.currentChapter > 0;
+        currentBook.hasBook && currentBook.currentChapter > 0;
     final canGoNextChapter =
-        provider.hasBook && provider.currentChapter < provider.chapterCount - 1;
+        currentBook.hasBook &&
+        currentBook.currentChapter < currentBook.chapterCount - 1;
 
     return Container(
       constraints: const BoxConstraints(minHeight: 44),
@@ -1314,9 +1365,9 @@ class _ReaderPageState extends State<ReaderPage> {
                 key: const ValueKey('reader-toolbar-back'),
                 icon: Icons.arrow_back,
                 tooltip: '返回',
-                onPressed: () => context.read<ReadingProvider>().exitReader(),
+                onPressed: currentBook.exitReader,
               ),
-              _buildTocButton(provider, useDropdown: showSidebarToggle),
+              _buildTocButton(currentBook, useDropdown: showSidebarToggle),
             ],
           ),
           Expanded(
@@ -1333,8 +1384,8 @@ class _ReaderPageState extends State<ReaderPage> {
                         icon: Icons.chevron_left,
                         tooltip: '上一个目录项',
                         onPressed: canGoPreviousChapter
-                            ? () => provider.goToChapter(
-                                provider.currentChapter - 1,
+                            ? () => currentBook.goToChapter(
+                                currentBook.currentChapter - 1,
                               )
                             : null,
                       ),
@@ -1344,7 +1395,7 @@ class _ReaderPageState extends State<ReaderPage> {
                       child: _ReaderLocationSummary(
                         title: contentTitle,
                         metaLabel: chapterMetaLabel,
-                        difficulty: provider.currentBookDifficulty,
+                        difficulty: currentBook.currentBookDifficulty,
                         textColor: toolbarTextColor,
                       ),
                     ),
@@ -1354,8 +1405,8 @@ class _ReaderPageState extends State<ReaderPage> {
                         icon: Icons.chevron_right,
                         tooltip: '下一个目录项',
                         onPressed: canGoNextChapter
-                            ? () => provider.goToChapter(
-                                provider.currentChapter + 1,
+                            ? () => currentBook.goToChapter(
+                                currentBook.currentChapter + 1,
                               )
                             : null,
                       ),
@@ -1377,7 +1428,7 @@ class _ReaderPageState extends State<ReaderPage> {
                     final closingWordSidebar =
                         _sidebarOpen && _sidebarMode == _ReaderSidebarMode.word;
                     if (closingWordSidebar) {
-                      context.read<ReadingProvider>().clearWordLookup();
+                      ref.read(wordLookupProvider).clearWordLookup();
                     }
                     setState(() {
                       if (!_sidebarOpen && _sidebarSelectedText.isEmpty) {
@@ -1395,7 +1446,7 @@ class _ReaderPageState extends State<ReaderPage> {
                 ),
               _buildFontSettingsButton(useDropdown: showSidebarToggle),
               _compactIconButton(
-                icon: provider.isCurrentPositionBookmarked()
+                icon: bookmarks.isCurrentPositionBookmarked()
                     ? Icons.bookmark
                     : Icons.bookmark_outline,
                 tooltip: '书签',
@@ -1425,12 +1476,16 @@ class _ReaderPageState extends State<ReaderPage> {
                       break;
                     case 'prevChapter':
                       if (canGoPreviousChapter) {
-                        provider.goToChapter(provider.currentChapter - 1);
+                        currentBook.goToChapter(
+                          currentBook.currentChapter - 1,
+                        );
                       }
                       break;
                     case 'nextChapter':
                       if (canGoNextChapter) {
-                        provider.goToChapter(provider.currentChapter + 1);
+                        currentBook.goToChapter(
+                          currentBook.currentChapter + 1,
+                        );
                       }
                       break;
                     case 'bookmarks':
@@ -1447,7 +1502,7 @@ class _ReaderPageState extends State<ReaderPage> {
                   if (!showSearch)
                     const PopupMenuItem(value: 'search', child: Text('搜索')),
                   if (!showSearch) const PopupMenuDivider(),
-                  if (provider.hasBook && provider.chapterCount > 1) ...[
+                  if (currentBook.hasBook && currentBook.chapterCount > 1) ...[
                     PopupMenuItem(
                       value: 'prevChapter',
                       enabled: canGoPreviousChapter,
@@ -1486,10 +1541,10 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   Widget _buildTocButton(
-    ReadingProvider provider, {
+    CurrentBookController currentBook, {
     required bool useDropdown,
   }) {
-    if (!provider.hasBook || provider.chapterCount <= 1) {
+    if (!currentBook.hasBook || currentBook.chapterCount <= 1) {
       return const SizedBox.shrink();
     }
 
@@ -1572,7 +1627,7 @@ class _ReaderPageState extends State<ReaderPage> {
     return switch (_sidebarMode) {
       _ReaderSidebarMode.word => ReaderWordSidebar(
         onClose: () {
-          context.read<ReadingProvider>().clearWordLookup();
+          ref.read(wordLookupProvider).clearWordLookup();
           setState(() => _sidebarOpen = false);
         },
       ),
