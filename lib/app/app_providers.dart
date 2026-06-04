@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 
 import '../providers/reading_provider.dart';
 import '../providers/rss_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/ai_cache_service.dart';
 import '../services/ai_service.dart';
 import '../services/backup_service.dart';
@@ -31,28 +33,25 @@ class AppProviders extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = riverpod.ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(settingsProvider);
+
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => _createSettingsService()),
+        ChangeNotifierProvider<SettingsService>.value(value: settings),
         ChangeNotifierProvider(
-          create: (context) =>
-              _createBackupService(context.read<SettingsService>()),
+          create: (_) => _createBackupService(settings),
         ),
         ChangeNotifierProvider(
-          create: (context) =>
-              _createReadingProvider(context.read<SettingsService>()),
+          create: (_) => _createReadingProvider(settings),
         ),
         ChangeNotifierProvider(create: (_) => _createRssProvider()),
       ],
       child: child,
     );
   }
-}
-
-SettingsService _createSettingsService() {
-  final service = SettingsService();
-  service.init();
-  return service;
 }
 
 BackupService _createBackupService(SettingsService settings) {

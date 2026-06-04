@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 
 import 'app/app_providers.dart';
+import 'providers/settings_provider.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/practice_screen.dart';
@@ -15,7 +15,6 @@ import 'screens/settings_screen.dart';
 import 'screens/spaced_review_screen.dart';
 import 'screens/syntax_screen.dart';
 import 'services/app_logger.dart';
-import 'services/settings_service.dart';
 import 'storage/hive_storage.dart';
 import 'theme/app_theme.dart';
 import 'widgets/epub_drop_importer.dart';
@@ -361,8 +360,9 @@ class _FlowReadAppState extends State<FlowReadApp> {
   @override
   Widget build(BuildContext context) {
     return AppProviders(
-      child: Consumer<SettingsService>(
-        builder: (context, settings, _) {
+      child: riverpod.Consumer(
+        builder: (context, ref, _) {
+          final settings = ref.watch(settingsProvider);
           final themeId = settings.appThemeId;
           return ThemeTransitionHost(
             child: MaterialApp(
