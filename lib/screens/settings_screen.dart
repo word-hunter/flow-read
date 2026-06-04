@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 
 import '../providers/backup_provider.dart';
+import '../providers/reading/ai_provider.dart';
 import '../providers/reading_provider.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../services/ai_cache_service.dart';
@@ -545,7 +546,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
           FilledButton(
             onPressed: () async {
               Navigator.pop(dialogContext);
-              await context.read<ReadingProvider>().clearAICache();
+              await ref.read(aiProvider).clearAICache();
               await _refreshCacheStats();
               if (mounted) {
                 _showSnackBar('AI 缓存已清除');

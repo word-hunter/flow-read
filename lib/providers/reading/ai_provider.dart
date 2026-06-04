@@ -40,6 +40,10 @@ class AIController {
     return _reader.generatePractice();
   }
 
+  Future<void> clearAICache() {
+    return _reader.clearAICache();
+  }
+
   void toggleSummaryLanguage() {
     _reader.toggleSummaryLanguage();
   }
