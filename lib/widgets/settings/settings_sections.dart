@@ -994,7 +994,7 @@ class SettingsBackupSection extends StatelessWidget {
   final VoidCallback onImportBackup;
   final VoidCallback onImportWordHunter;
 
-  static const _backupIntervals = <int>[15, 30, 60, 360, 1440];
+  static const _backupIntervals = <int>[60, 360, 1440];
 
   @override
   Widget build(BuildContext context) {

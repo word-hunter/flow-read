@@ -4,10 +4,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
-import 'ai_provider_config.dart';
-import 'dictionary/dictionary_source_config.dart';
 import '../storage/hive_box_names.dart';
 import '../theme/app_theme.dart';
+import 'ai_provider_config.dart';
+import 'dictionary/dictionary_source_config.dart';
 
 class AIUsageStats {
   int chapterSummaryCount;
@@ -73,7 +73,7 @@ class VocabularyColorSettings {
 }
 
 class SettingsService extends ChangeNotifier {
-  static const defaultDailyReadingGoalMinutes = 60;
+  static const defaultDailyReadingGoalMinutes = 1440;
   static const minDailyReadingGoalMinutes = 15;
   static const maxDailyReadingGoalMinutes = 240;
   static const dailyReadingGoalStepMinutes = 15;
