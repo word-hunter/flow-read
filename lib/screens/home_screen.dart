@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
+import '../providers/reading/reading_time_provider.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
@@ -136,7 +138,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _WideHomeLayout extends StatelessWidget {
+class _WideHomeLayout extends riverpod.ConsumerWidget {
   final ReadingProvider provider;
   final bool showRss;
 
@@ -151,8 +153,9 @@ class _WideHomeLayout extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final theme = Theme.of(context);
+    final readingTime = ref.watch(readingTimeProvider);
     final settings = context.watch<SettingsService>();
     final visibleTabs = HomeScreen._visibleTabs(showRss: showRss);
     HomeScreen._redirectHiddenTab(context, provider, visibleTabs);
@@ -167,12 +170,12 @@ class _WideHomeLayout extends StatelessWidget {
           HomeSidebar(
             currentTab: provider.currentTab,
             onTabChanged: provider.switchTab,
-            readingTimeSeconds: provider.weekReadingTimeSeconds,
-            monthReadingTimeSeconds: provider.monthReadingTimeSeconds,
-            weekDailyReadingSeconds: provider.weekDailyReadingSeconds,
-            monthDailyReadingSeconds: provider.monthDailyReadingSeconds,
-            goalDate: provider.readingGoalDate,
-            dailyReadingGoalSeconds: settings.dailyReadingGoalSeconds,
+            readingTimeSeconds: readingTime.weekReadingTimeSeconds,
+            monthReadingTimeSeconds: readingTime.monthReadingTimeSeconds,
+            weekDailyReadingSeconds: readingTime.weekDailyReadingSeconds,
+            monthDailyReadingSeconds: readingTime.monthDailyReadingSeconds,
+            goalDate: readingTime.readingGoalDate,
+            dailyReadingGoalSeconds: readingTime.dailyReadingGoalSeconds,
             onSettingsTap: () =>
                 Navigator.pushNamed(context, SettingsScreen.routeName),
             onThemeToggle: () =>
