@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/reading_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
+import '../providers/reading/current_book_provider.dart';
 import '../widgets/practice_card.dart';
 
-class PracticeScreen extends StatelessWidget {
+class PracticeScreen extends riverpod.ConsumerWidget {
   const PracticeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final result = context.watch<ReadingProvider>().result;
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
+    final result = ref.watch(currentBookProvider).result;
     if (result == null) return const Center(child: CircularProgressIndicator());
 
     final theme = Theme.of(context);
