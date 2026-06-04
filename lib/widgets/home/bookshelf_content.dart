@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../models/book_metadata.dart';
+import '../../providers/reading/bookshelf_provider.dart';
 import '../../providers/reading/reading_time_provider.dart';
-import '../../providers/reading_provider.dart';
 import '../../services/epub_import_source.dart';
 import '../../services/settings_service.dart';
 import 'featured_book_card.dart';
@@ -46,7 +46,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+    final provider = ref.watch(bookshelfProvider);
     final readingTime = ref.watch(readingTimeProvider);
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
@@ -150,19 +150,19 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   }
 
   void _queueDifficultyRatings(
-    ReadingProvider provider,
+    BookshelfController provider,
     List<BookMetadata> books,
   ) {
     if (books.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(context.read<ReadingProvider>().ensureBookDifficulties(books));
+      unawaited(provider.ensureBookDifficulties(books));
     });
   }
 
   List<BookMetadata> _sortedBooks(
     List<BookMetadata> books,
-    ReadingProvider provider,
+    BookshelfController provider,
   ) {
     final sorted = [...books];
     int byTitle(BookMetadata a, BookMetadata b) {
@@ -210,7 +210,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     return bTime.compareTo(aTime);
   }
 
-  Widget _buildHeader(ThemeData theme, ReadingProvider provider) {
+  Widget _buildHeader(ThemeData theme, BookshelfController provider) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       child: LayoutBuilder(
@@ -260,7 +260,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
 
   Widget _buildDifficultyLoadingBanner(
     ThemeData theme,
-    ReadingProvider provider,
+    BookshelfController provider,
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -362,7 +362,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
 
   Widget _buildBookshelfHeader(
     ThemeData theme,
-    ReadingProvider provider, {
+    BookshelfController provider, {
     required int bookCount,
     required bool isDifficultyLoading,
   }) {
@@ -415,7 +415,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     );
   }
 
-  Widget _buildSortMenu(ThemeData theme, ReadingProvider provider) {
+  Widget _buildSortMenu(ThemeData theme, BookshelfController provider) {
     return PopupMenuButton<_BookSortMode>(
       tooltip: '排序',
       initialValue: _sortMode,
@@ -464,7 +464,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     );
   }
 
-  void _onSortSelected(ReadingProvider provider, _BookSortMode value) {
+  void _onSortSelected(BookshelfController provider, _BookSortMode value) {
     setState(() => _sortMode = value);
     if (value == _BookSortMode.difficulty) {
       unawaited(provider.ensureBookDifficulties(provider.allBooks));
@@ -501,7 +501,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
 
   Widget _buildEmptyState(
     BuildContext context,
-    ReadingProvider provider,
+    BookshelfController provider,
     ThemeData theme,
   ) {
     return Center(
@@ -554,7 +554,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     );
   }
 
-  void _openBook(ReadingProvider provider, String bookId) async {
+  void _openBook(BookshelfController provider, String bookId) async {
     final opened = await provider.switchToBook(bookId);
     if (!mounted) return;
     if (!opened) {
@@ -568,7 +568,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   }
 
   Future<void> _confirmRemoveBook(
-    ReadingProvider provider,
+    BookshelfController provider,
     BookMetadata book,
   ) async {
     final confirmed = await showDialog<bool>(
@@ -607,7 +607,10 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     ).showSnackBar(SnackBar(content: Text('已移除《${book.title}》')));
   }
 
-  Future<void> _renameBook(ReadingProvider provider, BookMetadata book) async {
+  Future<void> _renameBook(
+    BookshelfController provider,
+    BookMetadata book,
+  ) async {
     final controller = TextEditingController(text: book.title);
     final renamedTitle = await showDialog<String>(
       context: context,
@@ -645,7 +648,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     ).showSnackBar(SnackBar(content: Text('已重命名为《$trimmed》')));
   }
 
-  Future<void> _importEpub(ReadingProvider provider) async {
+  Future<void> _importEpub(BookshelfController provider) async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['epub'],
