@@ -1,11 +1,13 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flow_read/providers/backup_provider.dart';
 import 'package:flow_read/screens/settings_screen.dart';
 import 'package:flow_read/services/app_links.dart';
 import 'package:flow_read/services/app_version.dart';
 import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/material.dart';
 
 import 'support/hive_test_storage.dart';
 
@@ -21,20 +23,16 @@ void main() {
     backup = BackupService(settings);
   });
 
-  tearDown(() async {
-    backup.dispose();
-  });
-
   testWidgets('Settings screen renders redesigned settings sections', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider.value(value: settings),
-          ChangeNotifierProvider.value(value: backup),
-        ],
-        child: const MaterialApp(home: SettingsScreen()),
+      riverpod.ProviderScope(
+        overrides: [backupProvider.overrideWith((ref) => backup)],
+        child: MultiProvider(
+          providers: [ChangeNotifierProvider.value(value: settings)],
+          child: const MaterialApp(home: SettingsScreen()),
+        ),
       ),
     );
 

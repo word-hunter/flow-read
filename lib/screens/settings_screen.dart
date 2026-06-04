@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 
+import '../providers/backup_provider.dart';
 import '../providers/reading_provider.dart';
 import '../providers/rss_provider.dart';
 import '../services/ai_cache_service.dart';
@@ -29,7 +31,7 @@ import '../widgets/settings/settings_sections.dart';
 import '../widgets/settings/update_check_result_dialog.dart';
 import '../widgets/theme_transition.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends riverpod.ConsumerStatefulWidget {
   const SettingsScreen({
     super.key,
     this.appUpdateService,
@@ -46,10 +48,11 @@ class SettingsScreen extends StatefulWidget {
   final LogFolderOpener? logFolderOpener;
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  riverpod.ConsumerState<SettingsScreen> createState() =>
+      _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
   final _apiKeyController = TextEditingController();
   final _baseUrlController = TextEditingController();
   final _modelController = TextEditingController();
@@ -113,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsService>();
-    final backup = context.watch<BackupService>();
+    final backup = ref.watch(backupProvider);
     final theme = Theme.of(context);
     _syncAIControllers(settings);
 
@@ -650,7 +653,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await _confirmImport();
     if (!confirmed || !mounted) return;
 
-    final backup = context.read<BackupService>();
+    final backup = ref.read(backupProvider);
     final readingProvider = context.read<ReadingProvider>();
     final rssProvider = context.read<RssProvider>();
 
@@ -679,7 +682,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await _confirmWordHunterImport();
     if (!confirmed || !mounted) return;
 
-    final backup = context.read<BackupService>();
+    final backup = ref.read(backupProvider);
     final readingProvider = context.read<ReadingProvider>();
 
     setState(() => _importingWordHunter = true);

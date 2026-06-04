@@ -9,7 +9,6 @@ import '../providers/rss_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/ai_cache_service.dart';
 import '../services/ai_service.dart';
-import '../services/backup_service.dart';
 import '../services/book_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/dictionary/dictionary_manager_service.dart';
@@ -42,9 +41,6 @@ class AppProviders extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<SettingsService>.value(value: settings),
         ChangeNotifierProvider(
-          create: (_) => _createBackupService(settings),
-        ),
-        ChangeNotifierProvider(
           create: (_) => _createReadingProvider(settings),
         ),
         ChangeNotifierProvider(create: (_) => _createRssProvider()),
@@ -52,12 +48,6 @@ class AppProviders extends StatelessWidget {
       child: child,
     );
   }
-}
-
-BackupService _createBackupService(SettingsService settings) {
-  final service = BackupService(settings);
-  service.init();
-  return service;
 }
 
 ReadingProvider _createReadingProvider(SettingsService settings) {
