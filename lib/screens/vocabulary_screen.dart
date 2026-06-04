@@ -1,24 +1,26 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/aggregated_vocabulary.dart';
 import '../models/learning_item.dart';
 import '../models/user_vocabulary.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/vocabulary_provider.dart';
+import '../providers/reading/word_lookup_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/word_bottom_sheet.dart';
 import '../widgets/word_mastery_confetti.dart';
 
 enum _VocabularyView { words, cards }
 
-class VocabularyScreen extends StatefulWidget {
+class VocabularyScreen extends riverpod.ConsumerStatefulWidget {
   const VocabularyScreen({super.key});
 
   @override
-  State<VocabularyScreen> createState() => _VocabularyScreenState();
+  riverpod.ConsumerState<VocabularyScreen> createState() =>
+      _VocabularyScreenState();
 }
 
-class _VocabularyScreenState extends State<VocabularyScreen> {
+class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
   bool _sortAlpha = false;
   _VocabularyView _view = _VocabularyView.words;
   final TextEditingController _searchController = TextEditingController();
@@ -50,10 +52,11 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+    final vocabulary = ref.watch(vocabularyProvider);
+    final lookup = ref.watch(wordLookupProvider);
     final theme = Theme.of(context);
-    final allVocab = provider.getAllVocabulary(alphabetical: _sortAlpha);
-    final allLearningItems = provider.learningItems;
+    final allVocab = vocabulary.getAllVocabulary(alphabetical: _sortAlpha);
+    final allLearningItems = vocabulary.learningItems;
 
     final filtered = _searchQuery.isEmpty
         ? allVocab
@@ -63,10 +66,12 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
         : allLearningItems.where((item) => _matchesLearningItem(item)).toList();
 
     final unknownCount = filtered
-        .where((v) => provider.getWordStatus(v.word) == null)
+        .where((v) => vocabulary.getWordStatus(v.word) == null)
         .length;
     final learningCount = filtered
-        .where((v) => provider.getWordStatus(v.word) == UserWordStatus.learning)
+        .where(
+          (v) => vocabulary.getWordStatus(v.word) == UserWordStatus.learning,
+        )
         .length;
 
     return Scaffold(
@@ -94,17 +99,16 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                         final vocab = filtered[index];
                         return _VocabItem(
                           vocab: vocab,
-                          status: provider.getWordStatus(vocab.word),
-                          onMarkKnown: (origin) => provider.markWordKnown(
+                          status: vocabulary.getWordStatus(vocab.word),
+                          onMarkKnown: (origin) => vocabulary.markWordKnown(
                             vocab.word,
                             celebrationOrigin: origin,
                           ),
                           onMarkLearning: () =>
-                              provider.markWordLearning(vocab.word),
+                              vocabulary.markWordLearning(vocab.word),
                           onMarkUnknown: () =>
-                              provider.markWordUnknown(vocab.word),
-                          onTap: () =>
-                              _openWordDetail(context, provider, vocab),
+                              vocabulary.markWordUnknown(vocab.word),
+                          onTap: () => _openWordDetail(context, lookup, vocab),
                         );
                       },
                     ),
@@ -121,7 +125,8 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                         final item = filteredLearningItems[index];
                         return _LearningItemCard(
                           item: item,
-                          onDelete: () => provider.deleteLearningItem(item.id),
+                          onDelete: () =>
+                              vocabulary.deleteLearningItem(item.id),
                         );
                       },
                     ),
@@ -143,16 +148,16 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
 
   void _openWordDetail(
     BuildContext context,
-    ReadingProvider provider,
+    WordLookupController lookup,
     AggregatedVocabulary vocab,
   ) {
-    provider.lookupWord(vocab.word, contextText: vocab.context);
+    lookup.lookupWord(vocab.word, contextText: vocab.context);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => WordBottomSheet(word: vocab.word),
-    ).whenComplete(provider.clearWordLookup);
+    ).whenComplete(lookup.clearWordLookup);
   }
 
   Widget _buildSearchBar(ThemeData theme) {

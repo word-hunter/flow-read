@@ -1,33 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 import '../models/ai_practice_questions.dart';
 import '../models/review_question.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/ai_provider.dart';
+import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/learning_provider.dart';
 import '../services/review_service.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
 
-class ReviewScreen extends StatefulWidget {
+class ReviewScreen extends riverpod.ConsumerStatefulWidget {
   const ReviewScreen({super.key});
 
   @override
-  State<ReviewScreen> createState() => _ReviewScreenState();
+  riverpod.ConsumerState<ReviewScreen> createState() => _ReviewScreenState();
 }
 
-class _ReviewScreenState extends State<ReviewScreen> {
+class _ReviewScreenState extends riverpod.ConsumerState<ReviewScreen> {
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
-    final result = provider.result;
+    final currentBook = ref.watch(currentBookProvider);
+    final ai = ref.watch(aiProvider);
+    final result = currentBook.result;
     if (result == null) return const Center(child: CircularProgressIndicator());
 
     final chapterTitle =
-        provider.book?.chapters[provider.currentChapter].title ?? result.title;
+        currentBook.book?.chapters[currentBook.currentChapter].title ??
+        result.title;
 
-    final aiPractice = provider.aiPractice;
+    final aiPractice = ai.aiPractice;
 
-    if (provider.isGeneratingPractice) {
+    if (ai.isGeneratingPractice) {
       return Scaffold(
         appBar: AppBar(title: const Text('正在生成练习题...')),
         body: const Center(
@@ -466,17 +471,17 @@ class _QuestionCardState extends State<_QuestionCard> {
   }
 }
 
-class _AIReview extends StatefulWidget {
+class _AIReview extends riverpod.ConsumerStatefulWidget {
   final String chapterTitle;
   final List<PracticeQuestion> questions;
 
   const _AIReview({required this.chapterTitle, required this.questions});
 
   @override
-  State<_AIReview> createState() => _AIReviewState();
+  riverpod.ConsumerState<_AIReview> createState() => _AIReviewState();
 }
 
-class _AIReviewState extends State<_AIReview> {
+class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
   final Map<int, int?> _selectedAnswers = {};
   final Map<int, bool> _showAnswers = {};
   final Map<int, PracticeAnswerRecord> _answerRecords = {};
@@ -512,7 +517,7 @@ class _AIReviewState extends State<_AIReview> {
           TextButton.icon(
             onPressed: settings.aiFeaturesEnabled
                 ? () {
-                    context.read<ReadingProvider>().generatePractice();
+                    ref.read(aiProvider).generatePractice();
                   }
                 : null,
             icon: const Icon(Icons.refresh, size: 16),
@@ -832,7 +837,7 @@ class _AIReviewState extends State<_AIReview> {
 
     final selectedAnswer = options[selectedIndex].text;
     final isCorrect = selectedAnswer == question.answer;
-    final provider = context.read<ReadingProvider>();
+    final learning = ref.read(learningProvider);
     setState(() {
       _showAnswers[index] = true;
       _answerRecords[index] = PracticeAnswerRecord(
@@ -844,15 +849,17 @@ class _AIReviewState extends State<_AIReview> {
       );
     });
 
-    await provider.recordPracticeAnswer(isCorrect: isCorrect);
+    await learning.recordPracticeAnswer(isCorrect: isCorrect);
     if (isCorrect) return;
-    await provider.addPracticeMistakeLearningItem(question, selectedAnswer);
+    await learning.addPracticeMistakeLearningItem(question, selectedAnswer);
   }
 
   void _showSourceInReader(PracticeQuestion question) {
-    context.read<ReadingProvider>().highlightSourceExcerpt(
-      question.sourceExcerpt,
-    );
+    ref
+        .read(currentBookProvider)
+        .highlightSourceExcerpt(
+          question.sourceExcerpt,
+        );
     Navigator.pop(context);
   }
 }

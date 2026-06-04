@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/backup_provider.dart';
 import '../providers/reading/ai_provider.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/bookshelf_provider.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../services/ai_cache_service.dart';
 import '../services/app_update_installer.dart';
@@ -655,12 +655,12 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     if (!confirmed || !mounted) return;
 
     final backup = ref.read(backupProvider);
-    final readingProvider = context.read<ReadingProvider>();
+    final bookshelf = ref.read(bookshelfProvider);
     final rssNotifier = ref.read(rssProvider);
 
     try {
       await backup.importBackupFile(path);
-      await readingProvider.reloadAfterBackupRestore();
+      await bookshelf.reloadAfterBackupRestore();
       await rssNotifier.init();
       if (!mounted) return;
       _showSnackBar('备份已导入');
@@ -684,12 +684,12 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     if (!confirmed || !mounted) return;
 
     final backup = ref.read(backupProvider);
-    final readingProvider = context.read<ReadingProvider>();
+    final bookshelf = ref.read(bookshelfProvider);
 
     setState(() => _importingWordHunter = true);
     try {
       final importResult = await backup.importWordHunterBackupFile(path);
-      await readingProvider.init();
+      await bookshelf.reloadAfterWordHunterImport();
       if (!mounted) return;
       _showSnackBar(
         'Word Hunter 已导入：${importResult.knownCount} 个熟词、'

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/analysis_result.dart';
 import '../models/user_vocabulary.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/bookmark_provider.dart';
+import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/vocabulary_provider.dart';
+import '../providers/reading/word_lookup_provider.dart';
 import '../theme/app_colors.dart';
 import 'dictionary_detail_view.dart';
 import 'pronunciation_button.dart';
@@ -28,7 +31,7 @@ Color _sidebarLevelColor(String level) {
   }
 }
 
-class ReaderSidebar extends StatelessWidget {
+class ReaderSidebar extends ConsumerWidget {
   final AnalysisResult result;
   final WordTapCallback onWordTapped;
 
@@ -39,30 +42,33 @@ class ReaderSidebar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentBook = ref.watch(currentBookProvider);
+    final lookup = ref.watch(wordLookupProvider);
+    final vocabulary = ref.watch(vocabularyProvider);
+    final bookmarks = ref.watch(bookmarkProvider);
     final theme = Theme.of(context);
 
     return Column(
       children: [
-        _buildHeader(theme, provider),
-        if (provider.hasBook && provider.chapterCount > 1) ...[
-          _buildChapterList(context, theme, provider),
+        _buildHeader(theme),
+        if (currentBook.hasBook && currentBook.chapterCount > 1) ...[
+          _buildChapterList(context, theme, currentBook),
           Divider(
             height: 1,
             color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
           ),
         ],
         Expanded(
-          child: _buildVocabularyPanel(context, theme, result, provider),
+          child: _buildVocabularyPanel(context, theme, result, lookup),
         ),
-        if (provider.selectedWord != null)
-          _buildFloatingWordCard(theme, provider),
+        if (lookup.selectedWord != null)
+          _buildFloatingWordCard(theme, lookup, vocabulary, bookmarks),
       ],
     );
   }
 
-  Widget _buildHeader(ThemeData theme, ReadingProvider provider) {
+  Widget _buildHeader(ThemeData theme) {
     final unknownCount = result.vocabulary
         .where((v) => v.familiarity <= 0.3)
         .length;
@@ -128,15 +134,15 @@ class ReaderSidebar extends StatelessWidget {
   Widget _buildChapterList(
     BuildContext context,
     ThemeData theme,
-    ReadingProvider provider,
+    CurrentBookController currentBook,
   ) {
     return SizedBox(
       height: 160,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 4),
-        itemCount: provider.chapterCount,
+        itemCount: currentBook.chapterCount,
         itemBuilder: (context, index) {
-          final isSelected = index == provider.currentChapter;
+          final isSelected = index == currentBook.currentChapter;
           return ListTile(
             dense: true,
             selected: isSelected,
@@ -160,14 +166,14 @@ class ReaderSidebar extends StatelessWidget {
               ),
             ),
             title: Text(
-              provider.book!.chapters[index].title,
+              currentBook.book!.chapters[index].title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
-            onTap: () => provider.goToChapter(index),
+            onTap: () => currentBook.goToChapter(index),
           );
         },
       ),
@@ -178,7 +184,7 @@ class ReaderSidebar extends StatelessWidget {
     BuildContext context,
     ThemeData theme,
     AnalysisResult result,
-    ReadingProvider provider,
+    WordLookupController lookup,
   ) {
     if (result.vocabulary.isEmpty) {
       return Center(
@@ -198,7 +204,7 @@ class ReaderSidebar extends StatelessWidget {
         final vocab = result.vocabulary[index];
         final isSelected =
             vocab.word.toLowerCase() ==
-            (provider.selectedWord?.toLowerCase() ?? '');
+            (lookup.selectedWord?.toLowerCase() ?? '');
 
         return Card(
           elevation: 0,
@@ -317,8 +323,14 @@ class ReaderSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildFloatingWordCard(ThemeData theme, ReadingProvider provider) {
-    final status = provider.getWordStatus(provider.selectedWord!);
+  Widget _buildFloatingWordCard(
+    ThemeData theme,
+    WordLookupController lookup,
+    VocabularyController vocabulary,
+    BookmarkController bookmarks,
+  ) {
+    final word = lookup.selectedWord!;
+    final status = vocabulary.getWordStatus(word);
 
     return Container(
       margin: const EdgeInsets.all(8),
@@ -346,7 +358,7 @@ class ReaderSidebar extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  provider.selectedWord!,
+                  word,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Serif',
@@ -355,20 +367,20 @@ class ReaderSidebar extends StatelessWidget {
               ),
               IconButton(
                 icon: Icon(
-                  provider.isBookmarked(provider.selectedWord!)
+                  bookmarks.isBookmarked(word)
                       ? Icons.bookmark
                       : Icons.bookmark_border,
                   size: 20,
                   color: theme.colorScheme.primary,
                 ),
                 onPressed: () {
-                  if (provider.selectedWordTranslation != null) {
-                    if (provider.isBookmarked(provider.selectedWord!)) {
-                      provider.removeBookmark(provider.selectedWord!);
+                  if (lookup.selectedWordTranslation != null) {
+                    if (bookmarks.isBookmarked(word)) {
+                      bookmarks.removeBookmark(word);
                     } else {
-                      provider.addBookmark(
-                        provider.selectedWord!,
-                        provider.selectedWordTranslation!,
+                      bookmarks.addBookmark(
+                        word,
+                        lookup.selectedWordTranslation!,
                       );
                     }
                   }
@@ -376,25 +388,25 @@ class ReaderSidebar extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
-              if (provider.canPronounceWords)
+              if (lookup.canPronounceWords)
                 PronunciationButton(
-                  word: provider.selectedWord!,
-                  onSpeakWord: provider.speakWord,
+                  word: word,
+                  onSpeakWord: lookup.speakWord,
                   buttonSize: 32,
                   iconSize: 18,
                 ),
               IconButton(
                 icon: const Icon(Icons.close, size: 18),
-                onPressed: provider.clearWordLookup,
+                onPressed: lookup.clearWordLookup,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          DictionaryDetailView.fromProvider(
-            provider: provider,
-            word: provider.selectedWord!,
+          DictionaryDetailView.fromWordLookup(
+            lookup: lookup,
+            word: word,
             showWordHeader: false,
           ),
           const SizedBox(height: 10),
@@ -406,8 +418,8 @@ class ReaderSidebar extends StatelessWidget {
                     label: 'Known',
                     icon: Icons.check_circle_outline,
                     color: AppColors.familiarityHigh,
-                    onTap: () => provider.markWordKnown(
-                      provider.selectedWord!,
+                    onTap: () => vocabulary.markWordKnown(
+                      word,
                       celebrationOrigin: origin(),
                     ),
                   ),
@@ -417,15 +429,14 @@ class ReaderSidebar extends StatelessWidget {
                   label: 'Learning',
                   icon: Icons.school_outlined,
                   color: AppColors.vocabLearning,
-                  onTap: () =>
-                      provider.markWordLearning(provider.selectedWord!),
+                  onTap: () => vocabulary.markWordLearning(word),
                 ),
               if (status != null)
                 _miniActionChip(
                   label: 'Unknown',
                   icon: Icons.help_outline,
                   color: AppColors.familiarityLow,
-                  onTap: () => provider.markWordUnknown(provider.selectedWord!),
+                  onTap: () => vocabulary.markWordUnknown(word),
                 ),
             ],
           ),

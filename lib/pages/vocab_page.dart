@@ -1,22 +1,23 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/aggregated_vocabulary.dart';
 import '../models/user_vocabulary.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/vocabulary_provider.dart';
+import '../providers/reading/word_lookup_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/dictionary_detail_view.dart';
 import '../widgets/pronunciation_button.dart';
 import '../widgets/word_mastery_confetti.dart';
 
-class VocabPage extends StatefulWidget {
+class VocabPage extends riverpod.ConsumerStatefulWidget {
   const VocabPage({super.key});
 
   @override
-  State<VocabPage> createState() => _VocabPageState();
+  riverpod.ConsumerState<VocabPage> createState() => _VocabPageState();
 }
 
-class _VocabPageState extends State<VocabPage> {
+class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
   static const _showCount = 50;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -49,7 +50,8 @@ class _VocabPageState extends State<VocabPage> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+    final vocabulary = ref.watch(vocabularyProvider);
+    final lookup = ref.watch(wordLookupProvider);
     final theme = Theme.of(context);
 
     return Container(
@@ -68,16 +70,16 @@ class _VocabPageState extends State<VocabPage> {
         borderRadius: BorderRadius.circular(24),
         child: Column(
           children: [
-            _buildHeader(provider, theme),
+            _buildHeader(vocabulary, theme),
             _buildSearchBar(theme),
-            Expanded(child: _buildBody(provider, theme)),
+            Expanded(child: _buildBody(vocabulary, lookup, theme)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(ReadingProvider provider, ThemeData theme) {
+  Widget _buildHeader(VocabularyController vocabulary, ThemeData theme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
@@ -105,7 +107,7 @@ class _VocabPageState extends State<VocabPage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${provider.totalVocabularyCount} words',
+              '${vocabulary.totalVocabularyCount} words',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -152,12 +154,16 @@ class _VocabPageState extends State<VocabPage> {
     );
   }
 
-  Widget _buildBody(ReadingProvider provider, ThemeData theme) {
-    if (provider.selectedWord != null) {
-      return _buildWordDetail(context, provider, theme);
+  Widget _buildBody(
+    VocabularyController vocabulary,
+    WordLookupController lookup,
+    ThemeData theme,
+  ) {
+    if (lookup.selectedWord != null) {
+      return _buildWordDetail(context, lookup, theme);
     }
 
-    final allVocab = provider.getAllVocabulary();
+    final allVocab = vocabulary.getAllVocabulary();
     final filtered = _searchQuery.isEmpty
         ? allVocab
         : allVocab.where((v) => v.word.contains(_searchQuery)).toList();
@@ -213,12 +219,12 @@ class _VocabPageState extends State<VocabPage> {
         final vocab = filtered[index];
         return _VocabItem(
           vocab: vocab,
-          status: provider.getWordStatus(vocab.word),
+          status: vocabulary.getWordStatus(vocab.word),
           onMarkKnown: (origin) =>
-              provider.markWordKnown(vocab.word, celebrationOrigin: origin),
-          onMarkLearning: () => provider.markWordLearning(vocab.word),
-          onMarkUnknown: () => provider.markWordUnknown(vocab.word),
-          onTap: () => provider.lookupWord(vocab.word),
+              vocabulary.markWordKnown(vocab.word, celebrationOrigin: origin),
+          onMarkLearning: () => vocabulary.markWordLearning(vocab.word),
+          onMarkUnknown: () => vocabulary.markWordUnknown(vocab.word),
+          onTap: () => lookup.lookupWord(vocab.word),
         );
       },
     );
@@ -226,10 +232,10 @@ class _VocabPageState extends State<VocabPage> {
 
   Widget _buildWordDetail(
     BuildContext context,
-    ReadingProvider provider,
+    WordLookupController lookup,
     ThemeData theme,
   ) {
-    final word = provider.selectedWord!;
+    final word = lookup.selectedWord!;
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -249,16 +255,16 @@ class _VocabPageState extends State<VocabPage> {
                     ),
                   ),
                 ),
-                if (provider.canPronounceWords)
+                if (lookup.canPronounceWords)
                   PronunciationButton(
                     word: word,
-                    onSpeakWord: provider.speakWord,
+                    onSpeakWord: lookup.speakWord,
                     buttonSize: 32,
                     iconSize: 18,
                   ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 20),
-                  onPressed: provider.clearWordLookup,
+                  onPressed: lookup.clearWordLookup,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
                     minWidth: 32,
@@ -268,8 +274,8 @@ class _VocabPageState extends State<VocabPage> {
               ],
             ),
             const SizedBox(height: 12),
-            DictionaryDetailView.fromProvider(
-              provider: provider,
+            DictionaryDetailView.fromWordLookup(
+              lookup: lookup,
               word: word,
               showWordHeader: false,
             ),

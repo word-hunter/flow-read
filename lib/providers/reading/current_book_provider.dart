@@ -13,6 +13,7 @@ class CurrentBookController {
   Book? get book => _reader.book;
   AnalysisResult? get result => _reader.result;
   int get currentChapter => _reader.currentChapter;
+  int get chapterCount => _reader.chapterCount;
   bool get isReading => _reader.isReading;
   bool get hasBook => _reader.hasBook;
   bool get hasBeenOpened => _reader.hasBeenOpened;
@@ -24,6 +25,10 @@ class CurrentBookController {
 
   void switchTab(int index) {
     _reader.switchTab(index);
+  }
+
+  void highlightSourceExcerpt(String excerpt) {
+    _reader.highlightSourceExcerpt(excerpt);
   }
 }
 

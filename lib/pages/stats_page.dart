@@ -1,28 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/book_difficulty.dart';
 import '../models/learning_analytics.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/bookmark_provider.dart';
+import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/vocabulary_provider.dart';
 import '../widgets/reading_desk/donut_chart_painter.dart';
 
-class StatsPage extends StatelessWidget {
+class StatsPage extends ConsumerWidget {
   const StatsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vocabulary = ref.watch(vocabularyProvider);
+    final bookmarks = ref.watch(bookmarkProvider);
+    final currentBook = ref.watch(currentBookProvider);
     final theme = Theme.of(context);
-    final userVocab = provider.userVocabulary;
-    final allVocab = provider.getAllVocabulary();
-    final bookDifficulty = provider.currentBookDifficulty;
-    final chapterReport = provider.currentChapterLearningReport;
-    final weeklySummary = provider.weeklyLearningSummary;
+    final allVocab = vocabulary.getAllVocabulary();
+    final bookDifficulty = vocabulary.currentBookDifficulty;
+    final chapterReport = vocabulary.currentChapterLearningReport;
+    final weeklySummary = vocabulary.weeklyLearningSummary;
 
-    final knownCount = userVocab?.knownWords.length ?? 0;
-    final learningCount = userVocab?.learningWords.length ?? 0;
+    final knownCount = vocabulary.knownWordCount;
+    final learningCount = vocabulary.learningWordCount;
     final newCount = allVocab
-        .where((v) => provider.getWordStatus(v.word) == null)
+        .where((v) => vocabulary.getWordStatus(v.word) == null)
         .length;
     final total = knownCount + learningCount + newCount;
     final donutSegments = _buildDonutSegments(
@@ -77,7 +80,13 @@ class StatsPage extends StatelessWidget {
                       centerPercent: centerPercent,
                     ),
                     const SizedBox(height: 14),
-                    _buildStatGrid(context, knownCount, provider),
+                    _buildStatGrid(
+                      context,
+                      knownCount: knownCount,
+                      totalVocabularyCount: vocabulary.totalVocabularyCount,
+                      bookmarkCount: bookmarks.bookmarkedWords.length,
+                      chapterCount: currentBook.chapterCount,
+                    ),
                   ],
                 ),
               ),
@@ -506,27 +515,29 @@ class StatsPage extends StatelessWidget {
   }
 
   Widget _buildStatGrid(
-    BuildContext context,
-    int knownCount,
-    ReadingProvider provider,
-  ) {
+    BuildContext context, {
+    required int knownCount,
+    required int totalVocabularyCount,
+    required int bookmarkCount,
+    required int chapterCount,
+  }) {
     return _MetricGrid(
       metrics: [
         _MetricData(icon: Icons.menu_book, label: '总掌握词', value: '$knownCount'),
         _MetricData(
           icon: Icons.school,
           label: '当前词汇',
-          value: '${provider.totalVocabularyCount}',
+          value: '$totalVocabularyCount',
         ),
         _MetricData(
           icon: Icons.bookmark,
           label: '书签',
-          value: '${provider.bookmarkedWords.length}',
+          value: '$bookmarkCount',
         ),
         _MetricData(
           icon: Icons.menu_book_outlined,
           label: '目录项',
-          value: '${provider.chapterCount}',
+          value: '$chapterCount',
         ),
       ],
     );

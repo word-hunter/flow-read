@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/word_lookup_provider.dart';
 import '../services/common_words.dart';
 import '../services/english_word_utils.dart';
 import '../services/language/language_module.dart';
@@ -941,7 +942,7 @@ bool _isCommonContraction(
 
 Widget buildChapterNav(
   BuildContext context,
-  ReadingProvider provider,
+  CurrentBookController currentBook,
   ThemeData theme,
 ) {
   return Container(
@@ -959,13 +960,13 @@ Widget buildChapterNav(
         IconButton(
           icon: const Icon(Icons.chevron_left),
           tooltip: '上一个目录项',
-          onPressed: provider.currentChapter > 0
-              ? () => provider.goToChapter(provider.currentChapter - 1)
+          onPressed: currentBook.currentChapter > 0
+              ? () => currentBook.goToChapter(currentBook.currentChapter - 1)
               : null,
         ),
         Expanded(
           child: Text(
-            '位置 ${provider.currentChapter + 1} / ${provider.chapterCount}',
+            '位置 ${currentBook.currentChapter + 1} / ${currentBook.chapterCount}',
             textAlign: TextAlign.center,
             style: theme.textTheme.labelMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
@@ -975,8 +976,8 @@ Widget buildChapterNav(
         IconButton(
           icon: const Icon(Icons.chevron_right),
           tooltip: '下一个目录项',
-          onPressed: provider.currentChapter < provider.chapterCount - 1
-              ? () => provider.goToChapter(provider.currentChapter + 1)
+          onPressed: currentBook.currentChapter < currentBook.chapterCount - 1
+              ? () => currentBook.goToChapter(currentBook.currentChapter + 1)
               : null,
         ),
       ],
@@ -1043,7 +1044,7 @@ Widget buildProgressBar(
 
 Widget buildInlineDictionaryPopup(
   BuildContext context,
-  ReadingProvider provider,
+  WordLookupController lookup,
   ThemeData theme,
 ) {
   return Container(
@@ -1055,11 +1056,11 @@ Widget buildInlineDictionaryPopup(
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildPopupHeader(provider, theme),
+        _buildPopupHeader(lookup, theme),
         Flexible(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: _buildDictionaryContent(provider, theme),
+            child: _buildDictionaryContent(lookup, theme),
           ),
         ),
       ],
@@ -1067,7 +1068,9 @@ Widget buildInlineDictionaryPopup(
   );
 }
 
-Widget _buildPopupHeader(ReadingProvider provider, ThemeData theme) {
+Widget _buildPopupHeader(WordLookupController lookup, ThemeData theme) {
+  final word = lookup.selectedWord;
+  if (word == null) return const SizedBox.shrink();
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     decoration: BoxDecoration(
@@ -1084,29 +1087,29 @@ Widget _buildPopupHeader(ReadingProvider provider, ThemeData theme) {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            provider.selectedWord!,
+            word,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
-        if (provider.isLoadingWord)
+        if (lookup.isLoadingWord)
           const SizedBox(
             width: 18,
             height: 18,
             child: CircularProgressIndicator(strokeWidth: 2),
           )
         else ...[
-          if (provider.canPronounceWords)
+          if (lookup.canPronounceWords)
             PronunciationButton(
-              word: provider.selectedWord!,
-              onSpeakWord: provider.speakWord,
+              word: word,
+              onSpeakWord: lookup.speakWord,
               buttonSize: 32,
               iconSize: 18,
             ),
           IconButton(
             icon: const Icon(Icons.close, size: 18),
-            onPressed: provider.clearWordLookup,
+            onPressed: lookup.clearWordLookup,
           ),
         ],
       ],
@@ -1114,11 +1117,11 @@ Widget _buildPopupHeader(ReadingProvider provider, ThemeData theme) {
   );
 }
 
-Widget _buildDictionaryContent(ReadingProvider provider, ThemeData _) {
-  final word = provider.selectedWord;
+Widget _buildDictionaryContent(WordLookupController lookup, ThemeData _) {
+  final word = lookup.selectedWord;
   if (word == null) return const SizedBox.shrink();
-  return DictionaryDetailView.fromProvider(
-    provider: provider,
+  return DictionaryDetailView.fromWordLookup(
+    lookup: lookup,
     word: word,
     showWordHeader: false,
   );

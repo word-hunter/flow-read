@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading/bookmark_provider.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/vocabulary_provider.dart';
+import '../providers/reading/word_lookup_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
 import 'dictionary_detail_view.dart';
@@ -27,11 +28,12 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+    final lookup = ref.watch(wordLookupProvider);
+    final vocabulary = ref.watch(vocabularyProvider);
     final bookmarks = ref.watch(bookmarkProvider);
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
-    final word = provider.selectedWord ?? widget.word;
+    final word = lookup.selectedWord ?? widget.word;
     if (_currentWord != word) {
       _currentWord = word;
       _bookmarkAdded = false;
@@ -39,7 +41,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
       _showAIAnalysis = false;
     }
     final isBookmarked = bookmarks.isBookmarked(word) || _bookmarkAdded;
-    final status = provider.getWordStatus(word);
+    final status = vocabulary.getWordStatus(word);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.45,
@@ -59,11 +61,12 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                 child: SingleChildScrollView(
                   controller: scrollController,
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-                  child: _buildContent(provider, word),
+                  child: _buildContent(lookup, word),
                 ),
               ),
               _buildBottomActions(
-                provider,
+                lookup,
+                vocabulary,
                 bookmarks,
                 settings,
                 theme,
@@ -108,12 +111,13 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     );
   }
 
-  Widget _buildContent(ReadingProvider provider, String word) {
-    return DictionaryDetailView.fromProvider(provider: provider, word: word);
+  Widget _buildContent(WordLookupController lookup, String word) {
+    return DictionaryDetailView.fromWordLookup(lookup: lookup, word: word);
   }
 
   Widget _buildBottomActions(
-    ReadingProvider provider,
+    WordLookupController lookup,
+    VocabularyController vocabulary,
     BookmarkController bookmarks,
     SettingsService settings,
     ThemeData theme,
@@ -138,14 +142,14 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: provider.isAnalyzingWord || !canToggleAIAnalysis
+              onPressed: lookup.isAnalyzingWord || !canToggleAIAnalysis
                   ? null
                   : () {
                       setState(() => _showAIAnalysis = !_showAIAnalysis);
                       if (_showAIAnalysis) {
-                        provider.analyzeWordAI(
+                        lookup.analyzeWordAI(
                           word,
-                          provider
+                          lookup
                                   .selectedWordEntry
                                   ?.meanings
                                   .firstOrNull
@@ -186,7 +190,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
           ),
           if (_showAIAnalysis) ...[
             const SizedBox(height: 8),
-            _buildAIAnalysisContent(provider, theme),
+            _buildAIAnalysisContent(lookup, theme),
           ],
           const SizedBox(height: 8),
           Row(
@@ -199,7 +203,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                       label: 'Known',
                       icon: Icons.check_circle_outline,
                       color: AppColors.familiarityHigh,
-                      onPressed: () => provider.markWordKnown(
+                      onPressed: () => vocabulary.markWordKnown(
                         word,
                         celebrationOrigin: origin(),
                       ),
@@ -213,7 +217,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                     label: 'Learning',
                     icon: Icons.school_outlined,
                     color: AppColors.vocabLearning,
-                    onPressed: () => provider.markWordLearning(word),
+                    onPressed: () => vocabulary.markWordLearning(word),
                   ),
                 ),
               if (status != null || isBookmarked)
@@ -224,7 +228,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                     icon: Icons.help_outline,
                     color: AppColors.familiarityLow,
                     onPressed: () =>
-                        _markWordUnknown(provider, bookmarks, word),
+                        _markWordUnknown(vocabulary, bookmarks, word),
                   ),
                 ),
             ],
@@ -236,9 +240,9 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed:
-                        provider.canCreateLearningItems &&
-                            provider.selectedWordTranslation != null
-                        ? () => _addLearningItem(provider)
+                        lookup.canCreateLearningItems &&
+                            lookup.selectedWordTranslation != null
+                        ? () => _addLearningItem(lookup)
                         : null,
                     icon: const Icon(Icons.add_card_outlined, size: 20),
                     label: const Text('加入学习卡片'),
@@ -289,11 +293,11 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
               : SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: provider.selectedWordTranslation != null
+                    onPressed: lookup.selectedWordTranslation != null
                         ? () {
                             bookmarks.addBookmark(
                               word,
-                              provider.selectedWordTranslation!,
+                              lookup.selectedWordTranslation!,
                             );
                             setState(() => _bookmarkAdded = true);
                           }
@@ -314,8 +318,8 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     );
   }
 
-  Future<void> _addLearningItem(ReadingProvider provider) async {
-    final result = await provider.addSelectedWordLearningItem();
+  Future<void> _addLearningItem(WordLookupController lookup) async {
+    final result = await lookup.addSelectedWordLearningItem();
     if (!mounted) return;
     if (result != null) {
       setState(() => _learningItemSaved = true);
@@ -335,11 +339,11 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
   }
 
   Future<void> _markWordUnknown(
-    ReadingProvider provider,
+    VocabularyController vocabulary,
     BookmarkController bookmarks,
     String word,
   ) async {
-    await provider.markWordUnknown(word);
+    await vocabulary.markWordUnknown(word);
     if (bookmarks.isBookmarked(word)) {
       bookmarks.removeBookmark(word);
     }
@@ -407,8 +411,8 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     );
   }
 
-  Widget _buildAIAnalysisContent(ReadingProvider provider, ThemeData theme) {
-    if (provider.isAnalyzingWord) {
+  Widget _buildAIAnalysisContent(WordLookupController lookup, ThemeData theme) {
+    if (lookup.isAnalyzingWord) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(12),
@@ -417,7 +421,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
       );
     }
 
-    final analysis = provider.aiWordAnalysis;
+    final analysis = lookup.aiWordAnalysis;
     if (analysis == null || analysis.isEmpty) {
       return Text(
         '尚未生成 AI 详解',

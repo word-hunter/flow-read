@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 
 import '../models/analysis_result.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/text_selection_provider.dart';
+import '../providers/reading/word_lookup_provider.dart';
 import '../services/analysis_service.dart';
 import '../services/llm_client.dart';
 import '../services/reading_assistant_agent.dart';
@@ -21,17 +23,17 @@ import '../widgets/word_bottom_sheet.dart';
 /// Browser is used by RSS to show original article pages. Keep the legal entry
 /// points limited to RSS article actions; do not add a home tab, settings entry,
 /// or named route for this screen.
-class BrowserScreen extends StatefulWidget {
+class BrowserScreen extends riverpod.ConsumerStatefulWidget {
   final String? initialUrl;
   final String? initialTitle;
 
   const BrowserScreen({super.key, this.initialUrl, this.initialTitle});
 
   @override
-  State<BrowserScreen> createState() => _BrowserScreenState();
+  riverpod.ConsumerState<BrowserScreen> createState() => _BrowserScreenState();
 }
 
-class _BrowserScreenState extends State<BrowserScreen> {
+class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   final _webContentService = WebContentService();
   final _addressController = TextEditingController();
   final _questionController = TextEditingController();
@@ -81,13 +83,13 @@ class _BrowserScreenState extends State<BrowserScreen> {
     try {
       final page = await _webContentService.fetch(input);
       if (!mounted) return;
-      final readingProvider = context.read<ReadingProvider>();
+      final lookup = ref.read(wordLookupProvider);
       final analysis = AnalysisService.analyzeChapter(
         page.title,
         page.plainText,
-        readingProvider.userVocabulary,
-        readingProvider.wordLevelService,
-        readingProvider.activeLanguageModule,
+        lookup.userVocabulary,
+        lookup.wordLevelService,
+        lookup.activeLanguageModule,
       );
       setState(() {
         _page = page;
@@ -113,8 +115,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
     int? contextWordStart,
     int? contextWordEnd,
   }) {
-    final provider = context.read<ReadingProvider>();
-    provider.lookupWord(
+    final lookup = ref.read(wordLookupProvider);
+    lookup.lookupWord(
       word,
       contextText: contextText,
       contextWordStart: contextWordStart,
@@ -125,7 +127,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => WordBottomSheet(word: word),
-    ).whenComplete(provider.clearWordLookup);
+    ).whenComplete(lookup.clearWordLookup);
   }
 
   void _analyzeSelected(String text) {
@@ -134,8 +136,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final selectedText = text.trim();
     if (selectedText.isEmpty) return;
     final pageText = _page?.plainText ?? '';
-    final provider = context.read<ReadingProvider>();
-    provider.analyzeSelectedTextAI(selectedText, sourceText: pageText);
+    ref
+        .read(textSelectionProvider)
+        .analyzeSelectedTextAI(selectedText, sourceText: pageText);
     _showSelectedTextSheet(selectedText);
   }
 
@@ -358,7 +361,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
     final page = _page!;
     final analysis = _analysis!;
-    final readingProvider = context.watch<ReadingProvider>();
+    final lookup = ref.watch(wordLookupProvider);
     final settings = context.watch<SettingsService>();
 
     return SelectedTextActionRegion(
@@ -419,9 +422,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
                         lineHeight: 1.75,
                         fontFamily: 'Serif',
                         colorSettings: settings.colors,
-                        lookupHighlightWord: readingProvider.selectedWord,
-                        wordLevelService: readingProvider.wordLevelService,
-                        languageModule: readingProvider.activeLanguageModule,
+                        lookupHighlightWord: lookup.selectedWord,
+                        wordLevelService: lookup.wordLevelService,
+                        languageModule: lookup.activeLanguageModule,
                       ),
                       style: theme.textTheme.bodyLarge?.copyWith(
                         height: 1.75,

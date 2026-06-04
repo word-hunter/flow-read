@@ -63,6 +63,14 @@ class BookshelfController {
     return _reader.importBookFromSource(source);
   }
 
+  Future<void> reloadAfterBackupRestore() {
+    return _reader.reloadAfterBackupRestore();
+  }
+
+  Future<void> reloadAfterWordHunterImport() {
+    return _reader.init();
+  }
+
   void clearError() {
     _reader.clearError();
   }

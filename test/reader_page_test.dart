@@ -376,14 +376,21 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(
-            value: longTitleProvider,
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith(
+            (ref) => longTitleProvider,
           ),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(
+              value: longTitleProvider,
+            ),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -402,14 +409,21 @@ void main() {
       ],
     );
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(
-            value: shortTitleProvider,
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith(
+            (ref) => shortTitleProvider,
           ),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(
+              value: shortTitleProvider,
+            ),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -777,12 +791,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -805,12 +824,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -836,14 +860,19 @@ void main() {
     final colorScheme = ColorScheme.fromSeed(seedColor: Colors.green);
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: MaterialApp(
-          theme: ThemeData(colorScheme: colorScheme),
-          home: const ReadingDeskScreen(),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: MaterialApp(
+            theme: ThemeData(colorScheme: colorScheme),
+            home: const ReadingDeskScreen(),
+          ),
         ),
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/ai_practice_questions.dart';
 import '../../models/ai_chapter_preview.dart';
 import '../../models/ai_summary.dart';
 import '../../models/chapter_ai_coverage.dart';
@@ -17,8 +18,10 @@ class AIController {
   ChapterAIStatus? get chapterAIStatus => _reader.chapterAIStatus;
   ChapterAISummaryCoverage? get chapterAISummaryCoverage =>
       _reader.chapterAISummaryCoverage;
+  AIPracticeSet? get aiPractice => _reader.aiPractice;
   bool get isGeneratingSummary => _reader.isGeneratingSummary;
   bool get isGeneratingChapterPreview => _reader.isGeneratingChapterPreview;
+  bool get isGeneratingPractice => _reader.isGeneratingPractice;
   bool get isLoadingChapterAISummaryCoverage =>
       _reader.isLoadingChapterAISummaryCoverage;
   int get currentChapter => _reader.currentChapter;

@@ -23,6 +23,10 @@ class TextSelectionController {
     _reader.analyzeSelectedText(text);
   }
 
+  Future<void> analyzeSelectedTextAI(String text, {String? sourceText}) {
+    return _reader.analyzeSelectedTextAI(text, sourceText: sourceText);
+  }
+
   Future<LearningItemSaveResult?> addSelectedTextLearningItem() {
     return _reader.addSelectedTextLearningItem();
   }

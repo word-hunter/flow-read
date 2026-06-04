@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 import '../../models/user_vocabulary.dart';
 import '../../providers/reading/bookmark_provider.dart';
-import '../../providers/reading_provider.dart';
+import '../../providers/reading/vocabulary_provider.dart';
+import '../../providers/reading/word_lookup_provider.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_colors.dart';
 import '../dictionary_detail_view.dart';
@@ -29,11 +30,12 @@ class _ReaderWordSidebarState
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+    final lookup = ref.watch(wordLookupProvider);
+    final vocabulary = ref.watch(vocabularyProvider);
     final bookmarks = ref.watch(bookmarkProvider);
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
-    final word = provider.selectedWord;
+    final word = lookup.selectedWord;
 
     if (word != _previousWord) {
       _previousWord = word;
@@ -57,7 +59,8 @@ class _ReaderWordSidebarState
             child: word == null
                 ? _buildEmptyState(theme)
                 : _buildLookupLayout(
-                    provider,
+                    lookup,
+                    vocabulary,
                     bookmarks,
                     settings,
                     theme,
@@ -131,13 +134,14 @@ class _ReaderWordSidebarState
   }
 
   Widget _buildLookupLayout(
-    ReadingProvider provider,
+    WordLookupController lookup,
+    VocabularyController vocabulary,
     BookmarkController bookmarks,
     SettingsService settings,
     ThemeData theme,
     String word,
   ) {
-    final status = provider.getWordStatus(word);
+    final status = vocabulary.getWordStatus(word);
     final isBookmarked = bookmarks.isBookmarked(word);
 
     return LayoutBuilder(
@@ -149,8 +153,8 @@ class _ReaderWordSidebarState
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
-                child: DictionaryDetailView.fromProvider(
-                  provider: provider,
+                child: DictionaryDetailView.fromWordLookup(
+                  lookup: lookup,
                   word: word,
                 ),
               ),
@@ -158,7 +162,8 @@ class _ReaderWordSidebarState
             ConstrainedBox(
               constraints: BoxConstraints(maxHeight: persistentPanelMaxHeight),
               child: _buildPersistentLearningPanel(
-                provider,
+                lookup,
+                vocabulary,
                 bookmarks,
                 settings,
                 theme,
@@ -174,7 +179,8 @@ class _ReaderWordSidebarState
   }
 
   Widget _buildPersistentLearningPanel(
-    ReadingProvider provider,
+    WordLookupController lookup,
+    VocabularyController vocabulary,
     BookmarkController bookmarks,
     SettingsService settings,
     ThemeData theme,
@@ -203,10 +209,11 @@ class _ReaderWordSidebarState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildContextSection(provider, settings, theme, word),
+            _buildContextSection(lookup, settings, theme, word),
             const SizedBox(height: 16),
             _buildLearningStatusSection(
-              provider,
+              lookup,
+              vocabulary,
               bookmarks,
               theme,
               word,
@@ -220,7 +227,7 @@ class _ReaderWordSidebarState
   }
 
   Widget _buildContextSection(
-    ReadingProvider provider,
+    WordLookupController lookup,
     SettingsService settings,
     ThemeData theme,
     String word,
@@ -230,30 +237,30 @@ class _ReaderWordSidebarState
       children: [
         DictionaryContextBlock(
           word: word,
-          contextText: provider.selectedWordContext,
-          contextWordStart: provider.selectedWordContextStart,
-          contextWordEnd: provider.selectedWordContextEnd,
-          trailing: _buildAIContextAction(provider, settings, theme, word),
+          contextText: lookup.selectedWordContext,
+          contextWordStart: lookup.selectedWordContextStart,
+          contextWordEnd: lookup.selectedWordContextEnd,
+          trailing: _buildAIContextAction(lookup, settings, theme, word),
         ),
         if (_showAIAnalysis) ...[
           const SizedBox(height: 10),
-          _buildAIAnalysisContent(provider, theme, word),
+          _buildAIAnalysisContent(lookup, theme, word),
         ],
       ],
     );
   }
 
   Widget _buildAIContextAction(
-    ReadingProvider provider,
+    WordLookupController lookup,
     SettingsService settings,
     ThemeData theme,
     String word,
   ) {
     final canToggleAIAnalysis =
         _showAIAnalysis ||
-        (settings.aiFeaturesEnabled && provider.aiFeaturesEnabled);
+        (settings.aiFeaturesEnabled && lookup.aiFeaturesEnabled);
     final disabledReason = settings.aiFeaturesEnabled
-        ? provider.aiFeatureDisabledReason
+        ? lookup.aiFeatureDisabledReason
         : settings.aiFeatureDisabledReason;
     return IconButton(
       tooltip: _showAIAnalysis
@@ -261,13 +268,13 @@ class _ReaderWordSidebarState
           : canToggleAIAnalysis
           ? 'AI 详解语境'
           : disabledReason,
-      onPressed: provider.isAnalyzingWord && !_showAIAnalysis
+      onPressed: lookup.isAnalyzingWord && !_showAIAnalysis
           ? null
           : canToggleAIAnalysis
           ? () {
               setState(() => _showAIAnalysis = !_showAIAnalysis);
               if (_showAIAnalysis) {
-                provider.analyzeWordAI(word, _analysisContext(provider, word));
+                lookup.analyzeWordAI(word, _analysisContext(lookup, word));
               }
             }
           : null,
@@ -298,7 +305,8 @@ class _ReaderWordSidebarState
   }
 
   Widget _buildLearningStatusSection(
-    ReadingProvider provider,
+    WordLookupController lookup,
+    VocabularyController vocabulary,
     BookmarkController bookmarks,
     ThemeData theme,
     String word,
@@ -318,11 +326,12 @@ class _ReaderWordSidebarState
               showSelectedIcon: false,
               onSelectionChanged: (selection) {
                 if (selection.isEmpty) {
-                  _markWordUnknown(provider, bookmarks, word);
+                  _markWordUnknown(vocabulary, bookmarks, word);
                   return;
                 }
                 _applyWordAction(
-                  provider,
+                  lookup,
+                  vocabulary,
                   bookmarks,
                   word,
                   selection.single,
@@ -372,7 +381,8 @@ class _ReaderWordSidebarState
   }
 
   Future<void> _applyWordAction(
-    ReadingProvider provider,
+    WordLookupController lookup,
+    VocabularyController vocabulary,
     BookmarkController bookmarks,
     String word,
     _WordAction action, {
@@ -380,24 +390,24 @@ class _ReaderWordSidebarState
   }) async {
     switch (action) {
       case _WordAction.known:
-        await provider.markWordKnown(
+        await vocabulary.markWordKnown(
           word,
           celebrationOrigin: celebrationOrigin?.call(),
         );
         break;
       case _WordAction.learning:
-        await _addToLearning(provider, bookmarks, word);
+        await _addToLearning(lookup, vocabulary, bookmarks, word);
         break;
     }
     if (mounted) setState(() {});
   }
 
   Future<void> _markWordUnknown(
-    ReadingProvider provider,
+    VocabularyController vocabulary,
     BookmarkController bookmarks,
     String word,
   ) async {
-    await provider.markWordUnknown(word);
+    await vocabulary.markWordUnknown(word);
     if (bookmarks.isBookmarked(word)) {
       bookmarks.removeBookmark(word);
     }
@@ -405,12 +415,13 @@ class _ReaderWordSidebarState
   }
 
   Future<void> _addToLearning(
-    ReadingProvider provider,
+    WordLookupController lookup,
+    VocabularyController vocabulary,
     BookmarkController bookmarks,
     String word,
   ) async {
-    await provider.markWordLearning(word);
-    final translation = provider.selectedWordTranslation?.trim();
+    await vocabulary.markWordLearning(word);
+    final translation = lookup.selectedWordTranslation?.trim();
     if (translation != null &&
         translation.isNotEmpty &&
         !bookmarks.isBookmarked(word)) {
@@ -419,23 +430,23 @@ class _ReaderWordSidebarState
     if (mounted) setState(() {});
   }
 
-  String _analysisContext(ReadingProvider provider, String word) {
-    final contextText = provider.selectedWordContext?.trim();
+  String _analysisContext(WordLookupController lookup, String word) {
+    final contextText = lookup.selectedWordContext?.trim();
     if (contextText != null && contextText.isNotEmpty) return contextText;
-    final firstMeaning = provider.selectedWordEntry?.meanings.firstOrNull;
+    final firstMeaning = lookup.selectedWordEntry?.meanings.firstOrNull;
     final definition = firstMeaning?.definitions.firstOrNull;
     if (definition != null && definition.trim().isNotEmpty) {
       return definition.trim();
     }
-    return provider.selectedWordTranslation ?? word;
+    return lookup.selectedWordTranslation ?? word;
   }
 
   Widget _buildAIAnalysisContent(
-    ReadingProvider provider,
+    WordLookupController lookup,
     ThemeData theme,
     String word,
   ) {
-    if (provider.isAnalyzingWord) {
+    if (lookup.isAnalyzingWord) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(12),
@@ -444,7 +455,7 @@ class _ReaderWordSidebarState
       );
     }
 
-    final analysis = provider.aiWordAnalysis;
+    final analysis = lookup.aiWordAnalysis;
     if (analysis == null || analysis.isEmpty) {
       return Text(
         '尚未生成 AI 详解',
@@ -470,10 +481,10 @@ class _ReaderWordSidebarState
           if (analysis.pronunciation.isNotEmpty) ...[
             Row(
               children: [
-                if (provider.canPronounceWords)
+                if (lookup.canPronounceWords)
                   PronunciationButton(
                     word: word,
-                    onSpeakWord: provider.speakWord,
+                    onSpeakWord: lookup.speakWord,
                     buttonSize: 28,
                     iconSize: 16,
                   )
