@@ -1,9 +1,12 @@
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flow_read/models/reader_font.dart';
+import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/widgets/font_settings_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -14,9 +17,9 @@ void main() {
     final provider = _FakeReadingProvider();
 
     await tester.pumpWidget(
-      ChangeNotifierProvider<ReadingProvider>.value(
-        value: provider,
-        child: const MaterialApp(home: Scaffold(body: FontSettingsSheet())),
+      _withReadingProvider(
+        provider,
+        const MaterialApp(home: Scaffold(body: FontSettingsSheet())),
       ),
     );
 
@@ -52,9 +55,9 @@ void main() {
     final provider = _FakeReadingProvider();
 
     await tester.pumpWidget(
-      ChangeNotifierProvider<ReadingProvider>.value(
-        value: provider,
-        child: const MaterialApp(
+      _withReadingProvider(
+        provider,
+        const MaterialApp(
           home: Scaffold(
             body: Center(
               child: FontSettingsDropdownPanel(width: 720, maxHeight: 640),
@@ -82,9 +85,9 @@ void main() {
     final provider = _FakeReadingProvider();
 
     await tester.pumpWidget(
-      ChangeNotifierProvider<ReadingProvider>.value(
-        value: provider,
-        child: const MaterialApp(
+      _withReadingProvider(
+        provider,
+        const MaterialApp(
           home: Scaffold(
             body: Center(child: FontSettingsDropdownPanel(width: 720)),
           ),
@@ -104,9 +107,9 @@ void main() {
     final provider = _FakeReadingProvider();
 
     await tester.pumpWidget(
-      ChangeNotifierProvider<ReadingProvider>.value(
-        value: provider,
-        child: const MaterialApp(
+      _withReadingProvider(
+        provider,
+        const MaterialApp(
           home: Scaffold(
             body: Center(
               child: FontSettingsDropdownPanel(width: 720, maxHeight: 640),
@@ -152,9 +155,9 @@ void main() {
     final provider = _FakeReadingProvider();
 
     await tester.pumpWidget(
-      ChangeNotifierProvider<ReadingProvider>.value(
-        value: provider,
-        child: const MaterialApp(
+      _withReadingProvider(
+        provider,
+        const MaterialApp(
           home: Scaffold(
             body: Center(
               child: FontSettingsDropdownPanel(width: 720, maxHeight: 640),
@@ -179,6 +182,18 @@ void main() {
       greaterThan(tester.getBottomLeft(darkThemeTarget).dy),
     );
   });
+}
+
+Widget _withReadingProvider(ReadingProvider provider, Widget child) {
+  return riverpod.ProviderScope(
+    overrides: [
+      riverpod_reading.readingProvider.overrideWith((ref) => provider),
+    ],
+    child: ChangeNotifierProvider<ReadingProvider>.value(
+      value: provider,
+      child: child,
+    ),
+  );
 }
 
 BoxDecoration _cardDecoration(WidgetTester tester, Key key) {

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../models/reader_font.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/reading_config_provider.dart';
 
 class FontSettingsSheet extends StatelessWidget {
   const FontSettingsSheet({super.key});
@@ -96,7 +96,7 @@ class _FontSettingsPanelSurface extends StatelessWidget {
   }
 }
 
-class _FontSettingsPanelContent extends StatelessWidget {
+class _FontSettingsPanelContent extends riverpod.ConsumerWidget {
   final ScrollController? scrollController;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onClose;
@@ -110,8 +110,8 @@ class _FontSettingsPanelContent extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
+    final provider = ref.watch(readingConfigProvider);
     final theme = Theme.of(context);
     final panelPadding = padding.resolve(Directionality.of(context));
 
@@ -221,7 +221,7 @@ class _PanelHeader extends StatelessWidget {
 }
 
 class _ReadingPreviewCard extends StatelessWidget {
-  final ReadingProvider provider;
+  final ReadingConfigController provider;
 
   const _ReadingPreviewCard({super.key, required this.provider});
 
@@ -329,7 +329,7 @@ class _ReadingPreviewCard extends StatelessWidget {
 }
 
 class _FontSizeControl extends StatelessWidget {
-  final ReadingProvider provider;
+  final ReadingConfigController provider;
 
   const _FontSizeControl({required this.provider});
 
@@ -351,7 +351,7 @@ class _FontSizeControl extends StatelessWidget {
 }
 
 class _LineHeightControl extends StatelessWidget {
-  final ReadingProvider provider;
+  final ReadingConfigController provider;
 
   const _LineHeightControl({required this.provider});
 
@@ -374,7 +374,7 @@ class _LineHeightControl extends StatelessWidget {
 }
 
 class _CompactAdjustmentGrid extends StatelessWidget {
-  final ReadingProvider provider;
+  final ReadingConfigController provider;
 
   const _CompactAdjustmentGrid({required this.provider});
 
@@ -660,7 +660,7 @@ class _HoverableSettingsCardState extends State<_HoverableSettingsCard> {
 }
 
 class _DesktopChoiceGrid extends StatelessWidget {
-  final ReadingProvider provider;
+  final ReadingConfigController provider;
 
   const _DesktopChoiceGrid({required this.provider});
 
@@ -686,7 +686,7 @@ class _DesktopChoiceGrid extends StatelessWidget {
 }
 
 class _CompactChoiceStack extends StatelessWidget {
-  final ReadingProvider provider;
+  final ReadingConfigController provider;
 
   const _CompactChoiceStack({required this.provider});
 
@@ -705,7 +705,7 @@ class _CompactChoiceStack extends StatelessWidget {
 }
 
 class _FontStyleSection extends StatelessWidget {
-  final ReadingProvider provider;
+  final ReadingConfigController provider;
 
   const _FontStyleSection({required this.provider});
 
@@ -812,7 +812,7 @@ class _FontStyleCard extends StatelessWidget {
 }
 
 class _SpecificFontSection extends StatelessWidget {
-  final ReadingProvider provider;
+  final ReadingConfigController provider;
 
   const _SpecificFontSection({required this.provider});
 
@@ -936,7 +936,7 @@ class _FontFamilyTile extends StatelessWidget {
 }
 
 class _ThemeSection extends StatelessWidget {
-  final ReadingProvider provider;
+  final ReadingConfigController provider;
 
   const _ThemeSection({required this.provider});
 
@@ -1076,7 +1076,7 @@ class _Section extends StatelessWidget {
 }
 
 class _PanelFooter extends StatelessWidget {
-  final ReadingProvider provider;
+  final ReadingConfigController provider;
 
   const _PanelFooter({required this.provider});
 
@@ -1280,9 +1280,6 @@ _PreviewPalette _themePalette(String key, ThemeData theme) {
   );
 }
 
-void _restoreDefaults(ReadingProvider provider) {
-  provider.setFontSize(16);
-  provider.setLineHeight(2.0);
-  provider.setFontFamily(ReaderFonts.defaultFamily);
-  provider.setReadingTheme('light');
+void _restoreDefaults(ReadingConfigController provider) {
+  provider.restoreDefaults();
 }

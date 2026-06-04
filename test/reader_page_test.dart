@@ -6,6 +6,8 @@ import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/models/content_block.dart';
 import 'package:flow_read/pages/reader_page.dart';
+import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/screens/reading_desk_screen.dart';
 import 'package:flow_read/services/settings_service.dart';
@@ -14,6 +16,7 @@ import 'package:flow_read/widgets/book_difficulty_chip.dart';
 import 'package:flow_read/widgets/font_settings_sheet.dart';
 import 'package:flow_read/widgets/toc_bottom_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -26,12 +29,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -70,12 +78,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -236,12 +249,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
