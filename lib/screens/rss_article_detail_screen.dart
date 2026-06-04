@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../models/rss_models.dart';
 import '../providers/rss_provider.dart';
+import '../providers/rss_riverpod_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/font_settings_sheet.dart';
 import '../widgets/rss/rss_article_body_view.dart';
 import 'browser_screen.dart';
 
-class RssArticleDetailScreen extends StatefulWidget {
+class RssArticleDetailScreen extends riverpod.ConsumerStatefulWidget {
   final List<RssArticle> articles;
   final String initialArticleId;
   final bool showFeedName;
@@ -21,10 +22,12 @@ class RssArticleDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<RssArticleDetailScreen> createState() => _RssArticleDetailScreenState();
+  riverpod.ConsumerState<RssArticleDetailScreen> createState() =>
+      _RssArticleDetailScreenState();
 }
 
-class _RssArticleDetailScreenState extends State<RssArticleDetailScreen> {
+class _RssArticleDetailScreenState
+    extends riverpod.ConsumerState<RssArticleDetailScreen> {
   late String _currentArticleId;
   bool _isIntensiveReading = false;
 
@@ -37,7 +40,7 @@ class _RssArticleDetailScreenState extends State<RssArticleDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<RssProvider>();
+    final provider = ref.watch(rssProvider);
     final theme = Theme.of(context);
     final currentIndex = _currentIndex;
     final article = currentIndex == -1 ? null : widget.articles[currentIndex];
@@ -377,11 +380,11 @@ class _RssArticleDetailScreenState extends State<RssArticleDetailScreen> {
 
   void _markAsRead(RssArticle article) {
     if (article.isRead) return;
-    context.read<RssProvider>().markAsRead(article.id);
+    ref.read(rssProvider).markAsRead(article.id);
   }
 
   void _toggleRead(RssArticle article) {
-    final provider = context.read<RssProvider>();
+    final provider = ref.read(rssProvider);
     if (article.isRead) {
       provider.markAsUnread(article.id);
     } else {
@@ -392,7 +395,7 @@ class _RssArticleDetailScreenState extends State<RssArticleDetailScreen> {
   void _openOriginalArticle(BuildContext context, RssArticle article) {
     final link = article.link?.trim();
     if (link == null || link.isEmpty) return;
-    context.read<RssProvider>().markAsRead(article.id);
+    ref.read(rssProvider).markAsRead(article.id);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) =>

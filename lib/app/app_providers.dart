@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 
 import '../providers/reading_provider.dart';
-import '../providers/rss_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/ai_cache_service.dart';
 import '../services/ai_service.dart';
@@ -43,7 +42,6 @@ class AppProviders extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => _createReadingProvider(settings),
         ),
-        ChangeNotifierProvider(create: (_) => _createRssProvider()),
       ],
       child: child,
     );
@@ -109,12 +107,6 @@ ReadingProvider _createReadingProvider(SettingsService settings) {
   aiCache.init();
   provider.setAICache(aiCache);
 
-  provider.init();
-  return provider;
-}
-
-RssProvider _createRssProvider() {
-  final provider = RssProvider();
   provider.init();
   return provider;
 }

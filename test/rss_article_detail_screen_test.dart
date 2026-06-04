@@ -3,11 +3,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flow_read/models/rss_models.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/rss_provider.dart';
+import 'package:flow_read/providers/rss_riverpod_provider.dart';
 import 'package:flow_read/screens/rss_article_detail_screen.dart';
 import 'package:flow_read/screens/rss_screen.dart';
 import 'package:flow_read/services/rss_service.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -201,7 +203,6 @@ Future<RssProvider> _createProvider(List<RssArticle> articles) async {
     ),
   );
   await provider.init();
-  addTearDown(provider.dispose);
   return provider;
 }
 
@@ -210,17 +211,19 @@ Widget _buildApp(
   Widget child, {
   ReadingProvider? readingProvider,
 }) {
-  return MultiProvider(
-    providers: [
-      ChangeNotifierProvider<RssProvider>.value(value: provider),
-      readingProvider == null
-          ? ChangeNotifierProvider(create: (_) => ReadingProvider())
-          : ChangeNotifierProvider<ReadingProvider>.value(
-              value: readingProvider,
-            ),
-      ChangeNotifierProvider(create: (_) => SettingsService()),
-    ],
-    child: MaterialApp(home: child),
+  return riverpod.ProviderScope(
+    overrides: [rssProvider.overrideWith((ref) => provider)],
+    child: MultiProvider(
+      providers: [
+        readingProvider == null
+            ? ChangeNotifierProvider(create: (_) => ReadingProvider())
+            : ChangeNotifierProvider<ReadingProvider>.value(
+                value: readingProvider,
+              ),
+        ChangeNotifierProvider(create: (_) => SettingsService()),
+      ],
+      child: MaterialApp(home: child),
+    ),
   );
 }
 

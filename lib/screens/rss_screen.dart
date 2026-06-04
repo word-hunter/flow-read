@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../models/rss_models.dart';
 import '../providers/rss_provider.dart';
+import '../providers/rss_riverpod_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/rss/rss_article_list.dart';
 import '../widgets/rss/rss_feed_sidebar.dart';
 import 'browser_screen.dart';
 import 'rss_article_detail_screen.dart';
 
-class RssScreen extends StatelessWidget {
+class RssScreen extends riverpod.ConsumerWidget {
   const RssScreen({super.key});
 
   static const _latestFeedValue = '__flow_read_latest__';
 
   @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<RssProvider>();
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
+    final provider = ref.watch(rssProvider);
     final theme = Theme.of(context);
 
     if (provider.subscriptions.isEmpty) {
@@ -57,9 +58,9 @@ class RssScreen extends StatelessWidget {
             onSelectLatest: provider.selectLatest,
             onSelectFeed: provider.selectFeed,
             onSelectArticleFilter: provider.updateArticleFilter,
-            onAddFeed: () => _showAddFeedDialog(context),
+            onAddFeed: () => _showAddFeedDialog(context, provider),
             onEditFeed: (subscription) =>
-                _showEditFeedDialog(context, subscription),
+                _showEditFeedDialog(context, provider, subscription),
             onRemoveFeed: (url) => provider.removeFeed(url),
             onRetry: () => provider.retry(),
           ),
@@ -98,7 +99,7 @@ class RssScreen extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.add_circle_outline, size: 22),
                 tooltip: '添加订阅',
-                onPressed: () => _showAddFeedDialog(context),
+                onPressed: () => _showAddFeedDialog(context, provider),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
@@ -420,7 +421,7 @@ class RssScreen extends StatelessWidget {
           FilledButton.icon(
             onPressed: provider.isLoading
                 ? null
-                : () => _showAddFeedDialog(context),
+                : () => _showAddFeedDialog(context, provider),
             icon: provider.isLoading
                 ? const SizedBox(
                     width: 16,
@@ -435,7 +436,7 @@ class RssScreen extends StatelessWidget {
     );
   }
 
-  void _showAddFeedDialog(BuildContext context) {
+  void _showAddFeedDialog(BuildContext context, RssProvider provider) {
     final controller = TextEditingController();
     showDialog(
       context: context,
@@ -450,7 +451,7 @@ class RssScreen extends StatelessWidget {
           ),
           onSubmitted: (url) {
             if (url.trim().isNotEmpty) {
-              context.read<RssProvider>().addFeed(url.trim());
+              provider.addFeed(url.trim());
               Navigator.pop(ctx);
             }
           },
@@ -464,7 +465,7 @@ class RssScreen extends StatelessWidget {
             onPressed: () {
               final url = controller.text.trim();
               if (url.isNotEmpty) {
-                context.read<RssProvider>().addFeed(url);
+                provider.addFeed(url);
                 Navigator.pop(ctx);
               }
             },
@@ -477,6 +478,7 @@ class RssScreen extends StatelessWidget {
 
   void _showEditFeedDialog(
     BuildContext context,
+    RssProvider provider,
     RssFeedSubscription subscription,
   ) {
     final titleController = TextEditingController(text: subscription.title);
@@ -541,7 +543,7 @@ class RssScreen extends StatelessWidget {
               onPressed: () {
                 final url = urlController.text.trim();
                 if (url.isNotEmpty) {
-                  context.read<RssProvider>().updateFeed(
+                  provider.updateFeed(
                     originalUrl: subscription.url,
                     url: url,
                     title: titleController.text,

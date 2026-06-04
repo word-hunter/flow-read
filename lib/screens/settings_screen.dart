@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/backup_provider.dart';
 import '../providers/reading_provider.dart';
-import '../providers/rss_provider.dart';
+import '../providers/rss_riverpod_provider.dart';
 import '../services/ai_cache_service.dart';
 import '../services/app_update_installer.dart';
 import '../services/app_update_service.dart';
@@ -655,12 +655,12 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
 
     final backup = ref.read(backupProvider);
     final readingProvider = context.read<ReadingProvider>();
-    final rssProvider = context.read<RssProvider>();
+    final rssNotifier = ref.read(rssProvider);
 
     try {
       await backup.importBackupFile(path);
       await readingProvider.reloadAfterBackupRestore();
-      await rssProvider.init();
+      await rssNotifier.init();
       if (!mounted) return;
       _showSnackBar('备份已导入');
     } catch (e) {
