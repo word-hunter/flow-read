@@ -1,15 +1,15 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/ai_text_analysis.dart';
 import '../models/analysis_result.dart';
 import '../models/learning_item.dart';
 import '../models/sentence_breakdown.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/text_selection_provider.dart';
 import '../utils/syntax_helpers.dart';
 
-class SelectedTextSheet extends StatefulWidget {
+class SelectedTextSheet extends riverpod.ConsumerStatefulWidget {
   final String selectedText;
   final AnalysisResult? analysis; // 兼容旧的分析结果
   final List<SentenceBreakdown>? breakdowns; // 新的逐句分析
@@ -28,10 +28,12 @@ class SelectedTextSheet extends StatefulWidget {
   });
 
   @override
-  State<SelectedTextSheet> createState() => _SelectedTextSheetState();
+  riverpod.ConsumerState<SelectedTextSheet> createState() =>
+      _SelectedTextSheetState();
 }
 
-class _SelectedTextSheetState extends State<SelectedTextSheet> {
+class _SelectedTextSheetState
+    extends riverpod.ConsumerState<SelectedTextSheet> {
   final ScrollController _embeddedScrollController = ScrollController();
   int? _hoveredStructureIndex;
 
@@ -190,10 +192,10 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
   // ======== 分析 Tab ========
 
   Widget _buildAnalysisTab(ThemeData theme, ScrollController scrollController) {
-    final provider = context.watch<ReadingProvider>();
-    final aiAnalysis = provider.aiTextAnalysis;
-    final isAnalyzing = provider.isAnalyzingText;
-    final error = provider.errorMessage;
+    final textSelection = ref.watch(textSelectionProvider);
+    final aiAnalysis = textSelection.aiTextAnalysis;
+    final isAnalyzing = textSelection.isAnalyzingText;
+    final error = textSelection.errorMessage;
     final analysisError =
         error != null &&
         (error.startsWith('AI 解析失败') ||
@@ -381,12 +383,14 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
   }
 
   Widget _buildSelectedTextLearningAction(ThemeData theme) {
-    final provider = context.watch<ReadingProvider>();
+    final textSelection = ref.watch(textSelectionProvider);
     return Align(
       alignment: Alignment.centerLeft,
       child: OutlinedButton.icon(
-        onPressed: provider.canCreateLearningItems
-            ? () => _saveLearningItem(provider.addSelectedTextLearningItem())
+        onPressed: textSelection.canCreateLearningItems
+            ? () => _saveLearningItem(
+                textSelection.addSelectedTextLearningItem(),
+              )
             : null,
         icon: const Icon(Icons.add_card_outlined, size: 18),
         label: const Text('加入学习卡片'),
@@ -476,8 +480,8 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
                     _buildInlineSaveButton(
                       theme,
                       onPressed: () => _saveLearningItem(
-                        context
-                            .read<ReadingProvider>()
+                        ref
+                            .read(textSelectionProvider)
                             .addAIGrammarLearningItem(point),
                       ),
                     ),
@@ -868,9 +872,9 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
                   theme,
                   key: ValueKey('vocabulary-save-$index'),
                   onPressed: () => _saveLearningItem(
-                    context.read<ReadingProvider>().addAIVocabularyLearningItem(
-                      note,
-                    ),
+                    ref
+                        .read(textSelectionProvider)
+                        .addAIVocabularyLearningItem(note),
                   ),
                 ),
               ],
@@ -912,8 +916,8 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
                     _buildInlineSaveButton(
                       theme,
                       onPressed: () => _saveLearningItem(
-                        context
-                            .read<ReadingProvider>()
+                        ref
+                            .read(textSelectionProvider)
                             .addAIExpressionLearningItem(note),
                       ),
                     ),
@@ -950,12 +954,12 @@ class _SelectedTextSheetState extends State<SelectedTextSheet> {
     Key? key,
     required VoidCallback onPressed,
   }) {
-    final provider = context.watch<ReadingProvider>();
+    final textSelection = ref.watch(textSelectionProvider);
     return Tooltip(
       message: '加入学习卡片',
       child: IconButton(
         key: key,
-        onPressed: provider.canCreateLearningItems ? onPressed : null,
+        onPressed: textSelection.canCreateLearningItems ? onPressed : null,
         icon: const Icon(Icons.add_card_outlined, size: 18),
         visualDensity: VisualDensity.compact,
         padding: EdgeInsets.zero,
