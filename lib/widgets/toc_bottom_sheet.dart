@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/chapter.dart';
 import '../models/content_block.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/current_book_provider.dart';
 
-class TocBottomSheet extends StatelessWidget {
+class TocBottomSheet extends riverpod.ConsumerWidget {
   const TocBottomSheet({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
-    final book = provider.book;
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
+    final currentBook = ref.watch(currentBookProvider);
+    final book = currentBook.book;
     if (book == null) return const SizedBox.shrink();
 
     return DraggableScrollableSheet(
@@ -36,7 +36,7 @@ class TocBottomSheet extends StatelessWidget {
   }
 }
 
-class TocDropdownPanel extends StatelessWidget {
+class TocDropdownPanel extends riverpod.ConsumerWidget {
   final VoidCallback? onClose;
   final ValueChanged<int>? onChapterSelected;
   final double? width;
@@ -51,9 +51,9 @@ class TocDropdownPanel extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
-    final book = provider.book;
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
+    final currentBook = ref.watch(currentBookProvider);
+    final book = currentBook.book;
     if (book == null) return const SizedBox.shrink();
 
     final screenSize = MediaQuery.sizeOf(context);
@@ -183,7 +183,7 @@ class _TocPanelSurface extends StatelessWidget {
 
 const double _tocTileExtent = 52;
 
-class _TocPanelContent extends StatefulWidget {
+class _TocPanelContent extends riverpod.ConsumerStatefulWidget {
   final ScrollController? scrollController;
   final bool showDragHandle;
   final VoidCallback? onClose;
@@ -197,10 +197,11 @@ class _TocPanelContent extends StatefulWidget {
   });
 
   @override
-  State<_TocPanelContent> createState() => _TocPanelContentState();
+  riverpod.ConsumerState<_TocPanelContent> createState() =>
+      _TocPanelContentState();
 }
 
-class _TocPanelContentState extends State<_TocPanelContent> {
+class _TocPanelContentState extends riverpod.ConsumerState<_TocPanelContent> {
   final ScrollController _ownedScrollController = ScrollController();
   bool _initialChapterPositionQueued = false;
   int _initialChapterPositionAttempts = 0;
@@ -244,17 +245,20 @@ class _TocPanelContentState extends State<_TocPanelContent> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+    final currentBook = ref.watch(currentBookProvider);
     final theme = Theme.of(context);
-    final book = provider.book;
+    final book = currentBook.book;
     if (book == null) return const SizedBox.shrink();
-    _queueInitialChapterPosition(provider.currentChapter, book.chapters.length);
+    _queueInitialChapterPosition(
+      currentBook.currentChapter,
+      book.chapters.length,
+    );
 
     return Column(
       children: [
         _TocPanelHeader(
           itemCount: book.chapters.length,
-          currentChapter: provider.currentChapter,
+          currentChapter: currentBook.currentChapter,
           showDragHandle: widget.showDragHandle,
           onClose: widget.onClose,
         ),
@@ -277,13 +281,13 @@ class _TocPanelContentState extends State<_TocPanelContent> {
                 ),
                 itemCount: book.chapters.length,
                 itemBuilder: (context, index) {
-                  final isSelected = index == provider.currentChapter;
+                  final isSelected = index == currentBook.currentChapter;
                   return _TocChapterTile(
                     index: index,
                     label: _chapterLabel(book.chapters[index], index),
                     isSelected: isSelected,
                     onTap: () {
-                      provider.goToChapter(index);
+                      currentBook.goToChapter(index);
                       widget.onChapterSelected?.call(index);
                     },
                   );

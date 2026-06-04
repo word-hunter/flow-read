@@ -116,12 +116,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -139,12 +144,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
     await tester.pump();
@@ -178,12 +188,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -211,12 +226,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -287,12 +307,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -408,12 +433,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -450,12 +480,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -479,12 +514,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -521,12 +561,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -563,12 +608,17 @@ void main() {
     final settings = SettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
       ),
     );
 
@@ -615,12 +665,17 @@ void main() {
       final settings = SettingsService();
 
       await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
+        riverpod.ProviderScope(
+          overrides: [
+            riverpod_reading.readingProvider.overrideWith((ref) => provider),
           ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+          child: MultiProvider(
+            providers: [
+              ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+              ChangeNotifierProvider<SettingsService>.value(value: settings),
+            ],
+            child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+          ),
         ),
       );
 
@@ -680,12 +735,17 @@ void main() {
       final settings = SettingsService();
 
       await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
+        riverpod.ProviderScope(
+          overrides: [
+            riverpod_reading.readingProvider.overrideWith((ref) => provider),
           ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+          child: MultiProvider(
+            providers: [
+              ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+              ChangeNotifierProvider<SettingsService>.value(value: settings),
+            ],
+            child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+          ),
         ),
       );
 
