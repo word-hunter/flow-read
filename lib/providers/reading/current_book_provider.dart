@@ -15,6 +15,7 @@ class CurrentBookController {
   int get currentChapter => _reader.currentChapter;
   bool get isReading => _reader.isReading;
   bool get hasBook => _reader.hasBook;
+  bool get hasBeenOpened => _reader.hasBeenOpened;
   int get currentTab => _reader.currentTab;
 
   Future<void> goToChapter(int index) {
