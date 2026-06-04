@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../models/learning_item.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/learning_provider.dart';
 import '../services/review_schedule_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
 
-class SpacedReviewScreen extends StatefulWidget {
+class SpacedReviewScreen extends riverpod.ConsumerStatefulWidget {
   const SpacedReviewScreen({super.key});
 
   @override
-  State<SpacedReviewScreen> createState() => _SpacedReviewScreenState();
+  riverpod.ConsumerState<SpacedReviewScreen> createState() =>
+      _SpacedReviewScreenState();
 }
 
-class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
+class _SpacedReviewScreenState
+    extends riverpod.ConsumerState<SpacedReviewScreen> {
   late final List<LearningReviewCard> _cards;
   final TextEditingController _answerController = TextEditingController();
   int _currentIndex = 0;
@@ -26,7 +28,7 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
   @override
   void initState() {
     super.initState();
-    _cards = context.read<ReadingProvider>().todayReviewCards;
+    _cards = ref.read(learningProvider).todayReviewCards;
     _answerController.addListener(_onInputChanged);
   }
 
@@ -580,10 +582,12 @@ class _SpacedReviewScreenState extends State<SpacedReviewScreen> {
     if (_isSaving) return;
     final card = _cards[_currentIndex];
     setState(() => _isSaving = true);
-    await context.read<ReadingProvider>().recordLearningReview(
-      card.item.id,
-      result,
-    );
+    await ref
+        .read(learningProvider)
+        .recordLearningReview(
+          card.item.id,
+          result,
+        );
     if (!mounted) return;
     _answerController.clear();
     setState(() {

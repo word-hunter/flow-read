@@ -1,11 +1,13 @@
 import 'package:flow_read/models/learning_item.dart';
+import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/screens/spaced_review_screen.dart';
 import 'package:flow_read/services/review_schedule_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('fill blank review requires input before showing source answer', (
@@ -41,8 +43,10 @@ void main() {
     ]);
 
     await tester.pumpWidget(
-      ChangeNotifierProvider<ReadingProvider>.value(
-        value: provider,
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+        ],
         child: const MaterialApp(home: SpacedReviewScreen()),
       ),
     );
@@ -75,8 +79,10 @@ void main() {
       final provider = _FakeReadingProvider([_reviewCard()]);
 
       await tester.pumpWidget(
-        ChangeNotifierProvider<ReadingProvider>.value(
-          value: provider,
+        riverpod.ProviderScope(
+          overrides: [
+            riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          ],
           child: const MaterialApp(home: SpacedReviewScreen()),
         ),
       );
