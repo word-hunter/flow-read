@@ -11,6 +11,12 @@ class BookshelfController {
 
   List<BookMetadata> get allBooks => _reader.allBooks;
   int get bookCount => allBooks.length;
+  bool get isLoading => _reader.isLoading;
+  String? get errorMessage => _reader.errorMessage;
+
+  Future<void> importBook(String filePath) {
+    return _reader.importBook(filePath);
+  }
 }
 
 final bookshelfProvider = Provider<BookshelfController>((ref) {

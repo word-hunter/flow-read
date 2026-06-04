@@ -1,9 +1,11 @@
+import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/widgets/epub_drop_importer.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('imports dropped EPUB paths through the reading provider', (
@@ -12,8 +14,10 @@ void main() {
     final provider = _FakeReadingProvider();
 
     await tester.pumpWidget(
-      ChangeNotifierProvider<ReadingProvider>.value(
-        value: provider,
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+        ],
         child: const MaterialApp(
           home: EpubDropImporter(child: Scaffold(body: SizedBox.expand())),
         ),

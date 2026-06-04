@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 
-import '../providers/reading_provider.dart';
+import '../providers/reading/bookshelf_provider.dart';
 
-class EpubDropImporter extends StatefulWidget {
+class EpubDropImporter extends riverpod.ConsumerStatefulWidget {
   const EpubDropImporter({super.key, required this.child});
 
   final Widget child;
 
   @override
-  State<EpubDropImporter> createState() => _EpubDropImporterState();
+  riverpod.ConsumerState<EpubDropImporter> createState() =>
+      _EpubDropImporterState();
 }
 
-class _EpubDropImporterState extends State<EpubDropImporter> {
+class _EpubDropImporterState extends riverpod.ConsumerState<EpubDropImporter> {
   static const MethodChannel _channel = MethodChannel('flow_read/file_drop');
 
   bool _dragActive = false;
@@ -68,8 +69,8 @@ class _EpubDropImporterState extends State<EpubDropImporter> {
       return;
     }
 
-    final provider = context.read<ReadingProvider>();
-    if (provider.isLoading || _importingDroppedFiles) {
+    final bookshelf = ref.read(bookshelfProvider);
+    if (bookshelf.isLoading || _importingDroppedFiles) {
       _showSnackBar('正在导入 EPUB，请稍后再试');
       return;
     }
@@ -77,10 +78,11 @@ class _EpubDropImporterState extends State<EpubDropImporter> {
     setState(() => _importingDroppedFiles = true);
     try {
       for (final path in epubPaths) {
-        await provider.importBook(path);
+        await bookshelf.importBook(path);
         if (!mounted) return;
-        if (provider.errorMessage != null) {
-          _showSnackBar(_importErrorMessage(provider.errorMessage!));
+        final errorMessage = bookshelf.errorMessage;
+        if (errorMessage != null) {
+          _showSnackBar(_importErrorMessage(errorMessage));
           return;
         }
       }
