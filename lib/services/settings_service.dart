@@ -188,9 +188,15 @@ class SettingsService extends ChangeNotifier {
 
   void _load() {
     _colors = VocabularyColorSettings(
-      unknownColor: Color(_box.get('unknownColor', defaultValue: 0xFFE74C3C)),
-      learningColor: Color(_box.get('learningColor', defaultValue: 0xFF8E44AD)),
-      knownColor: Color(_box.get('knownColor', defaultValue: 0xFF999999)),
+      unknownColor: Color(
+        _box.get('unknownColor', defaultValue: 0xFFE74C3C) as int,
+      ),
+      learningColor: Color(
+        _box.get('learningColor', defaultValue: 0xFF8E44AD) as int,
+      ),
+      knownColor: Color(
+        _box.get('knownColor', defaultValue: 0xFF999999) as int,
+      ),
     );
     _aiProviderId =
         _box.get('aiProviderId', defaultValue: AIProviders.deepSeek.id)
@@ -205,10 +211,13 @@ class SettingsService extends ChangeNotifier {
     _aiBaseUrls = _readStringMap('aiBaseUrls');
     _aiModels = _readStringMap('aiModels');
     _aiUsage = AIUsageStats(
-      chapterSummaryCount: _box.get('aiChapterSummaryCount', defaultValue: 0),
-      textAnalysisCount: _box.get('aiTextAnalysisCount', defaultValue: 0),
-      practiceCount: _box.get('aiPracticeCount', defaultValue: 0),
-      wordAnalysisCount: _box.get('aiWordAnalysisCount', defaultValue: 0),
+      chapterSummaryCount:
+          _box.get('aiChapterSummaryCount', defaultValue: 0) as int,
+      textAnalysisCount:
+          _box.get('aiTextAnalysisCount', defaultValue: 0) as int,
+      practiceCount: _box.get('aiPracticeCount', defaultValue: 0) as int,
+      wordAnalysisCount:
+          _box.get('aiWordAnalysisCount', defaultValue: 0) as int,
     );
     final themeModeIndex = _box.get('themeMode', defaultValue: 0) as int;
     _themeMode =

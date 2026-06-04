@@ -25,9 +25,11 @@ class DictionaryRepository implements WordRepository {
       final response = await http.get(uri).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        if (data.isNotEmpty) {
-          final entry = parseEntry(data[0], word: lower);
+        final data = jsonDecode(response.body);
+        if (data is List<dynamic> && data.isNotEmpty) {
+          final firstEntry = data.first;
+          if (firstEntry is! Map<String, dynamic>) return null;
+          final entry = parseEntry(firstEntry, word: lower);
           _cache[lower] = entry;
           return entry;
         }
