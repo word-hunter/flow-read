@@ -8,6 +8,7 @@ import '../models/analysis_result.dart';
 import '../models/book_difficulty.dart';
 import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
+import '../providers/reading/bookmark_provider.dart';
 import '../providers/reading/reading_search_provider.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
@@ -465,12 +466,7 @@ class _ReaderPageState extends State<ReaderPage> {
       context,
       listen: false,
     ).read(readingSearchProvider);
-    unawaited(
-      search.searchInBook(
-        value,
-        includeAll: _searchShowingAll,
-      ),
-    );
+    unawaited(search.searchInBook(value, includeAll: _searchShowingAll));
   }
 
   void _showAllSearchResults() {
@@ -616,8 +612,11 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   void _onBookmarkTap() {
-    final provider = context.read<ReadingProvider>();
-    if (provider.isCurrentPositionBookmarked()) {
+    final bookmarks = riverpod.ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(bookmarkProvider);
+    if (bookmarks.isCurrentPositionBookmarked()) {
       _hideReadingReminder();
       showModalBottomSheet(
         context: context,
@@ -626,7 +625,7 @@ class _ReaderPageState extends State<ReaderPage> {
         builder: (_) => const BookmarkSheet(),
       );
     } else {
-      provider.addReadingBookmark();
+      bookmarks.addReadingBookmark();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('已添加书签'), duration: Duration(seconds: 1)),
       );

@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/reading_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class BookmarkSheet extends StatelessWidget {
+import '../providers/reading/bookmark_provider.dart';
+
+class BookmarkSheet extends ConsumerWidget {
   const BookmarkSheet({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bookmarkController = ref.watch(bookmarkProvider);
     final theme = Theme.of(context);
-    final bookmarks = provider.readingBookmarks;
+    final bookmarks = bookmarkController.readingBookmarks;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.5,
@@ -106,7 +107,8 @@ class BookmarkSheet extends StatelessWidget {
                         itemBuilder: (context, index) {
                           final bookmark = bookmarks[index];
                           final isCurrent =
-                              bookmark.chapterIndex == provider.currentChapter;
+                              bookmark.chapterIndex ==
+                              bookmarkController.currentChapter;
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -148,8 +150,8 @@ class BookmarkSheet extends StatelessWidget {
                                 : null,
                             trailing: IconButton(
                               icon: const Icon(Icons.close, size: 18),
-                              onPressed: () =>
-                                  provider.removeReadingBookmark(index),
+                              onPressed: () => bookmarkController
+                                  .removeReadingBookmark(index),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(
                                 minWidth: 32,
@@ -158,7 +160,7 @@ class BookmarkSheet extends StatelessWidget {
                             ),
                             onTap: () {
                               Navigator.pop(context);
-                              provider.goToReadingBookmark(bookmark);
+                              bookmarkController.goToReadingBookmark(bookmark);
                             },
                           );
                         },
