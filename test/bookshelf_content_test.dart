@@ -5,6 +5,7 @@ import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/screens/bookshelf_screen.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/home/bookshelf_content.dart';
 import 'package:flutter/material.dart';
@@ -47,6 +48,27 @@ void main() {
     expect(provider.openedBookId, 'missing-book');
     expect(provider.isReading, isFalse);
     expect(find.text('打开书籍失败：测试错误'), findsOneWidget);
+  });
+
+  testWidgets('bookshelf screen reads books through Riverpod', (tester) async {
+    final provider = _FailingOpenReadingProvider();
+    final settings = _BookshelfSettingsService();
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+        ],
+        child: ChangeNotifierProvider<SettingsService>.value(
+          value: settings,
+          child: const MaterialApp(home: BookshelfScreen()),
+        ),
+      ),
+    );
+
+    expect(find.text('我的书架'), findsOneWidget);
+    expect(find.text('Missing Book'), findsOneWidget);
+    expect(find.text('Author'), findsOneWidget);
   });
 }
 

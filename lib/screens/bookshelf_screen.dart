@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/bookshelf_provider.dart';
 import '../services/app_links.dart';
 import '../services/epub_import_source.dart';
 import '../services/external_url_launcher.dart';
@@ -15,11 +16,15 @@ import '../widgets/home/today_review_card.dart';
 
 const _logoAsset = 'assets/brand/flow_read_logo.png';
 
-void _queueDifficultyRatings(BuildContext context, List<BookMetadata> books) {
+void _queueDifficultyRatings(
+  BuildContext context,
+  BookshelfController provider,
+  List<BookMetadata> books,
+) {
   if (books.isEmpty) return;
   WidgetsBinding.instance.addPostFrameCallback((_) {
     if (!context.mounted) return;
-    unawaited(context.read<ReadingProvider>().ensureBookDifficulties(books));
+    unawaited(provider.ensureBookDifficulties(books));
   });
 }
 
@@ -39,15 +44,15 @@ class BookshelfScreen extends StatelessWidget {
   }
 }
 
-class _NarrowBookshelf extends StatelessWidget {
+class _NarrowBookshelf extends riverpod.ConsumerWidget {
   const _NarrowBookshelf();
 
   @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
+    final provider = ref.watch(bookshelfProvider);
     final theme = Theme.of(context);
     final books = provider.allBooks;
-    _queueDifficultyRatings(context, books);
+    _queueDifficultyRatings(context, provider, books);
 
     return Scaffold(
       appBar: AppBar(
@@ -86,22 +91,22 @@ class _NarrowBookshelf extends StatelessWidget {
   }
 }
 
-class _WideBookshelf extends StatefulWidget {
+class _WideBookshelf extends riverpod.ConsumerStatefulWidget {
   const _WideBookshelf();
 
   @override
-  State<_WideBookshelf> createState() => _WideBookshelfState();
+  riverpod.ConsumerState<_WideBookshelf> createState() => _WideBookshelfState();
 }
 
-class _WideBookshelfState extends State<_WideBookshelf> {
+class _WideBookshelfState extends riverpod.ConsumerState<_WideBookshelf> {
   bool _isGridView = false;
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+    final provider = ref.watch(bookshelfProvider);
     final theme = Theme.of(context);
     final books = provider.allBooks;
-    _queueDifficultyRatings(context, books);
+    _queueDifficultyRatings(context, provider, books);
 
     return Scaffold(
       appBar: AppBar(
@@ -150,7 +155,7 @@ class _WideBookshelfState extends State<_WideBookshelf> {
 Widget _buildBookListWithDifficultyStatus(
   BuildContext context,
   List<BookMetadata> books,
-  ReadingProvider provider,
+  BookshelfController provider,
   ThemeData theme, {
   required bool isNarrow,
   bool isGrid = false,
@@ -184,7 +189,7 @@ Widget _buildBookListWithDifficultyStatus(
 
 Widget _buildDifficultyLoadingBanner(
   ThemeData theme,
-  ReadingProvider provider,
+  BookshelfController provider,
 ) {
   return Padding(
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -228,7 +233,7 @@ Widget _buildDifficultyLoadingBanner(
 Widget _buildBookList(
   BuildContext context,
   List<BookMetadata> books,
-  ReadingProvider provider,
+  BookshelfController provider,
   ThemeData theme, {
   required bool isNarrow,
   bool isGrid = false,
@@ -295,7 +300,7 @@ Widget _buildBookCard(
   BookMetadata meta,
   ThemeData theme,
   _BookCardSize size,
-  ReadingProvider provider,
+  BookshelfController provider,
 ) {
   final isCompact = size == _BookCardSize.compact;
   final isMedium = size == _BookCardSize.medium;
@@ -304,7 +309,7 @@ Widget _buildBookCard(
   final progressPercent = (meta.globalProgress * 100).toInt();
 
   final coverWidget = _buildCover(
-    context,
+    provider,
     meta,
     theme,
     coverWidth,
@@ -368,14 +373,14 @@ Widget _buildBookCard(
 }
 
 Widget _buildCover(
-  BuildContext context,
+  BookshelfController provider,
   BookMetadata meta,
   ThemeData theme,
   double width,
   double height,
   bool isCompact,
 ) {
-  final coverBytes = context.read<ReadingProvider>().getCoverBytes(meta.id);
+  final coverBytes = provider.getCoverBytes(meta.id);
 
   return SizedBox(
     width: width,
@@ -432,7 +437,7 @@ Widget _buildBookDetails(
   BookMetadata meta,
   ThemeData theme,
   int progressPercent,
-  ReadingProvider provider,
+  BookshelfController provider,
 ) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -568,7 +573,7 @@ class _BookDifficultySummary extends StatelessWidget {
 
 void _openBook(
   BuildContext context,
-  ReadingProvider provider,
+  BookshelfController provider,
   String bookId,
 ) async {
   await provider.switchToBook(bookId);
@@ -579,7 +584,7 @@ void _openBook(
 
 Widget _buildEmptyState(
   BuildContext context,
-  ReadingProvider provider,
+  BookshelfController provider,
   ThemeData theme,
 ) {
   return Center(
@@ -682,7 +687,10 @@ Widget _buildEmptyState(
   );
 }
 
-Future<void> _importEpub(BuildContext context, ReadingProvider provider) async {
+Future<void> _importEpub(
+  BuildContext context,
+  BookshelfController provider,
+) async {
   final result = await FilePicker.pickFiles(
     type: FileType.custom,
     allowedExtensions: ['epub'],

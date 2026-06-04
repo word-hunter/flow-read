@@ -62,6 +62,10 @@ class BookshelfController {
   Future<void> importBookFromSource(EpubImportSource source) {
     return _reader.importBookFromSource(source);
   }
+
+  void clearError() {
+    _reader.clearError();
+  }
 }
 
 final bookshelfProvider = Provider<BookshelfController>((ref) {
