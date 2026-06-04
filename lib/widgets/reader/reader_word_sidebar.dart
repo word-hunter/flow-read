@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 import '../../models/user_vocabulary.dart';
+import '../../providers/reading/bookmark_provider.dart';
 import '../../providers/reading_provider.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_colors.dart';
@@ -10,22 +12,25 @@ import '../word_mastery_confetti.dart';
 
 enum _WordAction { known, learning }
 
-class ReaderWordSidebar extends StatefulWidget {
+class ReaderWordSidebar extends riverpod.ConsumerStatefulWidget {
   final VoidCallback? onClose;
 
   const ReaderWordSidebar({super.key, this.onClose});
 
   @override
-  State<ReaderWordSidebar> createState() => _ReaderWordSidebarState();
+  riverpod.ConsumerState<ReaderWordSidebar> createState() =>
+      _ReaderWordSidebarState();
 }
 
-class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
+class _ReaderWordSidebarState
+    extends riverpod.ConsumerState<ReaderWordSidebar> {
   bool _showAIAnalysis = false;
   String? _previousWord;
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ReadingProvider>();
+    final bookmarks = ref.watch(bookmarkProvider);
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
     final word = provider.selectedWord;
@@ -51,7 +56,13 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
           Expanded(
             child: word == null
                 ? _buildEmptyState(theme)
-                : _buildLookupLayout(provider, settings, theme, word),
+                : _buildLookupLayout(
+                    provider,
+                    bookmarks,
+                    settings,
+                    theme,
+                    word,
+                  ),
           ),
         ],
       ),
@@ -121,12 +132,13 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
 
   Widget _buildLookupLayout(
     ReadingProvider provider,
+    BookmarkController bookmarks,
     SettingsService settings,
     ThemeData theme,
     String word,
   ) {
     final status = provider.getWordStatus(word);
-    final isBookmarked = provider.isBookmarked(word);
+    final isBookmarked = bookmarks.isBookmarked(word);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -147,6 +159,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
               constraints: BoxConstraints(maxHeight: persistentPanelMaxHeight),
               child: _buildPersistentLearningPanel(
                 provider,
+                bookmarks,
                 settings,
                 theme,
                 word,
@@ -162,6 +175,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
 
   Widget _buildPersistentLearningPanel(
     ReadingProvider provider,
+    BookmarkController bookmarks,
     SettingsService settings,
     ThemeData theme,
     String word,
@@ -193,6 +207,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
             const SizedBox(height: 16),
             _buildLearningStatusSection(
               provider,
+              bookmarks,
               theme,
               word,
               status,
@@ -284,6 +299,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
 
   Widget _buildLearningStatusSection(
     ReadingProvider provider,
+    BookmarkController bookmarks,
     ThemeData theme,
     String word,
     UserWordStatus? status,
@@ -302,11 +318,12 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
               showSelectedIcon: false,
               onSelectionChanged: (selection) {
                 if (selection.isEmpty) {
-                  _markWordUnknown(provider, word);
+                  _markWordUnknown(provider, bookmarks, word);
                   return;
                 }
                 _applyWordAction(
                   provider,
+                  bookmarks,
                   word,
                   selection.single,
                   celebrationOrigin: origin,
@@ -356,6 +373,7 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
 
   Future<void> _applyWordAction(
     ReadingProvider provider,
+    BookmarkController bookmarks,
     String word,
     _WordAction action, {
     Offset? Function()? celebrationOrigin,
@@ -368,27 +386,35 @@ class _ReaderWordSidebarState extends State<ReaderWordSidebar> {
         );
         break;
       case _WordAction.learning:
-        await _addToLearning(provider, word);
+        await _addToLearning(provider, bookmarks, word);
         break;
     }
     if (mounted) setState(() {});
   }
 
-  Future<void> _markWordUnknown(ReadingProvider provider, String word) async {
+  Future<void> _markWordUnknown(
+    ReadingProvider provider,
+    BookmarkController bookmarks,
+    String word,
+  ) async {
     await provider.markWordUnknown(word);
-    if (provider.isBookmarked(word)) {
-      provider.removeBookmark(word);
+    if (bookmarks.isBookmarked(word)) {
+      bookmarks.removeBookmark(word);
     }
     if (mounted) setState(() {});
   }
 
-  Future<void> _addToLearning(ReadingProvider provider, String word) async {
+  Future<void> _addToLearning(
+    ReadingProvider provider,
+    BookmarkController bookmarks,
+    String word,
+  ) async {
     await provider.markWordLearning(word);
     final translation = provider.selectedWordTranslation?.trim();
     if (translation != null &&
         translation.isNotEmpty &&
-        !provider.isBookmarked(word)) {
-      provider.addBookmark(word, translation);
+        !bookmarks.isBookmarked(word)) {
+      bookmarks.addBookmark(word, translation);
     }
     if (mounted) setState(() {});
   }

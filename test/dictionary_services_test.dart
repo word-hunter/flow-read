@@ -7,6 +7,8 @@ import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
 import 'package:flow_read/models/word_context_example.dart';
 import 'package:flow_read/models/word_analysis.dart';
+import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/services/dictionary/collins_repository.dart';
 import 'package:flow_read/services/compound_word_analyzer.dart';
@@ -32,12 +34,32 @@ import 'package:flow_read/widgets/dictionary_detail_view.dart';
 import 'package:flow_read/widgets/reader/reader_word_sidebar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
 
 import 'support/hive_test_storage.dart';
+
+Widget _withReadingProvider(
+  ReadingProvider provider,
+  SettingsService settings,
+  Widget child,
+) {
+  return riverpod.ProviderScope(
+    overrides: [
+      riverpod_reading.readingProvider.overrideWith((ref) => provider),
+    ],
+    child: MultiProvider(
+      providers: [
+        ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+        ChangeNotifierProvider<SettingsService>.value(value: settings),
+      ],
+      child: child,
+    ),
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -864,18 +886,15 @@ void main() {
         }),
       );
     final settings = SettingsService();
-    addTearDown(provider.dispose);
     addTearDown(settings.dispose);
 
     await provider.lookupWord('flow');
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
-        ],
-        child: const MaterialApp(
+      _withReadingProvider(
+        provider,
+        settings,
+        const MaterialApp(
           home: Scaffold(
             body: Align(
               alignment: Alignment.topLeft,
@@ -926,18 +945,15 @@ void main() {
         }),
       );
     final settings = SettingsService();
-    addTearDown(provider.dispose);
     addTearDown(settings.dispose);
 
     await provider.lookupWord('flow');
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
-        ],
-        child: const MaterialApp(
+      _withReadingProvider(
+        provider,
+        settings,
+        const MaterialApp(
           home: Scaffold(
             body: Align(
               alignment: Alignment.topLeft,
@@ -985,19 +1001,16 @@ void main() {
         }),
       );
     final settings = SettingsService();
-    addTearDown(provider.dispose);
     addTearDown(settings.dispose);
 
     await provider.lookupWord('flow');
     await provider.markWordKnown('flow');
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
-        ],
-        child: const MaterialApp(
+      _withReadingProvider(
+        provider,
+        settings,
+        const MaterialApp(
           home: Scaffold(
             body: SizedBox(width: 360, height: 640, child: ReaderWordSidebar()),
           ),
@@ -1228,7 +1241,6 @@ void main() {
           }),
         );
       final settings = SettingsService();
-      addTearDown(provider.dispose);
       addTearDown(settings.dispose);
 
       await provider.lookupWord(
@@ -1237,12 +1249,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(
+        _withReadingProvider(
+          provider,
+          settings,
+          const MaterialApp(
             home: Scaffold(
               body: Align(
                 alignment: Alignment.topLeft,
@@ -1301,16 +1311,13 @@ void main() {
   ) async {
     final provider = _AIAnalysisReadingProvider();
     final settings = _AIEnabledSettingsService();
-    addTearDown(provider.dispose);
     addTearDown(settings.dispose);
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
-        ],
-        child: const MaterialApp(
+      _withReadingProvider(
+        provider,
+        settings,
+        const MaterialApp(
           home: Scaffold(
             body: SizedBox(width: 360, height: 640, child: ReaderWordSidebar()),
           ),
