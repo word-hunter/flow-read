@@ -17,11 +17,12 @@ class BookmarkSheet extends ConsumerWidget {
       minChildSize: 0.3,
       maxChildSize: 0.8,
       builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        return Material(
+          color: theme.colorScheme.surface,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
               Padding(
