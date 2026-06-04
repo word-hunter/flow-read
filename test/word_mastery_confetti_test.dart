@@ -1,8 +1,10 @@
 import 'package:flow_read/widgets/word_mastery_confetti.dart';
+import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   test('word mastery confetti uses a star particle path', () {
@@ -38,11 +40,12 @@ void main() {
     'confetti host rebuilds inside focused app without global key churn',
     (tester) async {
       final provider = _ConfettiTestProvider();
-      addTearDown(provider.dispose);
 
       await tester.pumpWidget(
-        ChangeNotifierProvider<ReadingProvider>.value(
-          value: provider,
+        riverpod.ProviderScope(
+          overrides: [
+            riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          ],
           child: const MaterialApp(
             home: Focus(
               autofocus: true,

@@ -2,9 +2,9 @@ import 'dart:math' as math;
 
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
-import '../providers/reading_provider.dart';
+import '../providers/reading/vocabulary_provider.dart';
 
 typedef WordMasteryAnchorBuilder =
     Widget Function(BuildContext context, Offset? Function() origin);
@@ -34,17 +34,18 @@ class _WordMasteryActionAnchorState extends State<WordMasteryActionAnchor> {
   }
 }
 
-class WordMasteryConfettiHost extends StatefulWidget {
+class WordMasteryConfettiHost extends riverpod.ConsumerStatefulWidget {
   const WordMasteryConfettiHost({super.key, required this.child});
 
   final Widget child;
 
   @override
-  State<WordMasteryConfettiHost> createState() =>
+  riverpod.ConsumerState<WordMasteryConfettiHost> createState() =>
       _WordMasteryConfettiHostState();
 }
 
-class _WordMasteryConfettiHostState extends State<WordMasteryConfettiHost> {
+class _WordMasteryConfettiHostState
+    extends riverpod.ConsumerState<WordMasteryConfettiHost> {
   late final ConfettiController _controller;
   int _lastCelebrationTick = 0;
 
@@ -64,13 +65,14 @@ class _WordMasteryConfettiHostState extends State<WordMasteryConfettiHost> {
 
   @override
   Widget build(BuildContext context) {
-    final celebration = context
-        .select<ReadingProvider, ({int tick, Offset? origin})>(
-          (provider) => (
-            tick: provider.wordMasteredCelebrationTick,
-            origin: provider.wordMasteredCelebrationOrigin,
-          ),
-        );
+    final celebration = ref.watch(
+      vocabularyProvider.select(
+        (vocabulary) => (
+          tick: vocabulary.wordMasteredCelebrationTick,
+          origin: vocabulary.wordMasteredCelebrationOrigin,
+        ),
+      ),
+    );
     if (celebration.tick != _lastCelebrationTick) {
       _lastCelebrationTick = celebration.tick;
       if (celebration.tick > 0) {
