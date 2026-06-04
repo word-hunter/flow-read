@@ -1,6 +1,8 @@
 import 'package:flow_read/widgets/word_bottom_sheet.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flow_read/models/rss_models.dart';
+import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/rss_provider.dart';
 import 'package:flow_read/providers/rss_riverpod_provider.dart';
@@ -124,7 +126,6 @@ void main() {
     ];
     final rssProvider = await _createProvider(articles);
     final readingProvider = ReadingProvider();
-    addTearDown(readingProvider.dispose);
 
     await tester.pumpWidget(
       _buildApp(
@@ -211,15 +212,19 @@ Widget _buildApp(
   Widget child, {
   ReadingProvider? readingProvider,
 }) {
+  final resolvedReadingProvider = readingProvider ?? ReadingProvider();
   return riverpod.ProviderScope(
-    overrides: [rssProvider.overrideWith((ref) => provider)],
+    overrides: [
+      rssProvider.overrideWith((ref) => provider),
+      riverpod_reading.readingProvider.overrideWith(
+        (ref) => resolvedReadingProvider,
+      ),
+    ],
     child: MultiProvider(
       providers: [
-        readingProvider == null
-            ? ChangeNotifierProvider(create: (_) => ReadingProvider())
-            : ChangeNotifierProvider<ReadingProvider>.value(
-                value: readingProvider,
-              ),
+        ChangeNotifierProvider<ReadingProvider>.value(
+          value: resolvedReadingProvider,
+        ),
         ChangeNotifierProvider(create: (_) => SettingsService()),
       ],
       child: MaterialApp(home: child),

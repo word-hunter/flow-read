@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 import '../models/user_vocabulary.dart';
+import '../providers/reading/bookmark_provider.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
 import 'dictionary_detail_view.dart';
 import 'word_mastery_confetti.dart';
 
-class WordBottomSheet extends StatefulWidget {
+class WordBottomSheet extends riverpod.ConsumerStatefulWidget {
   final String word;
 
   const WordBottomSheet({super.key, required this.word});
 
   @override
-  State<WordBottomSheet> createState() => _WordBottomSheetState();
+  riverpod.ConsumerState<WordBottomSheet> createState() =>
+      _WordBottomSheetState();
 }
 
-class _WordBottomSheetState extends State<WordBottomSheet> {
+class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
   bool _bookmarkAdded = false;
   bool _learningItemSaved = false;
   bool _showAIAnalysis = false;
@@ -25,6 +28,7 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ReadingProvider>();
+    final bookmarks = ref.watch(bookmarkProvider);
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
     final word = provider.selectedWord ?? widget.word;
@@ -34,7 +38,7 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
       _learningItemSaved = false;
       _showAIAnalysis = false;
     }
-    final isBookmarked = provider.isBookmarked(word) || _bookmarkAdded;
+    final isBookmarked = bookmarks.isBookmarked(word) || _bookmarkAdded;
     final status = provider.getWordStatus(word);
 
     return DraggableScrollableSheet(
@@ -60,6 +64,7 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
               ),
               _buildBottomActions(
                 provider,
+                bookmarks,
                 settings,
                 theme,
                 word,
@@ -109,6 +114,7 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
 
   Widget _buildBottomActions(
     ReadingProvider provider,
+    BookmarkController bookmarks,
     SettingsService settings,
     ThemeData theme,
     String word,
@@ -217,7 +223,8 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
                     label: 'Unknown',
                     icon: Icons.help_outline,
                     color: AppColors.familiarityLow,
-                    onPressed: () => _markWordUnknown(provider, word),
+                    onPressed: () =>
+                        _markWordUnknown(provider, bookmarks, word),
                   ),
                 ),
             ],
@@ -284,7 +291,7 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
                   child: FilledButton.icon(
                     onPressed: provider.selectedWordTranslation != null
                         ? () {
-                            provider.addBookmark(
+                            bookmarks.addBookmark(
                               word,
                               provider.selectedWordTranslation!,
                             );
@@ -327,10 +334,14 @@ class _WordBottomSheetState extends State<WordBottomSheet> {
     );
   }
 
-  Future<void> _markWordUnknown(ReadingProvider provider, String word) async {
+  Future<void> _markWordUnknown(
+    ReadingProvider provider,
+    BookmarkController bookmarks,
+    String word,
+  ) async {
     await provider.markWordUnknown(word);
-    if (provider.isBookmarked(word)) {
-      provider.removeBookmark(word);
+    if (bookmarks.isBookmarked(word)) {
+      bookmarks.removeBookmark(word);
     }
     if (mounted) setState(() => _bookmarkAdded = false);
   }
