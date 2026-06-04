@@ -550,6 +550,7 @@ class ReadingProvider extends ChangeNotifier {
     await _readingConfig?.init();
     await _readingTime?.init();
     await _userVocab?.init();
+    await _wordLevelService?.init();
     await _wordContextService?.init();
     await _learningItemService?.init();
     await _learningAnalyticsService?.init();

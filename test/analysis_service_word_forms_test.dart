@@ -27,6 +27,21 @@ void main() {
         originForm: 'migrate',
         levelIndex: 5,
       ),
+      const WordLevelInfo(
+        word: 'looked',
+        originForm: 'look',
+        levelIndex: 0,
+      ),
+      const WordLevelInfo(
+        word: 'thinks',
+        originForm: 'think',
+        levelIndex: 0,
+      ),
+      const WordLevelInfo(
+        word: 'answers',
+        originForm: 'answer',
+        levelIndex: 0,
+      ),
     ]);
   });
 
@@ -105,6 +120,41 @@ void main() {
     expect(words, isNot(contains('cannot')));
     expect(words, isNot(contains('twas')));
     expect(words, isNot(contains('til')));
+  });
+
+  test('analysis canonicalizes common verb inflections via WordLevelService', () async {
+    final vocab = UserVocabularyService();
+    await vocab.init();
+    await vocab.setKnown('look');
+    await vocab.setKnown('think');
+    await vocab.setLearning('answer');
+
+    final wordLevels = WordLevelService();
+    await wordLevels.init();
+
+    final result = AnalysisService.analyzeChapter(
+      'Verbs',
+      'She looked around, thinks deeply, and answers quickly.',
+      vocab,
+      wordLevels,
+    );
+
+    expect(result.knownWords, contains('look'));
+    expect(result.knownWords, contains('think'));
+    expect(result.learningWords, contains('answer'));
+
+    expect(
+      result.vocabulary.map((item) => item.word),
+      isNot(contains('looked')),
+    );
+    expect(
+      result.vocabulary.map((item) => item.word),
+      isNot(contains('thinks')),
+    );
+    expect(
+      result.vocabulary.map((item) => item.word),
+      isNot(contains('answers')),
+    );
   });
 
   test('analysis uses an explicit language module when supplied', () {
