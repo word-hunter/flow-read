@@ -34,6 +34,8 @@ void main() {
 
     expect(find.text('阅读时长'), findsOneWidget);
     expect(find.text('2 小时 5 分钟'), findsOneWidget);
+    expect(find.text('生词本'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
   });
 }
 
@@ -47,7 +49,22 @@ class _ProfileReadingProvider extends ReadingProvider {
   List<BookMetadata> get allBooks => const [];
 
   @override
-  List<BookmarkedWord> get bookmarkedWords => const [];
+  List<BookmarkedWord> get bookmarkedWords => [
+    BookmarkedWord(
+      word: 'flow',
+      translation: 'movement',
+      context: '',
+      addedAt: DateTime(2026),
+      bookId: 'book-1',
+    ),
+    BookmarkedWord(
+      word: 'read',
+      translation: 'look at words',
+      context: '',
+      addedAt: DateTime(2026),
+      bookId: 'book-1',
+    ),
+  ];
 
   @override
   String get readingTimeDisplay => _readingTimeDisplay;

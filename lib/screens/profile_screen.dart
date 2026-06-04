@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
+import '../providers/reading/bookmark_provider.dart';
 import '../providers/reading/reading_time_provider.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
@@ -12,11 +13,12 @@ class ProfileScreen extends riverpod.ConsumerWidget {
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final provider = context.watch<ReadingProvider>();
+    final bookmarks = ref.watch(bookmarkProvider);
     final readingTime = ref.watch(readingTimeProvider);
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
     final bookCount = provider.allBooks.length;
-    final vocabCount = provider.bookmarkedWords.length;
+    final vocabCount = bookmarks.bookmarkedWords.length;
     final aiUsage = settings.aiUsage;
 
     return Scaffold(
