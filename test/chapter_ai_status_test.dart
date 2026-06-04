@@ -3,10 +3,13 @@ import 'package:flow_read/models/ai_practice_questions.dart';
 import 'package:flow_read/models/ai_summary.dart';
 import 'package:flow_read/models/chapter_ai_coverage.dart';
 import 'package:flow_read/models/chapter_ai_status.dart';
+import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/ai_summary_view.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -71,14 +74,16 @@ void main() {
     final settings = _StatusSettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: SizedBox(width: 480, height: 640, child: AISummaryView()),
+        child: ChangeNotifierProvider<SettingsService>.value(
+          value: settings,
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SizedBox(width: 480, height: 640, child: AISummaryView()),
+            ),
           ),
         ),
       ),

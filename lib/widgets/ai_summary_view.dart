@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 import '../models/ai_chapter_preview.dart';
 import '../models/ai_summary.dart';
 import '../models/chapter_ai_coverage.dart';
 import '../models/chapter_ai_status.dart';
-import '../providers/reading_provider.dart';
+import '../providers/reading/ai_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
 
-class AISummaryView extends StatefulWidget {
+class AISummaryView extends riverpod.ConsumerStatefulWidget {
   const AISummaryView({super.key});
 
   @override
-  State<AISummaryView> createState() => _AISummaryViewState();
+  riverpod.ConsumerState<AISummaryView> createState() => _AISummaryViewState();
 }
 
-class _AISummaryViewState extends State<AISummaryView> {
+class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
   bool _requestedCoverage = false;
 
   @override
@@ -25,17 +26,17 @@ class _AISummaryViewState extends State<AISummaryView> {
     _requestedCoverage = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final provider = context.read<ReadingProvider>();
-      if (provider.chapterAISummaryCoverage == null &&
-          !provider.isLoadingChapterAISummaryCoverage) {
-        provider.refreshChapterAISummaryCoverage();
+      final ai = ref.read(aiProvider);
+      if (ai.chapterAISummaryCoverage == null &&
+          !ai.isLoadingChapterAISummaryCoverage) {
+        ai.refreshChapterAISummaryCoverage();
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ReadingProvider>();
+    final ai = ref.watch(aiProvider);
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
 
@@ -52,23 +53,23 @@ class _AISummaryViewState extends State<AISummaryView> {
           ),
           child: Column(
             children: [
-              _buildHeader(theme, provider),
-              _buildLanguageToggle(theme, provider, settings.aiFeaturesEnabled),
-              _buildAIStatus(theme, provider.chapterAIStatus),
-              _buildSummaryCoverage(theme, provider),
+              _buildHeader(theme),
+              _buildLanguageToggle(theme, ai, settings.aiFeaturesEnabled),
+              _buildAIStatus(theme, ai.chapterAIStatus),
+              _buildSummaryCoverage(theme, ai),
               Divider(
                 color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
               ),
               Expanded(
-                child: provider.isGeneratingSummary
+                child: ai.isGeneratingSummary
                     ? _buildLoadingView(theme)
-                    : provider.aiSummary == null || provider.aiSummary!.isEmpty
-                    ? _buildEmptyView(theme, provider, settings)
+                    : ai.aiSummary == null || ai.aiSummary!.isEmpty
+                    ? _buildEmptyView(theme, ai, settings)
                     : _buildSummaryContent(
                         scrollController,
-                        provider.aiSummary!,
+                        ai.aiSummary!,
                         theme,
-                        provider,
+                        ai,
                         settings.aiFeaturesEnabled,
                       ),
               ),
@@ -79,7 +80,7 @@ class _AISummaryViewState extends State<AISummaryView> {
     );
   }
 
-  Widget _buildHeader(ThemeData theme, ReadingProvider provider) {
+  Widget _buildHeader(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 12, 4),
       child: Row(
@@ -109,15 +110,15 @@ class _AISummaryViewState extends State<AISummaryView> {
     );
   }
 
-  Widget _buildSummaryCoverage(ThemeData theme, ReadingProvider provider) {
-    final coverage = provider.chapterAISummaryCoverage;
-    if (!provider.isLoadingChapterAISummaryCoverage && coverage == null) {
+  Widget _buildSummaryCoverage(ThemeData theme, AIController ai) {
+    final coverage = ai.chapterAISummaryCoverage;
+    if (!ai.isLoadingChapterAISummaryCoverage && coverage == null) {
       return const SizedBox.shrink();
     }
 
     final message = coverage == null
         ? '正在读取已生成章节...'
-        : _coverageMessage(coverage, provider.currentChapter);
+        : _coverageMessage(coverage, ai.currentChapter);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -207,7 +208,7 @@ class _AISummaryViewState extends State<AISummaryView> {
 
   Widget _buildLanguageToggle(
     ThemeData theme,
-    ReadingProvider provider,
+    AIController ai,
     bool aiFeaturesEnabled,
   ) {
     return Padding(
@@ -229,11 +230,11 @@ class _AISummaryViewState extends State<AISummaryView> {
               ButtonSegment(value: 'zh', label: Text('中文')),
               ButtonSegment(value: 'en', label: Text('EN')),
             ],
-            selected: {provider.summaryLanguage},
+            selected: {ai.summaryLanguage},
             onSelectionChanged: aiFeaturesEnabled
                 ? (value) {
-                    provider.toggleSummaryLanguage();
-                    provider.generateSummary();
+                    ai.toggleSummaryLanguage();
+                    ai.generateSummary();
                   }
                 : null,
             style: ButtonStyle(
@@ -266,7 +267,7 @@ class _AISummaryViewState extends State<AISummaryView> {
 
   Widget _buildEmptyView(
     ThemeData theme,
-    ReadingProvider provider,
+    AIController ai,
     SettingsService settings,
   ) {
     final aiFeaturesEnabled = settings.aiFeaturesEnabled;
@@ -287,19 +288,19 @@ class _AISummaryViewState extends State<AISummaryView> {
             ),
           ),
           const SizedBox(height: 16),
-          if (provider.isGeneratingChapterPreview) ...[
+          if (ai.isGeneratingChapterPreview) ...[
             const SizedBox(
               width: 22,
               height: 22,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(height: 12),
-          ] else if (provider.aiChapterPreview != null &&
-              !provider.aiChapterPreview!.isEmpty) ...[
+          ] else if (ai.aiChapterPreview != null &&
+              !ai.aiChapterPreview!.isEmpty) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: _buildPreviewSection(
-                provider.aiChapterPreview!,
+                ai.aiChapterPreview!,
                 theme,
                 compact: true,
               ),
@@ -307,17 +308,15 @@ class _AISummaryViewState extends State<AISummaryView> {
             const SizedBox(height: 16),
           ],
           OutlinedButton.icon(
-            onPressed: aiFeaturesEnabled && !provider.isGeneratingChapterPreview
-                ? () => provider.generateChapterPreview()
+            onPressed: aiFeaturesEnabled && !ai.isGeneratingChapterPreview
+                ? () => ai.generateChapterPreview()
                 : null,
             icon: const Icon(Icons.visibility_outlined, size: 18),
             label: const Text('生成读前预览'),
           ),
           const SizedBox(height: 10),
           FilledButton.icon(
-            onPressed: aiFeaturesEnabled
-                ? () => provider.generateSummary()
-                : null,
+            onPressed: aiFeaturesEnabled ? () => ai.generateSummary() : null,
             icon: const Icon(Icons.auto_awesome, size: 18),
             label: const Text('生成 AI 总结'),
           ),
@@ -330,7 +329,7 @@ class _AISummaryViewState extends State<AISummaryView> {
     ScrollController scrollController,
     AISummary summary,
     ThemeData theme,
-    ReadingProvider provider,
+    AIController ai,
     bool aiFeaturesEnabled,
   ) {
     return SingleChildScrollView(
@@ -339,9 +338,8 @@ class _AISummaryViewState extends State<AISummaryView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (provider.aiChapterPreview != null &&
-              !provider.aiChapterPreview!.isEmpty) ...[
-            _buildPreviewSection(provider.aiChapterPreview!, theme),
+          if (ai.aiChapterPreview != null && !ai.aiChapterPreview!.isEmpty) ...[
+            _buildPreviewSection(ai.aiChapterPreview!, theme),
             const SizedBox(height: 20),
           ],
           if (summary.events.isNotEmpty) ...[
@@ -386,7 +384,7 @@ class _AISummaryViewState extends State<AISummaryView> {
             child: FilledButton.icon(
               onPressed: aiFeaturesEnabled
                   ? () {
-                      provider.generatePractice();
+                      ai.generatePractice();
                       Navigator.pop(context);
                     }
                   : null,
