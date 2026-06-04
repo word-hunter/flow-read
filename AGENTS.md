@@ -87,6 +87,8 @@ dart run tool/release.dart bump patch
 - Prefer existing services and providers over new parallel code paths.
 - Keep derived UI state render-time or source-backed when possible; avoid effect-style synchronization unless there is no cleaner option.
 - Keep long-running work off the UI thread. Backup/export/import and parsing paths must not block visible interaction.
+- When calling multiple independent async operations, prefer `Future.wait` over serial `await` chains. For example, `await Future.wait([a.init(), b.init()])` instead of `await a.init(); await b.init();`.
+- Do not micro-optimize existing serial init chains that already work — refactor only when adding new calls or when the author explicitly asks.
 - Use structured parsers for EPUB, RSS, HTML, JSON, and Hive-backed data instead of ad hoc string manipulation.
 - Preserve existing persisted schemas and storage contracts. When changing Hive models, update type ids/migrations deliberately and add tests.
 - Avoid broad refactors during bug fixes unless the existing path is clearly the root cause.
