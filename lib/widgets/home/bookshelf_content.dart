@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../models/book_metadata.dart';
+import '../../providers/reading/reading_time_provider.dart';
 import '../../providers/reading_provider.dart';
 import '../../services/epub_import_source.dart';
 import '../../services/settings_service.dart';
@@ -14,14 +16,15 @@ import 'today_review_card.dart';
 
 enum _BookSortMode { recent, title, author, progress, difficulty }
 
-class BookshelfContent extends StatefulWidget {
+class BookshelfContent extends riverpod.ConsumerStatefulWidget {
   const BookshelfContent({super.key});
 
   @override
-  State<BookshelfContent> createState() => _BookshelfContentState();
+  riverpod.ConsumerState<BookshelfContent> createState() =>
+      _BookshelfContentState();
 }
 
-class _BookshelfContentState extends State<BookshelfContent> {
+class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   _BookSortMode _sortMode = _BookSortMode.recent;
@@ -44,6 +47,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ReadingProvider>();
+    final readingTime = ref.watch(readingTimeProvider);
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
     final allBooks = provider.allBooks;
@@ -100,7 +104,7 @@ class _BookshelfContentState extends State<BookshelfContent> {
               progressPercent: (featuredBook.globalProgress * 100).toInt(),
               currentChapter: featuredBook.currentChapter,
               totalChapters: featuredBook.totalChapters,
-              readingTimeSeconds: provider.readingTimeSecondsForBook(
+              readingTimeSeconds: readingTime.readingTimeSecondsForBook(
                 featuredBook.id,
               ),
               difficulty: provider.difficultyForBook(featuredBook.id),

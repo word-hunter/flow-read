@@ -2,10 +2,13 @@ import 'dart:typed_data';
 
 import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
+import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/home/bookshelf_content.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -15,12 +18,17 @@ void main() {
     final settings = _BookshelfSettingsService();
 
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-          ChangeNotifierProvider<SettingsService>.value(value: settings),
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: const MaterialApp(home: Scaffold(body: BookshelfContent())),
+        child: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
+            ChangeNotifierProvider<SettingsService>.value(value: settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: BookshelfContent())),
+        ),
       ),
     );
 
@@ -29,6 +37,7 @@ void main() {
     expect(find.text('书架'), findsOneWidget);
     expect(find.text('最近阅读'), findsOneWidget);
     expect(find.text('本书已读'), findsOneWidget);
+    expect(find.text('1 小时 30 分钟'), findsOneWidget);
     expect(find.text('上次章节'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, '继续阅读'));
@@ -75,7 +84,7 @@ class _FailingOpenReadingProvider extends ReadingProvider {
   Uint8List? getCoverBytes(String bookId) => null;
 
   @override
-  int readingTimeSecondsForBook(String bookId) => 0;
+  int readingTimeSecondsForBook(String bookId) => 90 * 60;
 
   @override
   int noteCountForBook(String bookId) => 0;
