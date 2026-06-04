@@ -22,11 +22,8 @@ void main() {
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
+        child: ChangeNotifierProvider<SettingsService>.value(
+          value: settings,
           child: const MaterialApp(home: ProfileScreen()),
         ),
       ),
@@ -34,6 +31,8 @@ void main() {
 
     expect(find.text('阅读时长'), findsOneWidget);
     expect(find.text('2 小时 5 分钟'), findsOneWidget);
+    expect(find.text('阅读书籍'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
     expect(find.text('生词本'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
   });
@@ -46,7 +45,14 @@ class _ProfileReadingProvider extends ReadingProvider {
   final String _readingTimeDisplay;
 
   @override
-  List<BookMetadata> get allBooks => const [];
+  List<BookMetadata> get allBooks => const [
+    BookMetadata(
+      id: 'book-1',
+      title: 'Test Book',
+      author: 'Tester',
+      sourcePath: '/tmp/test.epub',
+    ),
+  ];
 
   @override
   List<BookmarkedWord> get bookmarkedWords => [
