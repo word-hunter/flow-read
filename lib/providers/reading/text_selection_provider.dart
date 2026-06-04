@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/ai_text_analysis.dart';
+import '../../models/analysis_result.dart';
 import '../../models/learning_item.dart';
+import '../../models/sentence_breakdown.dart';
 import '../reading_provider.dart';
 import 'reading_provider_riverpod.dart';
 
@@ -10,10 +12,16 @@ class TextSelectionController {
 
   final ReadingProvider _reader;
 
+  AnalysisResult? get selectedAnalysis => _reader.selectedAnalysis;
+  List<SentenceBreakdown>? get selectedBreakdowns => _reader.selectedBreakdowns;
   AITextAnalysis? get aiTextAnalysis => _reader.aiTextAnalysis;
   bool get isAnalyzingText => _reader.isAnalyzingText;
   String? get errorMessage => _reader.errorMessage;
   bool get canCreateLearningItems => _reader.canCreateLearningItems;
+
+  void analyzeSelectedText(String text) {
+    _reader.analyzeSelectedText(text);
+  }
 
   Future<LearningItemSaveResult?> addSelectedTextLearningItem() {
     return _reader.addSelectedTextLearningItem();

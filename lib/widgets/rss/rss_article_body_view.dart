@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/analysis_result.dart';
 import '../../models/rss_models.dart';
-import '../../providers/reading_provider.dart';
+import '../../providers/reading/text_selection_provider.dart';
+import '../../providers/reading/word_lookup_provider.dart';
 import '../../services/analysis_service.dart';
 import '../../services/app_logger.dart';
 import '../../services/settings_service.dart';
@@ -15,7 +17,7 @@ import '../word_bottom_sheet.dart';
 
 enum RssArticleBodyMode { preview, detail, intensive }
 
-class RssArticleBodyView extends StatelessWidget {
+class RssArticleBodyView extends riverpod.ConsumerWidget {
   final RssArticle article;
   final String searchQuery;
   final RssArticleBodyMode mode;
@@ -32,7 +34,7 @@ class RssArticleBodyView extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final theme = Theme.of(context);
     final bodyBlocks = article.bodyBlocks;
     final text =
@@ -56,9 +58,9 @@ class RssArticleBodyView extends StatelessWidget {
     }
 
     final bodyText = text ?? _textFromBodyBlocks(bodyBlocks) ?? '';
-    final readingProvider = context.watch<ReadingProvider>();
+    final wordLookup = ref.watch(wordLookupProvider);
     final settings = context.watch<SettingsService>();
-    final result = _analyzeArticleBody(readingProvider, bodyText);
+    final result = _analyzeArticleBody(wordLookup, bodyText);
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,7 +71,7 @@ class RssArticleBodyView extends StatelessWidget {
             bodyBlocks,
             result,
             theme,
-            readingProvider,
+            wordLookup,
             settings,
           )
         else
@@ -81,7 +83,7 @@ class RssArticleBodyView extends StatelessWidget {
             ),
             result,
             theme,
-            readingProvider,
+            wordLookup,
             settings,
           ),
         ..._buildTrailingImages(article, bodyBlocks),
@@ -105,7 +107,7 @@ class RssArticleBodyView extends StatelessWidget {
           enabled: selectedText.trim().isNotEmpty,
           onPressed: () {
             closeToolbar();
-            _showSelectedTextSheet(context, selectedText);
+            _showSelectedTextSheet(context, ref, selectedText);
           },
         ),
       ],
@@ -114,16 +116,16 @@ class RssArticleBodyView extends StatelessWidget {
   }
 
   AnalysisResult? _analyzeArticleBody(
-    ReadingProvider readingProvider,
+    WordLookupController wordLookup,
     String bodyText,
   ) {
     try {
       return AnalysisService.analyzeChapter(
         article.title,
         bodyText,
-        readingProvider.userVocabulary,
-        readingProvider.wordLevelService,
-        readingProvider.activeLanguageModule,
+        wordLookup.userVocabulary,
+        wordLookup.wordLevelService,
+        wordLookup.activeLanguageModule,
       );
     } catch (error, stackTrace) {
       AppLogger.instance.event(
@@ -142,7 +144,7 @@ class RssArticleBodyView extends StatelessWidget {
     List<RssArticleBodyBlock> bodyBlocks,
     AnalysisResult? result,
     ThemeData theme,
-    ReadingProvider readingProvider,
+    WordLookupController wordLookup,
     SettingsService settings,
   ) {
     return bodyBlocks
@@ -153,7 +155,7 @@ class RssArticleBodyView extends StatelessWidget {
               block,
               result,
               theme,
-              readingProvider,
+              wordLookup,
               settings,
             ),
             RssArticleImageBlock() => Padding(
@@ -180,7 +182,7 @@ class RssArticleBodyView extends StatelessWidget {
     RssArticleTextBlock block,
     AnalysisResult? result,
     ThemeData theme,
-    ReadingProvider readingProvider,
+    WordLookupController wordLookup,
     SettingsService settings,
   ) {
     final style = _rssTextStyle(block, theme);
@@ -195,6 +197,7 @@ class RssArticleBodyView extends StatelessWidget {
                       (word, contextText, {contextWordStart, contextWordEnd}) {
                         _showWordSheet(
                           context,
+                          wordLookup,
                           word,
                           contextText,
                           contextWordStart: contextWordStart,
@@ -207,9 +210,9 @@ class RssArticleBodyView extends StatelessWidget {
                   baseTextColor: style.color,
                   colorSettings: settings.colors,
                   searchQuery: searchQuery,
-                  lookupHighlightWord: readingProvider.selectedWord,
-                  wordLevelService: readingProvider.wordLevelService,
-                  languageModule: readingProvider.activeLanguageModule,
+                  lookupHighlightWord: wordLookup.selectedWord,
+                  wordLevelService: wordLookup.wordLevelService,
+                  languageModule: wordLookup.activeLanguageModule,
                 )
                 as TextSpan,
             style: style,
@@ -391,13 +394,13 @@ class RssArticleBodyView extends StatelessWidget {
 
   void _showWordSheet(
     BuildContext context,
+    WordLookupController wordLookup,
     String word,
     String contextText, {
     int? contextWordStart,
     int? contextWordEnd,
   }) {
-    final provider = context.read<ReadingProvider>();
-    provider.lookupWord(
+    wordLookup.lookupWord(
       word,
       contextText: contextText,
       contextWordStart: contextWordStart,
@@ -407,22 +410,26 @@ class RssArticleBodyView extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       builder: (_) => WordBottomSheet(word: word),
-    ).whenComplete(provider.clearWordLookup);
+    ).whenComplete(wordLookup.clearWordLookup);
   }
 
-  void _showSelectedTextSheet(BuildContext context, String text) {
+  void _showSelectedTextSheet(
+    BuildContext context,
+    riverpod.WidgetRef ref,
+    String text,
+  ) {
     final selectedText = text.trim();
     if (selectedText.isEmpty) return;
-    final provider = context.read<ReadingProvider>();
-    provider.analyzeSelectedText(selectedText);
+    final textSelection = ref.read(textSelectionProvider);
+    textSelection.analyzeSelectedText(selectedText);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SelectedTextSheet(
         selectedText: selectedText,
-        analysis: provider.selectedAnalysis,
-        breakdowns: provider.selectedBreakdowns,
+        analysis: textSelection.selectedAnalysis,
+        breakdowns: textSelection.selectedBreakdowns,
       ),
     );
   }
