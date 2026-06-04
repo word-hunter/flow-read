@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:provider/provider.dart';
 import '../providers/reading/current_book_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
 
-class TrainingPage extends StatelessWidget {
+class TrainingPage extends riverpod.ConsumerWidget {
   const TrainingPage({super.key});
 
   static const _trainingTypes = [
@@ -40,8 +40,9 @@ class TrainingPage extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final theme = Theme.of(context);
+    final settings = ref.watch(settingsProvider);
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -59,7 +60,7 @@ class TrainingPage extends StatelessWidget {
         child: Column(
           children: [
             _buildHeader(theme),
-            Expanded(child: _buildTrainingGrid(context, theme)),
+            Expanded(child: _buildTrainingGrid(context, theme, settings)),
           ],
         ),
       ),
@@ -95,8 +96,11 @@ class TrainingPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTrainingGrid(BuildContext context, ThemeData theme) {
-    final settings = context.watch<SettingsService>();
+  Widget _buildTrainingGrid(
+    BuildContext context,
+    ThemeData theme,
+    SettingsService settings,
+  ) {
     final visibleTypes = _trainingTypes
         .where(
           (type) =>
@@ -177,11 +181,10 @@ class TrainingPage extends StatelessWidget {
   }
 
   void _navigateToTraining(BuildContext context, _TrainingType type) {
-    final currentBook = riverpod.ProviderScope.containerOf(
-      context,
-    ).read(currentBookProvider);
-    if (type.requiresReviewFeature &&
-        !context.read<SettingsService>().reviewFeatureEnabled) {
+    final container = riverpod.ProviderScope.containerOf(context);
+    final currentBook = container.read(currentBookProvider);
+    final settings = container.read(settingsProvider);
+    if (type.requiresReviewFeature && !settings.reviewFeatureEnabled) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('请先在设置中开启轻量复习测试功能')));

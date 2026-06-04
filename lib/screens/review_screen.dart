@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:provider/provider.dart';
 import '../models/ai_practice_questions.dart';
 import '../models/review_question.dart';
 import '../providers/reading/ai_provider.dart';
 import '../providers/reading/current_book_provider.dart';
 import '../providers/reading/learning_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/review_service.dart';
-import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
 
@@ -489,7 +488,7 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final settings = context.watch<SettingsService>();
+    final settings = ref.watch(settingsProvider);
 
     return Scaffold(
       appBar: AppBar(

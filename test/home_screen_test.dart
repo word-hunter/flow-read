@@ -2,12 +2,12 @@ import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/screens/home_screen.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('wide home sidebar reads reading time through Riverpod', (
@@ -27,14 +27,9 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: HomeScreen()),
-        ),
+        child: const MaterialApp(home: HomeScreen()),
       ),
     );
 

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
-import 'package:provider/provider.dart';
 
 import '../../models/analysis_result.dart';
 import '../../models/rss_models.dart';
 import '../../providers/reading/text_selection_provider.dart';
 import '../../providers/reading/word_lookup_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../services/analysis_service.dart';
 import '../../services/app_logger.dart';
 import '../../services/settings_service.dart';
@@ -59,7 +59,7 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
 
     final bodyText = text ?? _textFromBodyBlocks(bodyBlocks) ?? '';
     final wordLookup = ref.watch(wordLookupProvider);
-    final settings = context.watch<SettingsService>();
+    final settings = ref.watch(settingsProvider);
     final result = _analyzeArticleBody(wordLookup, bodyText);
 
     final content = Column(

@@ -2,13 +2,12 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../models/book_metadata.dart';
 import '../../providers/reading/bookshelf_provider.dart';
 import '../../providers/reading/reading_time_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../services/epub_import_source.dart';
-import '../../services/settings_service.dart';
 import 'featured_book_card.dart';
 import 'book_shelf_row.dart';
 import 'home_hover_surface.dart';
@@ -48,7 +47,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   Widget build(BuildContext context) {
     final provider = ref.watch(bookshelfProvider);
     final readingTime = ref.watch(readingTimeProvider);
-    final settings = context.watch<SettingsService>();
+    final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
     final allBooks = provider.allBooks;
     _queueDifficultyRatings(provider, allBooks);

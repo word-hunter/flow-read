@@ -7,11 +7,22 @@ Last updated: 2026-06-03
 ## Provider 层级
 
 ```
-MultiProvider (AppProviders)
-├── ChangeNotifierProvider<SettingsService>
-├── ChangeNotifierProvider<BackupService>
-├── ChangeNotifierProvider<ReadingProvider>
-└── ChangeNotifierProvider<RssProvider>
+ProviderScope
+├── settingsProvider                    // ChangeNotifierProvider<SettingsService>
+├── backupProvider                      // ChangeNotifierProvider<BackupService>
+├── rssProvider                         // ChangeNotifierProvider<RssProvider>
+└── readingProvider                     // ChangeNotifierProvider<ReadingProvider>
+    ├── currentBookProvider             // facade
+    ├── bookshelfProvider               // facade
+    ├── readingConfigProvider           // facade
+    ├── readingTimeProvider             // facade
+    ├── vocabularyProvider              // facade
+    ├── wordLookupProvider              // facade
+    ├── textSelectionProvider           // facade
+    ├── readingSearchProvider           // facade
+    ├── bookmarkProvider                // facade
+    ├── aiProvider                      // facade
+    └── learningProvider                // facade
 ```
 
 ## ReadingProvider（核心，~2177 行）
@@ -104,6 +115,6 @@ String get _activeLanguageCode =>
 ## 引入新 Provider 的约定
 
 1. 新的 AI 状态用独立 provider（如 `AIAssistantController`），不塞 `ReadingProvider`
-2. 使用 `ChangeNotifierProvider` 注册在 `AppProviders` 中
-3. 用 `context.read<X>()` 获取，`context.watch<X>()` 监听
+2. 在 `lib/providers/` 中声明 Riverpod provider
+3. 用 `ref.read(xProvider)` 获取，`ref.watch(xProvider)` 监听
 4. 避免 provider 间循环依赖

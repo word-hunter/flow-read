@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:provider/provider.dart';
 import '../../models/user_vocabulary.dart';
 import '../../providers/reading/bookmark_provider.dart';
 import '../../providers/reading/vocabulary_provider.dart';
 import '../../providers/reading/word_lookup_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_colors.dart';
 import '../dictionary_detail_view.dart';
@@ -33,7 +33,7 @@ class _ReaderWordSidebarState
     final lookup = ref.watch(wordLookupProvider);
     final vocabulary = ref.watch(vocabularyProvider);
     final bookmarks = ref.watch(bookmarkProvider);
-    final settings = context.watch<SettingsService>();
+    final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
     final word = lookup.selectedWord;
 

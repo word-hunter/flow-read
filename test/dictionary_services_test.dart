@@ -10,6 +10,7 @@ import 'package:flow_read/models/word_analysis.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/dictionary/collins_repository.dart';
 import 'package:flow_read/services/compound_word_analyzer.dart';
 import 'package:flow_read/storage/repositories/dictionary_cache_repository.dart';
@@ -38,7 +39,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:provider/provider.dart';
 
 import 'support/hive_test_storage.dart';
 
@@ -50,14 +50,9 @@ Widget _withReadingProvider(
   return riverpod.ProviderScope(
     overrides: [
       riverpod_reading.readingProvider.overrideWith((ref) => provider),
+      settingsProvider.overrideWith((ref) => settings),
     ],
-    child: MultiProvider(
-      providers: [
-        ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-        ChangeNotifierProvider<SettingsService>.value(value: settings),
-      ],
-      child: child,
-    ),
+    child: child,
   );
 }
 
@@ -886,7 +881,6 @@ void main() {
         }),
       );
     final settings = SettingsService();
-    addTearDown(settings.dispose);
 
     await provider.lookupWord('flow');
 
@@ -945,7 +939,6 @@ void main() {
         }),
       );
     final settings = SettingsService();
-    addTearDown(settings.dispose);
 
     await provider.lookupWord('flow');
 
@@ -1001,7 +994,6 @@ void main() {
         }),
       );
     final settings = SettingsService();
-    addTearDown(settings.dispose);
 
     await provider.lookupWord('flow');
     await provider.markWordKnown('flow');
@@ -1241,7 +1233,6 @@ void main() {
           }),
         );
       final settings = SettingsService();
-      addTearDown(settings.dispose);
 
       await provider.lookupWord(
         'flow',
@@ -1311,7 +1302,6 @@ void main() {
   ) async {
     final provider = _AIAnalysisReadingProvider();
     final settings = _AIEnabledSettingsService();
-    addTearDown(settings.dispose);
 
     await tester.pumpWidget(
       _withReadingProvider(
@@ -1375,7 +1365,6 @@ void main() {
       ..setAICache(cache);
 
     addTearDown(provider.dispose);
-    addTearDown(settings.dispose);
     addTearDown(() async {
       if (await tempDir.exists()) {
         await tempDir.delete(recursive: true);

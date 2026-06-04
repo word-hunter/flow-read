@@ -6,6 +6,7 @@ import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/rss_provider.dart';
 import 'package:flow_read/providers/rss_riverpod_provider.dart';
+import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/screens/rss_article_detail_screen.dart';
 import 'package:flow_read/screens/rss_screen.dart';
 import 'package:flow_read/services/rss_service.dart';
@@ -13,7 +14,6 @@ import 'package:flow_read/services/settings_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('RSS screen opens a dedicated article detail reading view', (
@@ -219,16 +219,9 @@ Widget _buildApp(
       riverpod_reading.readingProvider.overrideWith(
         (ref) => resolvedReadingProvider,
       ),
+      settingsProvider.overrideWith((ref) => SettingsService()),
     ],
-    child: MultiProvider(
-      providers: [
-        ChangeNotifierProvider<ReadingProvider>.value(
-          value: resolvedReadingProvider,
-        ),
-        ChangeNotifierProvider(create: (_) => SettingsService()),
-      ],
-      child: MaterialApp(home: child),
-    ),
+    child: MaterialApp(home: child),
   );
 }
 

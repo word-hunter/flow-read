@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
+import '../providers/settings_provider.dart';
 import '../services/app_version.dart';
 import '../services/changelog_service.dart';
-import '../services/settings_service.dart';
 import 'release_notes_dialog.dart';
 
-class ReleaseNotesGate extends StatefulWidget {
+class ReleaseNotesGate extends riverpod.ConsumerStatefulWidget {
   const ReleaseNotesGate({super.key, required this.child});
 
   final Widget child;
 
   @override
-  State<ReleaseNotesGate> createState() => _ReleaseNotesGateState();
+  riverpod.ConsumerState<ReleaseNotesGate> createState() =>
+      _ReleaseNotesGateState();
 }
 
-class _ReleaseNotesGateState extends State<ReleaseNotesGate> {
+class _ReleaseNotesGateState extends riverpod.ConsumerState<ReleaseNotesGate> {
   bool _scheduled = false;
 
   @override
@@ -29,7 +30,7 @@ class _ReleaseNotesGateState extends State<ReleaseNotesGate> {
   Future<void> _showIfNeeded() async {
     if (!mounted) return;
 
-    final settings = context.read<SettingsService>();
+    final settings = ref.read(settingsProvider);
     if (!settings.shouldShowReleaseNotes(FlowReadVersion.releaseName)) {
       return;
     }

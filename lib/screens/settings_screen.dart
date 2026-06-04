@@ -4,12 +4,12 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:provider/provider.dart';
 
 import '../providers/backup_provider.dart';
 import '../providers/reading/ai_provider.dart';
 import '../providers/reading/bookshelf_provider.dart';
 import '../providers/rss_riverpod_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/ai_cache_service.dart';
 import '../services/app_update_installer.dart';
 import '../services/app_update_service.dart';
@@ -116,7 +116,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsService>();
+    final settings = ref.watch(settingsProvider);
     final backup = ref.watch(backupProvider);
     final theme = Theme.of(context);
     _syncAIControllers(settings);
@@ -593,7 +593,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
   }
 
   Future<void> _chooseBackupFolder() async {
-    final settings = context.read<SettingsService>();
+    final settings = ref.read(settingsProvider);
     final selection = await _backupFolderAccess.chooseDirectory(
       dialogTitle: '选择备份文件夹',
       initialDirectory: settings.backupFolderPath.trim().isEmpty
@@ -621,7 +621,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
   }
 
   Future<bool> _refreshBackupFolderAccessIfNeeded() async {
-    final settings = context.read<SettingsService>();
+    final settings = ref.read(settingsProvider);
     if (!_backupFolderAccess.requiresPersistentAccess ||
         settings.backupFolderBookmark.isNotEmpty) {
       return true;

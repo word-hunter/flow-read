@@ -2,19 +2,23 @@ import 'package:flow_read/pages/training_page.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('spaced review training entry is hidden by default', (
     tester,
   ) async {
     await tester.pumpWidget(
-      ChangeNotifierProvider<SettingsService>.value(
-        value: _FakeSettingsService(reviewEnabled: false),
+      riverpod.ProviderScope(
+        overrides: [
+          settingsProvider.overrideWith(
+            (ref) => _FakeSettingsService(reviewEnabled: false),
+          ),
+        ],
         child: const MaterialApp(home: Scaffold(body: TrainingPage())),
       ),
     );
@@ -27,8 +31,12 @@ void main() {
     'spaced review training entry appears when review flag is enabled',
     (tester) async {
       await tester.pumpWidget(
-        ChangeNotifierProvider<SettingsService>.value(
-          value: _FakeSettingsService(reviewEnabled: true),
+        riverpod.ProviderScope(
+          overrides: [
+            settingsProvider.overrideWith(
+              (ref) => _FakeSettingsService(reviewEnabled: true),
+            ),
+          ],
           child: const MaterialApp(home: Scaffold(body: TrainingPage())),
         ),
       );
@@ -46,11 +54,11 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          settingsProvider.overrideWith(
+            (ref) => _FakeSettingsService(reviewEnabled: false),
+          ),
         ],
-        child: ChangeNotifierProvider<SettingsService>.value(
-          value: _FakeSettingsService(reviewEnabled: false),
-          child: const MaterialApp(home: Scaffold(body: TrainingPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: TrainingPage())),
       ),
     );
 

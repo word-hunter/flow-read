@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
 import '../providers/reading/bookshelf_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/app_links.dart';
 import '../services/epub_import_source.dart';
 import '../services/external_url_launcher.dart';
@@ -50,6 +50,7 @@ class _NarrowBookshelf extends riverpod.ConsumerWidget {
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final provider = ref.watch(bookshelfProvider);
+    final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
     final books = provider.allBooks;
     _queueDifficultyRatings(context, provider, books);
@@ -74,6 +75,7 @@ class _NarrowBookshelf extends riverpod.ConsumerWidget {
               context,
               books,
               provider,
+              settings,
               theme,
               isNarrow: true,
             )
@@ -104,6 +106,7 @@ class _WideBookshelfState extends riverpod.ConsumerState<_WideBookshelf> {
   @override
   Widget build(BuildContext context) {
     final provider = ref.watch(bookshelfProvider);
+    final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
     final books = provider.allBooks;
     _queueDifficultyRatings(context, provider, books);
@@ -134,6 +137,7 @@ class _WideBookshelfState extends riverpod.ConsumerState<_WideBookshelf> {
               context,
               books,
               provider,
+              settings,
               theme,
               isNarrow: false,
               isGrid: _isGridView,
@@ -156,11 +160,11 @@ Widget _buildBookListWithDifficultyStatus(
   BuildContext context,
   List<BookMetadata> books,
   BookshelfController provider,
+  SettingsService settings,
   ThemeData theme, {
   required bool isNarrow,
   bool isGrid = false,
 }) {
-  final settings = context.watch<SettingsService>();
   return Column(
     children: [
       if (provider.isLoadingBookDifficulties)

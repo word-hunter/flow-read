@@ -6,12 +6,12 @@ import 'package:flow_read/models/chapter_ai_status.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/ai_summary_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   group('ChapterAIStatus', () {
@@ -77,13 +77,11 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          settingsProvider.overrideWith((ref) => settings),
         ],
-        child: ChangeNotifierProvider<SettingsService>.value(
-          value: settings,
-          child: const MaterialApp(
-            home: Scaffold(
-              body: SizedBox(width: 480, height: 640, child: AISummaryView()),
-            ),
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(width: 480, height: 640, child: AISummaryView()),
           ),
         ),
       ),

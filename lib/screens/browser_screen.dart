@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:provider/provider.dart';
 
 import '../models/analysis_result.dart';
 import '../providers/reading/text_selection_provider.dart';
 import '../providers/reading/word_lookup_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/analysis_service.dart';
 import '../services/llm_client.dart';
 import '../services/reading_assistant_agent.dart';
@@ -131,7 +131,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   }
 
   void _analyzeSelected(String text) {
-    final settings = context.read<SettingsService>();
+    final settings = ref.read(settingsProvider);
     if (!settings.aiFeaturesEnabled) return;
     final selectedText = text.trim();
     if (selectedText.isEmpty) return;
@@ -143,8 +143,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   }
 
   void _showSelectedTextSheet(String selectedText) {
-    final analyzerName =
-        '${context.read<SettingsService>().aiProvider.label} AI';
+    final analyzerName = '${ref.read(settingsProvider).aiProvider.label} AI';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -158,7 +157,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   }
 
   Future<void> _summarizePage() async {
-    final settings = context.read<SettingsService>();
+    final settings = ref.read(settingsProvider);
     if (!settings.aiFeaturesEnabled) return;
     final page = _page;
     if (page == null || page.plainText.trim().isEmpty) return;
@@ -175,7 +174,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   }
 
   Future<void> _askQuestion() async {
-    final settings = context.read<SettingsService>();
+    final settings = ref.read(settingsProvider);
     if (!settings.aiFeaturesEnabled) return;
     final page = _page;
     final question = _questionController.text.trim();
@@ -220,7 +219,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final settings = context.watch<SettingsService>();
+    final settings = ref.watch(settingsProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -362,7 +361,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
     final page = _page!;
     final analysis = _analysis!;
     final lookup = ref.watch(wordLookupProvider);
-    final settings = context.watch<SettingsService>();
+    final settings = ref.watch(settingsProvider);
 
     return SelectedTextActionRegion(
       actionsBuilder: (context, selectedText, closeToolbar) => [

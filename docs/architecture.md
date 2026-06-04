@@ -1,6 +1,6 @@
 # Flow Read Architecture
 
-> @source lib/main.dart lib/app/app_providers.dart lib/storage/hive_storage.dart
+> @source lib/main.dart lib/providers/ lib/storage/hive_storage.dart
 
 Last updated: 2026-06-03
 
@@ -9,10 +9,10 @@ Last updated: 2026-06-03
 ```
 ┌──────────────────────────────────────────────────┐
 │  UI Layer: screens/ + pages/ + widgets/           │
-│  (Material 3, Provider consumers)                 │
+│  (Material 3, Riverpod consumers)                 │
 ├──────────────────────────────────────────────────┤
 │  State Layer: providers/                          │
-│  (ChangeNotifier × 3: Reading + RSS + Settings)   │
+│  (Riverpod providers + transitional ChangeNotifiers) │
 ├──────────────────────────────────────────────────┤
 │  Service Layer: services/                         │
 │  (Stateless services, abstract adapters)          │
@@ -28,10 +28,10 @@ Last updated: 2026-06-03
 ## 核心设计原则
 
 1. **阅读器优先**：EPUB 阅读、搜索、图片渲染不依赖词汇标注、AI、RSS 或备份
-2. **Provider 单总线**：`ReadingProvider` 是核心状态中枢，但不新增 AI 状态
+2. **Riverpod 入口**：UI 通过 Riverpod facade 消费阅读、设置、备份和 RSS 状态
 3. **抽象接口 + 多实现**：词典（4 个 source adapter）、语言模块（LanguageModule）、发音服务
 4. **Hive 按语言分区**：schema v2，box 名含语言后缀（`user_vocabulary_en`）
-5. **手动 DI**：无框架，`AppProviders` 通过 `MultiProvider` 组装依赖
+5. **显式 Provider 声明**：依赖通过 `lib/providers/` 中的 Riverpod provider 声明
 
 ## 启动流程
 
@@ -39,8 +39,8 @@ Last updated: 2026-06-03
 main()
   → runZonedGuarded (AppLogger)
   → bootstrapStorage()           // Hive.init, registerAdapters, openBoxes, runMigrations
-  → AppProviders (MultiProvider) // 创建 SettingsService → BackupService → ReadingProvider → RssProvider
-  → FlowReadApp                 // MaterialApp.router, theme, global shortcuts
+  → ProviderScope                // Riverpod root
+  → FlowReadApp                  // MaterialApp, theme, global shortcuts
   → HomeScreen                  // 首屏：书架 + 侧栏
 ```
 
@@ -49,7 +49,7 @@ main()
 | 入口 | 文件 | 作用 |
 |------|------|------|
 | `main.dart:main()` | `lib/main.dart` | 应用入口，bootstrap + 路由 |
-| `app_providers.dart` | `lib/app/app_providers.dart` | 依赖装配 |
+| `providers/` | `lib/providers/` | Riverpod provider 声明与过渡 facade |
 | `hive_storage.dart:bootstrapStorage()` | `lib/storage/hive_storage.dart` | Hive 初始化 |
 | `reading_provider.dart:init()` | `lib/providers/reading_provider.dart` | 恢复上次阅读状态 |
 

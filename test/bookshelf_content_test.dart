@@ -5,13 +5,13 @@ import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/screens/bookshelf_screen.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/home/bookshelf_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('shows an error when continuing a book fails', (tester) async {
@@ -22,14 +22,9 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: BookshelfContent())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: BookshelfContent())),
       ),
     );
 
@@ -58,11 +53,9 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          settingsProvider.overrideWith((ref) => settings),
         ],
-        child: ChangeNotifierProvider<SettingsService>.value(
-          value: settings,
-          child: const MaterialApp(home: BookshelfScreen()),
-        ),
+        child: const MaterialApp(home: BookshelfScreen()),
       ),
     );
 

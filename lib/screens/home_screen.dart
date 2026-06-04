@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:provider/provider.dart';
 import '../providers/reading/current_book_provider.dart';
 import '../providers/reading/reading_time_provider.dart';
-import '../services/settings_service.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/home/home_sidebar.dart';
 import '../widgets/home/bookshelf_content.dart';
@@ -64,7 +63,7 @@ class HomeScreen extends riverpod.ConsumerWidget {
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final currentBook = ref.watch(currentBookProvider);
-    final settings = context.watch<SettingsService>();
+    final settings = ref.watch(settingsProvider);
 
     if (currentBook.isReading && currentBook.hasBook) {
       return const ReadingDeskScreen();
@@ -158,7 +157,7 @@ class _WideHomeLayout extends riverpod.ConsumerWidget {
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final theme = Theme.of(context);
     final readingTime = ref.watch(readingTimeProvider);
-    final settings = context.watch<SettingsService>();
+    final settings = ref.watch(settingsProvider);
     final visibleTabs = HomeScreen._visibleTabs(showRss: showRss);
     HomeScreen._redirectHiddenTab(context, currentBook, visibleTabs);
     final selectedIndex = HomeScreen._visibleIndexFor(

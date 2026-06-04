@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:provider/provider.dart';
 import '../models/ai_chapter_preview.dart';
 import '../models/ai_summary.dart';
 import '../models/chapter_ai_coverage.dart';
 import '../models/chapter_ai_status.dart';
 import '../providers/reading/ai_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
 
@@ -37,7 +37,7 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
   @override
   Widget build(BuildContext context) {
     final ai = ref.watch(aiProvider);
-    final settings = context.watch<SettingsService>();
+    final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
 
     return DraggableScrollableSheet(

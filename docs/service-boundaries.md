@@ -1,6 +1,6 @@
 # Flow Read Service Boundaries
 
-> @source lib/services/ lib/app/app_providers.dart
+> @source lib/services/ lib/providers/
 
 Last updated: 2026-06-03
 
@@ -149,5 +149,5 @@ BackupService（独立）
 1. **不要继续塞进 `ReadingProvider`**：新 AI 能力用独立 service/provider/use-case
 2. **抽象接口优先**：词典、发音、语言模块都使用 interface + 多实现
 3. **Repository 模式**：Hive box 操作通过 `lib/storage/repositories/` 封装的 repository 类
-4. **手动 DI**：在 `app_providers.dart` 中组装依赖，不引入 DI 框架
+4. **显式 Provider 声明**：在 `lib/providers/` 中声明 Riverpod provider，不引入额外 DI 框架
 5. **LanguageModule 约束**：新增语言只需实现 `LanguageModule` 接口并注册

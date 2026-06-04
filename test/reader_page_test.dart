@@ -21,7 +21,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('resets reading scroll position after changing chapter', (
@@ -36,13 +35,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -86,13 +79,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
     await tester.pumpAndSettle();
@@ -125,13 +112,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
     await tester.pumpAndSettle();
@@ -154,13 +135,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
     await tester.pump();
@@ -199,13 +174,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -238,13 +207,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -282,13 +245,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -321,13 +278,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -393,15 +344,7 @@ void main() {
           ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(
-              value: longTitleProvider,
-            ),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -427,15 +370,7 @@ void main() {
           ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(
-              value: shortTitleProvider,
-            ),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -464,13 +399,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -512,13 +441,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -547,13 +470,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -595,13 +512,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -643,13 +554,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -701,13 +606,7 @@ void main() {
             riverpod_reading.readingProvider.overrideWith((ref) => provider),
             riverpod_settings.settingsProvider.overrideWith((ref) => settings),
           ],
-          child: MultiProvider(
-            providers: [
-              ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-              ChangeNotifierProvider<SettingsService>.value(value: settings),
-            ],
-            child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-          ),
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
         ),
       );
 
@@ -772,13 +671,7 @@ void main() {
             riverpod_reading.readingProvider.overrideWith((ref) => provider),
             riverpod_settings.settingsProvider.overrideWith((ref) => settings),
           ],
-          child: MultiProvider(
-            providers: [
-              ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-              ChangeNotifierProvider<SettingsService>.value(value: settings),
-            ],
-            child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-          ),
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
         ),
       );
 
@@ -815,13 +708,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -849,13 +736,7 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
-        ),
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
       ),
     );
 
@@ -886,15 +767,9 @@ void main() {
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: MaterialApp(
-            theme: ThemeData(colorScheme: colorScheme),
-            home: const ReadingDeskScreen(),
-          ),
+        child: MaterialApp(
+          theme: ThemeData(colorScheme: colorScheme),
+          home: const ReadingDeskScreen(),
         ),
       ),
     );

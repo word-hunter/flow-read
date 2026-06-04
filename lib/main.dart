@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
 
-import 'app/app_providers.dart';
 import 'providers/settings_provider.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/home_screen.dart';
@@ -359,45 +358,43 @@ class _FlowReadAppState extends State<FlowReadApp> {
 
   @override
   Widget build(BuildContext context) {
-    return AppProviders(
-      child: riverpod.Consumer(
-        builder: (context, ref, _) {
-          final settings = ref.watch(settingsProvider);
-          final themeId = settings.appThemeId;
-          return ThemeTransitionHost(
-            child: MaterialApp(
-              navigatorKey: _navigatorKey,
-              navigatorObservers: [_routeObserver],
-              title: 'Flow Read',
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.lightThemeFor(themeId),
-              darkTheme: AppTheme.darkThemeFor(themeId),
-              themeMode: settings.themeMode,
-              themeAnimationDuration: const Duration(milliseconds: 220),
-              themeAnimationCurve: Curves.easeOutCubic,
-              builder: (context, child) {
-                return _buildShortcutScope(
-                  context,
-                  WordMasteryConfettiHost(
-                    child: child ?? const SizedBox.shrink(),
-                  ),
-                );
-              },
-              home: const ReleaseNotesGate(
-                child: EpubDropImporter(child: HomeScreen()),
-              ),
-              routes: {
-                SettingsScreen.routeName: (_) => const SettingsScreen(),
-                '/dashboard': (_) => const DashboardScreen(),
-                '/syntax': (_) => const SyntaxScreen(),
-                '/practice': (_) => const PracticeScreen(),
-                '/review': (_) => const ReviewScreen(),
-                '/spaced_review': (_) => const SpacedReviewScreen(),
-              },
+    return riverpod.Consumer(
+      builder: (context, ref, _) {
+        final settings = ref.watch(settingsProvider);
+        final themeId = settings.appThemeId;
+        return ThemeTransitionHost(
+          child: MaterialApp(
+            navigatorKey: _navigatorKey,
+            navigatorObservers: [_routeObserver],
+            title: 'Flow Read',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightThemeFor(themeId),
+            darkTheme: AppTheme.darkThemeFor(themeId),
+            themeMode: settings.themeMode,
+            themeAnimationDuration: const Duration(milliseconds: 220),
+            themeAnimationCurve: Curves.easeOutCubic,
+            builder: (context, child) {
+              return _buildShortcutScope(
+                context,
+                WordMasteryConfettiHost(
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              );
+            },
+            home: const ReleaseNotesGate(
+              child: EpubDropImporter(child: HomeScreen()),
             ),
-          );
-        },
-      ),
+            routes: {
+              SettingsScreen.routeName: (_) => const SettingsScreen(),
+              '/dashboard': (_) => const DashboardScreen(),
+              '/syntax': (_) => const SyntaxScreen(),
+              '/practice': (_) => const PracticeScreen(),
+              '/review': (_) => const ReviewScreen(),
+              '/spaced_review': (_) => const SpacedReviewScreen(),
+            },
+          ),
+        );
+      },
     );
   }
 }

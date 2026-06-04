@@ -8,7 +8,6 @@ import 'package:flow_read/widgets/font_settings_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('font settings sheet exposes and selects Literata', (
@@ -189,10 +188,7 @@ Widget _withReadingProvider(ReadingProvider provider, Widget child) {
     overrides: [
       riverpod_reading.readingProvider.overrideWith((ref) => provider),
     ],
-    child: ChangeNotifierProvider<ReadingProvider>.value(
-      value: provider,
-      child: child,
-    ),
+    child: child,
   );
 }
 

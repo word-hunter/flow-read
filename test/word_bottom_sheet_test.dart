@@ -1,13 +1,13 @@
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/dictionary/word_repository.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/word_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('word bottom sheet toggles bookmark through Riverpod', (
@@ -27,19 +27,14 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          settingsProvider.overrideWith((ref) => settings),
         ],
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider<ReadingProvider>.value(value: provider),
-            ChangeNotifierProvider<SettingsService>.value(value: settings),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: SizedBox(
-                width: 420,
-                height: 900,
-                child: WordBottomSheet(word: 'flow'),
-              ),
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 420,
+              height: 900,
+              child: WordBottomSheet(word: 'flow'),
             ),
           ),
         ),

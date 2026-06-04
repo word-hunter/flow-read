@@ -2,13 +2,13 @@ import 'package:flow_read/models/rss_models.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/rss/rss_article_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   testWidgets('article list exposes original article action', (tester) async {
@@ -146,31 +146,29 @@ void main() {
           riverpod_reading.readingProvider.overrideWith(
             (ref) => ReadingProvider(),
           ),
+          settingsProvider.overrideWith((ref) => SettingsService()),
         ],
-        child: ChangeNotifierProvider(
-          create: (_) => SettingsService(),
-          child: MaterialApp(
-            home: Scaffold(
-              body: RssArticleList(
-                articles: [article],
-                feedTitle: 'Example',
-                unreadCount: 1,
-                query: '',
-                filter: RssArticleFilter.all,
-                filterCounts: _filterCounts([article]),
-                articlesStatus: RssLoadStatus.loaded,
-                hasCachedArticles: true,
-                showFeedName: false,
-                onRefresh: () async {},
-                onRetry: () {},
-                onSearchChanged: (_) {},
-                onFilterChanged: (_) {},
-                onMarkRead: (_) async {},
-                onMarkUnread: (_) async {},
-                onSetFavorite: (_, _) async {},
-                onSetReadLater: (_, _) async {},
-                onOpenOriginal: (_) {},
-              ),
+        child: MaterialApp(
+          home: Scaffold(
+            body: RssArticleList(
+              articles: [article],
+              feedTitle: 'Example',
+              unreadCount: 1,
+              query: '',
+              filter: RssArticleFilter.all,
+              filterCounts: _filterCounts([article]),
+              articlesStatus: RssLoadStatus.loaded,
+              hasCachedArticles: true,
+              showFeedName: false,
+              onRefresh: () async {},
+              onRetry: () {},
+              onSearchChanged: (_) {},
+              onFilterChanged: (_) {},
+              onMarkRead: (_) async {},
+              onMarkUnread: (_) async {},
+              onSetFavorite: (_, _) async {},
+              onSetReadLater: (_, _) async {},
+              onOpenOriginal: (_) {},
             ),
           ),
         ),
