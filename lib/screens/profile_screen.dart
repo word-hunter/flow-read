@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
+import '../providers/reading/reading_time_provider.dart';
 import '../providers/reading_provider.dart';
 import '../services/settings_service.dart';
 import 'settings_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends riverpod.ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final provider = context.watch<ReadingProvider>();
+    final readingTime = ref.watch(readingTimeProvider);
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
     final bookCount = provider.allBooks.length;
     final vocabCount = provider.bookmarkedWords.length;
-    final readingTime = provider.readingTimeDisplay;
     final aiUsage = settings.aiUsage;
 
     return Scaffold(
@@ -93,7 +95,7 @@ class ProfileScreen extends StatelessWidget {
                           theme,
                           Icons.timer_outlined,
                           '阅读时长',
-                          readingTime,
+                          readingTime.readingTimeDisplay,
                         ),
                       ],
                     ),
