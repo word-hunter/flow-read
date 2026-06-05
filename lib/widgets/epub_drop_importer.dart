@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
 
 import '../providers/reading/bookshelf_provider.dart';
+import '../providers/reading_provider.dart';
 
 class EpubDropImporter extends riverpod.ConsumerStatefulWidget {
   const EpubDropImporter({super.key, required this.child});
@@ -78,11 +79,20 @@ class _EpubDropImporterState extends riverpod.ConsumerState<EpubDropImporter> {
     setState(() => _importingDroppedFiles = true);
     try {
       for (final path in epubPaths) {
-        await bookshelf.importBook(path);
+        final result = await bookshelf.importBook(path);
         if (!mounted) return;
+        if (result == BookImportResult.cancelled) {
+          _showSnackBar('已取消导入');
+          return;
+        }
         final errorMessage = bookshelf.errorMessage;
-        if (errorMessage != null) {
-          _showSnackBar(_importErrorMessage(errorMessage));
+        if (result == BookImportResult.failed) {
+          _showSnackBar(
+            errorMessage == null ? '导入失败' : _importErrorMessage(errorMessage),
+          );
+          return;
+        }
+        if (result != BookImportResult.imported) {
           return;
         }
       }

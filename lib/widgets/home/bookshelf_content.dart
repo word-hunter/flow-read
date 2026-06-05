@@ -574,10 +574,36 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
       context: context,
       builder: (dialogContext) {
         final theme = Theme.of(dialogContext);
+        final screenWidth = MediaQuery.sizeOf(dialogContext).width;
+        final dialogWidth = math.min(
+          360.0,
+          math.max(280.0, screenWidth - 80),
+        );
         return AlertDialog(
           title: const Text('移除书籍？'),
-          content: Text(
-            '将从书架移除《${book.title}》，并清空该书的阅读进度、生词本、阅读书签、AI 缓存以及本地 EPUB/封面文件。此操作不可撤销。',
+          content: SizedBox(
+            width: dialogWidth,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('将从书架移除这本书：'),
+                const SizedBox(height: 8),
+                Text(
+                  book.title,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  '并清空该书的阅读进度、生词本、阅读书签、AI 缓存以及本地 EPUB/封面文件。此操作不可撤销。',
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(

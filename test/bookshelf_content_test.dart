@@ -63,19 +63,54 @@ void main() {
     expect(find.text('Missing Book'), findsOneWidget);
     expect(find.text('Author'), findsOneWidget);
   });
+
+  testWidgets('remove dialog keeps long titles constrained', (tester) async {
+    final longTitle =
+        'A Very Long EPUB Title That Keeps Going Across The Dialog Width '
+        'And Would Previously Make The Remove Confirmation Much Too Wide';
+    final provider = _FailingOpenReadingProvider(title: longTitle);
+    final settings = _BookshelfSettingsService();
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          settingsProvider.overrideWith((ref) => settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: BookshelfContent())),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('更多操作').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('移出书架').first);
+    await tester.pumpAndSettle();
+
+    final titleText = tester.widget<Text>(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text(longTitle),
+      ),
+    );
+    expect(titleText.maxLines, 3);
+    expect(titleText.overflow, TextOverflow.ellipsis);
+  });
 }
 
 class _FailingOpenReadingProvider extends ReadingProvider {
+  _FailingOpenReadingProvider({String title = 'Missing Book'})
+    : _book = BookMetadata(
+        id: 'missing-book',
+        title: title,
+        author: 'Author',
+        sourcePath: '/missing/book.epub',
+        totalChapters: 3,
+        lastReadAt: DateTime.utc(2026, 5, 27),
+      );
+
   String? openedBookId;
 
-  final BookMetadata _book = BookMetadata(
-    id: 'missing-book',
-    title: 'Missing Book',
-    author: 'Author',
-    sourcePath: '/missing/book.epub',
-    totalChapters: 3,
-    lastReadAt: DateTime.utc(2026, 5, 27),
-  );
+  final BookMetadata _book;
 
   @override
   List<BookMetadata> get allBooks => [_book];

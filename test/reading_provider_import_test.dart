@@ -8,6 +8,7 @@ import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/epub_import_source.dart';
+import 'package:flow_read/services/epub_parse_worker.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
@@ -96,6 +97,86 @@ void main() {
       );
     },
   );
+
+  test('updates import UI state from real parser progress events', () async {
+    final provider = ReadingProvider()
+      ..setBookService(
+        BookService(documentsDirectoryProvider: () async => documentsDir),
+      );
+    await provider.init();
+
+    final stages = <String>[];
+    final progressValues = <double>[];
+    provider.importProgressNotifier.addListener(() {
+      final state = provider.importProgressNotifier.value;
+      if (state.stage.isNotEmpty) {
+        stages.add(state.stage);
+      }
+      final progress = state.progress;
+      if (progress != null) {
+        progressValues.add(progress);
+      }
+    });
+
+    await provider.importBookFromBytes(
+      bytes: _buildEpub(),
+      fileName: 'progress.epub',
+    );
+
+    expect(stages, contains('正在读取书籍信息...'));
+    expect(stages, contains('正在解析 EPUB 内容...'));
+    expect(stages, contains('解析完成'));
+    expect(stages, isNot(anyElement(contains('Chapter One'))));
+    expect(stages, isNot(anyElement(contains('Fixture Author'))));
+    expect(progressValues, anyElement(greaterThan(0.18)));
+    expect(progressValues, contains(0.72));
+  });
+
+  testWidgets('reveals import cancellation after ten seconds', (tester) async {
+    final bookService = _StallingBookService();
+    final provider = ReadingProvider()..setBookService(bookService);
+    addTearDown(provider.dispose);
+    await provider.init();
+    var globalNotifications = 0;
+    var importNotifications = 0;
+    provider.addListener(() => globalNotifications += 1);
+    provider.importProgressNotifier.addListener(() {
+      importNotifications += 1;
+    });
+
+    final importFuture = provider.importBookFromBytes(
+      bytes: Uint8List(0),
+      fileName: 'slow.epub',
+    );
+
+    expect(provider.isImportingBook, isTrue);
+    expect(provider.canCancelImport, isFalse);
+    expect(globalNotifications, 1);
+    expect(importNotifications, 1);
+
+    await tester.pump(const Duration(seconds: 9));
+    expect(provider.canCancelImport, isFalse);
+    expect(globalNotifications, 1);
+    expect(importNotifications, 1);
+
+    await tester.pump(const Duration(seconds: 1));
+    expect(provider.canCancelImport, isTrue);
+    expect(globalNotifications, 1);
+    expect(importNotifications, 2);
+
+    provider.cancelImport();
+    expect(provider.isCancellingImport, isTrue);
+    expect(globalNotifications, 1);
+    expect(importNotifications, 3);
+
+    bookService.completeCancelled();
+    await tester.pump();
+    final result = await importFuture;
+
+    expect(result, BookImportResult.cancelled);
+    expect(provider.isImportingBook, isFalse);
+    expect(globalNotifications, 2);
+  });
 
   test('reloads restored progress for the previously active book id', () async {
     final provider = ReadingProvider()
@@ -253,6 +334,30 @@ void main() {
       expect(provider.isLoadingBookDifficulties, isFalse);
     },
   );
+}
+
+class _StallingBookService extends BookService {
+  _StallingBookService()
+    : super(documentsDirectoryProvider: Directory.systemTemp.createTemp);
+
+  final Completer<String> _saveSource = Completer<String>();
+
+  @override
+  List<BookMetadata> get books => const [];
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  Future<String> saveSource(String bookId, EpubImportSource source) {
+    return _saveSource.future;
+  }
+
+  void completeCancelled() {
+    if (!_saveSource.isCompleted) {
+      _saveSource.completeError(const EpubParseCancelledException());
+    }
+  }
 }
 
 Uint8List _buildEpub() {

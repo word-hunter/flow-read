@@ -37,6 +37,35 @@ void main() {
     expect(provider.importedPaths, ['/tmp/book.epub']);
     expect(find.text('EPUB 已导入'), findsOneWidget);
   });
+
+  testWidgets('shows cancelled message for a cancelled dropped import', (
+    tester,
+  ) async {
+    final provider = _FakeReadingProvider(
+      importResult: BookImportResult.cancelled,
+    );
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+        ],
+        child: const MaterialApp(
+          home: EpubDropImporter(child: Scaffold(body: SizedBox.expand())),
+        ),
+      ),
+    );
+
+    await _sendDropMethod(
+      tester,
+      const MethodCall('filesDropped', ['/tmp/book.epub']),
+    );
+    await tester.pump();
+
+    expect(provider.importedPaths, ['/tmp/book.epub']);
+    expect(find.text('已取消导入'), findsOneWidget);
+    expect(find.text('EPUB 已导入'), findsNothing);
+  });
 }
 
 Future<void> _sendDropMethod(WidgetTester tester, MethodCall call) {
@@ -48,6 +77,9 @@ Future<void> _sendDropMethod(WidgetTester tester, MethodCall call) {
 }
 
 class _FakeReadingProvider extends ReadingProvider {
+  _FakeReadingProvider({this.importResult = BookImportResult.imported});
+
+  final BookImportResult importResult;
   final List<String> importedPaths = [];
 
   @override
@@ -57,8 +89,8 @@ class _FakeReadingProvider extends ReadingProvider {
   String? get errorMessage => null;
 
   @override
-  Future<void> importBook(String filePath) async {
+  Future<BookImportResult> importBook(String filePath) async {
     importedPaths.add(filePath);
-    notifyListeners();
+    return importResult;
   }
 }

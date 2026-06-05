@@ -18,6 +18,11 @@ class BookshelfController {
   bool get isLoading => _reader.isLoading;
   String? get errorMessage => _reader.errorMessage;
   String get importStage => _reader.importStage;
+  bool get isImportingBook => _reader.isImportingBook;
+  bool get isCancellingImport => _reader.isCancellingImport;
+  bool get canCancelImport => _reader.canCancelImport;
+  double? get importProgress => _reader.importProgress;
+  String? get importFileName => _reader.importFileName;
   bool get isLoadingBookDifficulties => _reader.isLoadingBookDifficulties;
   int get loadingBookDifficultyCount => _reader.loadingBookDifficultyCount;
   int get learningItemCount => _reader.learningItemCount;
@@ -55,12 +60,16 @@ class BookshelfController {
     return _reader.renameBook(bookId, title);
   }
 
-  Future<void> importBook(String filePath) {
+  Future<BookImportResult> importBook(String filePath) {
     return _reader.importBook(filePath);
   }
 
-  Future<void> importBookFromSource(EpubImportSource source) {
+  Future<BookImportResult> importBookFromSource(EpubImportSource source) {
     return _reader.importBookFromSource(source);
+  }
+
+  void cancelImport() {
+    _reader.cancelImport();
   }
 
   Future<void> reloadAfterBackupRestore() {

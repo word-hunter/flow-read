@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:epub_reader_core/epub_reader_core.dart' as core;
 import 'package:flutter/foundation.dart';
 
 import '../controllers/reading_search_controller.dart';
@@ -36,8 +37,8 @@ import '../services/book_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/chapter_ai_job.dart';
 import '../services/compound_word_analyzer.dart';
-import '../services/epub_service.dart';
 import '../services/epub_import_source.dart';
+import '../services/epub_parse_worker.dart';
 import '../services/learning_item_service.dart';
 import '../services/learning_analytics_service.dart';
 import '../services/language/english_language_module.dart';
@@ -59,10 +60,64 @@ import '../services/dictionary/word_repository.dart';
 import '../services/dictionary/wordnet_repository.dart';
 import '../storage/hive_box_names.dart';
 
+class _ImportCancelledException implements Exception {
+  const _ImportCancelledException();
+}
+
+enum BookImportResult { imported, cancelled, failed, ignored }
+
+class ImportProgressState {
+  const ImportProgressState({
+    this.isImportingBook = false,
+    this.isCancellingImport = false,
+    this.canCancelImport = false,
+    this.progress,
+    this.fileName,
+    this.stage = '',
+  });
+
+  static const idle = ImportProgressState();
+
+  final bool isImportingBook;
+  final bool isCancellingImport;
+  final bool canCancelImport;
+  final double? progress;
+  final String? fileName;
+  final String stage;
+
+  @override
+  bool operator ==(Object other) {
+    return other is ImportProgressState &&
+        other.isImportingBook == isImportingBook &&
+        other.isCancellingImport == isCancellingImport &&
+        other.canCancelImport == canCancelImport &&
+        other.progress == progress &&
+        other.fileName == fileName &&
+        other.stage == stage;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    isImportingBook,
+    isCancellingImport,
+    canCancelImport,
+    progress,
+    fileName,
+    stage,
+  );
+}
+
+class ImportProgressNotifier extends ValueNotifier<ImportProgressState> {
+  ImportProgressNotifier() : super(ImportProgressState.idle);
+}
+
 class ReadingProvider extends ChangeNotifier {
   static const _difficultyRefreshDebounce = Duration(seconds: 2);
   static const _difficultyRefreshBatchSize = 4;
   static const _difficultyRefreshBatchPause = Duration(milliseconds: 16);
+  static const _importCancelDelay = Duration(seconds: 10);
+  static const _importParseProgressStart = 0.18;
+  static const _importParseProgressEnd = 0.72;
   static const _compoundMeaningHints = <String, String>{
     'god': '神',
     'gods': '众神',
@@ -130,6 +185,17 @@ class ReadingProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   String _importStage = '';
+  bool _isImportingBook = false;
+  bool _isCancellingImport = false;
+  bool _showImportCancel = false;
+  bool _importCancellationRequested = false;
+  double? _importProgress;
+  String? _importFileName;
+  Timer? _importCancelTimer;
+  EpubParseTask? _activeImportParseTask;
+  BookImportResult _lastImportResult = BookImportResult.ignored;
+  final ImportProgressNotifier _importProgressNotifier =
+      ImportProgressNotifier();
   int _wordMasteredCelebrationTick = 0;
   String? _wordMasteredCelebrationWord;
   Offset? _wordMasteredCelebrationOrigin;
@@ -307,7 +373,7 @@ class ReadingProvider extends ChangeNotifier {
       try {
         final book = meta.id == _activeBookId && _book != null
             ? _book!
-            : await EpubService.parseFile(meta.sourcePath);
+            : await EpubParseWorker.parseInIsolate(meta.sourcePath);
         final studyWords = AnalysisService.collectBookStudyWords(
           book,
           _wordLevelService,
@@ -337,6 +403,14 @@ class ReadingProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String get importStage => _importStage;
+  bool get isImportingBook => _isImportingBook;
+  bool get isCancellingImport => _isCancellingImport;
+  bool get canCancelImport =>
+      _isImportingBook && _showImportCancel && !_isCancellingImport;
+  double? get importProgress => _importProgress;
+  String? get importFileName => _importFileName;
+  BookImportResult get lastImportResult => _lastImportResult;
+  ImportProgressNotifier get importProgressNotifier => _importProgressNotifier;
 
   // -- Word lookup --
   String? get selectedWord => _selectedWord;
@@ -620,11 +694,11 @@ class ReadingProvider extends ChangeNotifier {
   // Book import / management
   // ============================================================
 
-  Future<void> importBook(String filePath) {
+  Future<BookImportResult> importBook(String filePath) {
     return importBookFromSource(EpubImportSource.path(filePath));
   }
 
-  Future<void> importBookFromBytes({
+  Future<BookImportResult> importBookFromBytes({
     required Uint8List bytes,
     required String fileName,
   }) {
@@ -633,28 +707,55 @@ class ReadingProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> importBookFromSource(EpubImportSource source) async {
-    _isLoading = true;
-    _errorMessage = null;
-    _importStage = '正在读取 EPUB 文件...';
-    notifyListeners();
+  void cancelImport() {
+    if (!_isImportingBook || _isCancellingImport) return;
+    _importCancellationRequested = true;
+    _isCancellingImport = true;
+    _importStage = '正在取消导入...';
+    _activeImportParseTask?.cancel();
+    _emitImportProgress();
+  }
+
+  Future<BookImportResult> importBookFromSource(EpubImportSource source) async {
+    if (_isImportingBook) return BookImportResult.ignored;
+    _beginImport(source.fileName);
+    String? copiedPath;
+    var shouldDeleteCopiedSource = true;
 
     try {
       final bookId = _generateBookId(source.fileName);
       var effectiveBookId = bookId;
-      var copiedPath = await _bookService.saveSource(bookId, source);
-      final book = await EpubService.parseFile(copiedPath);
+      copiedPath = await _bookService.saveSource(bookId, source);
+      _throwIfImportCancelled();
+
+      _updateImportProgress('正在解析 EPUB...', 0.18);
+      final parseTask = await EpubParseWorker.startParseInIsolate(
+        copiedPath,
+        onProgress: _handleImportParseProgress,
+      );
+      _activeImportParseTask = parseTask;
+      if (_importCancellationRequested) {
+        parseTask.cancel();
+      }
+      final book = await parseTask.future;
+      _activeImportParseTask = null;
+      _throwIfImportCancelled();
+
+      _updateImportProgress('正在整理书籍信息...', 0.72);
       final restoredMeta = await _findMissingSourceRepairCandidate(book);
       if (restoredMeta != null) {
         effectiveBookId = restoredMeta.id;
+        shouldDeleteCopiedSource = false;
         copiedPath = await _bookService.replaceSourceFile(
           effectiveBookId,
           copiedPath,
         );
       }
+      _throwIfImportCancelled();
 
       String? coverPath;
       if (book.coverBytes != null) {
+        _updateImportProgress('正在保存封面...', 0.78);
         coverPath = await _bookService.saveCover(
           effectiveBookId,
           book.coverBytes!,
@@ -689,7 +790,10 @@ class ReadingProvider extends ChangeNotifier {
               ),
             );
 
+      _throwIfImportCancelled();
+      _updateImportProgress('正在写入书架...', 0.84, canCancel: false);
       await _bookService.addBook(metadata);
+      shouldDeleteCopiedSource = false;
       _bookDifficultyFailureKeys.remove(effectiveBookId);
 
       _book = book;
@@ -707,14 +811,143 @@ class ReadingProvider extends ChangeNotifier {
       _resetSearchState();
       await _refreshChapterAISummaryCoverage(notify: false);
 
-      _importStage = '正在统计生词、分析句式...';
-      notifyListeners();
+      _updateImportProgress('正在统计生词、分析句式...', 0.9, canCancel: false);
       await _analyzeCurrentChapter();
+      _updateImportProgress('导入完成', 1, canCancel: false);
+      _lastImportResult = BookImportResult.imported;
+      return BookImportResult.imported;
+    } on EpubParseCancelledException {
+      await _cleanupCancelledImport(
+        copiedPath,
+        deleteCopiedSource: shouldDeleteCopiedSource,
+      );
+      _lastImportResult = BookImportResult.cancelled;
+      return BookImportResult.cancelled;
+    } on _ImportCancelledException {
+      await _cleanupCancelledImport(
+        copiedPath,
+        deleteCopiedSource: shouldDeleteCopiedSource,
+      );
+      _lastImportResult = BookImportResult.cancelled;
+      return BookImportResult.cancelled;
     } catch (e) {
       _errorMessage = 'Failed to import book: $e';
+      _lastImportResult = BookImportResult.failed;
+      return BookImportResult.failed;
+    } finally {
+      _finishImport();
     }
+  }
+
+  void _beginImport(String fileName) {
+    _importCancelTimer?.cancel();
+    _activeImportParseTask = null;
+    _isLoading = true;
+    _isImportingBook = true;
+    _isCancellingImport = false;
+    _showImportCancel = false;
+    _importCancellationRequested = false;
+    _errorMessage = null;
+    _lastImportResult = BookImportResult.ignored;
+    _importFileName = fileName;
+    _importProgress = 0.06;
+    _importStage = '正在读取 EPUB 文件...';
+    _importCancelTimer = Timer(_importCancelDelay, () {
+      if (!_isImportingBook || _isCancellingImport) return;
+      _showImportCancel = true;
+      _emitImportProgress();
+    });
+    _emitImportProgress();
+    notifyListeners();
+  }
+
+  void _handleImportParseProgress(core.EpubParseEvent event) {
+    if (!_isImportingBook || _isCancellingImport) return;
+    final currentProgress = _importProgress ?? 0;
+    final nextProgress = _mapImportParseProgress(event);
+    _updateImportProgress(
+      _importParseStage(event),
+      nextProgress < currentProgress ? currentProgress : nextProgress,
+    );
+  }
+
+  double _mapImportParseProgress(core.EpubParseEvent event) {
+    return switch (event.phase) {
+      core.EpubParsePhase.extractingMetadata => 0.1,
+      core.EpubParsePhase.complete => _importParseProgressEnd,
+      _ =>
+        _importParseProgressStart +
+            event.progress.clamp(0.0, 1.0).toDouble() *
+                (_importParseProgressEnd - _importParseProgressStart),
+    };
+  }
+
+  String _importParseStage(core.EpubParseEvent event) {
+    return switch (event.phase) {
+      core.EpubParsePhase.extractingMetadata => '正在读取书籍信息...',
+      core.EpubParsePhase.parsingChapter ||
+      core.EpubParsePhase.buildingBlocks ||
+      core.EpubParsePhase.loadingImage => '正在解析 EPUB 内容...',
+      core.EpubParsePhase.complete => '解析完成',
+    };
+  }
+
+  void _updateImportProgress(
+    String stage,
+    double progress, {
+    bool canCancel = true,
+  }) {
+    _importStage = stage;
+    _importProgress = progress.clamp(0.0, 1.0).toDouble();
+    if (!canCancel) {
+      _showImportCancel = false;
+      _importCancelTimer?.cancel();
+      _importCancelTimer = null;
+    }
+    _emitImportProgress();
+  }
+
+  void _emitImportProgress() {
+    _importProgressNotifier.value = ImportProgressState(
+      isImportingBook: _isImportingBook,
+      isCancellingImport: _isCancellingImport,
+      canCancelImport: canCancelImport,
+      progress: _importProgress,
+      fileName: _importFileName,
+      stage: _importStage,
+    );
+  }
+
+  void _throwIfImportCancelled() {
+    if (_importCancellationRequested) {
+      throw const _ImportCancelledException();
+    }
+  }
+
+  Future<void> _cleanupCancelledImport(
+    String? copiedPath, {
+    required bool deleteCopiedSource,
+  }) async {
+    if (!deleteCopiedSource || copiedPath == null) return;
+    final file = File(copiedPath);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  void _finishImport() {
+    _importCancelTimer?.cancel();
+    _importCancelTimer = null;
+    _activeImportParseTask = null;
     _isLoading = false;
+    _isImportingBook = false;
+    _isCancellingImport = false;
+    _showImportCancel = false;
+    _importCancellationRequested = false;
     _importStage = '';
+    _importProgress = null;
+    _importFileName = null;
+    _emitImportProgress();
     notifyListeners();
   }
 
@@ -737,11 +970,11 @@ class ReadingProvider extends ChangeNotifier {
 
     _isLoading = true;
     _errorMessage = null;
-    _importStage = '正在加载...';
+    _importStage = '正在解析 EPUB...';
     notifyListeners();
 
     try {
-      final book = await EpubService.parseFile(meta.sourcePath);
+      final book = await EpubParseWorker.parseInIsolate(meta.sourcePath);
       _book = book;
       _activeBookId = bookId;
       _currentChapter = meta.currentChapter.clamp(0, book.chapters.length - 1);
@@ -2169,9 +2402,12 @@ class ReadingProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _importCancelTimer?.cancel();
+    _activeImportParseTask?.cancel();
     _difficultyRefreshTimer?.cancel();
     _searchController.removeListener(notifyListeners);
     _searchController.dispose();
+    _importProgressNotifier.dispose();
     _pronunciationService?.dispose();
     super.dispose();
   }

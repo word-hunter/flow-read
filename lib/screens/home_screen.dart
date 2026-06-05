@@ -1,7 +1,13 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import '../providers/reading/reading_time_provider.dart';
+import '../providers/reading_provider.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/home/home_sidebar.dart';
@@ -65,25 +71,28 @@ class HomeScreen extends riverpod.ConsumerWidget {
     final currentBook = ref.watch(currentBookProvider);
     final settings = ref.watch(settingsProvider);
 
+    Widget content;
     if (currentBook.isReading && currentBook.hasBook) {
-      return const ReadingDeskScreen();
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= AppConstants.wideBreakpoint) {
-          return _WideHomeLayout(
-            currentBook: currentBook,
+      content = const ReadingDeskScreen();
+    } else {
+      content = LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= AppConstants.wideBreakpoint) {
+            return _WideHomeLayout(
+              currentBook: currentBook,
+              showRss: settings.rssFeatureEnabled,
+            );
+          }
+          return _buildNarrowLayout(
+            context,
+            currentBook,
             showRss: settings.rssFeatureEnabled,
           );
-        }
-        return _buildNarrowLayout(
-          context,
-          currentBook,
-          showRss: settings.rssFeatureEnabled,
-        );
-      },
-    );
+        },
+      );
+    }
+
+    return _ImportProgressHost(child: content);
   }
 
   Widget _buildNarrowLayout(
@@ -136,6 +145,348 @@ class HomeScreen extends riverpod.ConsumerWidget {
       }
       currentBook.switchTab(visibleTabs.first);
     });
+  }
+}
+
+class _ImportProgressHost extends riverpod.ConsumerWidget {
+  const _ImportProgressHost({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, riverpod.WidgetRef ref) {
+    final importProgressNotifier = ref
+        .read(riverpod_reading.readingProvider)
+        .importProgressNotifier;
+
+    return _ImportProgressOverlayHost(
+      importProgressNotifier: importProgressNotifier,
+      onCancel: () => ref.read(riverpod_reading.readingProvider).cancelImport(),
+      child: child,
+    );
+  }
+}
+
+class _ImportProgressOverlayHost extends StatefulWidget {
+  const _ImportProgressOverlayHost({
+    required this.importProgressNotifier,
+    required this.onCancel,
+    required this.child,
+  });
+
+  static const _completionHold = Duration(milliseconds: 650);
+
+  final ValueListenable<ImportProgressState> importProgressNotifier;
+  final VoidCallback onCancel;
+  final Widget child;
+
+  @override
+  State<_ImportProgressOverlayHost> createState() =>
+      _ImportProgressOverlayHostState();
+}
+
+class _ImportProgressOverlayHostState
+    extends State<_ImportProgressOverlayHost> {
+  late final ValueNotifier<ImportProgressState> _displayState;
+  Timer? _hideTimer;
+  var _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayState = ValueNotifier<ImportProgressState>(
+      widget.importProgressNotifier.value,
+    );
+    _visible = _displayState.value.isImportingBook;
+    widget.importProgressNotifier.addListener(_handleImportStateChanged);
+  }
+
+  @override
+  void didUpdateWidget(_ImportProgressOverlayHost oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.importProgressNotifier == widget.importProgressNotifier) {
+      return;
+    }
+    oldWidget.importProgressNotifier.removeListener(_handleImportStateChanged);
+    _hideTimer?.cancel();
+    _displayState.value = widget.importProgressNotifier.value;
+    _visible = _displayState.value.isImportingBook;
+    widget.importProgressNotifier.addListener(_handleImportStateChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.importProgressNotifier.removeListener(_handleImportStateChanged);
+    _hideTimer?.cancel();
+    _displayState.dispose();
+    super.dispose();
+  }
+
+  void _handleImportStateChanged() {
+    final next = widget.importProgressNotifier.value;
+    if (next.isImportingBook) {
+      _hideTimer?.cancel();
+      _displayState.value = next;
+      if (!_visible && mounted) {
+        setState(() => _visible = true);
+      }
+      return;
+    }
+
+    final previous = _displayState.value;
+    final completed = (previous.progress ?? 0) >= 1.0;
+    if (completed) {
+      _hideTimer?.cancel();
+      _hideTimer = Timer(_ImportProgressOverlayHost._completionHold, () {
+        if (!mounted) return;
+        _displayState.value = ImportProgressState.idle;
+        setState(() => _visible = false);
+      });
+      return;
+    }
+
+    _hideTimer?.cancel();
+    _displayState.value = ImportProgressState.idle;
+    if (_visible && mounted) {
+      setState(() => _visible = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_visible) return widget.child;
+
+    return _ImportProgressOverlay(
+      importProgressListenable: _displayState,
+      onCancel: widget.onCancel,
+      child: widget.child,
+    );
+  }
+}
+
+class _ImportProgressOverlay extends StatelessWidget {
+  const _ImportProgressOverlay({
+    required this.importProgressListenable,
+    required this.onCancel,
+    required this.child,
+  });
+
+  final ValueListenable<ImportProgressState> importProgressListenable;
+  final VoidCallback onCancel;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Stack(
+      children: [
+        child,
+        Positioned.fill(
+          child: AbsorbPointer(
+            child: ColoredBox(
+              color: colorScheme.scrim.withValues(alpha: 0.34),
+            ),
+          ),
+        ),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Card(
+              elevation: 6,
+              margin: const EdgeInsets.all(24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: _ImportProgressPanel(
+                  importProgressListenable: importProgressListenable,
+                  onCancel: onCancel,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ImportProgressPanel extends StatelessWidget {
+  const _ImportProgressPanel({
+    required this.importProgressListenable,
+    required this.onCancel,
+  });
+
+  static const _stageTextHeight = 44.0;
+  static const _cancelActionHeight = 40.0;
+
+  final ValueListenable<ImportProgressState> importProgressListenable;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return ValueListenableBuilder<ImportProgressState>(
+      valueListenable: importProgressListenable,
+      builder: (context, importState, _) {
+        final progress = importState.progress;
+        final progressLabel = progress == null
+            ? null
+            : '${(progress * 100).clamp(0, 100).round()}%';
+        final stageStyle = theme.textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        );
+        final showCancelAction =
+            importState.canCancelImport || importState.isCancellingImport;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.upload_file,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '正在导入 EPUB',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (progressLabel != null)
+                  Text(
+                    progressLabel,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+            if (importState.fileName != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                importState.fileName!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            const SizedBox(height: 18),
+            _AnimatedImportProgressBar(progress: progress),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: _stageTextHeight,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  importState.stage,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: stageStyle,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              height: _cancelActionHeight,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: showCancelAction
+                    ? OutlinedButton.icon(
+                        onPressed: importState.isCancellingImport
+                            ? null
+                            : onCancel,
+                        icon: const Icon(Icons.close, size: 18),
+                        label: Text(
+                          importState.isCancellingImport ? '正在取消...' : '取消导入',
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _AnimatedImportProgressBar extends StatefulWidget {
+  const _AnimatedImportProgressBar({required this.progress});
+
+  final double? progress;
+
+  @override
+  State<_AnimatedImportProgressBar> createState() =>
+      _AnimatedImportProgressBarState();
+}
+
+class _AnimatedImportProgressBarState extends State<_AnimatedImportProgressBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialValue = _normalizedProgress(widget.progress) ?? 0.0;
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    );
+    _animation = AlwaysStoppedAnimation<double>(initialValue);
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedImportProgressBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final target = _normalizedProgress(widget.progress);
+    if (target == null) return;
+    final current = _animation.value;
+    if ((current - target).abs() < 0.001) return;
+    _controller.stop();
+    _controller.reset();
+    _animation = Tween<double>(begin: current, end: target).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double? _normalizedProgress(double? progress) {
+    return progress?.clamp(0.0, 1.0).toDouble();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final value = widget.progress;
+    if (value == null) {
+      return const LinearProgressIndicator(minHeight: 6);
+    }
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, _) =>
+          LinearProgressIndicator(value: _animation.value, minHeight: 6),
+    );
   }
 }
 

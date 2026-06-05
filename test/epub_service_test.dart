@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:epub_reader_core/epub_reader_core.dart' as core;
 import 'package:flow_read/models/content_block.dart';
+import 'package:flow_read/services/epub_parse_worker.dart';
 import 'package:flow_read/services/epub_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -83,6 +86,59 @@ void main() {
     expect(image.aspectRatio, 2);
     expect(image.caption, 'Map caption');
   });
+
+  test(
+    'EPUB parse worker parses file and bytes off the caller isolate',
+    () async {
+      final epubBytes = _buildEpub({
+        'OEBPS/Text/chapter1.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Chapter One</title></head>
+          <body><p>Background parsing keeps the UI isolate free.</p></body>
+        </html>
+      ''',
+      });
+      final tempDir = await Directory.systemTemp.createTemp(
+        'flow_read_epub_worker_',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      final epubFile = File('${tempDir.path}/fixture.epub');
+      await epubFile.writeAsBytes(epubBytes);
+      final events = <core.EpubParseEvent>[];
+
+      final fromFile = await EpubParseWorker.parseInIsolate(
+        epubFile.path,
+        onProgress: events.add,
+      );
+      final fromBytes = await EpubParseWorker.parseBytesInIsolate(epubBytes);
+
+      expect(fromFile.title, 'Fixture Book');
+      expect(fromFile.chapters.single.title, 'Chapter One');
+      expect(
+        fromFile.chapters.single.plainText,
+        'Background parsing keeps the UI isolate free.',
+      );
+      expect(fromBytes.title, fromFile.title);
+      expect(
+        fromBytes.chapters.single.plainText,
+        fromFile.chapters.single.plainText,
+      );
+      expect(
+        events.map((event) => event.phase),
+        containsAllInOrder([
+          core.EpubParsePhase.extractingMetadata,
+          core.EpubParsePhase.parsingChapter,
+          core.EpubParsePhase.buildingBlocks,
+          core.EpubParsePhase.complete,
+        ]),
+      );
+      expect(events.last.progress, 1);
+    },
+  );
 
   test(
     'EPUB parser applies safe CSS subset and ignores complex selectors',

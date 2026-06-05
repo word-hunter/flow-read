@@ -36,6 +36,103 @@ void main() {
     expect(find.text('2小时 / 3小时'), findsOneWidget);
     expect(find.text('每日目标 30分钟'), findsOneWidget);
   });
+
+  testWidgets('import overlay shows progress and calls cancel', (
+    tester,
+  ) async {
+    final provider = _ImportingHomeReadingProvider();
+    final settings = _HomeSettingsService();
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          settingsProvider.overrideWith((ref) => settings),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+
+    expect(find.text('正在导入 EPUB'), findsOneWidget);
+    expect(find.text('slow.epub'), findsOneWidget);
+    expect(find.text('42%'), findsOneWidget);
+    expect(find.text('正在解析 EPUB...'), findsOneWidget);
+    expect(find.text('取消导入'), findsNothing);
+
+    provider.revealCancel();
+    await tester.pump();
+    expect(find.text('取消导入'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '取消导入'));
+    await tester.pump();
+
+    expect(provider.cancelCalled, isTrue);
+    expect(provider.isCancellingImport, isTrue);
+    expect(find.text('正在取消...'), findsOneWidget);
+  });
+
+  testWidgets('import overlay holds completion long enough to reach 100%', (
+    tester,
+  ) async {
+    final provider = _ImportingHomeReadingProvider();
+    final settings = _HomeSettingsService();
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          settingsProvider.overrideWith((ref) => settings),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+
+    provider.completeAndClear();
+    await tester.pump();
+
+    expect(find.text('导入完成'), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 360));
+    final progress = tester.widget<LinearProgressIndicator>(
+      find.descendant(
+        of: find.byType(Card),
+        matching: find.byType(LinearProgressIndicator),
+      ),
+    );
+    expect(progress.value, moreOrLessEquals(1));
+
+    await tester.pump(const Duration(milliseconds: 650));
+    expect(find.text('正在导入 EPUB'), findsNothing);
+  });
+
+  testWidgets('import overlay keeps card height stable while status changes', (
+    tester,
+  ) async {
+    final provider = _ImportingHomeReadingProvider();
+    final settings = _HomeSettingsService();
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          settingsProvider.overrideWith((ref) => settings),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+
+    final cardFinder = find.byType(Card);
+    final initialHeight = tester.getSize(cardFinder).height;
+
+    provider.showLongStage();
+    await tester.pump();
+    expect(tester.getSize(cardFinder).height, initialHeight);
+
+    provider.revealCancel();
+    await tester.pump();
+    expect(tester.getSize(cardFinder).height, initialHeight);
+  });
 }
 
 class _HomeReadingProvider extends ReadingProvider {
@@ -81,6 +178,74 @@ class _HomeReadingProvider extends ReadingProvider {
   void switchTab(int index) {
     _currentTab = index;
     notifyListeners();
+  }
+}
+
+class _ImportingHomeReadingProvider extends _HomeReadingProvider {
+  _ImportingHomeReadingProvider() {
+    _emitImportProgress();
+  }
+
+  bool _canCancel = false;
+  bool _isCancelling = false;
+  String _stage = '正在解析 EPUB...';
+  bool cancelCalled = false;
+
+  @override
+  bool get isImportingBook => true;
+
+  @override
+  bool get canCancelImport => _canCancel && !_isCancelling;
+
+  @override
+  bool get isCancellingImport => _isCancelling;
+
+  @override
+  String get importStage => _isCancelling ? '正在取消导入...' : _stage;
+
+  @override
+  double? get importProgress => 0.42;
+
+  @override
+  String? get importFileName => 'slow.epub';
+
+  @override
+  void cancelImport() {
+    cancelCalled = true;
+    _isCancelling = true;
+    _emitImportProgress();
+  }
+
+  void revealCancel() {
+    _canCancel = true;
+    _emitImportProgress();
+  }
+
+  void showLongStage() {
+    _stage =
+        '正在排版 1/1 · Chapter One by Fixture Author with a very long document title';
+    _emitImportProgress();
+  }
+
+  void completeAndClear() {
+    importProgressNotifier.value = const ImportProgressState(
+      isImportingBook: true,
+      progress: 1,
+      fileName: 'slow.epub',
+      stage: '导入完成',
+    );
+    importProgressNotifier.value = ImportProgressState.idle;
+  }
+
+  void _emitImportProgress() {
+    importProgressNotifier.value = ImportProgressState(
+      isImportingBook: true,
+      isCancellingImport: _isCancelling,
+      canCancelImport: _canCancel && !_isCancelling,
+      progress: importProgress,
+      fileName: importFileName,
+      stage: importStage,
+    );
   }
 }
 

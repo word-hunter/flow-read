@@ -2,7 +2,7 @@
 
 > @source lib/services/ lib/providers/
 
-Last updated: 2026-06-03
+Last updated: 2026-06-05
 
 ## 服务分类
 
@@ -11,7 +11,8 @@ Last updated: 2026-06-03
 | Service | 职责 | 依赖 |
 |---------|------|------|
 | `BookService` | 书籍 CRUD、封面提取、书籍列表 | Hive `books_{lang}` box |
-| `EpubService` | EPUB 解析（epubx 包）、章节提取、图片提取 | `EpubImportSource` |
+| `EpubService` | EPUB core parser 结果到 app `Book` 的映射、章节提取、图片提取 | `epub_reader_core` |
+| `EpubParseWorker` | EPUB 文件/字节后台 isolate 解析入口，支持导入解析进度回调与任务取消，避免 UI isolate 执行 ZIP/XML/HTML/CSS 解析 | `Isolate.spawn`, `EpubService` |
 | `BookmarkService` | 阅读书签 + 单词书签管理 | `word_bookmarks_{lang}`, `reading_bookmarks_{lang}` |
 | `ReadingConfigService` | 字体、字号、行高、边距、主题持久化 | `reading_config_{lang}` |
 | `ReadingTimeService` | 阅读时长跟踪、每日目标检测 | `reading_time_{lang}` |

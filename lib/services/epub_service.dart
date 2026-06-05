@@ -8,14 +8,34 @@ import '../models/chapter.dart';
 import '../models/content_block.dart';
 
 class EpubService {
-  static Future<Book> parseFile(String filePath) async {
+  static Future<Book> parseFile(
+    String filePath, {
+    core.EpubParseProgressCallback? onProgress,
+  }) async {
     final file = File(filePath);
     final bytes = await file.readAsBytes();
-    return parseBytes(bytes);
+    return parseBytes(bytes, onProgress: onProgress);
   }
 
-  static Future<Book> parseBytes(Uint8List bytes) async {
-    final parsed = await core.EpubParser.parseBytes(bytes);
+  static Future<Book> parseBytes(
+    Uint8List bytes, {
+    core.EpubParseProgressCallback? onProgress,
+  }) async {
+    return parseBytesSync(bytes, onProgress: onProgress);
+  }
+
+  static Book parseBytesSync(
+    Uint8List bytes, {
+    core.EpubParseProgressCallback? onProgress,
+  }) {
+    final parsed = core.EpubParser.parseBytesSync(
+      bytes,
+      onProgress: onProgress,
+    );
+    return fromParsed(parsed);
+  }
+
+  static Book fromParsed(core.ParsedEpubBook parsed) {
     final chapters = <Chapter>[];
 
     for (final parsedChapter in parsed.chapters) {
