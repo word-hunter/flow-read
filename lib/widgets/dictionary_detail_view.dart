@@ -704,15 +704,20 @@ class _DictionaryFallbackSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hasAnalysis = analysis != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _StatusHint(
-          icon: Icons.manage_search_outlined,
-          text: '通用词典未命中，以下为规则推测结果。',
-          color: theme.colorScheme.onSurfaceVariant,
+          icon: hasAnalysis
+              ? Icons.manage_search_outlined
+              : Icons.auto_awesome_outlined,
+          text: hasAnalysis ? '通用词典未命中，以下为规则推测结果。' : '通用词典未命中，可通过 AI 详解此词。',
+          color: hasAnalysis
+              ? theme.colorScheme.onSurfaceVariant
+              : theme.colorScheme.tertiary,
         ),
-        if (analysis != null) ...[
+        if (hasAnalysis) ...[
           const SizedBox(height: 12),
           _CompoundAnalysisBlock(analysis: analysis!),
         ],

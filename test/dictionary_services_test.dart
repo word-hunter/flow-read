@@ -587,6 +587,10 @@ void main() {
       );
 
       expect(find.text('godswood'), findsOneWidget);
+      expect(
+        find.text('通用词典未命中，以下为规则推测结果。'),
+        findsOneWidget,
+      );
       expect(find.text('构词分析'), findsOneWidget);
       expect(find.text('gods + wood'), findsOneWidget);
       expect(find.text('gods: 众神'), findsOneWidget);
@@ -597,6 +601,42 @@ void main() {
         find.text('The godswood was silent beneath the old trees.'),
         findsOneWidget,
       );
+    },
+  );
+
+  testWidgets(
+    'DictionaryDetailView prompts AI explanation when fallback analysis is empty',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: DictionaryDetailView(
+                word: 'gamophobia',
+                entry: null,
+                primaryDefinition: null,
+                isLoading: false,
+                bookContexts: const [
+                  BookContextSnippet(
+                    text: 'It was just an example of your gamophobia in class.',
+                    chapterIndex: 8,
+                    chapterTitle: 'Section 8',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.text('通用词典未命中，以下为规则推测结果。'),
+        findsNothing,
+      );
+      expect(find.text('通用词典未命中，可通过 AI 详解此词。'), findsOneWidget);
+      expect(find.text('构词分析'), findsNothing);
+      expect(find.text('在本书中出现'), findsOneWidget);
+      expect(find.text('Section 8'), findsOneWidget);
     },
   );
 
