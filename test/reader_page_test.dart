@@ -22,6 +22,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+Finder _readerScrollView() => find.byKey(const ValueKey('reader-scroll-view'));
+
+Finder _readerScrollable() =>
+    find.descendant(of: _readerScrollView(), matching: find.byType(Scrollable));
+
 void main() {
   testWidgets('resets reading scroll position after changing chapter', (
     tester,
@@ -56,10 +61,10 @@ void main() {
     expect(find.byTooltip('上一页'), findsNothing);
     expect(find.byTooltip('下一页'), findsNothing);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -1200));
+    await tester.drag(_readerScrollView(), const Offset(0, -1200));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('第一章顶部标记00'), findsNothing);
+    expect(find.textContaining('第一章顶部标记00').hitTestable(), findsNothing);
 
     await provider.goToChapter(1);
     await tester.pumpAndSettle();
@@ -96,7 +101,7 @@ void main() {
           .data,
       '1 / 2 · 60%',
     );
-    expect(find.textContaining('第一章顶部标记00'), findsNothing);
+    expect(find.textContaining('第一章顶部标记00').hitTestable(), findsNothing);
   });
 
   testWidgets('uses saved scroll offset when reopening', (tester) async {
@@ -117,10 +122,98 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.drag(find.byType(ListView), const Offset(0, -1));
+    await tester.drag(_readerScrollView(), const Offset(0, -1));
     await tester.pump();
 
     expect(provider.readingScrollOffset, greaterThan(800));
+  });
+
+  testWidgets(
+    'scrolling updates progress indicators without replacing reader body',
+    (tester) async {
+      final provider = _FakeReadingProvider();
+      final settings = SettingsService();
+
+      await tester.pumpWidget(
+        riverpod.ProviderScope(
+          overrides: [
+            riverpod_reading.readingProvider.overrideWith((ref) => provider),
+            riverpod_settings.settingsProvider.overrideWith((ref) => settings),
+          ],
+          child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final scrollViewBefore = tester.widget<SingleChildScrollView>(
+        _readerScrollView(),
+      );
+      final progressBefore = tester
+          .widget<LinearProgressIndicator>(
+            find.byType(LinearProgressIndicator),
+          )
+          .value!;
+      expect(progressBefore, 0);
+
+      await tester.drag(_readerScrollView(), const Offset(0, -900));
+      await tester.pump();
+
+      final scrollViewAfter = tester.widget<SingleChildScrollView>(
+        _readerScrollView(),
+      );
+      final progressAfter = tester
+          .widget<LinearProgressIndicator>(
+            find.byType(LinearProgressIndicator),
+          )
+          .value!;
+      final metaText = tester
+          .widget<Text>(find.byKey(const ValueKey('reader-toolbar-meta')))
+          .data;
+
+      expect(scrollViewAfter, same(scrollViewBefore));
+      expect(provider.readingProgress, greaterThan(0));
+      expect(progressAfter, closeTo(provider.readingProgress, 0.01));
+      expect(metaText, isNot('1 / 2 · 0%'));
+    },
+  );
+
+  testWidgets('keeps reader scroll extent stable during fast scrolling', (
+    tester,
+  ) async {
+    final provider = _FakeReadingProvider(
+      chapters: [
+        Chapter(
+          title: 'Variable Height Chapter',
+          plainText: _variableHeightChapterText(),
+          rawHtml: '',
+        ),
+      ],
+    );
+    final settings = SettingsService();
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          riverpod_settings.settingsProvider.overrideWith((ref) => settings),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReaderPage())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+
+    final scrollable = tester.state<ScrollableState>(_readerScrollable());
+    final initialMaxScrollExtent = scrollable.position.maxScrollExtent;
+
+    await tester.drag(_readerScrollView(), const Offset(0, -5000));
+    await tester.pump();
+
+    expect(
+      scrollable.position.maxScrollExtent,
+      closeTo(initialMaxScrollExtent, 0.1),
+    );
   });
 
   testWidgets('supports arrow keys for scrolling and chapter navigation', (
@@ -518,17 +611,17 @@ void main() {
 
     expect(find.textContaining('第一章顶部标记00'), findsOneWidget);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -1200));
+    await tester.drag(_readerScrollView(), const Offset(0, -1200));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('第一章顶部标记00'), findsNothing);
+    expect(find.textContaining('第一章顶部标记00').hitTestable(), findsNothing);
     expect(provider.readingScrollOffset, greaterThan(0));
 
     await tester.tap(find.byTooltip('目录'));
     await tester.pumpAndSettle();
 
     expect(find.byType(TocDropdownPanel), findsOneWidget);
-    expect(find.textContaining('第一章顶部标记00'), findsNothing);
+    expect(find.textContaining('第一章顶部标记00').hitTestable(), findsNothing);
     expect(provider.readingScrollOffset, greaterThan(0));
   });
 
@@ -740,12 +833,12 @@ void main() {
       ),
     );
 
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(_readerScrollView(), const Offset(0, -300));
     await tester.pump();
     expect(find.textContaining('今日阅读目标已达成'), findsNothing);
 
     provider.setDailyGoalState(todaySeconds: 60, goalSeconds: 60);
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(_readerScrollView(), const Offset(0, -300));
     await tester.pump();
 
     expect(find.text('今日阅读目标已达成：1 分钟'), findsOneWidget);
@@ -828,6 +921,17 @@ void main() {
 
 const _shortChapterText =
     'By the time school was actually ready to start, the year had begun.';
+
+String _variableHeightChapterText() {
+  return List.generate(72, (index) {
+    final repeat = 3 + (index % 9) * 7;
+    final filler = List.filled(
+      repeat,
+      'variable paragraph ${index + 1} keeps the measured reader extent honest',
+    ).join(' ');
+    return 'Paragraph ${index + 1}. $filler.';
+  }).join('\n\n');
+}
 
 List<Chapter> _manyChapters(int count) {
   return List.generate(

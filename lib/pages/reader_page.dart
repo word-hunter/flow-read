@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
@@ -54,8 +55,14 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final Map<int, GlobalKey> _contentKeys = {};
+  final ValueNotifier<double> _displayProgressNotifier = ValueNotifier<double>(
+    0.0,
+  );
   String? _lastReaderLocationKey;
   String? _lastReaderViewportKey;
+  String? _cachedParagraphLocationKey;
+  String? _cachedParagraphSourceText;
+  List<String>? _cachedParagraphs;
   bool _hadReaderResult = false;
   bool _scrollViewportSyncQueued = false;
   bool _isRestoringViewport = false;
@@ -76,7 +83,6 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
   double? _pendingScrollOffset;
   int _viewportRestorePass = 0;
   double _layoutWidth = 0;
-  double _displayProgress = 0.0;
   int _visibleContentCount = 0;
 
   bool get _isWideScreen => _layoutWidth >= AppConstants.wideBreakpoint;
@@ -94,6 +100,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
     _readingReminderHideTimer?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _displayProgressNotifier.dispose();
     _readerFocusNode.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -182,10 +189,11 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
   }) {
     _pendingScrollProgress = progress.clamp(0.0, 1.0);
     _pendingScrollOffset = scrollOffset;
-    _displayProgress = _pendingScrollProgress;
+    _setDisplayProgress(_pendingScrollProgress);
     _viewportRestorePass = 0;
     if (locationChanged) {
       _contentKeys.clear();
+      _clearParagraphCache();
     }
 
     _isRestoringViewport = true;
@@ -236,11 +244,11 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
     final maxScroll = _scrollController.position.maxScrollExtent;
     if (maxScroll <= 0) return;
     if (_isRestoringViewport) {
-      _displayProgress = _pendingScrollProgress;
+      _setDisplayProgress(_pendingScrollProgress);
       return;
     }
     final progress = (_scrollController.offset / maxScroll).clamp(0.0, 1.0);
-    _displayProgress = progress;
+    _setDisplayProgress(progress);
     final currentBook = ref.read(currentBookProvider);
     currentBook.updateReadingProgress(
       progress,
@@ -248,7 +256,38 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
     );
     _lastReaderViewportKey = _readerViewportKey(currentBook);
     _checkDailyReadingGoal();
-    setState(() {});
+  }
+
+  void _setDisplayProgress(double progress) {
+    final next = progress.clamp(0.0, 1.0).toDouble();
+    if ((_displayProgressNotifier.value - next).abs() < 0.0001) return;
+    _displayProgressNotifier.value = next;
+  }
+
+  List<String> _paragraphsFor(
+    AnalysisResult result,
+    CurrentBookController currentBook,
+  ) {
+    final locationKey = _readerLocationKey(currentBook);
+    final sourceText = result.passageText;
+    final cached = _cachedParagraphs;
+    if (cached != null &&
+        _cachedParagraphLocationKey == locationKey &&
+        _cachedParagraphSourceText == sourceText) {
+      return cached;
+    }
+
+    final paragraphs = splitIntoParagraphs(sourceText);
+    _cachedParagraphLocationKey = locationKey;
+    _cachedParagraphSourceText = sourceText;
+    _cachedParagraphs = paragraphs;
+    return paragraphs;
+  }
+
+  void _clearParagraphCache() {
+    _cachedParagraphLocationKey = null;
+    _cachedParagraphSourceText = null;
+    _cachedParagraphs = null;
   }
 
   void _syncDailyGoalWatcher(
@@ -704,12 +743,13 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
       );
     }
 
-    final paragraphs = splitIntoParagraphs(result.passageText);
     final blocks = currentBook.hasBook && currentBook.chapterCount > 0
         ? currentBook.book!.chapters[currentBook.currentChapter].blocks
         : const <ContentBlock>[];
+    final paragraphs = blocks.isEmpty
+        ? _paragraphsFor(result, currentBook)
+        : const <String>[];
     final theme = Theme.of(context);
-    final progressPercent = (_displayProgress * 100).round();
     final chapterTitle = currentBook.hasBook && currentBook.chapterCount > 0
         ? currentBook.book!.chapters[currentBook.currentChapter].title
         : result.title;
@@ -734,10 +774,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
                   bookmarks,
                   theme,
                   chapterTitle,
-                  progressPercent: progressPercent,
                   showSidebarToggle: isWide,
                 ),
-                _buildReadingProgressLine(theme, _displayProgress),
+                _buildReadingProgressLine(theme, _displayProgressNotifier),
                 _buildReadingReminder(theme),
                 Expanded(
                   child: _buildReadingBodyOverlay(
@@ -801,12 +840,22 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
     return ColoredBox(color: _readerBackgroundColor(config), child: child);
   }
 
-  Widget _buildReadingProgressLine(ThemeData theme, double progress) {
-    return LinearProgressIndicator(
-      value: progress,
-      minHeight: 2,
-      backgroundColor: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
-      valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+  Widget _buildReadingProgressLine(
+    ThemeData theme,
+    ValueListenable<double> progressListenable,
+  ) {
+    return ValueListenableBuilder<double>(
+      valueListenable: progressListenable,
+      builder: (context, progress, _) {
+        return LinearProgressIndicator(
+          value: progress,
+          minHeight: 2,
+          backgroundColor: theme.colorScheme.outlineVariant.withValues(
+            alpha: 0.2,
+          ),
+          valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+        );
+      },
     );
   }
 
@@ -933,7 +982,8 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
                 : Alignment.topCenter,
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxFrameWidth),
-              child: ListView.builder(
+              child: SingleChildScrollView(
+                key: const ValueKey('reader-scroll-view'),
                 controller: _scrollController,
                 padding: EdgeInsets.fromLTRB(
                   leftPadding,
@@ -941,47 +991,43 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
                   rightPadding,
                   40,
                 ),
-                itemCount: contentCount + (showTitleBlock ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (showTitleBlock && index == 0) {
-                    return _buildTitleBlock(result, theme, config);
-                  }
-                  final contentIndex = showTitleBlock ? index - 1 : index;
-                  if (contentIndex >= contentCount) {
-                    return const SizedBox.shrink();
-                  }
-
-                  if (useBlocks) {
-                    return KeyedSubtree(
-                      key: _contentKeyFor(contentIndex),
-                      child: _buildContentBlock(
-                        blocks[contentIndex],
-                        result,
-                        theme,
-                        colorSettings: colorSettings,
-                        config: config,
-                        search: search,
-                        lookup: lookup,
-                        isFirstBlock: contentIndex == 0 && currentBook.hasBook,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (showTitleBlock) _buildTitleBlock(result, theme, config),
+                    for (
+                      var contentIndex = 0;
+                      contentIndex < contentCount;
+                      contentIndex += 1
+                    )
+                      KeyedSubtree(
+                        key: _contentKeyFor(contentIndex),
+                        child: useBlocks
+                            ? _buildContentBlock(
+                                blocks[contentIndex],
+                                result,
+                                theme,
+                                colorSettings: colorSettings,
+                                config: config,
+                                search: search,
+                                lookup: lookup,
+                                isFirstBlock:
+                                    contentIndex == 0 && currentBook.hasBook,
+                              )
+                            : _buildParagraph(
+                                paragraphs[contentIndex],
+                                result,
+                                theme,
+                                colorSettings: colorSettings,
+                                config: config,
+                                search: search,
+                                lookup: lookup,
+                                isFirstParagraph:
+                                    contentIndex == 0 && currentBook.hasBook,
+                              ),
                       ),
-                    );
-                  }
-
-                  return KeyedSubtree(
-                    key: _contentKeyFor(contentIndex),
-                    child: _buildParagraph(
-                      paragraphs[contentIndex],
-                      result,
-                      theme,
-                      colorSettings: colorSettings,
-                      config: config,
-                      search: search,
-                      lookup: lookup,
-                      isFirstParagraph:
-                          contentIndex == 0 && currentBook.hasBook,
-                    ),
-                  );
-                },
+                  ],
+                ),
               ),
             ),
           );
@@ -1323,7 +1369,6 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
     BookmarkController bookmarks,
     ThemeData theme,
     String chapterTitle, {
-    required int progressPercent,
     bool showSidebarToggle = false,
   }) {
     final isDark = _isDarkReadingTheme(config);
@@ -1339,8 +1384,8 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
     final contentTitle = chapterTitle.trim().isNotEmpty
         ? chapterTitle.trim()
         : '当前位置';
-    final chapterMetaLabel = currentBook.hasBook
-        ? '${currentBook.currentChapter + 1} / ${currentBook.chapterCount} · $progressPercent%'
+    final chapterMetaPrefix = currentBook.hasBook
+        ? '${currentBook.currentChapter + 1} / ${currentBook.chapterCount} · '
         : null;
     final canGoPreviousChapter =
         currentBook.hasBook && currentBook.currentChapter > 0;
@@ -1392,12 +1437,27 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage> {
                       const SizedBox(width: _toolbarIconGap),
                     ],
                     Expanded(
-                      child: _ReaderLocationSummary(
-                        title: contentTitle,
-                        metaLabel: chapterMetaLabel,
-                        difficulty: currentBook.currentBookDifficulty,
-                        textColor: toolbarTextColor,
-                      ),
+                      child: chapterMetaPrefix == null
+                          ? _ReaderLocationSummary(
+                              title: contentTitle,
+                              metaLabel: null,
+                              difficulty: currentBook.currentBookDifficulty,
+                              textColor: toolbarTextColor,
+                            )
+                          : ValueListenableBuilder<double>(
+                              valueListenable: _displayProgressNotifier,
+                              builder: (context, progress, _) {
+                                final progressPercent = (progress * 100)
+                                    .round();
+                                return _ReaderLocationSummary(
+                                  title: contentTitle,
+                                  metaLabel:
+                                      '$chapterMetaPrefix$progressPercent%',
+                                  difficulty: currentBook.currentBookDifficulty,
+                                  textColor: toolbarTextColor,
+                                );
+                              },
+                            ),
                     ),
                     if (showChapterStep) ...[
                       const SizedBox(width: _toolbarIconGap),
