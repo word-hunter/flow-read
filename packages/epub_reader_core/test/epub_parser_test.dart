@@ -62,6 +62,57 @@ void main() {
     final complexIgnored = blocks.whereType<ParsedTextBlock>().last;
     expect(complexIgnored.spans.single.style.bold, isFalse);
   });
+
+  test('reports metadata, chapter, image, and completion progress', () {
+    final events = <EpubParseEvent>[];
+    final epubBytes = _buildEpub(
+      {
+        'OEBPS/Text/chapter1.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Chapter One</title></head>
+          <body>
+            <p>Progress callbacks should track visible parser work.</p>
+            <img src="../Images/pic.png" />
+          </body>
+        </html>
+      ''',
+      },
+      extraBytes: {'OEBPS/Images/pic.png': _oneByOnePng},
+    );
+
+    final book = EpubParser.parseBytesSync(epubBytes, onProgress: events.add);
+
+    expect(book.chapters, hasLength(1));
+    expect(
+      events.map((event) => event.phase),
+      containsAllInOrder([
+        EpubParsePhase.extractingMetadata,
+        EpubParsePhase.parsingChapter,
+        EpubParsePhase.buildingBlocks,
+        EpubParsePhase.loadingImage,
+        EpubParsePhase.complete,
+      ]),
+    );
+    expect(events.last.phase, EpubParsePhase.complete);
+    expect(events.last.progress, 1);
+    expect(events.skip(1).every((event) => event.totalChapters == 1), isTrue);
+
+    final chapterEvent = events.firstWhere(
+      (event) => event.phase == EpubParsePhase.buildingBlocks,
+    );
+    expect(chapterEvent.chapterIndex, 0);
+    expect(chapterEvent.chapterTitle, 'Chapter One');
+    expect(_isMonotonic(events.map((event) => event.progress)), isTrue);
+  });
+}
+
+bool _isMonotonic(Iterable<double> values) {
+  var previous = 0.0;
+  for (final value in values) {
+    if (value < previous) return false;
+    previous = value;
+  }
+  return true;
 }
 
 Uint8List _buildEpub(

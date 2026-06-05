@@ -8,8 +8,63 @@ import 'package:xml/xml.dart';
 
 import 'epub_models.dart';
 
+typedef EpubParseProgressCallback = void Function(EpubParseEvent event);
+
+enum EpubParsePhase {
+  extractingMetadata,
+  parsingChapter,
+  buildingBlocks,
+  loadingImage,
+  complete,
+}
+
+class EpubParseEvent {
+  const EpubParseEvent({
+    required this.phase,
+    this.chapterIndex,
+    required this.totalChapters,
+    this.chapterTitle,
+    required this.progress,
+  }) : assert(progress >= 0 && progress <= 1);
+
+  final EpubParsePhase phase;
+  final int? chapterIndex;
+  final int totalChapters;
+  final String? chapterTitle;
+  final double progress;
+}
+
 class EpubParser {
-  static Future<ParsedEpubBook> parseBytes(Uint8List bytes) async {
+  static Future<ParsedEpubBook> parseBytes(
+    Uint8List bytes, {
+    EpubParseProgressCallback? onProgress,
+  }) async {
+    return parseBytesSync(bytes, onProgress: onProgress);
+  }
+
+  static ParsedEpubBook parseBytesSync(
+    Uint8List bytes, {
+    EpubParseProgressCallback? onProgress,
+  }) {
+    void report(
+      EpubParsePhase phase, {
+      int? chapterIndex,
+      int totalChapters = 0,
+      String? chapterTitle,
+      required double progress,
+    }) {
+      onProgress?.call(
+        EpubParseEvent(
+          phase: phase,
+          chapterIndex: chapterIndex,
+          totalChapters: totalChapters,
+          chapterTitle: chapterTitle,
+          progress: progress.clamp(0.0, 1.0).toDouble(),
+        ),
+      );
+    }
+
+    report(EpubParsePhase.extractingMetadata, progress: 0);
     final archive = _EpubArchive(ZipDecoder().decodeBytes(bytes));
 
     final containerXml = _readFile(archive, 'META-INF/container.xml');
@@ -56,6 +111,29 @@ class EpubParser {
       }
     }
 
+    final spineItems = <({String idref, String href, String mediaType})>[];
+    final spineEl = package.findAllElements('spine').firstOrNull;
+    if (spineEl != null) {
+      for (final itemref in spineEl.findElements('itemref')) {
+        final idref = itemref.getAttribute('idref');
+        if (idref == null || !manifest.containsKey(idref)) continue;
+
+        final entry = manifest[idref]!;
+        if (!entry.mediaType.contains('html')) continue;
+        spineItems.add((
+          idref: idref,
+          href: entry.href,
+          mediaType: entry.mediaType,
+        ));
+      }
+    }
+    final totalChapters = spineItems.length;
+    report(
+      EpubParsePhase.extractingMetadata,
+      totalChapters: totalChapters,
+      progress: totalChapters == 0 ? 0.5 : 0.05,
+    );
+
     // Extract cover image
     Uint8List? coverBytes;
     final coverId = _findCoverId(package, manifest);
@@ -65,36 +143,72 @@ class EpubParser {
     }
 
     // Read chapters in spine order
-    final spineEl = package.findAllElements('spine').firstOrNull;
     final chapters = <ParsedEpubChapter>[];
 
-    if (spineEl != null) {
-      for (final itemref in spineEl.findElements('itemref')) {
-        final idref = itemref.getAttribute('idref');
-        if (idref == null || !manifest.containsKey(idref)) continue;
-
-        final entry = manifest[idref]!;
-        if (!entry.mediaType.contains('html')) continue;
-
+    if (spineItems.isNotEmpty) {
+      for (var i = 0; i < spineItems.length; i += 1) {
+        final entry = spineItems[i];
         final chapterHref = '$opfDir${entry.href}';
         final chapterDir = chapterHref.contains('/')
             ? '${chapterHref.substring(0, chapterHref.lastIndexOf('/'))}/'
             : opfDir;
 
+        report(
+          EpubParsePhase.parsingChapter,
+          chapterIndex: i,
+          totalChapters: totalChapters,
+          progress: _chapterProgress(i, totalChapters, 0),
+        );
+
         final html = _readFile(archive, chapterHref);
-        if (html == null) continue;
+        if (html == null) {
+          report(
+            EpubParsePhase.parsingChapter,
+            chapterIndex: i,
+            totalChapters: totalChapters,
+            progress: _chapterProgress(i, totalChapters, 1),
+          );
+          continue;
+        }
 
         final contentDoc = html_parser.parse(html);
         final body = contentDoc.body;
-        if (body == null) continue;
+        if (body == null) {
+          report(
+            EpubParsePhase.parsingChapter,
+            chapterIndex: i,
+            totalChapters: totalChapters,
+            progress: _chapterProgress(i, totalChapters, 1),
+          );
+          continue;
+        }
+        final documentTitle = _normalizePlainText(
+          contentDoc.querySelector('title')?.text ?? '',
+        );
 
         final css = _buildStyleCascade(contentDoc, archive, chapterDir);
         _removeUnwantedElements(body);
+        report(
+          EpubParsePhase.buildingBlocks,
+          chapterIndex: i,
+          totalChapters: totalChapters,
+          chapterTitle: documentTitle.isEmpty ? null : documentTitle,
+          progress: _chapterProgress(i, totalChapters, 0.45),
+        );
         final blocks = _parseParsedContentBlocks(
           contentDoc,
           archive,
           chapterDir,
           css,
+          onImageLoad: () {
+            report(
+              EpubParsePhase.loadingImage,
+              chapterIndex: i,
+              totalChapters: totalChapters,
+              chapterTitle: documentTitle.isEmpty ? null : documentTitle,
+              progress: _chapterProgress(i, totalChapters, 0.7),
+            );
+          },
         );
         final plainText = _plainTextFromBlocks(blocks);
 
@@ -102,15 +216,20 @@ class EpubParser {
             blocks.any((b) => b is ParsedImageBlock)) {
           chapters.add(
             ParsedEpubChapter(
-              documentTitle: _normalizePlainText(
-                contentDoc.querySelector('title')?.text ?? '',
-              ),
+              documentTitle: documentTitle,
               plainText: plainText,
               rawHtml: html,
               blocks: blocks,
             ),
           );
         }
+        report(
+          EpubParsePhase.parsingChapter,
+          chapterIndex: i,
+          totalChapters: totalChapters,
+          chapterTitle: documentTitle.isEmpty ? null : documentTitle,
+          progress: _chapterProgress(i, totalChapters, 1),
+        );
       }
     }
 
@@ -124,6 +243,12 @@ class EpubParser {
       );
     }
 
+    report(
+      EpubParsePhase.complete,
+      totalChapters: chapters.length,
+      progress: 1,
+    );
+
     return ParsedEpubBook(
       title: title,
       author: author,
@@ -131,6 +256,22 @@ class EpubParser {
       chapters: chapters,
       coverBytes: coverBytes,
     );
+  }
+
+  static double _chapterProgress(
+    int chapterIndex,
+    int totalChapters,
+    double chapterProgress,
+  ) {
+    if (totalChapters <= 0) {
+      return chapterProgress.clamp(0.0, 1.0).toDouble();
+    }
+    final normalizedChapterProgress =
+        (chapterIndex.clamp(0, totalChapters) +
+            chapterProgress.clamp(0.0, 1.0)) /
+        totalChapters;
+    final value = 0.05 + normalizedChapterProgress * 0.9;
+    return value.clamp(0.0, 1.0).toDouble();
   }
 
   static String? _findDcElement(XmlElement package, String name) {
@@ -263,13 +404,22 @@ class EpubParser {
     dom.Document document,
     _EpubArchive archive,
     String baseDir,
-    _CssCascade css,
-  ) {
+    _CssCascade css, {
+    void Function()? onImageLoad,
+  }) {
     final body = document.body;
     if (body == null) return [];
 
     final result = <ParsedContentBlock>[];
-    _parseNodesAsBlocks(body.nodes, result, archive, baseDir, 0, css);
+    _parseNodesAsBlocks(
+      body.nodes,
+      result,
+      archive,
+      baseDir,
+      0,
+      css,
+      onImageLoad: onImageLoad,
+    );
     return result;
   }
 
@@ -279,8 +429,9 @@ class EpubParser {
     _EpubArchive archive,
     String baseDir,
     int indent,
-    _CssCascade css,
-  ) {
+    _CssCascade css, {
+    void Function()? onImageLoad,
+  }) {
     final inlineRun = <dom.Node>[];
 
     void flushInlineRun() {
@@ -293,6 +444,7 @@ class EpubParser {
         ParsedBlockType.paragraph,
         indent: indent,
         css: css,
+        onImageLoad: onImageLoad,
       );
       inlineRun.clear();
     }
@@ -309,7 +461,15 @@ class EpubParser {
 
       if (_isBlockElement(node) || _isImageElement(node)) {
         flushInlineRun();
-        _parseBlockElement(node, result, archive, baseDir, indent, css);
+        _parseBlockElement(
+          node,
+          result,
+          archive,
+          baseDir,
+          indent,
+          css,
+          onImageLoad: onImageLoad,
+        );
       } else {
         inlineRun.add(node);
       }
@@ -324,19 +484,35 @@ class EpubParser {
     _EpubArchive archive,
     String baseDir,
     int indent,
-    _CssCascade css,
-  ) {
+    _CssCascade css, {
+    void Function()? onImageLoad,
+  }) {
     final tag = element.localName?.toLowerCase() ?? '';
     final elementStyle = css.declarationFor(element);
     final blockStyle = elementStyle.blockStyle;
 
     if (_isImageElement(element)) {
-      _addParsedImageBlock(element, result, archive, baseDir, css);
+      _addParsedImageBlock(
+        element,
+        result,
+        archive,
+        baseDir,
+        css,
+        onImageLoad: onImageLoad,
+      );
       return;
     }
 
     if (tag == 'figure') {
-      _parseFigure(element, result, archive, baseDir, indent, css);
+      _parseFigure(
+        element,
+        result,
+        archive,
+        baseDir,
+        indent,
+        css,
+        onImageLoad: onImageLoad,
+      );
       return;
     }
 
@@ -353,6 +529,7 @@ class EpubParser {
           indent: indent,
           style: blockStyle,
           css: css,
+          onImageLoad: onImageLoad,
         );
         return;
       }
@@ -361,14 +538,30 @@ class EpubParser {
     if (tag == 'ul' || tag == 'ol') {
       for (final li in element.children) {
         if (li.localName?.toLowerCase() == 'li') {
-          _parseListItem(li, result, archive, baseDir, indent + 1, css);
+          _parseListItem(
+            li,
+            result,
+            archive,
+            baseDir,
+            indent + 1,
+            css,
+            onImageLoad: onImageLoad,
+          );
         }
       }
       return;
     }
 
     if (tag == 'blockquote') {
-      _parseBlockquote(element, result, archive, baseDir, indent + 1, css);
+      _parseBlockquote(
+        element,
+        result,
+        archive,
+        baseDir,
+        indent + 1,
+        css,
+        onImageLoad: onImageLoad,
+      );
       return;
     }
 
@@ -405,9 +598,18 @@ class EpubParser {
         indent: indent,
         style: blockStyle,
         css: css,
+        onImageLoad: onImageLoad,
       );
     } else {
-      _parseNodesAsBlocks(element.nodes, result, archive, baseDir, indent, css);
+      _parseNodesAsBlocks(
+        element.nodes,
+        result,
+        archive,
+        baseDir,
+        indent,
+        css,
+        onImageLoad: onImageLoad,
+      );
     }
   }
 
@@ -417,8 +619,9 @@ class EpubParser {
     _EpubArchive archive,
     String baseDir,
     int indent,
-    _CssCascade css,
-  ) {
+    _CssCascade css, {
+    void Function()? onImageLoad,
+  }) {
     final image = _firstImageDescendant(element);
     final caption = _normalizePlainText(
       element.querySelector('figcaption')?.text ?? '',
@@ -432,11 +635,20 @@ class EpubParser {
         css,
         parentBlockStyle: css.declarationFor(element).blockStyle,
         caption: caption,
+        onImageLoad: onImageLoad,
       );
       return;
     }
 
-    _parseNodesAsBlocks(element.nodes, result, archive, baseDir, indent, css);
+    _parseNodesAsBlocks(
+      element.nodes,
+      result,
+      archive,
+      baseDir,
+      indent,
+      css,
+      onImageLoad: onImageLoad,
+    );
   }
 
   static void _parseBlockquote(
@@ -445,8 +657,9 @@ class EpubParser {
     _EpubArchive archive,
     String baseDir,
     int indent,
-    _CssCascade css,
-  ) {
+    _CssCascade css, {
+    void Function()? onImageLoad,
+  }) {
     final inlineRun = <dom.Node>[];
 
     void flushQuoteLine() {
@@ -460,6 +673,7 @@ class EpubParser {
         indent: indent,
         style: css.declarationFor(element).blockStyle,
         css: css,
+        onImageLoad: onImageLoad,
       );
       inlineRun.clear();
     }
@@ -486,10 +700,19 @@ class EpubParser {
           indent: indent,
           style: css.declarationFor(node).blockStyle,
           css: css,
+          onImageLoad: onImageLoad,
         );
       } else if (_isBlockElement(node) || _isImageElement(node)) {
         flushQuoteLine();
-        _parseBlockElement(node, result, archive, baseDir, indent, css);
+        _parseBlockElement(
+          node,
+          result,
+          archive,
+          baseDir,
+          indent,
+          css,
+          onImageLoad: onImageLoad,
+        );
       } else {
         inlineRun.add(node);
       }
@@ -504,8 +727,9 @@ class EpubParser {
     _EpubArchive archive,
     String baseDir,
     int indent,
-    _CssCascade css,
-  ) {
+    _CssCascade css, {
+    void Function()? onImageLoad,
+  }) {
     final inlineRun = <dom.Node>[];
     var emittedOwnLine = false;
 
@@ -521,6 +745,7 @@ class EpubParser {
         indent: indent,
         style: css.declarationFor(element).blockStyle,
         css: css,
+        onImageLoad: onImageLoad,
       );
       emittedOwnLine = emittedOwnLine || result.length > before;
       inlineRun.clear();
@@ -539,7 +764,15 @@ class EpubParser {
 
       if (tag == 'ul' || tag == 'ol') {
         flushOwnLine();
-        _parseBlockElement(node, result, archive, baseDir, indent, css);
+        _parseBlockElement(
+          node,
+          result,
+          archive,
+          baseDir,
+          indent,
+          css,
+          onImageLoad: onImageLoad,
+        );
       } else if (_isBlockElement(node) || _isImageElement(node)) {
         if (!emittedOwnLine && _canRepresentAsListItem(node)) {
           flushOwnLine();
@@ -553,11 +786,20 @@ class EpubParser {
             indent: indent,
             style: css.declarationFor(node).blockStyle,
             css: css,
+            onImageLoad: onImageLoad,
           );
           emittedOwnLine = emittedOwnLine || result.length > before;
         } else {
           flushOwnLine();
-          _parseBlockElement(node, result, archive, baseDir, indent, css);
+          _parseBlockElement(
+            node,
+            result,
+            archive,
+            baseDir,
+            indent,
+            css,
+            onImageLoad: onImageLoad,
+          );
         }
       } else {
         inlineRun.add(node);
@@ -618,6 +860,7 @@ class EpubParser {
     int indent = 0,
     ReaderBlockStyle style = ReaderBlockStyle.none,
     required _CssCascade css,
+    void Function()? onImageLoad,
   }) {
     var spans = <ParsedStyledText>[];
 
@@ -657,13 +900,22 @@ class EpubParser {
           baseDir,
           css,
           parentBlockStyle: style,
+          onImageLoad: onImageLoad,
         );
         return;
       }
 
       if (_isBlockElement(node) && tag != 'br') {
         flushParsedTextBlock();
-        _parseBlockElement(node, result, archive, baseDir, indent, css);
+        _parseBlockElement(
+          node,
+          result,
+          archive,
+          baseDir,
+          indent,
+          css,
+          onImageLoad: onImageLoad,
+        );
         return;
       }
 
@@ -736,11 +988,13 @@ class EpubParser {
     _CssCascade css, {
     ReaderBlockStyle parentBlockStyle = ReaderBlockStyle.none,
     String? caption,
+    void Function()? onImageLoad,
   }) {
     final src = _imageSource(element);
     if (src == null || src.trim().isEmpty) return;
 
     final resolvedPath = _resolveHref(baseDir, src);
+    onImageLoad?.call();
     final bytes = _readFileBytes(archive, resolvedPath);
     final naturalDimensions = _imageDimensionsFromBytes(bytes);
     final declaredWidth = CssLength.parse(
