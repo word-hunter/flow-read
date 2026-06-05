@@ -73,6 +73,38 @@ void main() {
     );
   });
 
+  testWidgets(
+    'selected specific font label does not show a dropdown affordance',
+    (
+      tester,
+    ) async {
+      final provider = _FakeReadingProvider();
+
+      await tester.pumpWidget(
+        _withReadingProvider(
+          provider,
+          const MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: FontSettingsDropdownPanel(width: 720, maxHeight: 640),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('具体字体'),
+        220,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Serif'), findsWidgets);
+      expect(find.byIcon(Icons.keyboard_arrow_down), findsNothing);
+    },
+  );
+
   testWidgets('desktop dropdown uses a compact default height', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1100, 900);

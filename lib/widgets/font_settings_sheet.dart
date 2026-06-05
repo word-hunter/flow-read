@@ -852,25 +852,14 @@ class _SelectedFamilyLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final label = _fontLabelFor(family);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Icon(
-          Icons.keyboard_arrow_down,
-          size: 18,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ],
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.labelLarge?.copyWith(
+        color: theme.colorScheme.primary,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 }
