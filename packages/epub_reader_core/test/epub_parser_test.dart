@@ -17,6 +17,7 @@ void main() {
               .center { text-align: center; }
               #hero { width: 50%; max-width: 300px; }
               .emph { font-style: italic; font-weight: 700; }
+              p.tagged { text-indent: 2em; }
               .outer span { font-weight: bold; }
             </style>
           </head>
@@ -27,6 +28,7 @@ void main() {
               <img id="hero" src="../Images/pic.png" />
               <figcaption>Map caption</figcaption>
             </figure>
+            <p class="tagged">Tagged selector.</p>
             <p class="outer"><span>Complex ignored.</span></p>
           </body>
         </html>
@@ -58,6 +60,10 @@ void main() {
     expect(image.style.width, isA<CssPercent>());
     expect(image.style.maxWidth, isA<CssPx>());
     expect(image.style.alignment, ReaderTextAlign.center);
+
+    final tagged = blocks.whereType<ParsedTextBlock>().elementAt(2);
+    expect(tagged.plainText, 'Tagged selector.');
+    expect(tagged.style.textIndent, isA<CssEm>());
 
     final complexIgnored = blocks.whereType<ParsedTextBlock>().last;
     expect(complexIgnored.spans.single.style.bold, isFalse);

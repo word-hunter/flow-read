@@ -9,6 +9,7 @@ import 'package:xml/xml.dart';
 import 'epub_models.dart';
 
 typedef EpubParseProgressCallback = void Function(EpubParseEvent event);
+typedef EpubParseProfileCallback = void Function(EpubParseProfileEvent event);
 
 enum EpubParsePhase {
   extractingMetadata,
@@ -34,18 +35,72 @@ class EpubParseEvent {
   final double progress;
 }
 
+class EpubParseProfileEvent {
+  const EpubParseProfileEvent({
+    required this.stage,
+    required this.elapsed,
+    this.chapterIndex,
+    this.detail,
+  });
+
+  final String stage;
+  final Duration elapsed;
+  final int? chapterIndex;
+  final String? detail;
+}
+
 class EpubParser {
   static Future<ParsedEpubBook> parseBytes(
     Uint8List bytes, {
     EpubParseProgressCallback? onProgress,
+    EpubParseProfileCallback? onProfile,
   }) async {
-    return parseBytesSync(bytes, onProgress: onProgress);
+    return parseBytesSync(bytes, onProgress: onProgress, onProfile: onProfile);
   }
 
   static ParsedEpubBook parseBytesSync(
     Uint8List bytes, {
     EpubParseProgressCallback? onProgress,
+    EpubParseProfileCallback? onProfile,
   }) {
+    T measure<T>(
+      String stage,
+      T Function() body, {
+      int? chapterIndex,
+      String? detail,
+    }) {
+      final stopwatch = Stopwatch()..start();
+      try {
+        return body();
+      } finally {
+        stopwatch.stop();
+        onProfile?.call(
+          EpubParseProfileEvent(
+            stage: stage,
+            elapsed: stopwatch.elapsed,
+            chapterIndex: chapterIndex,
+            detail: detail,
+          ),
+        );
+      }
+    }
+
+    void profile(
+      String stage,
+      Duration elapsed, {
+      int? chapterIndex,
+      String? detail,
+    }) {
+      onProfile?.call(
+        EpubParseProfileEvent(
+          stage: stage,
+          elapsed: elapsed,
+          chapterIndex: chapterIndex,
+          detail: detail,
+        ),
+      );
+    }
+
     void report(
       EpubParsePhase phase, {
       int? chapterIndex,
@@ -65,14 +120,23 @@ class EpubParser {
     }
 
     report(EpubParsePhase.extractingMetadata, progress: 0);
-    final archive = _EpubArchive(ZipDecoder().decodeBytes(bytes));
+    final archive = measure(
+      'zip.decode',
+      () => _EpubArchive(ZipDecoder().decodeBytes(bytes)),
+    );
 
-    final containerXml = _readFile(archive, 'META-INF/container.xml');
+    final containerXml = measure(
+      'metadata.container.read',
+      () => _readFile(archive, 'META-INF/container.xml'),
+    );
     if (containerXml == null) {
       throw const FormatException('Invalid EPUB: missing container.xml');
     }
 
-    final containerDoc = XmlDocument.parse(containerXml);
+    final containerDoc = measure(
+      'metadata.container.xml',
+      () => XmlDocument.parse(containerXml),
+    );
     final rootfileEl = containerDoc.findAllElements('rootfile').firstOrNull;
     if (rootfileEl == null) {
       throw const FormatException('Invalid EPUB: missing rootfile element');
@@ -83,12 +147,18 @@ class EpubParser {
         ? '${opfPath.substring(0, opfPath.lastIndexOf('/'))}/'
         : '';
 
-    final opfContent = _readFile(archive, opfPath);
+    final opfContent = measure(
+      'metadata.opf.read',
+      () => _readFile(archive, opfPath),
+    );
     if (opfContent == null) {
       throw FormatException('Invalid EPUB: missing OPF file at $opfPath');
     }
 
-    final opfDoc = XmlDocument.parse(opfContent);
+    final opfDoc = measure(
+      'metadata.opf.xml',
+      () => XmlDocument.parse(opfContent),
+    );
     final package = opfDoc.rootElement;
 
     final title = _findDcElement(package, 'title') ?? 'Unknown Title';
@@ -139,11 +209,15 @@ class EpubParser {
     final coverId = _findCoverId(package, manifest);
     if (coverId != null && manifest.containsKey(coverId)) {
       final coverHref = manifest[coverId]!.href;
-      coverBytes = _readFileBytes(archive, '$opfDir$coverHref');
+      coverBytes = measure(
+        'cover.read',
+        () => _readFileBytes(archive, '$opfDir$coverHref'),
+      );
     }
 
     // Read chapters in spine order
     final chapters = <ParsedEpubChapter>[];
+    final styleCache = <String, _CssCascade>{};
 
     if (spineItems.isNotEmpty) {
       for (var i = 0; i < spineItems.length; i += 1) {
@@ -160,7 +234,12 @@ class EpubParser {
           progress: _chapterProgress(i, totalChapters, 0),
         );
 
-        final html = _readFile(archive, chapterHref);
+        final html = measure(
+          'chapter.read',
+          () => _readFile(archive, chapterHref),
+          chapterIndex: i,
+          detail: entry.href,
+        );
         if (html == null) {
           report(
             EpubParsePhase.parsingChapter,
@@ -171,63 +250,43 @@ class EpubParser {
           continue;
         }
 
-        final contentDoc = html_parser.parse(html);
-        final body = contentDoc.body;
-        if (body == null) {
-          report(
-            EpubParsePhase.parsingChapter,
-            chapterIndex: i,
-            totalChapters: totalChapters,
-            progress: _chapterProgress(i, totalChapters, 1),
-          );
-          continue;
-        }
-        final documentTitle = _normalizePlainText(
-          contentDoc.querySelector('title')?.text ?? '',
-        );
-
-        final css = _buildStyleCascade(contentDoc, archive, chapterDir);
-        _removeUnwantedElements(body);
+        final chapterTitle = _extractDocumentTitleFast(html);
         report(
           EpubParsePhase.buildingBlocks,
           chapterIndex: i,
           totalChapters: totalChapters,
-          chapterTitle: documentTitle.isEmpty ? null : documentTitle,
+          chapterTitle: chapterTitle.isEmpty ? null : chapterTitle,
           progress: _chapterProgress(i, totalChapters, 0.45),
         );
-        final blocks = _parseParsedContentBlocks(
-          contentDoc,
+        final parsedChapter = _parseChapter(
+          html,
           archive,
+          chapterHref,
           chapterDir,
-          css,
+          chapterIndex: i,
+          styleCache: styleCache,
+          profile: profile,
           onImageLoad: () {
             report(
               EpubParsePhase.loadingImage,
               chapterIndex: i,
               totalChapters: totalChapters,
-              chapterTitle: documentTitle.isEmpty ? null : documentTitle,
+              chapterTitle: chapterTitle.isEmpty ? null : chapterTitle,
               progress: _chapterProgress(i, totalChapters, 0.7),
             );
           },
         );
-        final plainText = _plainTextFromBlocks(blocks);
 
-        if (plainText.trim().isNotEmpty ||
-            blocks.any((b) => b is ParsedImageBlock)) {
-          chapters.add(
-            ParsedEpubChapter(
-              documentTitle: documentTitle,
-              plainText: plainText,
-              rawHtml: html,
-              blocks: blocks,
-            ),
-          );
+        if (parsedChapter != null) {
+          chapters.add(parsedChapter);
         }
         report(
           EpubParsePhase.parsingChapter,
           chapterIndex: i,
           totalChapters: totalChapters,
-          chapterTitle: documentTitle.isEmpty ? null : documentTitle,
+          chapterTitle: parsedChapter?.documentTitle.isEmpty ?? true
+              ? null
+              : parsedChapter?.documentTitle,
           progress: _chapterProgress(i, totalChapters, 1),
         );
       }
@@ -256,6 +315,121 @@ class EpubParser {
       chapters: chapters,
       coverBytes: coverBytes,
     );
+  }
+
+  static ParsedEpubChapter? _parseChapter(
+    String html,
+    _EpubArchive archive,
+    String chapterHref,
+    String chapterDir, {
+    required Map<String, _CssCascade> styleCache,
+    required int chapterIndex,
+    void Function(
+      String stage,
+      Duration elapsed, {
+      int? chapterIndex,
+      String? detail,
+    })?
+    profile,
+    void Function()? onImageLoad,
+  }) {
+    final fastStopwatch = Stopwatch()..start();
+    try {
+      final chapter = _parseChapterWithFastHtmlTree(
+        html,
+        archive,
+        chapterDir,
+        styleCache: styleCache,
+        onImageLoad: onImageLoad,
+      );
+      fastStopwatch.stop();
+      profile?.call(
+        'chapter.fastHtml',
+        fastStopwatch.elapsed,
+        chapterIndex: chapterIndex,
+        detail: chapterHref,
+      );
+      return chapter;
+    } catch (_) {
+      fastStopwatch.stop();
+      profile?.call(
+        'chapter.fastHtmlFallback',
+        fastStopwatch.elapsed,
+        chapterIndex: chapterIndex,
+        detail: chapterHref,
+      );
+    }
+
+    final fallbackStopwatch = Stopwatch()..start();
+    try {
+      return _parseChapterWithDom(
+        html,
+        archive,
+        chapterDir,
+        styleCache: styleCache,
+        onImageLoad: onImageLoad,
+      );
+    } finally {
+      fallbackStopwatch.stop();
+      profile?.call(
+        'chapter.domFallback',
+        fallbackStopwatch.elapsed,
+        chapterIndex: chapterIndex,
+        detail: chapterHref,
+      );
+    }
+  }
+
+  static ParsedEpubChapter? _parseChapterWithDom(
+    String html,
+    _EpubArchive archive,
+    String chapterDir, {
+    Map<String, _CssCascade>? styleCache,
+    void Function()? onImageLoad,
+  }) {
+    final contentDoc = html_parser.parse(html);
+    final body = contentDoc.body;
+    if (body == null) return null;
+
+    final documentTitle = _normalizePlainText(
+      contentDoc.querySelector('title')?.text ?? '',
+    );
+
+    final css = _buildStyleCascade(
+      contentDoc,
+      archive,
+      chapterDir,
+      styleCache: styleCache,
+    );
+    _removeUnwantedElements(body);
+    final blocks = _parseParsedContentBlocks(
+      contentDoc,
+      archive,
+      chapterDir,
+      css,
+      onImageLoad: onImageLoad,
+    );
+    final plainText = _plainTextFromBlocks(blocks);
+
+    if (plainText.trim().isEmpty && !blocks.any((b) => b is ParsedImageBlock)) {
+      return null;
+    }
+
+    return ParsedEpubChapter(
+      documentTitle: documentTitle,
+      plainText: plainText,
+      rawHtml: html,
+      blocks: blocks,
+    );
+  }
+
+  static String _extractDocumentTitleFast(String html) {
+    final match = RegExp(
+      r'<title[^>]*>(.*?)</title>',
+      caseSensitive: false,
+      dotAll: true,
+    ).firstMatch(html);
+    return _normalizePlainText(match?.group(1) ?? '');
   }
 
   static double _chapterProgress(
@@ -328,9 +502,11 @@ class EpubParser {
   static _CssCascade _buildStyleCascade(
     dom.Document document,
     _EpubArchive archive,
-    String baseDir,
-  ) {
-    final css = StringBuffer();
+    String baseDir, {
+    Map<String, _CssCascade>? styleCache,
+  }) {
+    final linkedPaths = <String>[];
+    final inlineStyles = <String>[];
 
     for (final link in document.querySelectorAll('link')) {
       final rel = link.attributes['rel']?.toLowerCase() ?? '';
@@ -341,17 +517,52 @@ class EpubParser {
         continue;
       }
       final resolved = _resolveHref(baseDir, href);
+      linkedPaths.add(resolved);
+    }
+
+    for (final style in document.querySelectorAll('style')) {
+      inlineStyles.add(style.text);
+    }
+
+    final cacheKey = _styleCacheKey(linkedPaths, inlineStyles);
+    final cached = styleCache?[cacheKey];
+    if (cached != null) return cached;
+
+    final css = StringBuffer();
+    for (final resolved in linkedPaths) {
       final linkedCss = _readFile(archive, resolved);
       if (linkedCss != null) {
         css.writeln(linkedCss);
       }
     }
 
-    for (final style in document.querySelectorAll('style')) {
-      css.writeln(style.text);
+    for (final style in inlineStyles) {
+      css.writeln(style);
     }
 
-    return _CssCascade.parse(css.toString());
+    final cascade = _CssCascade.parse(css.toString());
+    styleCache?[cacheKey] = cascade;
+    return cascade;
+  }
+
+  static String _styleCacheKey(
+    List<String> linkedPaths,
+    List<String> inlineStyles,
+  ) {
+    final buffer = StringBuffer();
+    for (final path in linkedPaths) {
+      buffer
+        ..write('link:')
+        ..writeln(path);
+    }
+    for (final style in inlineStyles) {
+      buffer
+        ..write('inline:')
+        ..write(style.length)
+        ..write(':')
+        ..writeln(style);
+    }
+    return buffer.toString();
   }
 
   static const _blockTags = {
@@ -400,6 +611,23 @@ class EpubParser {
     'ul',
   };
 
+  static const _voidTags = {
+    'area',
+    'base',
+    'br',
+    'col',
+    'embed',
+    'hr',
+    'img',
+    'input',
+    'link',
+    'meta',
+    'param',
+    'source',
+    'track',
+    'wbr',
+  };
+
   static List<ParsedContentBlock> _parseParsedContentBlocks(
     dom.Document document,
     _EpubArchive archive,
@@ -421,6 +649,992 @@ class EpubParser {
       onImageLoad: onImageLoad,
     );
     return result;
+  }
+
+  static ParsedEpubChapter? _parseChapterWithFastHtmlTree(
+    String html,
+    _EpubArchive archive,
+    String baseDir, {
+    required Map<String, _CssCascade> styleCache,
+    void Function()? onImageLoad,
+  }) {
+    final document = _buildFastHtmlTree(html);
+    final body = document.firstDescendantByTag('body');
+    if (body == null) {
+      throw const FormatException('Fast HTML parse failed: missing body');
+    }
+
+    final documentTitle = _normalizePlainText(
+      document.firstDescendantByTag('title')?.text ?? '',
+    );
+    final css = _buildFastStyleCascade(
+      document,
+      archive,
+      baseDir,
+      styleCache: styleCache,
+    );
+    final blocks = <ParsedContentBlock>[];
+    _parseFastNodesAsBlocks(
+      body.children,
+      blocks,
+      archive,
+      baseDir,
+      0,
+      css,
+      onImageLoad: onImageLoad,
+    );
+    final plainText = _plainTextFromBlocks(blocks);
+    if (plainText.trim().isEmpty && !blocks.any((b) => b is ParsedImageBlock)) {
+      return null;
+    }
+
+    return ParsedEpubChapter(
+      documentTitle: documentTitle,
+      plainText: plainText,
+      rawHtml: html,
+      blocks: blocks,
+    );
+  }
+
+  static _XElement _buildFastHtmlTree(String html) {
+    final root = _XElement('#document', const {});
+    final stack = <_XElement>[root];
+    var index = 0;
+
+    void appendText(int start, int end) {
+      if (end <= start) return;
+      final text = _decodeHtmlEntities(html.substring(start, end));
+      if (text.isNotEmpty) {
+        stack.last.children.add(_XText(text));
+      }
+    }
+
+    while (index < html.length) {
+      final tagStart = html.indexOf('<', index);
+      if (tagStart == -1) {
+        appendText(index, html.length);
+        break;
+      }
+
+      appendText(index, tagStart);
+
+      if (html.startsWith('<!--', tagStart)) {
+        final commentEnd = html.indexOf('-->', tagStart + 4);
+        if (commentEnd == -1) {
+          throw const FormatException('Fast HTML parse failed: open comment');
+        }
+        index = commentEnd + 3;
+        continue;
+      }
+
+      if (html.startsWith('<![CDATA[', tagStart)) {
+        final cdataEnd = html.indexOf(']]>', tagStart + 9);
+        if (cdataEnd == -1) {
+          throw const FormatException('Fast HTML parse failed: open cdata');
+        }
+        appendText(tagStart + 9, cdataEnd);
+        index = cdataEnd + 3;
+        continue;
+      }
+
+      if (html.startsWith('<?', tagStart)) {
+        final processingEnd = html.indexOf('?>', tagStart + 2);
+        if (processingEnd == -1) {
+          throw const FormatException(
+            'Fast HTML parse failed: open processing instruction',
+          );
+        }
+        index = processingEnd + 2;
+        continue;
+      }
+
+      final tagEnd = _findFastTagEnd(html, tagStart + 1);
+      if (tagEnd == -1) {
+        throw const FormatException('Fast HTML parse failed: open tag');
+      }
+
+      final tag = _parseFastTag(html, tagStart + 1, tagEnd);
+      if (tag != null) {
+        if (tag.isClosing) {
+          for (var i = stack.length - 1; i > 0; i -= 1) {
+            if (stack[i].tag == tag.name) {
+              stack.removeRange(i, stack.length);
+              break;
+            }
+          }
+        } else {
+          final element = _XElement(tag.name, tag.attributes);
+          stack.last.children.add(element);
+          if (!tag.isSelfClosing && !_voidTags.contains(tag.name)) {
+            stack.add(element);
+          }
+        }
+      }
+
+      index = tagEnd + 1;
+    }
+
+    return root;
+  }
+
+  static int _findFastTagEnd(String html, int start) {
+    String? quote;
+    for (var i = start; i < html.length; i += 1) {
+      final char = html[i];
+      if (quote != null) {
+        if (char == quote) quote = null;
+      } else if (char == '"' || char == "'") {
+        quote = char;
+      } else if (char == '>') {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  static _FastTag? _parseFastTag(String html, int start, int end) {
+    var index = start;
+    while (index < end && _isWhitespaceUnit(html.codeUnitAt(index))) {
+      index += 1;
+    }
+    if (index >= end) return null;
+    if (html.codeUnitAt(index) == 33) return null;
+
+    var isClosing = false;
+    if (html.codeUnitAt(index) == 47) {
+      isClosing = true;
+      index += 1;
+      while (index < end && _isWhitespaceUnit(html.codeUnitAt(index))) {
+        index += 1;
+      }
+    }
+
+    final nameStart = index;
+    while (index < end && _isTagNameUnit(html.codeUnitAt(index))) {
+      index += 1;
+    }
+    if (index == nameStart) return null;
+
+    final name = _localHtmlName(html.substring(nameStart, index));
+    if (name.isEmpty) return null;
+
+    if (isClosing) {
+      return _FastTag(name: name, isClosing: true);
+    }
+
+    var attributesEnd = end;
+    var isSelfClosing = false;
+    while (attributesEnd > index &&
+        _isWhitespaceUnit(html.codeUnitAt(attributesEnd - 1))) {
+      attributesEnd -= 1;
+    }
+    if (attributesEnd > index && html.codeUnitAt(attributesEnd - 1) == 47) {
+      isSelfClosing = true;
+      attributesEnd -= 1;
+    }
+
+    return _FastTag(
+      name: name,
+      attributes: _parseFastAttributes(html, index, attributesEnd),
+      isSelfClosing: isSelfClosing,
+    );
+  }
+
+  static Map<String, String> _parseFastAttributes(
+    String html,
+    int start,
+    int end,
+  ) {
+    final result = <String, String>{};
+    var index = start;
+    while (index < end) {
+      while (index < end && _isWhitespaceUnit(html.codeUnitAt(index))) {
+        index += 1;
+      }
+      if (index >= end) break;
+
+      final nameStart = index;
+      while (index < end && _isAttributeNameUnit(html.codeUnitAt(index))) {
+        index += 1;
+      }
+      if (index == nameStart) {
+        index += 1;
+        continue;
+      }
+
+      final rawName = html.substring(nameStart, index).toLowerCase();
+      final name = _localHtmlName(rawName);
+      while (index < end && _isWhitespaceUnit(html.codeUnitAt(index))) {
+        index += 1;
+      }
+
+      var value = '';
+      if (index < end && html.codeUnitAt(index) == 61) {
+        index += 1;
+        while (index < end && _isWhitespaceUnit(html.codeUnitAt(index))) {
+          index += 1;
+        }
+        if (index < end &&
+            (html.codeUnitAt(index) == 34 || html.codeUnitAt(index) == 39)) {
+          final quote = html.codeUnitAt(index);
+          index += 1;
+          final valueStart = index;
+          while (index < end && html.codeUnitAt(index) != quote) {
+            index += 1;
+          }
+          value = html.substring(valueStart, index);
+          if (index < end) index += 1;
+        } else {
+          final valueStart = index;
+          while (index < end &&
+              !_isWhitespaceUnit(html.codeUnitAt(index)) &&
+              html.codeUnitAt(index) != 47) {
+            index += 1;
+          }
+          value = html.substring(valueStart, index);
+        }
+      }
+
+      final decoded = _decodeHtmlEntities(value);
+      result[rawName] = decoded;
+      result.putIfAbsent(name, () => decoded);
+    }
+    return result;
+  }
+
+  static String _localHtmlName(String name) {
+    final index = name.lastIndexOf(':');
+    return (index == -1 ? name : name.substring(index + 1)).toLowerCase();
+  }
+
+  static bool _isWhitespaceUnit(int unit) =>
+      unit == 32 || unit == 9 || unit == 10 || unit == 13 || unit == 12;
+
+  static bool _isTagNameUnit(int unit) =>
+      (unit >= 65 && unit <= 90) ||
+      (unit >= 97 && unit <= 122) ||
+      (unit >= 48 && unit <= 57) ||
+      unit == 45 ||
+      unit == 58;
+
+  static bool _isAttributeNameUnit(int unit) =>
+      !_isWhitespaceUnit(unit) && unit != 61 && unit != 47 && unit != 62;
+
+  static String _decodeHtmlEntities(String value) {
+    if (!value.contains('&')) return value;
+    return value.replaceAllMapped(RegExp(r'&(#x?[0-9a-fA-F]+|[a-zA-Z]+);'), (
+      match,
+    ) {
+      final entity = match.group(1)!;
+      if (entity.startsWith('#x') || entity.startsWith('#X')) {
+        final codePoint = int.tryParse(entity.substring(2), radix: 16);
+        return _decodeCodePoint(codePoint) ?? match.group(0)!;
+      }
+      if (entity.startsWith('#')) {
+        final codePoint = int.tryParse(entity.substring(1));
+        return _decodeCodePoint(codePoint) ?? match.group(0)!;
+      }
+      return switch (entity.toLowerCase()) {
+        'amp' => '&',
+        'lt' => '<',
+        'gt' => '>',
+        'quot' => '"',
+        'apos' => "'",
+        'nbsp' => '\u00A0',
+        _ => match.group(0)!,
+      };
+    });
+  }
+
+  static String? _decodeCodePoint(int? codePoint) {
+    if (codePoint == null || codePoint < 0 || codePoint > 0x10FFFF) {
+      return null;
+    }
+    return String.fromCharCode(codePoint);
+  }
+
+  static _CssCascade _buildFastStyleCascade(
+    _XElement document,
+    _EpubArchive archive,
+    String baseDir, {
+    required Map<String, _CssCascade> styleCache,
+  }) {
+    final linkedPaths = <String>[];
+    final inlineStyles = <String>[];
+
+    for (final link in document.descendantsByTag('link')) {
+      final rel = link.attributes['rel']?.toLowerCase() ?? '';
+      final href = link.attributes['href'];
+      if (!rel.split(RegExp(r'\s+')).contains('stylesheet') ||
+          href == null ||
+          href.trim().isEmpty) {
+        continue;
+      }
+      final resolved = _resolveHref(baseDir, href);
+      linkedPaths.add(resolved);
+    }
+
+    for (final style in document.descendantsByTag('style')) {
+      inlineStyles.add(style.text);
+    }
+
+    final cacheKey = _styleCacheKey(linkedPaths, inlineStyles);
+    final cached = styleCache[cacheKey];
+    if (cached != null) return cached;
+
+    final css = StringBuffer();
+    for (final resolved in linkedPaths) {
+      final linkedCss = _readFile(archive, resolved);
+      if (linkedCss != null) {
+        css.writeln(linkedCss);
+      }
+    }
+
+    for (final style in inlineStyles) {
+      css.writeln(style);
+    }
+
+    final cascade = _CssCascade.parse(css.toString());
+    styleCache[cacheKey] = cascade;
+    return cascade;
+  }
+
+  static void _parseFastNodesAsBlocks(
+    Iterable<_XNode> nodes,
+    List<ParsedContentBlock> result,
+    _EpubArchive archive,
+    String baseDir,
+    int indent,
+    _CssCascade css, {
+    void Function()? onImageLoad,
+  }) {
+    final inlineRun = <_XNode>[];
+
+    void flushInlineRun() {
+      if (inlineRun.isEmpty) return;
+      _appendFastInlineNodesAsBlocks(
+        inlineRun,
+        result,
+        archive,
+        baseDir,
+        ParsedBlockType.paragraph,
+        indent: indent,
+        css: css,
+        onImageLoad: onImageLoad,
+      );
+      inlineRun.clear();
+    }
+
+    for (final node in nodes) {
+      switch (node) {
+        case _XText(:final text):
+          if (text.trim().isNotEmpty) {
+            inlineRun.add(node);
+          }
+        case _XElement():
+          if (_shouldSkipFastElement(node)) continue;
+          if (_isFastBlockElement(node) || _isFastImageElement(node)) {
+            flushInlineRun();
+            _parseFastBlockElement(
+              node,
+              result,
+              archive,
+              baseDir,
+              indent,
+              css,
+              onImageLoad: onImageLoad,
+            );
+          } else {
+            inlineRun.add(node);
+          }
+      }
+    }
+
+    flushInlineRun();
+  }
+
+  static void _parseFastBlockElement(
+    _XElement element,
+    List<ParsedContentBlock> result,
+    _EpubArchive archive,
+    String baseDir,
+    int indent,
+    _CssCascade css, {
+    void Function()? onImageLoad,
+  }) {
+    if (_shouldSkipFastElement(element)) return;
+
+    final tag = element.tag;
+    final elementStyle = css.declarationForFast(element);
+    final blockStyle = elementStyle.blockStyle;
+
+    if (_isFastImageElement(element)) {
+      _addFastImageBlock(
+        element,
+        result,
+        archive,
+        baseDir,
+        css,
+        onImageLoad: onImageLoad,
+      );
+      return;
+    }
+
+    if (tag == 'figure') {
+      _parseFastFigure(
+        element,
+        result,
+        archive,
+        baseDir,
+        indent,
+        css,
+        onImageLoad: onImageLoad,
+      );
+      return;
+    }
+
+    if (tag.startsWith('h') && tag.length == 2) {
+      final level = int.tryParse(tag[1]);
+      if (level != null && level >= 1 && level <= 6) {
+        _appendFastInlineNodesAsBlocks(
+          element.children,
+          result,
+          archive,
+          baseDir,
+          ParsedBlockType.heading,
+          headingLevel: level,
+          indent: indent,
+          style: blockStyle,
+          css: css,
+          onImageLoad: onImageLoad,
+        );
+        return;
+      }
+    }
+
+    if (tag == 'ul' || tag == 'ol') {
+      for (final li in element.childElements) {
+        if (li.tag == 'li') {
+          _parseFastListItem(
+            li,
+            result,
+            archive,
+            baseDir,
+            indent + 1,
+            css,
+            onImageLoad: onImageLoad,
+          );
+        }
+      }
+      return;
+    }
+
+    if (tag == 'blockquote') {
+      _parseFastBlockquote(
+        element,
+        result,
+        archive,
+        baseDir,
+        indent + 1,
+        css,
+        onImageLoad: onImageLoad,
+      );
+      return;
+    }
+
+    if (tag == 'table') {
+      _parseFastTable(element, result, archive, baseDir, indent, css);
+      return;
+    }
+
+    if (tag == 'hr') return;
+
+    if (tag == 'pre') {
+      final text = element.text.trimRight();
+      if (text.trim().isNotEmpty) {
+        result.add(
+          ParsedTextBlock(
+            type: ParsedBlockType.paragraph,
+            spans: [ParsedStyledText(text)],
+            style: blockStyle,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (tag == 'p' || !_hasDirectFastBlockChild(element)) {
+      _appendFastInlineNodesAsBlocks(
+        element.children,
+        result,
+        archive,
+        baseDir,
+        ParsedBlockType.paragraph,
+        indent: indent,
+        style: blockStyle,
+        css: css,
+        onImageLoad: onImageLoad,
+      );
+    } else {
+      _parseFastNodesAsBlocks(
+        element.children,
+        result,
+        archive,
+        baseDir,
+        indent,
+        css,
+        onImageLoad: onImageLoad,
+      );
+    }
+  }
+
+  static void _parseFastFigure(
+    _XElement element,
+    List<ParsedContentBlock> result,
+    _EpubArchive archive,
+    String baseDir,
+    int indent,
+    _CssCascade css, {
+    void Function()? onImageLoad,
+  }) {
+    final image = _firstFastImageDescendant(element);
+    final caption = _normalizePlainText(
+      element.firstDescendantByTag('figcaption')?.text ?? '',
+    );
+    if (image != null) {
+      _addFastImageBlock(
+        image,
+        result,
+        archive,
+        baseDir,
+        css,
+        parentBlockStyle: css.declarationForFast(element).blockStyle,
+        caption: caption,
+        onImageLoad: onImageLoad,
+      );
+      return;
+    }
+
+    _parseFastNodesAsBlocks(
+      element.children,
+      result,
+      archive,
+      baseDir,
+      indent,
+      css,
+      onImageLoad: onImageLoad,
+    );
+  }
+
+  static void _parseFastBlockquote(
+    _XElement element,
+    List<ParsedContentBlock> result,
+    _EpubArchive archive,
+    String baseDir,
+    int indent,
+    _CssCascade css, {
+    void Function()? onImageLoad,
+  }) {
+    final inlineRun = <_XNode>[];
+
+    void flushQuoteLine() {
+      if (inlineRun.isEmpty) return;
+      _appendFastInlineNodesAsBlocks(
+        inlineRun,
+        result,
+        archive,
+        baseDir,
+        ParsedBlockType.blockquote,
+        indent: indent,
+        style: css.declarationForFast(element).blockStyle,
+        css: css,
+        onImageLoad: onImageLoad,
+      );
+      inlineRun.clear();
+    }
+
+    for (final node in element.children) {
+      switch (node) {
+        case _XText(:final text):
+          if (text.trim().isNotEmpty) {
+            inlineRun.add(node);
+          }
+        case _XElement():
+          if (_shouldSkipFastElement(node)) continue;
+          final tag = node.tag;
+          if ((tag == 'p' || tag == 'div') && !_hasDirectFastBlockChild(node)) {
+            flushQuoteLine();
+            _appendFastInlineNodesAsBlocks(
+              node.children,
+              result,
+              archive,
+              baseDir,
+              ParsedBlockType.blockquote,
+              indent: indent,
+              style: css.declarationForFast(node).blockStyle,
+              css: css,
+              onImageLoad: onImageLoad,
+            );
+          } else if (_isFastBlockElement(node) || _isFastImageElement(node)) {
+            flushQuoteLine();
+            _parseFastBlockElement(
+              node,
+              result,
+              archive,
+              baseDir,
+              indent,
+              css,
+              onImageLoad: onImageLoad,
+            );
+          } else {
+            inlineRun.add(node);
+          }
+      }
+    }
+
+    flushQuoteLine();
+  }
+
+  static void _parseFastListItem(
+    _XElement element,
+    List<ParsedContentBlock> result,
+    _EpubArchive archive,
+    String baseDir,
+    int indent,
+    _CssCascade css, {
+    void Function()? onImageLoad,
+  }) {
+    final inlineRun = <_XNode>[];
+    var emittedOwnLine = false;
+
+    void flushOwnLine() {
+      if (inlineRun.isEmpty) return;
+      final before = result.length;
+      _appendFastInlineNodesAsBlocks(
+        inlineRun,
+        result,
+        archive,
+        baseDir,
+        ParsedBlockType.listItem,
+        indent: indent,
+        style: css.declarationForFast(element).blockStyle,
+        css: css,
+        onImageLoad: onImageLoad,
+      );
+      emittedOwnLine = emittedOwnLine || result.length > before;
+      inlineRun.clear();
+    }
+
+    for (final node in element.children) {
+      switch (node) {
+        case _XText(:final text):
+          if (text.trim().isNotEmpty) {
+            inlineRun.add(node);
+          }
+        case _XElement():
+          if (_shouldSkipFastElement(node)) continue;
+          final tag = node.tag;
+          if (tag == 'ul' || tag == 'ol') {
+            flushOwnLine();
+            _parseFastBlockElement(
+              node,
+              result,
+              archive,
+              baseDir,
+              indent,
+              css,
+              onImageLoad: onImageLoad,
+            );
+          } else if (_isFastBlockElement(node) || _isFastImageElement(node)) {
+            if (!emittedOwnLine && _canRepresentAsFastListItem(node)) {
+              flushOwnLine();
+              final before = result.length;
+              _appendFastInlineNodesAsBlocks(
+                node.children,
+                result,
+                archive,
+                baseDir,
+                ParsedBlockType.listItem,
+                indent: indent,
+                style: css.declarationForFast(node).blockStyle,
+                css: css,
+                onImageLoad: onImageLoad,
+              );
+              emittedOwnLine = emittedOwnLine || result.length > before;
+            } else {
+              flushOwnLine();
+              _parseFastBlockElement(
+                node,
+                result,
+                archive,
+                baseDir,
+                indent,
+                css,
+                onImageLoad: onImageLoad,
+              );
+            }
+          } else {
+            inlineRun.add(node);
+          }
+      }
+    }
+
+    flushOwnLine();
+  }
+
+  static void _parseFastTable(
+    _XElement table,
+    List<ParsedContentBlock> result,
+    _EpubArchive archive,
+    String baseDir,
+    int indent,
+    _CssCascade css,
+  ) {
+    final caption = table.firstDescendantByTag('caption');
+    if (caption != null) {
+      _appendFastInlineNodesAsBlocks(
+        caption.children,
+        result,
+        archive,
+        baseDir,
+        ParsedBlockType.paragraph,
+        indent: indent,
+        style: css.declarationForFast(caption).blockStyle,
+        css: css,
+      );
+    }
+
+    for (final row in table.descendantsByTag('tr')) {
+      final cells = row
+          .descendantsWhere(
+            (element) => element.tag == 'th' || element.tag == 'td',
+          )
+          .map((cell) => _normalizePlainText(cell.text))
+          .where((text) => text.isNotEmpty)
+          .toList();
+      if (cells.isEmpty) continue;
+      result.add(
+        ParsedTextBlock(
+          type: ParsedBlockType.paragraph,
+          spans: [ParsedStyledText(cells.join(' | '))],
+          indent: indent,
+          style: css.declarationForFast(row).blockStyle,
+        ),
+      );
+    }
+  }
+
+  static void _appendFastInlineNodesAsBlocks(
+    Iterable<_XNode> nodes,
+    List<ParsedContentBlock> result,
+    _EpubArchive archive,
+    String baseDir,
+    ParsedBlockType blockType, {
+    int headingLevel = 0,
+    int indent = 0,
+    ReaderBlockStyle style = ReaderBlockStyle.none,
+    required _CssCascade css,
+    void Function()? onImageLoad,
+  }) {
+    var spans = <ParsedStyledText>[];
+
+    void flushParsedTextBlock() {
+      final normalized = _normalizeSpans(spans);
+      if (normalized.any((span) => span.text.trim().isNotEmpty)) {
+        result.add(
+          ParsedTextBlock(
+            type: blockType,
+            headingLevel: headingLevel,
+            spans: normalized,
+            indent: indent,
+            style: style,
+          ),
+        );
+      }
+      spans = [];
+    }
+
+    void visit(_XNode node, InlineStyle inlineStyle) {
+      switch (node) {
+        case _XText(:final text):
+          if (text.isNotEmpty) {
+            _appendStyledSpan(spans, ParsedStyledText(text, inlineStyle));
+          }
+        case _XElement():
+          if (_shouldSkipFastElement(node)) return;
+          final tag = node.tag;
+          if (_isFastImageElement(node)) {
+            flushParsedTextBlock();
+            _addFastImageBlock(
+              node,
+              result,
+              archive,
+              baseDir,
+              css,
+              parentBlockStyle: style,
+              onImageLoad: onImageLoad,
+            );
+            return;
+          }
+
+          if (_isFastBlockElement(node) && tag != 'br') {
+            flushParsedTextBlock();
+            _parseFastBlockElement(
+              node,
+              result,
+              archive,
+              baseDir,
+              indent,
+              css,
+              onImageLoad: onImageLoad,
+            );
+            return;
+          }
+
+          if (tag == 'br') {
+            _appendStyledSpan(spans, ParsedStyledText('\n', inlineStyle));
+            return;
+          }
+
+          var childStyle = inlineStyle.merge(
+            css.declarationForFast(node).inlineStyle,
+          );
+          if (tag == 'b' || tag == 'strong') {
+            childStyle = childStyle.merge(const InlineStyle(bold: true));
+          } else if (tag == 'i' || tag == 'em' || tag == 'cite') {
+            childStyle = childStyle.merge(const InlineStyle(italic: true));
+          }
+
+          for (final child in node.children) {
+            visit(child, childStyle);
+          }
+      }
+    }
+
+    for (final node in nodes) {
+      visit(node, InlineStyle.normal);
+    }
+    flushParsedTextBlock();
+  }
+
+  static bool _shouldSkipFastElement(_XElement element) {
+    if (element.attributes.containsKey('hidden')) return true;
+    if (element.tag == 'script' ||
+        element.tag == 'style' ||
+        element.tag == 'nav') {
+      return true;
+    }
+    return (element.attributes['class'] ?? '')
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .contains('nav');
+  }
+
+  static bool _isFastBlockElement(_XElement element) {
+    return _blockTags.contains(element.tag);
+  }
+
+  static bool _hasDirectFastBlockChild(_XElement element) {
+    return element.childElements.any((child) {
+      if (_isFastImageElement(child)) return true;
+      return _blockTags.contains(child.tag);
+    });
+  }
+
+  static bool _canRepresentAsFastListItem(_XElement element) {
+    if (_isFastImageElement(element)) return false;
+    final tag = element.tag;
+    return (tag == 'p' || tag == 'div' || tag == 'span') &&
+        !_hasDirectFastBlockChild(element);
+  }
+
+  static _XElement? _firstFastImageDescendant(_XElement element) {
+    for (final child in element.childElements) {
+      if (_isFastImageElement(child)) return child;
+      final nested = _firstFastImageDescendant(child);
+      if (nested != null) return nested;
+    }
+    return null;
+  }
+
+  static bool _isFastImageElement(_XElement element) {
+    if (element.tag == 'img') return true;
+    if (element.tag == 'image') {
+      return _fastImageSource(element) != null;
+    }
+    return false;
+  }
+
+  static void _addFastImageBlock(
+    _XElement element,
+    List<ParsedContentBlock> result,
+    _EpubArchive archive,
+    String baseDir,
+    _CssCascade css, {
+    ReaderBlockStyle parentBlockStyle = ReaderBlockStyle.none,
+    String? caption,
+    void Function()? onImageLoad,
+  }) {
+    final src = _fastImageSource(element);
+    if (src == null || src.trim().isEmpty) return;
+
+    final resolvedPath = _resolveHref(baseDir, src);
+    onImageLoad?.call();
+    final bytes = _readFileBytes(archive, resolvedPath);
+    final naturalDimensions = _imageDimensionsFromBytes(bytes);
+    final declaredWidth = CssLength.parse(
+      element.attributes['width'],
+      allowUnitlessPx: true,
+    );
+    final declaredHeight = CssLength.parse(
+      element.attributes['height'],
+      allowUnitlessPx: true,
+    );
+    var imageStyle = css.declarationForFast(element).imageStyle;
+    if (imageStyle.width == null && declaredWidth is! CssPx) {
+      imageStyle = imageStyle.merge(ImageStyleData(width: declaredWidth));
+    }
+    if (imageStyle.height == null && declaredHeight is! CssPx) {
+      imageStyle = imageStyle.merge(ImageStyleData(height: declaredHeight));
+    }
+    if (imageStyle.alignment == null && parentBlockStyle.textAlign != null) {
+      imageStyle = imageStyle.merge(
+        ImageStyleData(alignment: parentBlockStyle.textAlign),
+      );
+    }
+
+    result.add(
+      ParsedImageBlock(
+        src: src,
+        alt: element.attributes['alt'],
+        bytes: bytes,
+        declaredWidth: _cssPxValue(declaredWidth),
+        declaredHeight: _cssPxValue(declaredHeight),
+        naturalWidth: naturalDimensions?.width.toDouble(),
+        naturalHeight: naturalDimensions?.height.toDouble(),
+        style: imageStyle,
+        caption: caption == null || caption.trim().isEmpty
+            ? null
+            : caption.trim(),
+      ),
+    );
+  }
+
+  static String? _fastImageSource(_XElement element) {
+    final src =
+        element.attributes['src'] ??
+        element.attributes['data-src'] ??
+        element.attributes['href'] ??
+        element.attributes['xlink:href'];
+    if (src != null && src.trim().isNotEmpty) {
+      return _stripHrefFragment(src.trim());
+    }
+
+    final srcset = element.attributes['srcset'];
+    if (srcset == null || srcset.trim().isEmpty) return null;
+    final first = srcset.split(',').first.trim();
+    if (first.isEmpty) return null;
+    return _stripHrefFragment(first.split(RegExp(r'\s+')).first);
   }
 
   static void _parseNodesAsBlocks(
@@ -1253,12 +2467,86 @@ class EpubParser {
   }
 }
 
+sealed class _XNode {
+  const _XNode();
+}
+
+class _XText extends _XNode {
+  final String text;
+
+  const _XText(this.text);
+}
+
+class _XElement extends _XNode {
+  final String tag;
+  final Map<String, String> attributes;
+  final List<_XNode> children = [];
+
+  _XElement(this.tag, this.attributes);
+
+  Iterable<_XElement> get childElements => children.whereType<_XElement>();
+
+  String get text {
+    final buffer = StringBuffer();
+    void visit(_XNode node) {
+      switch (node) {
+        case _XText(:final text):
+          buffer.write(text);
+        case _XElement():
+          for (final child in node.children) {
+            visit(child);
+          }
+      }
+    }
+
+    for (final child in children) {
+      visit(child);
+    }
+    return buffer.toString();
+  }
+
+  _XElement? firstDescendantByTag(String tag) {
+    for (final child in childElements) {
+      if (child.tag == tag) return child;
+      final nested = child.firstDescendantByTag(tag);
+      if (nested != null) return nested;
+    }
+    return null;
+  }
+
+  Iterable<_XElement> descendantsByTag(String tag) {
+    return descendantsWhere((element) => element.tag == tag);
+  }
+
+  Iterable<_XElement> descendantsWhere(bool Function(_XElement) test) sync* {
+    for (final child in childElements) {
+      if (test(child)) yield child;
+      yield* child.descendantsWhere(test);
+    }
+  }
+}
+
+class _FastTag {
+  final String name;
+  final Map<String, String> attributes;
+  final bool isClosing;
+  final bool isSelfClosing;
+
+  const _FastTag({
+    required this.name,
+    this.attributes = const {},
+    this.isClosing = false,
+    this.isSelfClosing = false,
+  });
+}
+
 class _CssCascade {
   final Map<String, List<_CssRule>> _tagRules;
   final Map<String, List<_CssRule>> _classRules;
   final Map<String, List<_CssRule>> _idRules;
+  final Map<String, _CssDeclaration> _cache = {};
 
-  const _CssCascade._(this._tagRules, this._classRules, this._idRules);
+  _CssCascade._(this._tagRules, this._classRules, this._idRules);
 
   static _CssCascade parse(String css) {
     final cleaned = css.replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
@@ -1275,13 +2563,14 @@ class _CssCascade {
         final selector = _CssSelector.parse(rawSelector.trim());
         if (selector == null) continue;
         final rule = _CssRule(selector, declaration, order++);
-        switch (selector.kind) {
-          case _CssSelectorKind.tag:
-            (tagRules[selector.value] ??= []).add(rule);
-          case _CssSelectorKind.className:
-            (classRules[selector.value] ??= []).add(rule);
-          case _CssSelectorKind.id:
-            (idRules[selector.value] ??= []).add(rule);
+        if (selector.id != null) {
+          (idRules[selector.id!] ??= []).add(rule);
+        } else if (selector.classes.isNotEmpty) {
+          for (final className in selector.classes) {
+            (classRules[className] ??= []).add(rule);
+          }
+        } else if (selector.tag != null) {
+          (tagRules[selector.tag!] ??= []).add(rule);
         }
       }
     }
@@ -1289,35 +2578,70 @@ class _CssCascade {
   }
 
   _CssDeclaration declarationFor(dom.Element element) {
-    var declaration = const _CssDeclaration();
-
-    for (final rule
-        in _tagRules[element.localName?.toLowerCase() ?? ''] ??
-            const <_CssRule>[]) {
-      declaration = declaration.merge(rule.declaration);
-    }
-
-    final classMatches = <_CssRule>[];
-    for (final className
-        in (element.attributes['class'] ?? '').toLowerCase().split(
-          RegExp(r'\s+'),
-        )) {
-      classMatches.addAll(_classRules[className] ?? const <_CssRule>[]);
-    }
-    classMatches.sort((a, b) => a.order.compareTo(b.order));
-    for (final rule in classMatches) {
-      declaration = declaration.merge(rule.declaration);
-    }
-
-    for (final rule
-        in _idRules[element.attributes['id']?.toLowerCase() ?? ''] ??
-            const <_CssRule>[]) {
-      declaration = declaration.merge(rule.declaration);
-    }
-
-    return declaration.merge(
-      _CssDeclaration.parse(element.attributes['style'] ?? ''),
+    return _declarationFor(
+      tag: element.localName?.toLowerCase() ?? '',
+      attributes: {
+        for (final entry in element.attributes.entries)
+          entry.key.toString(): entry.value,
+      },
     );
+  }
+
+  _CssDeclaration declarationForFast(_XElement element) {
+    return _declarationFor(tag: element.tag, attributes: element.attributes);
+  }
+
+  _CssDeclaration _declarationFor({
+    required String tag,
+    required Map<String, String> attributes,
+  }) {
+    final classNames =
+        (attributes['class'] ?? '')
+            .toLowerCase()
+            .split(RegExp(r'\s+'))
+            .where((className) => className.isNotEmpty)
+            .toList()
+          ..sort();
+    final id = attributes['id']?.toLowerCase() ?? '';
+    final inlineStyle = attributes['style'] ?? '';
+    final cacheKey = '$tag|${classNames.join('.')}|$id|$inlineStyle';
+    final cached = _cache[cacheKey];
+    if (cached != null) return cached;
+
+    var declaration = const _CssDeclaration();
+    final matches = <_CssRule>[];
+    final seenOrders = <int>{};
+
+    void collect(Iterable<_CssRule> rules) {
+      for (final rule in rules) {
+        if (seenOrders.add(rule.order) &&
+            rule.selector.matches(tag: tag, classNames: classNames, id: id)) {
+          matches.add(rule);
+        }
+      }
+    }
+
+    collect(_tagRules[tag] ?? const <_CssRule>[]);
+    for (final className in classNames) {
+      collect(_classRules[className] ?? const <_CssRule>[]);
+    }
+    if (id.isNotEmpty) {
+      collect(_idRules[id] ?? const <_CssRule>[]);
+    }
+
+    matches.sort((a, b) {
+      final specificity = a.selector.specificity.compareTo(
+        b.selector.specificity,
+      );
+      return specificity == 0 ? a.order.compareTo(b.order) : specificity;
+    });
+    for (final rule in matches) {
+      declaration = declaration.merge(rule.declaration);
+    }
+
+    final resolved = declaration.merge(_CssDeclaration.parse(inlineStyle));
+    _cache[cacheKey] = resolved;
+    return resolved;
   }
 }
 
@@ -1329,13 +2653,15 @@ class _CssRule {
   const _CssRule(this.selector, this.declaration, this.order);
 }
 
-enum _CssSelectorKind { tag, className, id }
-
 class _CssSelector {
-  final _CssSelectorKind kind;
-  final String value;
+  final String? tag;
+  final String? id;
+  final Set<String> classes;
 
-  const _CssSelector(this.kind, this.value);
+  const _CssSelector({this.tag, this.id, this.classes = const {}});
+
+  int get specificity =>
+      (id == null ? 0 : 100) + classes.length * 10 + (tag == null ? 0 : 1);
 
   static _CssSelector? parse(String selector) {
     if (selector.isEmpty ||
@@ -1343,22 +2669,45 @@ class _CssSelector {
         selector.startsWith('@')) {
       return null;
     }
-    if (selector.startsWith('.')) {
-      final value = selector.substring(1).trim().toLowerCase();
-      return _validIdentifier(value)
-          ? _CssSelector(_CssSelectorKind.className, value)
-          : null;
+    final match = RegExp(
+      r'^([a-z][a-z0-9-]*)?((?:[.#][a-z0-9_-]+)+)?$',
+      caseSensitive: false,
+    ).firstMatch(selector);
+    if (match == null) return null;
+
+    final tag = match.group(1)?.toLowerCase();
+    final suffix = match.group(2) ?? '';
+    String? id;
+    final classes = <String>{};
+    for (final part in RegExp(
+      r'([.#])([a-z0-9_-]+)',
+      caseSensitive: false,
+    ).allMatches(suffix)) {
+      final marker = part.group(1)!;
+      final value = part.group(2)!.toLowerCase();
+      if (!_validIdentifier(value)) return null;
+      if (marker == '#') {
+        if (id != null) return null;
+        id = value;
+      } else {
+        classes.add(value);
+      }
     }
-    if (selector.startsWith('#')) {
-      final value = selector.substring(1).trim().toLowerCase();
-      return _validIdentifier(value)
-          ? _CssSelector(_CssSelectorKind.id, value)
-          : null;
-    }
-    final tag = selector.toLowerCase();
-    return RegExp(r'^[a-z][a-z0-9-]*$').hasMatch(tag)
-        ? _CssSelector(_CssSelectorKind.tag, tag)
-        : null;
+    if (tag == null && id == null && classes.isEmpty) return null;
+    return _CssSelector(tag: tag, id: id, classes: classes);
+  }
+
+  bool matches({
+    required String tag,
+    required List<String> classNames,
+    required String id,
+  }) {
+    final expectedTag = this.tag;
+    if (expectedTag != null && expectedTag != tag) return false;
+    final expectedId = this.id;
+    if (expectedId != null && expectedId != id) return false;
+    if (classes.isEmpty) return true;
+    return classNames.toSet().containsAll(classes);
   }
 
   static bool _validIdentifier(String value) {

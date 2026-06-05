@@ -11,26 +11,30 @@ class EpubService {
   static Future<Book> parseFile(
     String filePath, {
     core.EpubParseProgressCallback? onProgress,
+    core.EpubParseProfileCallback? onProfile,
   }) async {
     final file = File(filePath);
     final bytes = await file.readAsBytes();
-    return parseBytes(bytes, onProgress: onProgress);
+    return parseBytes(bytes, onProgress: onProgress, onProfile: onProfile);
   }
 
   static Future<Book> parseBytes(
     Uint8List bytes, {
     core.EpubParseProgressCallback? onProgress,
+    core.EpubParseProfileCallback? onProfile,
   }) async {
-    return parseBytesSync(bytes, onProgress: onProgress);
+    return parseBytesSync(bytes, onProgress: onProgress, onProfile: onProfile);
   }
 
   static Book parseBytesSync(
     Uint8List bytes, {
     core.EpubParseProgressCallback? onProgress,
+    core.EpubParseProfileCallback? onProfile,
   }) {
     final parsed = core.EpubParser.parseBytesSync(
       bytes,
       onProgress: onProgress,
+      onProfile: onProfile,
     );
     return fromParsed(parsed);
   }
