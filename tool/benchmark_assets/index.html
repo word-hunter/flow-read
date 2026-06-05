@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow Read Benchmark Report</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Flow Read</p>
+    <h1>Benchmark Report</h1>
+  </div>
+  <div class="header-meta">
+    <span id="header-time"></span>
+    <span id="header-runs"></span>
+    <button id="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle theme">Auto</button>
+  </div>
+</header>
+
+<main>
+  <section id="summary" class="summary-grid" aria-label="Benchmark summary"></section>
+
+  <section id="run-overview" class="panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Latest run</p>
+        <h2>Performance Overview</h2>
+      </div>
+    </div>
+    <div id="overview-content"></div>
+  </section>
+
+  <section id="details" class="panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Benchmark files</p>
+        <h2>Score Details</h2>
+      </div>
+      <div class="controls">
+        <input id="filter-input" type="search" placeholder="Filter by file or benchmark">
+        <select id="sort-select" aria-label="Sort benchmarks">
+          <option value="name">Sort by name</option>
+          <option value="slowest">Slowest first</option>
+          <option value="regression">Worst change</option>
+          <option value="score">Lowest score</option>
+        </select>
+        <label class="switch-label">
+          <input id="show-charts-toggle" type="checkbox" checked>
+          <span>Trend cards</span>
+        </label>
+      </div>
+    </div>
+    <div id="file-cards"></div>
+  </section>
+
+  <section id="trends" class="panel">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">History</p>
+        <h2>Trend Cards</h2>
+      </div>
+    </div>
+    <div id="trend-charts"></div>
+  </section>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
