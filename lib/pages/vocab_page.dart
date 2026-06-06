@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/aggregated_vocabulary.dart';
 import '../models/user_vocabulary.dart';
+import '../providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import '../providers/reading/vocabulary_notifier.dart';
-import '../providers/reading/word_lookup_provider.dart';
+import '../providers/reading/word_lookup_notifier.dart';
+import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/dictionary_detail_view.dart';
 import '../widgets/pronunciation_button.dart';
@@ -52,7 +55,9 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
   Widget build(BuildContext context) {
     ref.watch(vocabularyNotifierProvider);
     final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
-    final lookup = ref.watch(wordLookupProvider);
+    final lookupState = ref.watch(wordLookupNotifierProvider);
+    final lookupNotifier = ref.read(wordLookupNotifierProvider.notifier);
+    final reader = ref.read(riverpod_reading.readingProvider);
     final theme = Theme.of(context);
 
     return Container(
@@ -73,7 +78,7 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
           children: [
             _buildHeader(vocabularyNotifier, theme),
             _buildSearchBar(theme),
-            Expanded(child: _buildBody(vocabularyNotifier, lookup, theme)),
+            Expanded(child: _buildBody(vocabularyNotifier, lookupState, lookupNotifier, reader, theme)),
           ],
         ),
       ),
@@ -157,11 +162,13 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
 
   Widget _buildBody(
     VocabularyNotifier vocabularyNotifier,
-    WordLookupController lookup,
+    WordLookupState lookupState,
+    WordLookupNotifier lookupNotifier,
+    ReadingProvider reader,
     ThemeData theme,
   ) {
-    if (lookup.selectedWord != null) {
-      return _buildWordDetail(context, lookup, theme);
+    if (lookupState.selectedWord != null) {
+      return _buildWordDetail(context, lookupState, lookupNotifier, reader, theme);
     }
 
     final allVocab = vocabularyNotifier.getAllVocabulary();
@@ -225,7 +232,7 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
               vocabularyNotifier.markWordKnown(vocab.word, celebrationOrigin: origin),
           onMarkLearning: () => vocabularyNotifier.markWordLearning(vocab.word),
           onMarkUnknown: () => vocabularyNotifier.markWordUnknown(vocab.word),
-          onTap: () => lookup.lookupWord(vocab.word),
+          onTap: () => lookupNotifier.lookupWord(vocab.word),
         );
       },
     );
@@ -233,10 +240,12 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
 
   Widget _buildWordDetail(
     BuildContext context,
-    WordLookupController lookup,
+    WordLookupState lookupState,
+    WordLookupNotifier lookupNotifier,
+    ReadingProvider reader,
     ThemeData theme,
   ) {
-    final word = lookup.selectedWord!;
+    final word = lookupState.selectedWord!;
 
     return Padding(
       padding: const EdgeInsets.all(20),
@@ -256,16 +265,16 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
                     ),
                   ),
                 ),
-                if (lookup.canPronounceWords)
+                if (reader.canPronounceWords)
                   PronunciationButton(
                     word: word,
-                    onSpeakWord: lookup.speakWord,
+                    onSpeakWord: lookupNotifier.speakWord,
                     buttonSize: 32,
                     iconSize: 18,
                   ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 20),
-                  onPressed: lookup.clearWordLookup,
+                  onPressed: lookupNotifier.clearWordLookup,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
                     minWidth: 32,
@@ -276,9 +285,12 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
             ),
             const SizedBox(height: 12),
             DictionaryDetailView.fromWordLookup(
-              lookup: lookup,
+              lookupState: lookupState,
+              lookupNotifier: lookupNotifier,
               word: word,
               showWordHeader: false,
+              wordLevelService: reader.wordLevelService,
+              canPronounceWords: reader.canPronounceWords,
             ),
           ],
         ),

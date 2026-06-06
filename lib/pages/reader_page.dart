@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
+import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/reading_config_notifier.dart';
@@ -15,7 +16,7 @@ import '../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import '../providers/reading/reading_search_notifier.dart';
 import '../providers/reading/reading_time_notifier.dart';
-import '../providers/reading/word_lookup_provider.dart';
+import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/bookmark_sheet.dart';
@@ -102,8 +103,8 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     int? contextWordEnd,
   }) {
     _hideReadingReminder();
-    final lookup = ref.read(wordLookupProvider);
-    lookup.lookupWord(
+    final lookupNotifier = ref.read(wordLookupNotifierProvider.notifier);
+    lookupNotifier.lookupWord(
       surface,
       canonicalForm: canonical,
       languageCode: languageId,
@@ -123,7 +124,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (_) => WordBottomSheet(word: surface),
-      ).whenComplete(lookup.clearWordLookup);
+      ).whenComplete(lookupNotifier.clearWordLookup);
     }
   }
 
@@ -133,9 +134,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final selectedText = text.trim();
     if (selectedText.isEmpty) return;
     final analyzerName = '${settings.aiProvider.label} AI';
-    ref.read(riverpod_reading.readingProvider.notifier).analyzeSelectedTextAI(selectedText);
+    ref.read(aiNotifierProvider.notifier).analyzeSelectedTextAI(selectedText);
     if (_isWideScreen) {
-      ref.read(wordLookupProvider).clearWordLookup();
+      ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
       setState(() {
         _sidebarMode = _ReaderSidebarMode.textAnalysis;
         _sidebarSelectedText = selectedText;
@@ -350,7 +351,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final closingWordSidebar =
         _sidebarOpen && _sidebarMode == _ReaderSidebarMode.word;
     if (closingWordSidebar) {
-      ref.read(wordLookupProvider).clearWordLookup();
+      ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
     }
     setState(() {
       if (!_sidebarOpen && _sidebarSelectedText.isEmpty) {
@@ -407,9 +408,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         : result.title;
     final colorSettings = settings.colors;
     final search = ref.watch(readingSearchNotifierProvider);
-    final lookup = ref.watch(wordLookupProvider);
+    final lookupState = ref.watch(wordLookupNotifierProvider);
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
+    final reader = ref.read(riverpod_reading.readingProvider);
 
     return _buildKeyboardScope(
       LayoutBuilder(
@@ -428,7 +430,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               currentBook: currentBookNotifier,
               config: config,
               search: search,
-              lookup: lookup,
+              lookupState: lookupState,
+              wordLevelService: reader.wordLevelService,
+              activeLanguageModule: reader.activeLanguageModule,
               scrollController: _scrollController,
               isWideScreen: isWide,
               sidebarOpen: _sidebarOpen,
@@ -570,7 +574,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     return switch (_sidebarMode) {
       _ReaderSidebarMode.word => ReaderWordSidebar(
         onClose: () {
-          ref.read(wordLookupProvider).clearWordLookup();
+          ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
           setState(() => _sidebarOpen = false);
         },
       ),

@@ -4,7 +4,8 @@ import '../models/ai_chapter_preview.dart';
 import '../models/ai_summary.dart';
 import '../models/chapter_ai_coverage.dart';
 import '../models/chapter_ai_status.dart';
-import '../providers/reading/ai_provider.dart';
+import '../providers/reading/ai_notifier.dart';
+import '../providers/reading/reading_provider_riverpod.dart' as riverpod_reading;
 import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
@@ -26,18 +27,21 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
     _requestedCoverage = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final ai = ref.read(aiProvider);
-      if (ai.chapterAISummaryCoverage == null &&
-          !ai.isLoadingChapterAISummaryCoverage) {
-        ai.refreshChapterAISummaryCoverage();
+      final aiNotifier = ref.read(aiNotifierProvider.notifier);
+      final aiState = ref.read(aiNotifierProvider);
+      if (aiState.chapterAISummaryCoverage == null &&
+          !aiState.isLoadingChapterAISummaryCoverage) {
+        aiNotifier.refreshChapterAISummaryCoverage();
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final ai = ref.watch(aiProvider);
+    final aiState = ref.watch(aiNotifierProvider);
+    final aiNotifier = ref.read(aiNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
+    final currentChapter = ref.read(riverpod_reading.readingProvider).currentChapter;
     final theme = Theme.of(context);
 
     return DraggableScrollableSheet(
@@ -54,22 +58,23 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
           child: Column(
             children: [
               _buildHeader(theme),
-              _buildLanguageToggle(theme, ai, settings.aiFeaturesEnabled),
-              _buildAIStatus(theme, ai.chapterAIStatus),
-              _buildSummaryCoverage(theme, ai),
+              _buildLanguageToggle(theme, aiState, aiNotifier, settings.aiFeaturesEnabled),
+              _buildAIStatus(theme, aiState.chapterAIStatus),
+              _buildSummaryCoverage(theme, aiState, currentChapter),
               Divider(
                 color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
               ),
               Expanded(
-                child: ai.isGeneratingSummary
+                child: aiState.isGeneratingSummary
                     ? _buildLoadingView(theme)
-                    : ai.aiSummary == null || ai.aiSummary!.isEmpty
-                    ? _buildEmptyView(theme, ai, settings)
+                    : aiState.aiSummary == null || aiState.aiSummary!.isEmpty
+                    ? _buildEmptyView(theme, aiState, aiNotifier, settings)
                     : _buildSummaryContent(
                         scrollController,
-                        ai.aiSummary!,
+                        aiState.aiSummary!,
                         theme,
-                        ai,
+                        aiState,
+                        aiNotifier,
                         settings.aiFeaturesEnabled,
                       ),
               ),
@@ -110,15 +115,15 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
     );
   }
 
-  Widget _buildSummaryCoverage(ThemeData theme, AIController ai) {
-    final coverage = ai.chapterAISummaryCoverage;
-    if (!ai.isLoadingChapterAISummaryCoverage && coverage == null) {
+  Widget _buildSummaryCoverage(ThemeData theme, AIState aiState, int currentChapter) {
+    final coverage = aiState.chapterAISummaryCoverage;
+    if (!aiState.isLoadingChapterAISummaryCoverage && coverage == null) {
       return const SizedBox.shrink();
     }
 
     final message = coverage == null
         ? '正在读取已生成章节...'
-        : _coverageMessage(coverage, ai.currentChapter);
+        : _coverageMessage(coverage, currentChapter);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -208,7 +213,8 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
 
   Widget _buildLanguageToggle(
     ThemeData theme,
-    AIController ai,
+    AIState aiState,
+    AINotifier aiNotifier,
     bool aiFeaturesEnabled,
   ) {
     return Padding(
@@ -230,11 +236,11 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
               ButtonSegment(value: 'zh', label: Text('中文')),
               ButtonSegment(value: 'en', label: Text('EN')),
             ],
-            selected: {ai.summaryLanguage},
+            selected: {aiState.summaryLanguage},
             onSelectionChanged: aiFeaturesEnabled
                 ? (value) {
-                    ai.toggleSummaryLanguage();
-                    ai.generateSummary();
+                    aiNotifier.toggleSummaryLanguage();
+                    aiNotifier.generateSummary();
                   }
                 : null,
             style: ButtonStyle(
@@ -267,7 +273,8 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
 
   Widget _buildEmptyView(
     ThemeData theme,
-    AIController ai,
+    AIState aiState,
+    AINotifier aiNotifier,
     SettingsService settings,
   ) {
     final aiFeaturesEnabled = settings.aiFeaturesEnabled;
@@ -288,19 +295,19 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
             ),
           ),
           const SizedBox(height: 16),
-          if (ai.isGeneratingChapterPreview) ...[
+          if (aiState.isGeneratingChapterPreview) ...[
             const SizedBox(
               width: 22,
               height: 22,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(height: 12),
-          ] else if (ai.aiChapterPreview != null &&
-              !ai.aiChapterPreview!.isEmpty) ...[
+          ] else if (aiState.aiChapterPreview != null &&
+              !aiState.aiChapterPreview!.isEmpty) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: _buildPreviewSection(
-                ai.aiChapterPreview!,
+                aiState.aiChapterPreview!,
                 theme,
                 compact: true,
               ),
@@ -308,15 +315,15 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
             const SizedBox(height: 16),
           ],
           OutlinedButton.icon(
-            onPressed: aiFeaturesEnabled && !ai.isGeneratingChapterPreview
-                ? () => ai.generateChapterPreview()
+            onPressed: aiFeaturesEnabled && !aiState.isGeneratingChapterPreview
+                ? () => aiNotifier.generateChapterPreview()
                 : null,
             icon: const Icon(Icons.visibility_outlined, size: 18),
             label: const Text('生成读前预览'),
           ),
           const SizedBox(height: 10),
           FilledButton.icon(
-            onPressed: aiFeaturesEnabled ? () => ai.generateSummary() : null,
+            onPressed: aiFeaturesEnabled ? () => aiNotifier.generateSummary() : null,
             icon: const Icon(Icons.auto_awesome, size: 18),
             label: const Text('生成 AI 总结'),
           ),
@@ -329,7 +336,8 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
     ScrollController scrollController,
     AISummary summary,
     ThemeData theme,
-    AIController ai,
+    AIState aiState,
+    AINotifier aiNotifier,
     bool aiFeaturesEnabled,
   ) {
     return SingleChildScrollView(
@@ -338,8 +346,8 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (ai.aiChapterPreview != null && !ai.aiChapterPreview!.isEmpty) ...[
-            _buildPreviewSection(ai.aiChapterPreview!, theme),
+          if (aiState.aiChapterPreview != null && !aiState.aiChapterPreview!.isEmpty) ...[
+            _buildPreviewSection(aiState.aiChapterPreview!, theme),
             const SizedBox(height: 20),
           ],
           if (summary.events.isNotEmpty) ...[
@@ -384,7 +392,7 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
             child: FilledButton.icon(
               onPressed: aiFeaturesEnabled
                   ? () {
-                      ai.generatePractice();
+                      aiNotifier.generatePractice();
                       Navigator.pop(context);
                     }
                   : null,

@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../models/analysis_result.dart';
+import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
-import '../providers/reading/word_lookup_provider.dart';
+import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../services/analysis_service.dart';
 import '../services/llm_client.dart';
@@ -84,13 +85,13 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
     try {
       final page = await _webContentService.fetch(input);
       if (!mounted) return;
-      final lookup = ref.read(wordLookupProvider);
+      final reader = ref.read(riverpod_reading.readingProvider);
       final analysis = AnalysisService.analyzeChapter(
         page.title,
         page.plainText,
-        lookup.userVocabulary,
-        lookup.wordLevelService,
-        lookup.activeLanguageModule,
+        reader.userVocabulary,
+        reader.wordLevelService,
+        reader.activeLanguageModule,
       );
       setState(() {
         _page = page;
@@ -118,8 +119,8 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
     int? contextWordStart,
     int? contextWordEnd,
   }) {
-    final lookup = ref.read(wordLookupProvider);
-    lookup.lookupWord(
+    final lookupNotifier = ref.read(wordLookupNotifierProvider.notifier);
+    lookupNotifier.lookupWord(
       surface,
       canonicalForm: canonical,
       languageCode: languageId,
@@ -132,7 +133,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => WordBottomSheet(word: surface),
-    ).whenComplete(lookup.clearWordLookup);
+    ).whenComplete(lookupNotifier.clearWordLookup);
   }
 
   void _analyzeSelected(String text) {
@@ -142,7 +143,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
     if (selectedText.isEmpty) return;
     final pageText = _page?.plainText ?? '';
     ref
-        .read(riverpod_reading.readingProvider)
+        .read(aiNotifierProvider.notifier)
         .analyzeSelectedTextAI(selectedText, sourceText: pageText);
     _showSelectedTextSheet(selectedText);
   }
@@ -365,8 +366,9 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
 
     final page = _page!;
     final analysis = _analysis!;
-    final lookup = ref.watch(wordLookupProvider);
+    final lookupState = ref.watch(wordLookupNotifierProvider);
     final settings = ref.watch(settingsProvider);
+    final reader = ref.read(riverpod_reading.readingProvider);
 
     return SelectedTextActionRegion(
       actionsBuilder: (context, selectedText, closeToolbar) => [
@@ -426,9 +428,9 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
                         lineHeight: 1.75,
                         fontFamily: 'Serif',
                         colorSettings: settings.colors,
-                        lookupHighlightWord: lookup.selectedWord,
-                        wordLevelService: lookup.wordLevelService,
-                        languageModule: lookup.activeLanguageModule,
+                        lookupHighlightWord: lookupState.selectedWord,
+                        wordLevelService: reader.wordLevelService,
+                        languageModule: reader.activeLanguageModule,
                       ),
                       style: theme.textTheme.bodyLarge?.copyWith(
                         height: 1.75,

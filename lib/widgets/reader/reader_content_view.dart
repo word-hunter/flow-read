@@ -5,8 +5,10 @@ import '../../models/content_block.dart';
 import '../../providers/reading/current_book_notifier.dart';
 import '../../providers/reading/reading_config_notifier.dart';
 import '../../providers/reading/reading_search_notifier.dart';
-import '../../providers/reading/word_lookup_provider.dart';
+import '../../providers/reading/word_lookup_notifier.dart';
+import '../../services/language/language_module.dart';
 import '../../services/settings_service.dart' show VocabularyColorSettings;
+import '../../services/word_level_service.dart';
 import '../reader_text_view.dart';
 import '../selected_text_action_toolbar.dart';
 
@@ -20,7 +22,9 @@ class ReaderContentView extends StatelessWidget {
   final CurrentBookNotifier currentBook;
   final ReadingConfigState config;
   final ReadingSearchState search;
-  final WordLookupController lookup;
+  final WordLookupState lookupState;
+  final WordLevelService? wordLevelService;
+  final LanguageModule? activeLanguageModule;
   final ScrollController scrollController;
   final bool isWideScreen;
   final bool sidebarOpen;
@@ -41,7 +45,9 @@ class ReaderContentView extends StatelessWidget {
     required this.currentBook,
     required this.config,
     required this.search,
-    required this.lookup,
+    required this.lookupState,
+    required this.wordLevelService,
+    required this.activeLanguageModule,
     required this.scrollController,
     required this.isWideScreen,
     required this.sidebarOpen,
@@ -157,7 +163,7 @@ class ReaderContentView extends StatelessWidget {
     bool isFirstBlock = false,
   }) {
     final searchQuery = _effectiveHighlightQuery(search);
-    final lookupHighlightWord = lookup.selectedWord;
+    final lookupHighlightWord = lookupState.selectedWord;
     final hasLookupHighlight =
         lookupHighlightWord != null && lookupHighlightWord.trim().isNotEmpty;
 
@@ -189,8 +195,8 @@ class ReaderContentView extends StatelessWidget {
       colorSettings: colorSettings,
       searchQuery: searchQuery,
       lookupHighlightWord: lookupHighlightWord,
-      wordLevelService: lookup.wordLevelService,
-      languageModule: lookup.activeLanguageModule,
+      wordLevelService: wordLevelService,
+      languageModule: activeLanguageModule,
     );
   }
 
@@ -234,7 +240,7 @@ class ReaderContentView extends StatelessWidget {
   }) {
     final baseStyle = _buildBaseTextStyle(theme, config);
     final searchQuery = _effectiveHighlightQuery(search);
-    final lookupHighlightWord = lookup.selectedWord;
+    final lookupHighlightWord = lookupState.selectedWord;
     final hasLookupHighlight =
         lookupHighlightWord != null && lookupHighlightWord.trim().isNotEmpty;
 
@@ -263,8 +269,8 @@ class ReaderContentView extends StatelessWidget {
           colorSettings: colorSettings,
           searchQuery: searchQuery,
           lookupHighlightWord: lookupHighlightWord,
-          wordLevelService: lookup.wordLevelService,
-          languageModule: lookup.activeLanguageModule,
+          wordLevelService: wordLevelService,
+          languageModule: activeLanguageModule,
         ),
         style: baseStyle,
       ),
@@ -302,9 +308,9 @@ class ReaderContentView extends StatelessWidget {
               fontFamily: config.fontFamily,
               baseTextColor: _readerTextColor(config),
               colorSettings: colorSettings,
-              lookupHighlightWord: lookup.selectedWord,
-              wordLevelService: lookup.wordLevelService,
-              languageModule: lookup.activeLanguageModule,
+              lookupHighlightWord: lookupState.selectedWord,
+              wordLevelService: wordLevelService,
+              languageModule: activeLanguageModule,
             ),
             style: baseStyle,
           ),

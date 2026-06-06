@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/ai_practice_questions.dart';
 import '../models/learning_item.dart';
 import '../models/review_question.dart';
-import '../providers/reading/ai_provider.dart';
+import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/services_provider.dart';
 import '../providers/settings_provider.dart';
@@ -23,7 +23,7 @@ class _ReviewScreenState extends riverpod.ConsumerState<ReviewScreen> {
   Widget build(BuildContext context) {
     final currentBookState = ref.watch(currentBookNotifierProvider);
     final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
-    final ai = ref.watch(aiProvider);
+    final aiState = ref.watch(aiNotifierProvider);
     final result = currentBookNotifier.result;
     if (result == null) return const Center(child: CircularProgressIndicator());
 
@@ -31,9 +31,9 @@ class _ReviewScreenState extends riverpod.ConsumerState<ReviewScreen> {
         currentBookNotifier.book?.chapters[currentBookState.currentChapter].title ??
         result.title;
 
-    final aiPractice = ai.aiPractice;
+    final aiPractice = aiState.aiPractice;
 
-    if (ai.isGeneratingPractice) {
+    if (aiState.isGeneratingPractice) {
       return Scaffold(
         appBar: AppBar(title: const Text('正在生成练习题...')),
         body: const Center(
@@ -518,7 +518,7 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
           TextButton.icon(
             onPressed: settings.aiFeaturesEnabled
                 ? () {
-                    ref.read(aiProvider).generatePractice();
+                    ref.read(aiNotifierProvider.notifier).generatePractice();
                   }
                 : null,
             icon: const Icon(Icons.refresh, size: 16),

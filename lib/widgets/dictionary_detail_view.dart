@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 
 import '../models/word_context_example.dart';
 import '../models/word_level.dart';
-import '../providers/reading/word_lookup_provider.dart';
+import '../providers/reading/word_lookup_notifier.dart';
 import '../services/compound_word_analyzer.dart';
 import '../services/dictionary/word_repository.dart';
 import '../services/english_word_utils.dart';
+import '../services/word_level_service.dart';
 import 'imported_word_examples.dart';
 import 'pronunciation_button.dart';
 
@@ -52,36 +53,38 @@ class DictionaryDetailView extends StatelessWidget {
 
   factory DictionaryDetailView.fromWordLookup({
     Key? key,
-    required WordLookupController lookup,
+    required WordLookupState lookupState,
+    required WordLookupNotifier lookupNotifier,
     required String word,
     bool showWordHeader = true,
     bool showContext = false,
+    WordLevelService? wordLevelService,
+    bool canPronounceWords = false,
   }) {
-    final levelService = lookup.wordLevelService;
     LevelKey? level;
-    if (levelService != null && levelService.hasWord(word)) {
-      level = levelService.getLevel(word);
+    if (wordLevelService != null && wordLevelService.hasWord(word)) {
+      level = wordLevelService.getLevel(word);
     }
 
     return DictionaryDetailView(
       key: key,
       word: word,
-      entry: lookup.selectedWordEntry,
-      primaryDefinition: lookup.selectedWordTranslation,
-      isLoading: lookup.isLoadingWord,
-      contextText: lookup.selectedWordContext,
-      contextWordStart: lookup.selectedWordContextStart,
-      contextWordEnd: lookup.selectedWordContextEnd,
-      importedExamples: lookup.importedExamplesFor(word),
-      compoundAnalysis: lookup.selectedWordLookupResult?.compoundAnalysis,
-      bookContexts: lookup.selectedWordLookupResult?.bookContexts ?? const [],
+      entry: lookupState.selectedWordEntry,
+      primaryDefinition: lookupState.selectedWordTranslation,
+      isLoading: lookupState.isLoadingWord,
+      contextText: lookupState.selectedWordContext,
+      contextWordStart: lookupState.selectedWordContextStart,
+      contextWordEnd: lookupState.selectedWordContextEnd,
+      importedExamples: lookupNotifier.importedExamplesFor(word),
+      compoundAnalysis: lookupState.selectedWordLookupResult?.compoundAnalysis,
+      bookContexts: lookupState.selectedWordLookupResult?.bookContexts ?? const [],
       level: level,
       showWordHeader: showWordHeader,
       showContext: showContext,
-      onSpeakWord: lookup.canPronounceWords ? lookup.speakWord : null,
-      onLookupWord: lookup.lookupRelatedWord,
-      onGoBack: lookup.canGoBackWordLookup ? lookup.goBackWordLookup : null,
-      canGoBack: lookup.canGoBackWordLookup,
+      onSpeakWord: canPronounceWords ? lookupNotifier.speakWord : null,
+      onLookupWord: lookupNotifier.lookupRelatedWord,
+      onGoBack: lookupState.canGoBackWordLookup ? lookupNotifier.goBackWordLookup : null,
+      canGoBack: lookupState.canGoBackWordLookup,
     );
   }
 

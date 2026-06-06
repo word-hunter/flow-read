@@ -144,7 +144,26 @@ class AINotifier extends Notifier<AIState> {
 
   @override
   AIState build() {
-    return const AIState();
+    final reader = ref.watch(readingProvider);
+    return AIState(
+      aiTextAnalysis: reader.aiTextAnalysis,
+      isAnalyzingText: reader.isAnalyzingText,
+      aiTranslation: reader.aiTranslation,
+      isTranslatingText: reader.isTranslatingText,
+      aiSummary: reader.aiSummary,
+      isGeneratingSummary: reader.isGeneratingSummary,
+      aiChapterPreview: reader.aiChapterPreview,
+      isGeneratingChapterPreview: reader.isGeneratingChapterPreview,
+      chapterAIStatus: reader.chapterAIStatus,
+      chapterAISummaryCoverage: reader.chapterAISummaryCoverage,
+      isLoadingChapterAISummaryCoverage:
+          reader.isLoadingChapterAISummaryCoverage,
+      summaryLanguage: reader.summaryLanguage,
+      aiPractice: reader.aiPractice,
+      isGeneratingPractice: reader.isGeneratingPractice,
+      aiWordAnalysis: reader.aiWordAnalysis,
+      isAnalyzingWord: reader.isAnalyzingWord,
+    );
   }
 
   Future<void> analyzeSelectedTextAI(String text, {String? sourceText}) async {

@@ -4,8 +4,11 @@ import '../models/analysis_result.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
+import '../providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import '../providers/reading/vocabulary_notifier.dart';
-import '../providers/reading/word_lookup_provider.dart';
+import '../providers/reading/word_lookup_notifier.dart';
+import '../providers/reading_provider.dart';
 import '../theme/app_colors.dart';
 import 'dictionary_detail_view.dart';
 import 'pronunciation_button.dart';
@@ -45,11 +48,13 @@ class ReaderSidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentBookState = ref.watch(currentBookNotifierProvider);
     final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
-    final lookup = ref.watch(wordLookupProvider);
+    final lookupState = ref.watch(wordLookupNotifierProvider);
+    final lookupNotifier = ref.read(wordLookupNotifierProvider.notifier);
     ref.watch(vocabularyNotifierProvider);
     final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
+    final reader = ref.read(riverpod_reading.readingProvider);
     final theme = Theme.of(context);
 
     return Column(
@@ -63,10 +68,12 @@ class ReaderSidebar extends ConsumerWidget {
           ),
         ],
         Expanded(
-          child: _buildVocabularyPanel(context, theme, result, lookup),
+          child: _buildVocabularyPanel(context, theme, result, lookupState, reader),
         ),
-        if (lookup.selectedWord != null)
-          _buildFloatingWordCard(theme, lookup, vocabularyNotifier, bookmarkNotifier),
+        if (lookupState.selectedWord != null)
+          _buildFloatingWordCard(
+            theme, lookupState, lookupNotifier, vocabularyNotifier, bookmarkNotifier, reader,
+          ),
       ],
     );
   }
@@ -188,7 +195,8 @@ class ReaderSidebar extends ConsumerWidget {
     BuildContext context,
     ThemeData theme,
     AnalysisResult result,
-    WordLookupController lookup,
+    WordLookupState lookupState,
+    ReadingProvider reader,
   ) {
     if (result.vocabulary.isEmpty) {
       return Center(
@@ -208,7 +216,7 @@ class ReaderSidebar extends ConsumerWidget {
         final vocab = result.vocabulary[index];
         final isSelected =
             vocab.word.toLowerCase() ==
-            (lookup.selectedWord?.toLowerCase() ?? '');
+            (lookupState.selectedWord?.toLowerCase() ?? '');
 
         return Card(
           elevation: 0,
@@ -227,8 +235,8 @@ class ReaderSidebar extends ConsumerWidget {
           child: InkWell(
             onTap: () => onWordTapped(
               vocab.word,
-              lookup.activeLanguageModule.canonicalize(vocab.word),
-              lookup.activeLanguageModule.languageCode,
+              reader.activeLanguageModule.canonicalize(vocab.word),
+              reader.activeLanguageModule.languageCode,
               vocab.context,
             ),
             borderRadius: BorderRadius.circular(10),
@@ -334,11 +342,13 @@ class ReaderSidebar extends ConsumerWidget {
 
   Widget _buildFloatingWordCard(
     ThemeData theme,
-    WordLookupController lookup,
+    WordLookupState lookupState,
+    WordLookupNotifier lookupNotifier,
     VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
+    ReadingProvider reader,
   ) {
-    final word = lookup.selectedWord!;
+    final word = lookupState.selectedWord!;
     final status = vocabularyNotifier.getWordStatus(word);
 
     return Container(
@@ -383,13 +393,13 @@ class ReaderSidebar extends ConsumerWidget {
                   color: theme.colorScheme.primary,
                 ),
                 onPressed: () {
-                  if (lookup.selectedWordTranslation != null) {
+                  if (lookupState.selectedWordTranslation != null) {
                     if (bookmarkNotifier.isBookmarked(word)) {
                       bookmarkNotifier.removeBookmark(word);
                     } else {
                       bookmarkNotifier.addBookmark(
                         word,
-                        lookup.selectedWordTranslation!,
+                        lookupState.selectedWordTranslation!,
                       );
                     }
                   }
@@ -397,16 +407,16 @@ class ReaderSidebar extends ConsumerWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
-              if (lookup.canPronounceWords)
+              if (reader.canPronounceWords)
                 PronunciationButton(
                   word: word,
-                  onSpeakWord: lookup.speakWord,
+                  onSpeakWord: lookupNotifier.speakWord,
                   buttonSize: 32,
                   iconSize: 18,
                 ),
               IconButton(
                 icon: const Icon(Icons.close, size: 18),
-                onPressed: lookup.clearWordLookup,
+                onPressed: lookupNotifier.clearWordLookup,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -414,9 +424,12 @@ class ReaderSidebar extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           DictionaryDetailView.fromWordLookup(
-            lookup: lookup,
+            lookupState: lookupState,
+            lookupNotifier: lookupNotifier,
             word: word,
             showWordHeader: false,
+            wordLevelService: reader.wordLevelService,
+            canPronounceWords: reader.canPronounceWords,
           ),
           const SizedBox(height: 10),
           Row(

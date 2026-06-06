@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/user_vocabulary.dart';
 import '../providers/reading/bookmark_notifier.dart';
+import '../providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import '../providers/reading/vocabulary_notifier.dart';
-import '../providers/reading/word_lookup_provider.dart';
+import '../providers/reading/word_lookup_notifier.dart';
+import '../providers/reading_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
@@ -28,14 +31,16 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final lookup = ref.watch(wordLookupProvider);
+    final lookupState = ref.watch(wordLookupNotifierProvider);
+    final lookupNotifier = ref.read(wordLookupNotifierProvider.notifier);
     ref.watch(vocabularyNotifierProvider);
     final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
+    final reader = ref.read(riverpod_reading.readingProvider);
     final theme = Theme.of(context);
-    final word = lookup.selectedWord ?? widget.word;
+    final word = lookupState.selectedWord ?? widget.word;
     if (_currentWord != word) {
       _currentWord = word;
       _bookmarkAdded = false;
@@ -63,16 +68,18 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                 child: SingleChildScrollView(
                   controller: scrollController,
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-                  child: _buildContent(lookup, word),
+                  child: _buildContent(lookupState, lookupNotifier, word, reader),
                 ),
               ),
               _buildBottomActions(
-                lookup,
+                lookupState,
+                lookupNotifier,
                 vocabularyNotifier,
                 bookmarkNotifier,
                 settings,
                 theme,
                 word,
+                reader,
                 status,
                 isBookmarked,
               ),
@@ -113,17 +120,30 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     );
   }
 
-  Widget _buildContent(WordLookupController lookup, String word) {
-    return DictionaryDetailView.fromWordLookup(lookup: lookup, word: word);
+  Widget _buildContent(
+    WordLookupState lookupState,
+    WordLookupNotifier lookupNotifier,
+    String word,
+    ReadingProvider reader,
+  ) {
+    return DictionaryDetailView.fromWordLookup(
+      lookupState: lookupState,
+      lookupNotifier: lookupNotifier,
+      word: word,
+      wordLevelService: reader.wordLevelService,
+      canPronounceWords: reader.canPronounceWords,
+    );
   }
 
   Widget _buildBottomActions(
-    WordLookupController lookup,
+    WordLookupState lookupState,
+    WordLookupNotifier lookupNotifier,
     VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
     SettingsService settings,
     ThemeData theme,
     String word,
+    ReadingProvider reader,
     UserWordStatus? status,
     bool isBookmarked,
   ) {
@@ -144,21 +164,27 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: lookup.isAnalyzingWord || !canToggleAIAnalysis
+              onPressed: lookupState.isAnalyzingWord || !canToggleAIAnalysis
                   ? null
                   : () {
                       setState(() => _showAIAnalysis = !_showAIAnalysis);
                       if (_showAIAnalysis) {
-                        lookup.analyzeWordAI(
+                        lookupNotifier.setAnalyzingWord(true);
+                        reader.analyzeWordAI(
                           word,
-                          lookup
+                          lookupState
                                   .selectedWordEntry
                                   ?.meanings
                                   .firstOrNull
                                   ?.definitions
                                   .firstOrNull ??
                               word,
-                        );
+                        ).whenComplete(() {
+                          if (mounted) {
+                            lookupNotifier.setAIWordAnalysis(reader.aiWordAnalysis);
+                            lookupNotifier.setAnalyzingWord(false);
+                          }
+                        });
                       }
                     },
               icon: _showAIAnalysis
@@ -192,7 +218,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
           ),
           if (_showAIAnalysis) ...[
             const SizedBox(height: 8),
-            _buildAIAnalysisContent(lookup, theme),
+            _buildAIAnalysisContent(lookupState, theme),
           ],
           const SizedBox(height: 8),
           Row(
@@ -242,9 +268,9 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed:
-                        lookup.canCreateLearningItems &&
-                            lookup.selectedWordTranslation != null
-                        ? () => _addLearningItem(lookup)
+                        reader.canCreateLearningItems &&
+                            lookupState.selectedWordTranslation != null
+                        ? () => _addLearningItem(reader)
                         : null,
                     icon: const Icon(Icons.add_card_outlined, size: 20),
                     label: const Text('加入学习卡片'),
@@ -295,11 +321,11 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
               : SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: lookup.selectedWordTranslation != null
+                    onPressed: lookupState.selectedWordTranslation != null
                         ? () {
                             bookmarkNotifier.addBookmark(
                               word,
-                              lookup.selectedWordTranslation!,
+                              lookupState.selectedWordTranslation!,
                             );
                             setState(() => _bookmarkAdded = true);
                           }
@@ -320,8 +346,8 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     );
   }
 
-  Future<void> _addLearningItem(WordLookupController lookup) async {
-    final result = await lookup.addSelectedWordLearningItem();
+  Future<void> _addLearningItem(ReadingProvider reader) async {
+    final result = await reader.addSelectedWordLearningItem();
     if (!mounted) return;
     if (result != null) {
       setState(() => _learningItemSaved = true);
@@ -413,8 +439,8 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     );
   }
 
-  Widget _buildAIAnalysisContent(WordLookupController lookup, ThemeData theme) {
-    if (lookup.isAnalyzingWord) {
+  Widget _buildAIAnalysisContent(WordLookupState lookupState, ThemeData theme) {
+    if (lookupState.isAnalyzingWord) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(12),
@@ -423,7 +449,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
       );
     }
 
-    final analysis = lookup.aiWordAnalysis;
+    final analysis = lookupState.aiWordAnalysis;
     if (analysis == null || analysis.isEmpty) {
       return Text(
         '尚未生成 AI 详解',

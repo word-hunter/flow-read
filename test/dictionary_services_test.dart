@@ -10,6 +10,7 @@ import 'package:flow_read/models/word_analysis.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/dictionary/collins_repository.dart';
 import 'package:flow_read/services/compound_word_analyzer.dart';
@@ -28,9 +29,12 @@ import 'package:flow_read/services/pronunciation_service.dart';
 import 'package:flow_read/services/prompt_builder.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
+import 'package:flow_read/services/word_context_service.dart';
 import 'package:flow_read/services/dictionary/word_repository.dart';
 import 'package:flow_read/services/dictionary/wordnet_repository.dart';
+import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
+import 'package:flow_read/storage/repositories/word_context_repository.dart';
 import 'package:flow_read/widgets/dictionary_detail_view.dart';
 import 'package:flow_read/widgets/reader/reader_word_sidebar.dart';
 import 'package:flutter/material.dart';
@@ -47,13 +51,30 @@ Widget _withReadingProvider(
   SettingsService settings,
   Widget child,
 ) {
-  return riverpod.ProviderScope(
-    overrides: [
-      riverpod_reading.readingProvider.overrideWith((ref) => provider),
-      settingsProvider.overrideWith((ref) => settings),
-    ],
-    child: child,
-  );
+    return riverpod.ProviderScope(
+      overrides: [
+        riverpod_reading.readingProvider.overrideWith((ref) => provider),
+        settingsProvider.overrideWith((ref) => settings),
+        wordRepositoryProvider.overrideWith((ref) => WordNetRepository()),
+        wordContextServiceProvider.overrideWith(
+          (ref) => WordContextService(
+            repository: _InMemoryWordContextRepository(),
+          ),
+        ),
+      ],
+      child: child,
+    );
+}
+
+class _InMemoryWordContextRepository implements WordContextRepository {
+  @override
+  Future<void> init() async {}
+  @override
+  String? getEncodedExamples(String word) => null;
+  @override
+  Future<void> putEncodedExamples(String word, String encodedExamples) async {}
+  @override
+  Future<void> close() async {}
 }
 
 void main() {

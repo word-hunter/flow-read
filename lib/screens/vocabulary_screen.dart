@@ -5,7 +5,7 @@ import '../models/aggregated_vocabulary.dart';
 import '../models/learning_item.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading/vocabulary_notifier.dart';
-import '../providers/reading/word_lookup_provider.dart';
+import '../providers/reading/word_lookup_notifier.dart';
 import '../services/language/language_registry.dart';
 import '../theme/app_colors.dart';
 import '../widgets/word_bottom_sheet.dart';
@@ -56,7 +56,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
   Widget build(BuildContext context) {
     ref.watch(vocabularyNotifierProvider);
     final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
-    final lookup = ref.watch(wordLookupProvider);
+    final lookupNotifier = ref.read(wordLookupNotifierProvider.notifier);
     final theme = Theme.of(context);
     final allVocab = vocabularyNotifier.getAllVocabulary(alphabetical: _sortAlpha);
     final allLearningItems = vocabularyNotifier.learningItems;
@@ -115,7 +115,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
                               vocabularyNotifier.markWordLearning(vocab.word),
                           onMarkUnknown: () =>
                               vocabularyNotifier.markWordUnknown(vocab.word),
-                          onTap: () => _openWordDetail(context, lookup, vocab),
+                          onTap: () => _openWordDetail(context, lookupNotifier, vocab),
                         );
                       },
                     ),
@@ -177,16 +177,16 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
 
   void _openWordDetail(
     BuildContext context,
-    WordLookupController lookup,
+    WordLookupNotifier lookupNotifier,
     AggregatedVocabulary vocab,
   ) {
-    lookup.lookupWord(vocab.word, contextText: vocab.context);
+    lookupNotifier.lookupWord(vocab.word, contextText: vocab.context);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => WordBottomSheet(word: vocab.word),
-    ).whenComplete(lookup.clearWordLookup);
+    ).whenComplete(lookupNotifier.clearWordLookup);
   }
 
   Widget _buildSearchBar(

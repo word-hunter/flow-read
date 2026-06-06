@@ -5,7 +5,7 @@ import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../models/reading_token.dart';
 import '../providers/reading/current_book_notifier.dart';
-import '../providers/reading/word_lookup_provider.dart';
+import '../providers/reading/word_lookup_notifier.dart';
 import '../services/common_words.dart';
 import '../services/english_word_utils.dart';
 import '../services/language/english_language_module.dart';
@@ -1055,7 +1055,9 @@ Widget buildProgressBar(
 
 Widget buildInlineDictionaryPopup(
   BuildContext context,
-  WordLookupController lookup,
+  WordLookupState lookupState,
+  WordLookupNotifier lookupNotifier,
+  bool canPronounceWords,
   ThemeData theme,
 ) {
   return Container(
@@ -1067,11 +1069,11 @@ Widget buildInlineDictionaryPopup(
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildPopupHeader(lookup, theme),
+        _buildPopupHeader(lookupState, lookupNotifier, canPronounceWords, theme),
         Flexible(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: _buildDictionaryContent(lookup, theme),
+            child: _buildDictionaryContent(lookupState, lookupNotifier, canPronounceWords, theme),
           ),
         ),
       ],
@@ -1079,8 +1081,13 @@ Widget buildInlineDictionaryPopup(
   );
 }
 
-Widget _buildPopupHeader(WordLookupController lookup, ThemeData theme) {
-  final word = lookup.selectedWord;
+Widget _buildPopupHeader(
+  WordLookupState lookupState,
+  WordLookupNotifier lookupNotifier,
+  bool canPronounceWords,
+  ThemeData theme,
+) {
+  final word = lookupState.selectedWord;
   if (word == null) return const SizedBox.shrink();
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1104,23 +1111,23 @@ Widget _buildPopupHeader(WordLookupController lookup, ThemeData theme) {
             ),
           ),
         ),
-        if (lookup.isLoadingWord)
+        if (lookupState.isLoadingWord)
           const SizedBox(
             width: 18,
             height: 18,
             child: CircularProgressIndicator(strokeWidth: 2),
           )
         else ...[
-          if (lookup.canPronounceWords)
+          if (canPronounceWords)
             PronunciationButton(
               word: word,
-              onSpeakWord: lookup.speakWord,
+              onSpeakWord: lookupNotifier.speakWord,
               buttonSize: 32,
               iconSize: 18,
             ),
           IconButton(
             icon: const Icon(Icons.close, size: 18),
-            onPressed: lookup.clearWordLookup,
+            onPressed: lookupNotifier.clearWordLookup,
           ),
         ],
       ],
@@ -1128,12 +1135,19 @@ Widget _buildPopupHeader(WordLookupController lookup, ThemeData theme) {
   );
 }
 
-Widget _buildDictionaryContent(WordLookupController lookup, ThemeData _) {
-  final word = lookup.selectedWord;
+Widget _buildDictionaryContent(
+  WordLookupState lookupState,
+  WordLookupNotifier lookupNotifier,
+  bool canPronounceWords,
+  ThemeData _,
+) {
+  final word = lookupState.selectedWord;
   if (word == null) return const SizedBox.shrink();
   return DictionaryDetailView.fromWordLookup(
-    lookup: lookup,
+    lookupState: lookupState,
+    lookupNotifier: lookupNotifier,
     word: word,
     showWordHeader: false,
+    canPronounceWords: canPronounceWords,
   );
 }
