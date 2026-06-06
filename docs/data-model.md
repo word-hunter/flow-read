@@ -28,6 +28,8 @@ Last updated: 2026-06-06
 | `UserWordStatus` | `user_vocabulary.dart` | 枚举：known, learning |
 | `AggregatedVocabulary` | `aggregated_vocabulary.dart` | 跨章节聚合词汇视图 |
 | `BookDifficulty` | `book_difficulty.dart` | l1~l5 难度等级 + 评分 |
+| `ReadingToken` | `reading_token.dart` | 结构化阅读 token（surface/canonical/languageId/offsets） |
+| `TokenizedText` | `reading_token.dart` | 原文、语言和 token 流，用于 reader 渲染和点击定位 |
 
 ## AI 相关模型
 
@@ -45,7 +47,7 @@ Last updated: 2026-06-06
 
 | 接口 | 实现 |
 |------|------|
-| `Tokenizer` (abstract) | `EnglishLanguageModule` |
+| `Tokenizer` (abstract, includes `tokenizeToTokens`) | `EnglishLanguageModule` |
 | `SentenceSplitter` (abstract) | `EnglishLanguageModule` |
 | `SyntaxMarkerProvider` (abstract) | `EnglishLanguageModule` |
 | `LanguageModule` (合并三个接口) | `EnglishLanguageModule` |
@@ -56,8 +58,8 @@ Last updated: 2026-06-06
 
 | 模型 | Type ID | Box | 状态 |
 |------|---------|-----|------|
-| `ReadingToken` | 非 Hive | — | 待实现 |
-| `TokenizedText` | 非 Hive | — | 待实现 |
+| `ReadingToken` | 非 Hive | — | 已实现 |
+| `TokenizedText` | 非 Hive | — | 已实现 |
 | `UserVocabularyEntry` | 非 Hive（重构） | `user_vocabulary_{lang}` | 待实现 |
 | `UserVocabularyKey(languageId, canonical)` | 非 Hive | — | 待实现 |
 | `BookGlossaryEntry` | 12 | `book_glossary` (global) | 1.7.0 实现 |

@@ -10,6 +10,40 @@ void main() {
       expect(module.tokenize('Hello, world!'), ['Hello', 'world']);
     });
 
+    test('tokenizes to structured tokens with boundaries and offsets', () {
+      final tokenized = module.tokenizeToTokens("Hello, reader's world!");
+
+      expect(tokenized.originalText, "Hello, reader's world!");
+      expect(tokenized.languageId, 'en');
+      expect(tokenized.tokens.map((token) => token.surface), [
+        'Hello',
+        ', ',
+        "reader's",
+        ' ',
+        'world',
+        '!',
+      ]);
+      expect(tokenized.tokens.map((token) => token.isBoundary), [
+        false,
+        true,
+        false,
+        true,
+        false,
+        true,
+      ]);
+
+      final reader = tokenized.tokens[2];
+      expect(reader.canonical, 'reader');
+      expect(reader.startOffset, 7);
+      expect(reader.endOffset, 15);
+      expect(tokenized.tokenAt(8), reader);
+      expect(tokenized.tokenAt(tokenized.originalText.length), isNull);
+      expect(
+        tokenized.tokensInRange(6, 16).map((token) => token.surface),
+        [', ', "reader's", ' '],
+      );
+    });
+
     test('canonicalizes contractions and apostrophes', () {
       expect(module.canonicalize("won't"), 'will');
       expect(module.canonicalize("Reader\u2019s"), 'reader');

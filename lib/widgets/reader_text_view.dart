@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
+import '../models/reading_token.dart';
 import '../providers/reading/current_book_provider.dart';
 import '../providers/reading/word_lookup_provider.dart';
 import '../services/common_words.dart';
 import '../services/english_word_utils.dart';
+import '../services/language/english_language_module.dart';
 import '../services/language/language_module.dart';
 import '../services/settings_service.dart';
 import '../services/word_level_service.dart';
@@ -578,6 +580,12 @@ class _HighlightBuilder {
     return wordLevelService?.canonicalForm(key) ?? key;
   }
 
+  String _keyForToken(ReadingToken token) {
+    final key = token.canonical;
+    if (key.isEmpty) return key;
+    return wordLevelService?.canonicalForm(key) ?? key;
+  }
+
   String? _lookupKeyFor(String? word) {
     final trimmed = word?.trim();
     if (trimmed == null || trimmed.isEmpty) return null;
@@ -593,26 +601,24 @@ class _HighlightBuilder {
 
   InlineSpan buildParagraph(String paragraph) {
     final spans = <InlineSpan>[];
-    final wordPattern = languageModule?.wordPattern ?? englishWordPattern;
-    final matches = wordPattern.allMatches(paragraph).toList();
-    int lastIndex = 0;
+    final module = languageModule ?? const EnglishLanguageModule();
+    final tokens = module.tokenizeToTokens(paragraph).tokens;
 
-    for (final match in matches) {
-      final word = match.group(0)!;
-      final lower = word.toLowerCase();
-      final key = _keyFor(lower);
-
-      if (match.start > lastIndex) {
+    for (final token in tokens) {
+      if (token.isBoundary) {
         spans.addAll(
           _buildSearchHighlightedSpans(
-            paragraph.substring(lastIndex, match.start),
+            token.surface,
             theme,
             style: _baseTextStyle(),
             searchQuery: searchQuery,
           ),
         );
+        continue;
       }
 
+      final word = token.surface;
+      final key = _keyForToken(token);
       final isVocab = vocabWords.containsKey(key);
       final isKnown = knownSet.contains(key);
       final isLearning = !isVocab && learningSet.contains(key);
@@ -661,8 +667,8 @@ class _HighlightBuilder {
             isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: paragraph,
-            contextWordStart: match.start,
-            contextWordEnd: match.end,
+            contextWordStart: token.startOffset,
+            contextWordEnd: token.endOffset,
           ),
         );
       } else {
@@ -683,18 +689,6 @@ class _HighlightBuilder {
           ),
         );
       }
-      lastIndex = match.end;
-    }
-
-    if (lastIndex < paragraph.length) {
-      spans.addAll(
-        _buildSearchHighlightedSpans(
-          paragraph.substring(lastIndex),
-          theme,
-          style: _baseTextStyle(),
-          searchQuery: searchQuery,
-        ),
-      );
     }
     if (spans.isEmpty) {
       spans.add(TextSpan(text: paragraph));
@@ -768,6 +762,12 @@ class _StyledBlockBuilder {
     return wordLevelService?.canonicalForm(key) ?? key;
   }
 
+  String _keyForToken(ReadingToken token) {
+    final key = token.canonical;
+    if (key.isEmpty) return key;
+    return wordLevelService?.canonicalForm(key) ?? key;
+  }
+
   String? _lookupKeyFor(String? word) {
     final trimmed = word?.trim();
     if (trimmed == null || trimmed.isEmpty) return null;
@@ -780,9 +780,8 @@ class _StyledBlockBuilder {
   InlineSpan build() {
     final fullText = block.plainText;
     final spans = <InlineSpan>[];
-    final wordPattern = languageModule?.wordPattern ?? englishWordPattern;
-    final matches = wordPattern.allMatches(fullText).toList();
-    int lastIndex = 0;
+    final module = languageModule ?? const EnglishLanguageModule();
+    final tokens = module.tokenizeToTokens(fullText).tokens;
 
     // Build offset-to-style mapping
     final styleRanges = <({int start, int end, InlineStyle style})>[];
@@ -796,25 +795,23 @@ class _StyledBlockBuilder {
       offset += styledText.text.length;
     }
 
-    for (final match in matches) {
-      final word = match.group(0)!;
-      final lower = word.toLowerCase();
-      final key = _keyFor(lower);
-
-      if (match.start > lastIndex) {
-        final segment = fullText.substring(lastIndex, match.start);
-        final segStyle = _styleAt(styleRanges, lastIndex);
+    for (final token in tokens) {
+      if (token.isBoundary) {
+        final segStyle = _styleAt(styleRanges, token.startOffset);
         spans.addAll(
           _buildSearchHighlightedSpans(
-            segment,
+            token.surface,
             theme,
             style: _textStyleFor(segStyle),
             searchQuery: searchQuery,
           ),
         );
+        continue;
       }
 
-      final wordStyle = _styleAt(styleRanges, match.start);
+      final word = token.surface;
+      final key = _keyForToken(token);
+      final wordStyle = _styleAt(styleRanges, token.startOffset);
       final isVocab = vocabWords.containsKey(key);
       final isKnown = knownSet.contains(key);
       final isLearning = !isVocab && learningSet.contains(key);
@@ -863,8 +860,8 @@ class _StyledBlockBuilder {
             isLookupHighlighted: isLookupHighlighted,
             onWordTapped: onWordTapped,
             contextText: fullText,
-            contextWordStart: match.start,
-            contextWordEnd: match.end,
+            contextWordStart: token.startOffset,
+            contextWordEnd: token.endOffset,
           ),
         );
       } else {
@@ -885,19 +882,6 @@ class _StyledBlockBuilder {
           ),
         );
       }
-      lastIndex = match.end;
-    }
-
-    if (lastIndex < fullText.length) {
-      final segStyle = _styleAt(styleRanges, lastIndex);
-      spans.addAll(
-        _buildSearchHighlightedSpans(
-          fullText.substring(lastIndex),
-          theme,
-          style: _textStyleFor(segStyle),
-          searchQuery: searchQuery,
-        ),
-      );
     }
     if (spans.isEmpty) {
       spans.add(TextSpan(text: fullText));

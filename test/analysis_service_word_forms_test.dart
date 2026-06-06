@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flow_read/models/reading_token.dart';
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/analysis_service.dart';
 import 'package:flow_read/services/language/language_module.dart';
@@ -122,40 +123,43 @@ void main() {
     expect(words, isNot(contains('til')));
   });
 
-  test('analysis canonicalizes common verb inflections via WordLevelService', () async {
-    final vocab = UserVocabularyService();
-    await vocab.init();
-    await vocab.setKnown('look');
-    await vocab.setKnown('think');
-    await vocab.setLearning('answer');
+  test(
+    'analysis canonicalizes common verb inflections via WordLevelService',
+    () async {
+      final vocab = UserVocabularyService();
+      await vocab.init();
+      await vocab.setKnown('look');
+      await vocab.setKnown('think');
+      await vocab.setLearning('answer');
 
-    final wordLevels = WordLevelService();
-    await wordLevels.init();
+      final wordLevels = WordLevelService();
+      await wordLevels.init();
 
-    final result = AnalysisService.analyzeChapter(
-      'Verbs',
-      'She looked around, thinks deeply, and answers quickly.',
-      vocab,
-      wordLevels,
-    );
+      final result = AnalysisService.analyzeChapter(
+        'Verbs',
+        'She looked around, thinks deeply, and answers quickly.',
+        vocab,
+        wordLevels,
+      );
 
-    expect(result.knownWords, contains('look'));
-    expect(result.knownWords, contains('think'));
-    expect(result.learningWords, contains('answer'));
+      expect(result.knownWords, contains('look'));
+      expect(result.knownWords, contains('think'));
+      expect(result.learningWords, contains('answer'));
 
-    expect(
-      result.vocabulary.map((item) => item.word),
-      isNot(contains('looked')),
-    );
-    expect(
-      result.vocabulary.map((item) => item.word),
-      isNot(contains('thinks')),
-    );
-    expect(
-      result.vocabulary.map((item) => item.word),
-      isNot(contains('answers')),
-    );
-  });
+      expect(
+        result.vocabulary.map((item) => item.word),
+        isNot(contains('looked')),
+      );
+      expect(
+        result.vocabulary.map((item) => item.word),
+        isNot(contains('thinks')),
+      );
+      expect(
+        result.vocabulary.map((item) => item.word),
+        isNot(contains('answers')),
+      );
+    },
+  );
 
   test('analysis uses an explicit language module when supplied', () {
     final result = AnalysisService.analyzeChapter(
@@ -188,6 +192,16 @@ class _HashLanguageModule implements LanguageModule {
         .allMatches(text)
         .map((match) => match.group(0)!)
         .toList();
+  }
+
+  @override
+  TokenizedText tokenizeToTokens(String text) {
+    return tokenizeTextWithPattern(
+      text: text,
+      languageCode: languageCode,
+      wordPattern: wordPattern,
+      canonicalize: canonicalize,
+    );
   }
 
   @override

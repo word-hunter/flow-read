@@ -1,5 +1,6 @@
 import '../common_words.dart';
 import '../english_word_utils.dart';
+import '../../models/reading_token.dart';
 import 'language_module.dart';
 
 class EnglishLanguageModule implements LanguageModule {
@@ -20,6 +21,16 @@ class EnglishLanguageModule implements LanguageModule {
         .allMatches(text)
         .map((match) => match.group(0)!)
         .toList();
+  }
+
+  @override
+  TokenizedText tokenizeToTokens(String text) {
+    return tokenizeTextWithPattern(
+      text: text,
+      languageCode: languageCode,
+      wordPattern: wordPattern,
+      canonicalize: canonicalize,
+    );
   }
 
   @override
