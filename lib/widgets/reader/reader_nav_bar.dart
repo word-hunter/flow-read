@@ -1,0 +1,499 @@
+import 'dart:async' show unawaited;
+
+import 'package:flutter/foundation.dart' show ValueListenable;
+import 'package:flutter/material.dart';
+
+import '../../providers/reading/bookmark_provider.dart';
+import '../../providers/reading/current_book_provider.dart';
+import '../../providers/reading/reading_config_provider.dart';
+import '../font_settings_sheet.dart';
+import '../toc_bottom_sheet.dart';
+import 'reader_location_summary.dart';
+
+class ReaderNavBar extends StatelessWidget {
+  static const double _toolbarIconGap = 8;
+  static const double _toolbarButtonWidth = 40;
+  static const double _toolbarButtonHeight = 32;
+  static const double _toolbarInfoWidth = 540;
+
+  final CurrentBookController currentBook;
+  final ReadingConfigController config;
+  final BookmarkController bookmarks;
+  final String chapterTitle;
+  final double layoutWidth;
+  final ValueListenable<double> displayProgressListenable;
+  final bool showSidebarToggle;
+  final bool sidebarOpen;
+  final bool tocMenuOpen;
+  final MenuController tocMenuController;
+  final MenuController fontSettingsMenuController;
+  final VoidCallback onSidebarToggle;
+  final VoidCallback onShowTocSheet;
+  final ValueChanged<MenuController> onTocMenuToggle;
+  final ValueChanged<bool> onTocMenuOpenChanged;
+  final VoidCallback onShowFontSettingsSheet;
+  final ValueChanged<MenuController> onFontSettingsMenuToggle;
+  final ValueChanged<bool> onFontSettingsMenuOpenChanged;
+  final VoidCallback onSearchTap;
+  final VoidCallback onBookmarkTap;
+  final VoidCallback onBookmarkHistoryTap;
+
+  const ReaderNavBar({
+    super.key,
+    required this.currentBook,
+    required this.config,
+    required this.bookmarks,
+    required this.chapterTitle,
+    required this.layoutWidth,
+    required this.displayProgressListenable,
+    required this.showSidebarToggle,
+    required this.sidebarOpen,
+    required this.tocMenuOpen,
+    required this.tocMenuController,
+    required this.fontSettingsMenuController,
+    required this.onSidebarToggle,
+    required this.onShowTocSheet,
+    required this.onTocMenuToggle,
+    required this.onTocMenuOpenChanged,
+    required this.onShowFontSettingsSheet,
+    required this.onFontSettingsMenuToggle,
+    required this.onFontSettingsMenuOpenChanged,
+    required this.onSearchTap,
+    required this.onBookmarkTap,
+    required this.onBookmarkHistoryTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = _isDarkReadingTheme(config);
+    final borderColor = isDark
+        ? const Color(0xFF3A3A3A).withValues(alpha: 0.72)
+        : theme.colorScheme.outlineVariant.withValues(alpha: 0.48);
+    final toolbarTextColor = isDark
+        ? const Color(0xFFC8C1B7)
+        : theme.colorScheme.onSurfaceVariant;
+    final showSearch = layoutWidth >= 520;
+    final showChapterStep = layoutWidth >= 680 && currentBook.chapterCount > 1;
+    final compactToolbar = layoutWidth < 760;
+    final contentTitle = chapterTitle.trim().isNotEmpty
+        ? chapterTitle.trim()
+        : '当前位置';
+    final chapterMetaPrefix = currentBook.hasBook
+        ? '${currentBook.currentChapter + 1} / ${currentBook.chapterCount} · '
+        : null;
+    final canGoPreviousChapter =
+        currentBook.hasBook && currentBook.currentChapter > 0;
+    final canGoNextChapter =
+        currentBook.hasBook &&
+        currentBook.currentChapter < currentBook.chapterCount - 1;
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF1F1F1F).withValues(alpha: 0.42)
+            : theme.colorScheme.surface.withValues(alpha: 0.86),
+        border: Border(bottom: BorderSide(color: borderColor)),
+      ),
+      child: Row(
+        children: [
+          _buildToolbarGroup(
+            children: [
+              _compactIconButton(
+                context,
+                key: const ValueKey('reader-toolbar-back'),
+                icon: Icons.arrow_back,
+                tooltip: '返回',
+                onPressed: currentBook.exitReader,
+              ),
+              _buildTocButton(context, useDropdown: showSidebarToggle),
+            ],
+          ),
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: compactToolbar ? 320 : _toolbarInfoWidth,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    if (showChapterStep) ...[
+                      _chapterStepButton(
+                        context,
+                        icon: Icons.chevron_left,
+                        tooltip: '上一个目录项',
+                        onPressed: canGoPreviousChapter
+                            ? () => unawaited(
+                                currentBook.goToChapter(
+                                  currentBook.currentChapter - 1,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: _toolbarIconGap),
+                    ],
+                    Expanded(
+                      child: chapterMetaPrefix == null
+                          ? ReaderLocationSummary(
+                              title: contentTitle,
+                              metaLabel: null,
+                              difficulty: currentBook.currentBookDifficulty,
+                              textColor: toolbarTextColor,
+                            )
+                          : ValueListenableBuilder<double>(
+                              valueListenable: displayProgressListenable,
+                              builder: (context, progress, _) {
+                                final progressPercent = (progress * 100)
+                                    .round();
+                                return ReaderLocationSummary(
+                                  title: contentTitle,
+                                  metaLabel:
+                                      '$chapterMetaPrefix$progressPercent%',
+                                  difficulty: currentBook.currentBookDifficulty,
+                                  textColor: toolbarTextColor,
+                                );
+                              },
+                            ),
+                    ),
+                    if (showChapterStep) ...[
+                      const SizedBox(width: _toolbarIconGap),
+                      _chapterStepButton(
+                        context,
+                        icon: Icons.chevron_right,
+                        tooltip: '下一个目录项',
+                        onPressed: canGoNextChapter
+                            ? () => unawaited(
+                                currentBook.goToChapter(
+                                  currentBook.currentChapter + 1,
+                                ),
+                              )
+                            : null,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          _buildToolbarGroup(
+            children: [
+              if (showSidebarToggle)
+                _compactIconButton(
+                  context,
+                  icon: sidebarOpen
+                      ? Icons.vertical_split
+                      : Icons.vertical_split_outlined,
+                  tooltip: sidebarOpen ? '收起侧栏' : '展开侧栏',
+                  onPressed: onSidebarToggle,
+                ),
+              if (showSearch)
+                _compactIconButton(
+                  context,
+                  icon: Icons.search,
+                  tooltip: '搜索',
+                  onPressed: onSearchTap,
+                ),
+              _buildFontSettingsButton(context, useDropdown: showSidebarToggle),
+              _compactIconButton(
+                context,
+                icon: bookmarks.isCurrentPositionBookmarked()
+                    ? Icons.bookmark
+                    : Icons.bookmark_outline,
+                tooltip: '书签',
+                onPressed: onBookmarkTap,
+              ),
+              PopupMenuButton<String>(
+                position: PopupMenuPosition.under,
+                tooltip: '更多',
+                icon: const Icon(Icons.more_vert, size: 20),
+                padding: EdgeInsets.zero,
+                style: _toolbarIconButtonStyle(theme, darkReader: isDark)
+                    .copyWith(
+                      fixedSize: const WidgetStatePropertyAll(
+                        Size(_toolbarButtonWidth, _toolbarButtonHeight),
+                      ),
+                      minimumSize: const WidgetStatePropertyAll(
+                        Size(_toolbarButtonWidth, _toolbarButtonHeight),
+                      ),
+                      maximumSize: const WidgetStatePropertyAll(
+                        Size(_toolbarButtonWidth, _toolbarButtonHeight),
+                      ),
+                    ),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'search':
+                      onSearchTap();
+                      break;
+                    case 'prevChapter':
+                      if (canGoPreviousChapter) {
+                        unawaited(
+                          currentBook.goToChapter(
+                            currentBook.currentChapter - 1,
+                          ),
+                        );
+                      }
+                      break;
+                    case 'nextChapter':
+                      if (canGoNextChapter) {
+                        unawaited(
+                          currentBook.goToChapter(
+                            currentBook.currentChapter + 1,
+                          ),
+                        );
+                      }
+                      break;
+                    case 'bookmarks':
+                      onBookmarkHistoryTap();
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  if (!showSearch)
+                    const PopupMenuItem(value: 'search', child: Text('搜索')),
+                  if (!showSearch) const PopupMenuDivider(),
+                  if (currentBook.hasBook && currentBook.chapterCount > 1) ...[
+                    PopupMenuItem(
+                      value: 'prevChapter',
+                      enabled: canGoPreviousChapter,
+                      child: const Text('上一个目录项'),
+                    ),
+                    PopupMenuItem(
+                      value: 'nextChapter',
+                      enabled: canGoNextChapter,
+                      child: const Text('下一个目录项'),
+                    ),
+                    const PopupMenuDivider(),
+                  ],
+                  const PopupMenuItem(value: 'bookmarks', child: Text('历史书签')),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolbarGroup({required List<Widget> children}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final (index, child) in children.indexed)
+          Padding(
+            padding: EdgeInsetsDirectional.only(
+              start: index > 0 ? _toolbarIconGap : 0,
+            ),
+            child: child,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTocButton(
+    BuildContext context, {
+    required bool useDropdown,
+  }) {
+    if (!currentBook.hasBook || currentBook.chapterCount <= 1) {
+      return const SizedBox.shrink();
+    }
+
+    if (!useDropdown) {
+      return _compactIconButton(
+        context,
+        key: const ValueKey('reader-toolbar-toc'),
+        icon: Icons.menu,
+        tooltip: '目录',
+        onPressed: onShowTocSheet,
+      );
+    }
+
+    return MenuAnchor(
+      controller: tocMenuController,
+      onOpen: () => onTocMenuOpenChanged(true),
+      onClose: () => onTocMenuOpenChanged(false),
+      alignmentOffset: const Offset(0, 6),
+      style: const MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(Colors.transparent),
+        elevation: WidgetStatePropertyAll(0),
+        padding: WidgetStatePropertyAll(EdgeInsets.zero),
+      ),
+      menuChildren: [
+        TocDropdownPanel(
+          onClose: tocMenuController.close,
+          onChapterSelected: (_) => tocMenuController.close(),
+        ),
+      ],
+      child: _compactIconButton(
+        context,
+        key: const ValueKey('reader-toolbar-toc'),
+        icon: Icons.menu,
+        tooltip: '目录',
+        selected: tocMenuOpen,
+        onPressed: () => onTocMenuToggle(tocMenuController),
+      ),
+    );
+  }
+
+  Widget _buildFontSettingsButton(
+    BuildContext context, {
+    required bool useDropdown,
+  }) {
+    if (!useDropdown) {
+      return _compactIconButton(
+        context,
+        icon: Icons.text_fields,
+        tooltip: '字体',
+        onPressed: onShowFontSettingsSheet,
+      );
+    }
+
+    final panelWidth = FontSettingsDropdownPanel.preferredWidthFor(
+      MediaQuery.sizeOf(context),
+    );
+
+    return MenuAnchor(
+      controller: fontSettingsMenuController,
+      onOpen: () => onFontSettingsMenuOpenChanged(true),
+      onClose: () => onFontSettingsMenuOpenChanged(false),
+      alignmentOffset: Offset(-(panelWidth - 32), 6),
+      style: const MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(Colors.transparent),
+        elevation: WidgetStatePropertyAll(0),
+        padding: WidgetStatePropertyAll(EdgeInsets.zero),
+      ),
+      menuChildren: [
+        FontSettingsDropdownPanel(
+          width: panelWidth,
+          onClose: fontSettingsMenuController.close,
+        ),
+      ],
+      builder: (context, controller, _) {
+        return _compactIconButton(
+          context,
+          icon: Icons.text_fields,
+          tooltip: '字体',
+          selected: controller.isOpen,
+          onPressed: () => onFontSettingsMenuToggle(controller),
+        );
+      },
+    );
+  }
+
+  Widget _compactIconButton(
+    BuildContext context, {
+    Key? key,
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onPressed,
+    double size = 19,
+    bool selected = false,
+  }) {
+    final theme = Theme.of(context);
+    final isDarkReader = _isDarkReadingTheme(config);
+    return IconButton(
+      key: key,
+      icon: Icon(icon, size: size),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(
+        width: _toolbarButtonWidth,
+        height: _toolbarButtonHeight,
+      ),
+      visualDensity: VisualDensity.compact,
+      style: _toolbarIconButtonStyle(
+        theme,
+        selected: selected,
+        darkReader: isDarkReader,
+      ),
+    );
+  }
+
+  Widget _chapterStepButton(
+    BuildContext context, {
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onPressed,
+  }) {
+    final theme = Theme.of(context);
+    final isDarkReader = _isDarkReadingTheme(config);
+    return IconButton(
+      icon: Icon(icon, size: 22),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(
+        width: _toolbarButtonWidth,
+        height: _toolbarButtonHeight,
+      ),
+      visualDensity: VisualDensity.compact,
+      style: _toolbarIconButtonStyle(theme, darkReader: isDarkReader).copyWith(
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    );
+  }
+
+  ButtonStyle _toolbarIconButtonStyle(
+    ThemeData theme, {
+    bool selected = false,
+    bool darkReader = false,
+  }) {
+    final colorScheme = theme.colorScheme;
+    final inactiveForeground = darkReader
+        ? const Color(0xFFC8C1B7)
+        : colorScheme.onSurfaceVariant;
+    return ButtonStyle(
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      mouseCursor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return SystemMouseCursors.basic;
+        }
+        return SystemMouseCursors.click;
+      }),
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return Colors.transparent;
+        }
+        if (states.contains(WidgetState.pressed)) {
+          return colorScheme.primary.withValues(alpha: 0.14);
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return colorScheme.primary.withValues(alpha: selected ? 0.16 : 0.08);
+        }
+        return selected
+            ? colorScheme.primary.withValues(alpha: 0.12)
+            : Colors.transparent;
+      }),
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return inactiveForeground.withValues(alpha: 0.38);
+        }
+        if (selected ||
+            states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return colorScheme.primary;
+        }
+        return inactiveForeground;
+      }),
+      overlayColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) {
+          return colorScheme.primary.withValues(alpha: 0.10);
+        }
+        return Colors.transparent;
+      }),
+    );
+  }
+}
+
+bool _isDarkReadingTheme(ReadingConfigController config) {
+  return config.readingTheme == 'dark';
+}
