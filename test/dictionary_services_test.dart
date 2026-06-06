@@ -246,7 +246,46 @@ void main() {
         settings.dictionarySources.map((config) => config.type).toList(),
         DictionarySourceConfig.defaults.map((config) => config.type).toList(),
       );
+      expect(
+        settings.dictionarySources
+            .singleWhere(
+              (config) => config.type == DictionarySourceType.collins,
+            )
+            .supportedLanguages,
+        {'en'},
+      );
+      expect(
+        settings.dictionarySources
+            .singleWhere(
+              (config) => config.type == DictionarySourceType.dictionaryApi,
+            )
+            .supportedLanguages,
+        isNull,
+      );
       expect(settingsBox().get('dictionarySources'), isA<String>());
+      final persisted =
+          jsonDecode(settingsBox().get('dictionarySources') as String)
+              as List<dynamic>;
+      expect(
+        persisted.first as Map<String, dynamic>,
+        containsPair('supportedLanguages', ['en']),
+      );
+    });
+
+    test('legacy dictionary source json receives default language support', () {
+      final collins = DictionarySourceConfig.fromJson({
+        'type': 'collins',
+        'enabled': true,
+        'priority': 0,
+      });
+      final dictionaryApi = DictionarySourceConfig.fromJson({
+        'type': 'dictionaryapi',
+        'enabled': true,
+        'priority': 1,
+      });
+
+      expect(collins.supportedLanguages, {'en'});
+      expect(dictionaryApi.supportedLanguages, isNull);
     });
 
     test(
@@ -408,11 +447,50 @@ void main() {
     test('dictionary manager forwards language code to repositories', () async {
       final settings = SettingsService();
       await settings.init();
+      final dictionaryApi = _CountingRepository(
+        DictionaryEntry(
+          word: 'flow',
+          meanings: const [
+            Meaning(partOfSpeech: 'noun', definitions: ['api result']),
+          ],
+        ),
+      );
+
+      final manager = DictionaryManagerService(
+        settings: settings,
+        sources: [
+          DictionarySourceAdapter(
+            type: DictionarySourceType.dictionaryApi,
+            repository: dictionaryApi,
+          ),
+        ],
+      );
+
+      await manager.lookup('flow', languageCode: 'ja');
+
+      expect(dictionaryApi.lastLanguageCode, 'ja');
+      expect(
+        await WordNetRepository().lookup('flow', languageCode: 'ja'),
+        isNull,
+      );
+    });
+
+    test('dictionary manager skips sources unsupported for language', () async {
+      final settings = SettingsService();
+      await settings.init();
       final collins = _CountingRepository(
         DictionaryEntry(
           word: 'flow',
           meanings: const [
             Meaning(partOfSpeech: 'noun', definitions: ['collins result']),
+          ],
+        ),
+      );
+      final dictionaryApi = _CountingRepository(
+        DictionaryEntry(
+          word: 'flow',
+          meanings: const [
+            Meaning(partOfSpeech: 'noun', definitions: ['api result']),
           ],
         ),
       );
@@ -424,16 +502,20 @@ void main() {
             type: DictionarySourceType.collins,
             repository: collins,
           ),
+          DictionarySourceAdapter(
+            type: DictionarySourceType.dictionaryApi,
+            repository: dictionaryApi,
+          ),
         ],
       );
 
-      await manager.lookup('flow', languageCode: 'ja');
+      final entry = await manager.lookup('flow', languageCode: 'ja');
 
-      expect(collins.lastLanguageCode, 'ja');
-      expect(
-        await WordNetRepository().lookup('flow', languageCode: 'ja'),
-        isNull,
-      );
+      expect(collins.calls, 0);
+      expect(dictionaryApi.calls, 1);
+      expect(dictionaryApi.lastLanguageCode, 'ja');
+      expect(entry!.sourceName, 'Dictionary API');
+      expect(entry.meanings.single.definitions.single, 'api result');
     });
 
     test('disabled Collins source is skipped', () async {

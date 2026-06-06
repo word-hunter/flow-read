@@ -2,7 +2,7 @@
 
 > @source lib/providers/reading_provider.dart lib/providers/rss_provider.dart lib/services/settings_service.dart
 
-Last updated: 2026-06-03
+Last updated: 2026-06-06
 
 ## Provider 层级
 
@@ -83,7 +83,7 @@ String get _activeLanguageCode =>
 | AI | provider, apiKeys, baseUrls, models, usageStats | `aiProviderId`, `aiApiKeys`, `aiBaseUrls`, `aiModels` |
 | 主题 | themeMode, appThemeId, colors | `themeMode`, `appThemeId`, `*Color` |
 | 阅读 | dailyReadingGoalMinutes, readingConfig defaults | `dailyReadingGoalMinutes` |
-| 词典 | dictionarySources (order + enabled/disabled) | `dictionarySources` |
+| 词典 | dictionarySources (order + enabled/disabled + supportedLanguages) | `dictionarySources` |
 | 备份 | enabled, folderPath, bookmark, interval, secrets | `backup*` |
 | 实验 | rss, review | `enabledExperimentalFeatures` |
 | 语言 | activeSourceLanguage, targetExplanationLanguage | `active_source_language`, `target_explanation_language` |

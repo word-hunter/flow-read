@@ -2,7 +2,7 @@
 
 > @source lib/services/ lib/providers/
 
-Last updated: 2026-06-05
+Last updated: 2026-06-06
 
 ## 服务分类
 
@@ -22,7 +22,7 @@ Last updated: 2026-06-05
 
 | Service / Adapter | 职责 | 类型 |
 |-------------------|------|------|
-| `DictionaryManagerService` | 多源编排、按优先级查词、失败 fallback | Orchestrator |
+| `DictionaryManagerService` | 多源编排、按 languageCode/support matrix 过滤、按优先级查词、失败 fallback | Orchestrator |
 | `WordNetRepository` | 离线 WordNet（JSON 字典） | Adapter (offline) |
 | `CollinsRepository` | 在线 Collins（HTML 解析） | Adapter (online) |
 | `LongmanRepository` | 在线 Longman（HTML 解析） | Adapter (online) |
@@ -36,7 +36,7 @@ Last updated: 2026-06-05
 
 ```
 DictionaryManagerService.lookup(word, languageCode)
-  → Walker 按 priority 排序的 enabled adapters
+  → Walker 按 priority 排序的 enabled + supportsLanguage(languageCode) adapters
     → Collins → WordNet → DictionaryAPI → Longman
   → 全部失败 → CompoundWordAnalyzer + 全书上下文搜索
 ```

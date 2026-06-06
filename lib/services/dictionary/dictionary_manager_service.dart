@@ -26,6 +26,11 @@ class DictionaryManagerService implements WordRepository {
       .where((config) => _repositories.containsKey(config.type))
       .toList(growable: false);
 
+  List<DictionarySourceConfig> activeSourcesFor(String languageCode) =>
+      activeSources
+          .where((config) => config.supportsLanguage(languageCode))
+          .toList(growable: false);
+
   @override
   Future<DictionaryEntry?> lookup(
     String word, {
@@ -35,12 +40,12 @@ class DictionaryManagerService implements WordRepository {
     if (query.isEmpty) return null;
 
     final failures = <String>[];
-    final sources = activeSources;
+    final sources = activeSourcesFor(languageCode);
     if (sources.isEmpty) {
       return DictionaryEntry(
         word: query,
         meanings: const [],
-        errorMessage: '未启用词典来源',
+        errorMessage: '未启用支持 $languageCode 的词典来源',
       );
     }
 

@@ -22,23 +22,27 @@ class DictionarySourceConfig {
   final DictionarySourceType type;
   final bool enabled;
   final int priority;
+  final Set<String>? supportedLanguages;
 
-  const DictionarySourceConfig({
+  DictionarySourceConfig({
     required this.type,
     required this.enabled,
     required this.priority,
-  });
+    Set<String>? supportedLanguages,
+  }) : supportedLanguages = _normalizeSupportedLanguages(supportedLanguages);
 
-  static const defaults = <DictionarySourceConfig>[
+  static final defaults = <DictionarySourceConfig>[
     DictionarySourceConfig(
       type: DictionarySourceType.collins,
       enabled: true,
       priority: 0,
+      supportedLanguages: {'en'},
     ),
     DictionarySourceConfig(
       type: DictionarySourceType.wordNet,
       enabled: true,
       priority: 1,
+      supportedLanguages: {'en'},
     ),
     DictionarySourceConfig(
       type: DictionarySourceType.dictionaryApi,
@@ -49,14 +53,16 @@ class DictionarySourceConfig {
       type: DictionarySourceType.longman,
       enabled: true,
       priority: 3,
+      supportedLanguages: {'en'},
     ),
   ];
 
-  static const legacyWordNetFirstDefaults = <DictionarySourceConfig>[
+  static final legacyWordNetFirstDefaults = <DictionarySourceConfig>[
     DictionarySourceConfig(
       type: DictionarySourceType.wordNet,
       enabled: true,
       priority: 0,
+      supportedLanguages: {'en'},
     ),
     DictionarySourceConfig(
       type: DictionarySourceType.dictionaryApi,
@@ -67,11 +73,13 @@ class DictionarySourceConfig {
       type: DictionarySourceType.collins,
       enabled: true,
       priority: 2,
+      supportedLanguages: {'en'},
     ),
     DictionarySourceConfig(
       type: DictionarySourceType.longman,
       enabled: true,
       priority: 3,
+      supportedLanguages: {'en'},
     ),
   ];
 
@@ -79,25 +87,44 @@ class DictionarySourceConfig {
     DictionarySourceType? type,
     bool? enabled,
     int? priority,
+    Set<String>? supportedLanguages,
   }) {
     return DictionarySourceConfig(
       type: type ?? this.type,
       enabled: enabled ?? this.enabled,
       priority: priority ?? this.priority,
+      supportedLanguages: supportedLanguages ?? this.supportedLanguages,
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'type': type.id,
-    'enabled': enabled,
-    'priority': priority,
-  };
+  bool supportsLanguage(String languageCode) {
+    final supported = supportedLanguages;
+    if (supported == null || supported.isEmpty) return true;
+    final normalized = _normalizeLanguageCode(languageCode);
+    return supported.contains(normalized);
+  }
+
+  Map<String, dynamic> toJson() {
+    final languages = supportedLanguages == null
+        ? null
+        : (supportedLanguages!.toList()..sort());
+    return {
+      'type': type.id,
+      'enabled': enabled,
+      'priority': priority,
+      ...languages == null ? const {} : {'supportedLanguages': languages},
+    };
+  }
 
   factory DictionarySourceConfig.fromJson(Map<String, dynamic> json) {
+    final type = DictionarySourceType.fromId(json['type']?.toString() ?? '');
     return DictionarySourceConfig(
-      type: DictionarySourceType.fromId(json['type']?.toString() ?? ''),
+      type: type,
       enabled: json['enabled'] as bool? ?? true,
       priority: json['priority'] as int? ?? 0,
+      supportedLanguages:
+          _readSupportedLanguages(json['supportedLanguages']) ??
+          _defaultSupportedLanguages(type),
     );
   }
 
@@ -158,5 +185,35 @@ class DictionarySourceConfig {
       return config.copyWith(enabled: true);
     }
     return config;
+  }
+
+  static Set<String>? _defaultSupportedLanguages(DictionarySourceType type) {
+    return switch (type) {
+      DictionarySourceType.collins ||
+      DictionarySourceType.wordNet ||
+      DictionarySourceType.longman => const {'en'},
+      DictionarySourceType.dictionaryApi => null,
+    };
+  }
+
+  static Set<String>? _readSupportedLanguages(Object? raw) {
+    if (raw == null) return null;
+    if (raw is! Iterable) return null;
+    return raw.map((item) => item.toString()).toSet();
+  }
+
+  static Set<String>? _normalizeSupportedLanguages(Set<String>? languages) {
+    if (languages == null) return null;
+    final normalized = languages
+        .map(_normalizeLanguageCode)
+        .where((code) => code.isNotEmpty)
+        .toSet();
+    return Set.unmodifiable(normalized);
+  }
+
+  static String _normalizeLanguageCode(String raw) {
+    final code = raw.trim().toLowerCase();
+    if (code.isEmpty) return '';
+    return code.contains('-') ? code.split('-').first : code;
   }
 }

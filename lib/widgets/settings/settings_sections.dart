@@ -784,6 +784,10 @@ class _DictionarySourceTile extends StatelessWidget {
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  _DictionarySourceLanguageTag(
+                    label: _languageSupportLabel(config),
+                  ),
                   if (testResult != null) ...[
                     const SizedBox(height: 6),
                     _DictionarySourceTestStatusLine(result: testResult!),
@@ -878,6 +882,47 @@ class _DictionarySourceTile extends StatelessWidget {
       case DictionarySourceType.longman:
         return Icons.school_outlined;
     }
+  }
+
+  String _languageSupportLabel(DictionarySourceConfig config) {
+    final languages = config.supportedLanguages;
+    if (languages == null || languages.isEmpty) return '支持语言：全部';
+    final sorted = languages.toList()..sort();
+    return '支持语言：${sorted.join(', ')}';
+  }
+}
+
+class _DictionarySourceLanguageTag extends StatelessWidget {
+  const _DictionarySourceLanguageTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
