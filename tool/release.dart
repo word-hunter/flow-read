@@ -12,6 +12,7 @@ const _requiredReleaseEntitlements = [
   'com.apple.security.files.bookmarks.app-scope',
 ];
 const _generatedChangelogSections = ['Added', 'Fixed', 'Changed'];
+const _excludedChangelogScopes = {'2.0'};
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty || args.first == '--help' || args.first == '-h') {
@@ -209,7 +210,11 @@ void _bump(List<String> args) {
 
   _writeVersion(next);
   _writeAppVersion(next);
-  _writeChangelogRelease(next.releaseName, date);
+  _writeChangelogRelease(
+    next.releaseName,
+    date,
+    excludeScopes: {..._excludedChangelogScopes, ...options.values('exclude-scope')},
+  );
 
   stdout.writeln('Bumped version to ${next.full}.');
   stdout.writeln(
@@ -279,7 +284,7 @@ class FlowReadVersion {
 ''';
 }
 
-void _writeChangelogRelease(String version, String date) {
+void _writeChangelogRelease(String version, String date, {Set<String> excludeScopes = const {}}) {
   final changelog = _readRequiredFile(_changelogPath);
   if (_hasChangelogSection(changelog, version)) {
     throw ReleaseException('CHANGELOG.md already contains $version.');
@@ -287,7 +292,7 @@ void _writeChangelogRelease(String version, String date) {
 
   final unreleased = _unreleasedContent(changelog).trim();
   final releaseNotes = unreleased.isEmpty
-      ? _generatedReleaseNotesFromGit(version)
+      ? _generatedReleaseNotesFromGit(version, excludeScopes: excludeScopes)
       : unreleased;
 
   final block = RegExp(
@@ -314,7 +319,7 @@ String _unreleasedContent(String changelog) {
   return match?.group(1) ?? '';
 }
 
-String _generatedReleaseNotesFromGit(String version) {
+String _generatedReleaseNotesFromGit(String version, {Set<String> excludeScopes = const {}}) {
   final commits = _releaseCommitsSinceLastTag();
   if (commits.isEmpty) {
     return '### Changed\n\n- 发布 $version 版本。';
@@ -325,6 +330,7 @@ String _generatedReleaseNotesFromGit(String version) {
   };
   for (final commit in commits) {
     if (commit.isReleaseCommit) continue;
+    if (commit.scope != null && excludeScopes.contains(commit.scope)) continue;
     final section = _sectionForCommitType(commit.type);
     final text = commit.summary.trim();
     if (text.isEmpty) continue;
@@ -702,7 +708,7 @@ Usage:
   dart run tool/release.dart current
   dart run tool/release.dart check [--tag v1.2.3 | --version 1.2.3]
   dart run tool/release.dart notes [--version 1.2.3]
-  dart run tool/release.dart bump <major|minor|patch> [--build 12] [--channel alpha] [--date YYYY-MM-DD]
+  dart run tool/release.dart bump <major|minor|patch> [--build 12] [--channel alpha] [--date YYYY-MM-DD] [--exclude-scope 2.0]
   dart run tool/release.dart verify-macos-app <FlowRead.app> [--version 1.2.3]
   dart run tool/release.dart package-local [--configuration release|debug] [--output-dir dist] [--skip-pub-get] [--skip-tests] [--skip-archive-check]
 ''');
@@ -753,6 +759,7 @@ class _ReleaseCommit {
   const _ReleaseCommit({
     required this.rawSubject,
     required this.type,
+    required this.scope,
     required this.summary,
   });
 
@@ -762,18 +769,20 @@ class _ReleaseCommit {
         ? line.trim()
         : line.substring(separator + 1).trim();
     final match = RegExp(
-      r'^([a-zA-Z]+)(?:\([^)]+\))?!?:\s*(.+)$',
+      r'^([a-zA-Z]+)(?:\(([^)]+)\))?!?:\s*(.+)$',
     ).firstMatch(rawSubject);
 
     return _ReleaseCommit(
       rawSubject: rawSubject,
       type: match?.group(1)?.toLowerCase() ?? '',
-      summary: match?.group(2)?.trim() ?? rawSubject,
+      scope: match?.group(2)?.trim(),
+      summary: match?.group(3)?.trim() ?? rawSubject,
     );
   }
 
   final String rawSubject;
   final String type;
+  final String? scope;
   final String summary;
 
   bool get isReleaseCommit {
@@ -798,6 +807,20 @@ class _Options {
       throw UsageException('Missing value for $flag.');
     }
     return args[index + 1];
+  }
+
+  List<String> values(String name) {
+    final flag = '--$name';
+    final result = <String>[];
+    for (var i = 0; i < args.length; i++) {
+      if (args[i] == flag) {
+        if (i == args.length - 1 || args[i + 1].startsWith('--')) {
+          throw UsageException('Missing value for $flag.');
+        }
+        result.add(args[i + 1]);
+      }
+    }
+    return result;
   }
 
   bool has(String name) {
