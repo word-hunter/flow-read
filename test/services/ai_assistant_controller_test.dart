@@ -1,0 +1,172 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flow_read/models/ai_action_result.dart';
+import 'package:flow_read/models/ai_assistant_action.dart';
+import 'package:flow_read/models/ai_automation_settings.dart';
+import 'package:flow_read/models/ai_context_snapshot.dart';
+import 'package:flow_read/models/reading_insight_profile.dart';
+import 'package:flow_read/services/ai_assistant_action_registry.dart';
+import 'package:flow_read/services/ai_assistant_controller.dart';
+import 'package:flow_read/services/ai_service.dart';
+import 'package:flow_read/services/llm_client.dart';
+import 'package:flow_read/services/prompt_builder.dart';
+import 'package:flow_read/services/settings_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
+import '../support/hive_test_storage.dart';
+
+void main() {
+  late Directory tempDir;
+  late SettingsService settings;
+
+  setUp(() async {
+    tempDir = await initHiveTestStorage('flow_read_ai_action_test_');
+    await openFlowReadTestBoxes();
+    settings = SettingsService();
+    await settings.init();
+    await settings.setAIProvider('openai_compatible');
+    await settings.setAIBaseUrl('https://llm.example.com/v1');
+    await settings.setAIModel('reader-model');
+    await settings.setApiKey('test-key');
+  });
+
+  tearDown(() async {
+    await disposeHiveTestStorage(tempDir);
+  });
+
+  test('AIActionController enqueues prompt and stores typed result', () async {
+    final service = _service(settings, (request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      expect(body['response_format'], isNull);
+      return _chatResponse('译文');
+    });
+    final controller = AIActionController(aiService: service);
+    addTearDown(controller.dispose);
+
+    await controller.enqueue(_prompt(), AIAssistantActionType.translate);
+
+    expect(controller.isBusy, isFalse);
+    expect(controller.currentAction, isNull);
+    final result = controller.lastResult;
+    if (result is AIErrorResult) fail(result.message);
+    expect(result, isA<AITranslateResult>());
+    expect((result as AITranslateResult).translation, '译文');
+  });
+
+  test('AIActionController retries the previous prompt', () async {
+    var count = 0;
+    final service = _service(settings, (_) async {
+      count += 1;
+      return _chatResponse('response-$count');
+    });
+    final controller = AIActionController(aiService: service);
+    addTearDown(controller.dispose);
+
+    await controller.enqueue(_prompt(), AIAssistantActionType.articleQA);
+    await controller.retry();
+
+    expect(count, 2);
+    expect((controller.lastResult as AIArticleQAResult).answer, 'response-2');
+  });
+
+  test(
+    'AIAssistantController routes current context through registry',
+    () async {
+      final service = _service(settings, (request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['messages'].last['content'], contains('Selected Text'));
+        return _chatResponse('{"translation":"译文"}');
+      });
+      final actionController = AIActionController(aiService: service);
+      final assistant = AIAssistantController(
+        registry: const AIAssistantActionRegistry(
+          promptBuilder: PromptBuilder(),
+        ),
+        automationSettings: const AIAutomationSettings(),
+        insightProfile: const ReadingInsightProfile(),
+        actionController: actionController,
+      );
+      addTearDown(actionController.dispose);
+      addTearDown(assistant.dispose);
+
+      assistant.setContext(
+        AIContextSnapshot(
+          source: AIContextSource.readerSelectedText,
+          selectedText: 'The door opened.',
+          surroundingPassage: 'The door opened slowly.',
+        ),
+      );
+
+      expect(
+        assistant.availableActions,
+        contains(AIAssistantActionType.explain),
+      );
+
+      await assistant.executeAction(AIAssistantActionType.explain);
+
+      final result = actionController.lastResult;
+      if (result is AIErrorResult) fail(result.message);
+      expect(result, isA<AIExplainResult>());
+    },
+  );
+
+  test('AIActionController maps client errors to retryable result', () async {
+    final service = _service(
+      settings,
+      (_) async => http.Response('unauthorized', 401),
+    );
+    final controller = AIActionController(aiService: service);
+    addTearDown(controller.dispose);
+
+    await controller.enqueue(_prompt(), AIAssistantActionType.translate);
+
+    final result = controller.lastResult;
+    expect(result, isA<AIErrorResult>());
+    expect((result as AIErrorResult).isRetryable, isFalse);
+  });
+}
+
+AIService _service(
+  SettingsService settings,
+  Future<http.Response> Function(http.Request) handler,
+) {
+  return AIService(
+    LLMClient(settings, httpClient: MockClient(handler)),
+  );
+}
+
+PromptBuildResult _prompt() {
+  return const PromptBuildResult(
+    systemPrompt: 'system',
+    userPrompt: 'user',
+    promptVersion: 1,
+    sourceLanguage: SourceLanguage.english,
+    outputLanguage: OutputLanguage.zhHans,
+    spoilerBoundary: SpoilerBoundary(
+      bookId: 'book-1',
+      currentUnitId: 'current_passage',
+      maxReadUnitOrder: 0,
+      unitType: 'passage',
+      scope: AIContextScope.currentPassage,
+    ),
+  );
+}
+
+http.Response _chatResponse(String content) {
+  return http.Response.bytes(
+    utf8.encode(
+      jsonEncode({
+        'choices': [
+          {
+            'message': {'content': content},
+          },
+        ],
+      }),
+    ),
+    200,
+    headers: {'content-type': 'application/json; charset=utf-8'},
+  );
+}

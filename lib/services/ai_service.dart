@@ -18,6 +18,17 @@ class AIService {
 
   int get promptVersion => PromptBuilder.currentPromptVersion;
 
+  Future<String> executePrompt(
+    PromptBuildResult prompt, {
+    bool jsonMode = false,
+  }) {
+    return _client.chat(
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.userPrompt,
+      jsonMode: jsonMode,
+    );
+  }
+
   Future<AITextAnalysis> analyzeText({
     required String selectedText,
     required String currentPassage,

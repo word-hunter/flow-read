@@ -1,6 +1,6 @@
 # Flow Read Provider Map
 
-> @source lib/providers/reading_provider.dart lib/providers/rss_provider.dart lib/services/settings_service.dart lib/services/ai_assistant_action_registry.dart
+> @source lib/providers/reading_provider.dart lib/providers/rss_provider.dart lib/services/settings_service.dart lib/services/ai_assistant_action_registry.dart lib/services/ai_assistant_controller.dart
 
 Last updated: 2026-06-06
 
@@ -50,6 +50,7 @@ ProviderScope
 ### 1.7.0 迁移目标
 
 已新增 `AIAssistantActionRegistry`，负责根据 `AIContextSnapshot` 判断动作可用性，并把统一动作路由到现有 `PromptBuilder` 方法。
+已新增 `AIAssistantController` / `AIActionController` 生命周期基础类；旧阅读器入口尚未迁移，仍按下表逐步收敛。
 
 以下 AI 状态将从 `ReadingProvider` 中迁出至 `AIActionController`：
 
