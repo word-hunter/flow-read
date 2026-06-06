@@ -194,10 +194,10 @@ class _SelectedTextSheetState
   // ======== 分析 Tab ========
 
   Widget _buildAnalysisTab(ThemeData theme, ScrollController scrollController) {
-    final textSelection = ref.watch(textSelectionNotifierProvider);
-    final aiAnalysis = textSelection.aiTextAnalysis;
-    final isAnalyzing = textSelection.isAnalyzingText;
-    final error = textSelection.errorMessage;
+    final reader = ref.watch(riverpod_reading.readingProvider);
+    final aiAnalysis = reader.aiTextAnalysis;
+    final isAnalyzing = reader.isAnalyzingText;
+    final error = reader.errorMessage;
     final analysisError =
         error != null &&
         (error.startsWith('AI 解析失败') ||

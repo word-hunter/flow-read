@@ -4,10 +4,13 @@ import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
+import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/screens/bookshelf_screen.dart';
+import 'package:flow_read/services/reading_time_service.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/storage/repositories/reading_time_repository.dart';
 import 'package:flow_read/widgets/home/bookshelf_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
@@ -23,6 +26,9 @@ void main() {
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           settingsProvider.overrideWith((ref) => settings),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
         ],
         child: const MaterialApp(home: Scaffold(body: BookshelfContent())),
       ),
@@ -54,6 +60,9 @@ void main() {
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           settingsProvider.overrideWith((ref) => settings),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
         ],
         child: const MaterialApp(home: BookshelfScreen()),
       ),
@@ -76,6 +85,9 @@ void main() {
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           settingsProvider.overrideWith((ref) => settings),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
         ],
         child: const MaterialApp(home: Scaffold(body: BookshelfContent())),
       ),
@@ -165,4 +177,26 @@ class _BookshelfSettingsService extends SettingsService {
 
   @override
   int get dailyReadingGoalSeconds => 3600;
+}
+
+class _FakeReadingTimeService extends ReadingTimeService {
+  _FakeReadingTimeService()
+    : super(repository: _FakeReadingTimeRepo());
+
+  @override
+  int secondsForBook(String bookId) => 90 * 60;
+}
+
+class _FakeReadingTimeRepo implements ReadingTimeRepository {
+  @override
+  Future<void> init() async {}
+
+  @override
+  int secondsFor(String key) => 0;
+
+  @override
+  Future<void> putSeconds(String key, int seconds) async {}
+
+  @override
+  Future<void> close() async {}
 }

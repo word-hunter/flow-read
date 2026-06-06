@@ -3,7 +3,12 @@ import 'dart:ui' show PointerDeviceKind;
 import 'package:flow_read/models/ai_text_analysis.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
+import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/services/reading_config_service.dart';
+import 'package:flow_read/services/reading_time_service.dart';
+import 'package:flow_read/storage/repositories/reading_config_repository.dart';
+import 'package:flow_read/storage/repositories/reading_time_repository.dart';
 import 'package:flow_read/widgets/selected_text_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
@@ -58,6 +63,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -165,6 +176,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -229,6 +246,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -290,4 +313,42 @@ class _SelectedTextReadingProvider extends ReadingProvider {
 
   @override
   String? get errorMessage => null;
+}
+
+class _FakeReadingConfigService extends ReadingConfigService {
+  _FakeReadingConfigService()
+    : super(repository: _FakeReadingConfigRepo());
+}
+
+class _FakeReadingConfigRepo implements ReadingConfigRepository {
+  @override
+  Future<void> init() async {}
+
+  @override
+  String getString(String key, {required String defaultValue}) => defaultValue;
+
+  @override
+  Future<void> putString(String key, String value) async {}
+
+  @override
+  Future<void> close() async {}
+}
+
+class _FakeReadingTimeService extends ReadingTimeService {
+  _FakeReadingTimeService()
+    : super(repository: _FakeReadingTimeRepo());
+}
+
+class _FakeReadingTimeRepo implements ReadingTimeRepository {
+  @override
+  Future<void> init() async {}
+
+  @override
+  int secondsFor(String key) => 0;
+
+  @override
+  Future<void> putSeconds(String key, int seconds) async {}
+
+  @override
+  Future<void> close() async {}
 }

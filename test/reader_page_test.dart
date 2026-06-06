@@ -8,12 +8,17 @@ import 'package:flow_read/models/content_block.dart';
 import 'package:flow_read/pages/reader_page.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
+import 'package:flow_read/providers/reading/reading_time_notifier.dart';
+import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart'
     as riverpod_settings;
 import 'package:flow_read/screens/reading_desk_screen.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/dictionary/word_repository.dart';
+import 'package:flow_read/services/reading_config_service.dart';
+import 'package:flow_read/services/reading_time_service.dart';
+import 'package:flow_read/storage/repositories/reading_config_repository.dart';
 import 'package:flow_read/widgets/book_difficulty_chip.dart';
 import 'package:flow_read/widgets/font_settings_sheet.dart';
 import 'package:flow_read/widgets/toc_bottom_sheet.dart';
@@ -38,6 +43,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -82,6 +93,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -115,6 +132,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -138,6 +161,12 @@ void main() {
         riverpod.ProviderScope(
           overrides: [
             riverpod_reading.readingProvider.overrideWith((ref) => provider),
+            readingConfigServiceProvider.overrideWith(
+              (ref) => _FakeReadingConfigService(),
+            ),
+            readingTimeServiceProvider.overrideWith(
+              (ref) => _FakeReadingTimeService(),
+            ),
             riverpod_settings.settingsProvider.overrideWith((ref) => settings),
           ],
           child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -195,6 +224,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -226,6 +261,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -265,6 +306,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -298,6 +345,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -336,6 +389,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -369,6 +428,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -435,6 +500,12 @@ void main() {
           riverpod_reading.readingProvider.overrideWith(
             (ref) => longTitleProvider,
           ),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -460,6 +531,12 @@ void main() {
         overrides: [
           riverpod_reading.readingProvider.overrideWith(
             (ref) => shortTitleProvider,
+          ),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
           ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
@@ -490,6 +567,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -532,6 +615,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -561,6 +650,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -603,6 +698,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -645,6 +746,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -697,6 +804,12 @@ void main() {
         riverpod.ProviderScope(
           overrides: [
             riverpod_reading.readingProvider.overrideWith((ref) => provider),
+            readingConfigServiceProvider.overrideWith(
+              (ref) => _FakeReadingConfigService(),
+            ),
+            readingTimeServiceProvider.overrideWith(
+              (ref) => _FakeReadingTimeService(),
+            ),
             riverpod_settings.settingsProvider.overrideWith((ref) => settings),
           ],
           child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -762,6 +875,12 @@ void main() {
         riverpod.ProviderScope(
           overrides: [
             riverpod_reading.readingProvider.overrideWith((ref) => provider),
+            readingConfigServiceProvider.overrideWith(
+              (ref) => _FakeReadingConfigService(),
+            ),
+            readingTimeServiceProvider.overrideWith(
+              (ref) => _FakeReadingTimeService(),
+            ),
             riverpod_settings.settingsProvider.overrideWith((ref) => settings),
           ],
           child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -799,6 +918,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -821,12 +946,19 @@ void main() {
   ) async {
     final provider = _FakeReadingProvider(isReading: true)
       ..setDailyGoalState(todaySeconds: 55, goalSeconds: 60);
-    final settings = SettingsService();
+    final settings = _DailyGoalSettingsService();
+    final timeService = _FakeReadingTimeService();
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => timeService,
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: Scaffold(body: ReaderPage())),
@@ -837,8 +969,12 @@ void main() {
     await tester.pump();
     expect(find.textContaining('今日阅读目标已达成'), findsNothing);
 
-    provider.setDailyGoalState(todaySeconds: 60, goalSeconds: 60);
-    await tester.drag(_readerScrollView(), const Offset(0, -300));
+    timeService.todaySeconds = 60;
+    riverpod.ProviderScope.containerOf(
+      tester.element(find.byType(Scaffold)),
+    ).read(readingTimeNotifierProvider.notifier).refresh();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 10));
     await tester.pump();
 
     expect(find.text('今日阅读目标已达成：1 分钟'), findsOneWidget);
@@ -858,6 +994,12 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
           riverpod_settings.settingsProvider.overrideWith((ref) => settings),
         ],
         child: MaterialApp(
@@ -1118,3 +1260,64 @@ class _FakeWordRepository implements WordRepository {
     );
   }
 }
+class _FakeReadingConfigService extends ReadingConfigService {
+  _FakeReadingConfigService()
+    : super(repository: _FakeReadingConfigRepo());
+}
+
+class _FakeReadingConfigRepo implements ReadingConfigRepository {
+  @override
+  Future<void> init() async {}
+
+  @override
+  String getString(String key, {required String defaultValue}) => defaultValue;
+
+  @override
+  Future<void> putString(String key, String value) async {}
+
+  @override
+  Future<void> close() async {}
+}
+
+class _FakeReadingTimeService implements ReadingTimeService {
+  int todaySeconds = 0;
+
+  @override
+  int get totalSeconds => 0;
+  @override
+  DateTime get currentDate => DateTime(2026, 6, 6);
+  @override
+  int secondsForBook(String bookId) => 0;
+  @override
+  int secondsForChapter(String bookId, int chapterIndex) => 0;
+  @override
+  String get displayText => '0 秒';
+  @override
+  int secondsForWeek([DateTime? _]) => 0;
+  @override
+  int secondsForMonth([DateTime? _]) => 0;
+  @override
+  List<int> secondsByDayForWeek([DateTime? _]) => const [0, 0, 0, 0, 0, 0, 0];
+  @override
+  List<int> secondsByDayForMonth([DateTime? _]) => const [];
+  @override
+  int secondsForDate(DateTime date) => 0;
+  @override
+  int goalReachedDaysForWeek(int goalSeconds, [DateTime? date]) => 0;
+  @override
+  Future<void> init() async {}
+  @override
+  void start([String? bookId, int? chapterIndex]) {}
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> switchTarget(String? bookId, int? chapterIndex) async {}
+  @override
+  Future<void> close() async {}
+}
+
+class _DailyGoalSettingsService extends SettingsService {
+  @override
+  int get dailyReadingGoalSeconds => 60;
+}
+
