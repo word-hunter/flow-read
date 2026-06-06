@@ -6,7 +6,9 @@ import '../models/ai_text_analysis.dart';
 import '../models/analysis_result.dart';
 import '../models/learning_item.dart';
 import '../models/sentence_breakdown.dart';
-import '../providers/reading/text_selection_provider.dart';
+import '../providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
+import '../providers/reading/text_selection_notifier.dart';
 import '../utils/syntax_helpers.dart';
 
 class SelectedTextSheet extends riverpod.ConsumerStatefulWidget {
@@ -192,7 +194,7 @@ class _SelectedTextSheetState
   // ======== 分析 Tab ========
 
   Widget _buildAnalysisTab(ThemeData theme, ScrollController scrollController) {
-    final textSelection = ref.watch(textSelectionProvider);
+    final textSelection = ref.watch(textSelectionNotifierProvider);
     final aiAnalysis = textSelection.aiTextAnalysis;
     final isAnalyzing = textSelection.isAnalyzingText;
     final error = textSelection.errorMessage;
@@ -383,13 +385,12 @@ class _SelectedTextSheetState
   }
 
   Widget _buildSelectedTextLearningAction(ThemeData theme) {
-    final textSelection = ref.watch(textSelectionProvider);
     return Align(
       alignment: Alignment.centerLeft,
       child: OutlinedButton.icon(
-        onPressed: textSelection.canCreateLearningItems
+        onPressed: ref.read(riverpod_reading.readingProvider).canCreateLearningItems
             ? () => _saveLearningItem(
-                textSelection.addSelectedTextLearningItem(),
+                ref.read(riverpod_reading.readingProvider).addSelectedTextLearningItem(),
               )
             : null,
         icon: const Icon(Icons.add_card_outlined, size: 18),
@@ -481,7 +482,7 @@ class _SelectedTextSheetState
                       theme,
                       onPressed: () => _saveLearningItem(
                         ref
-                            .read(textSelectionProvider)
+                            .read(riverpod_reading.readingProvider)
                             .addAIGrammarLearningItem(point),
                       ),
                     ),
@@ -873,7 +874,7 @@ class _SelectedTextSheetState
                   key: ValueKey('vocabulary-save-$index'),
                   onPressed: () => _saveLearningItem(
                     ref
-                        .read(textSelectionProvider)
+                        .read(riverpod_reading.readingProvider)
                         .addAIVocabularyLearningItem(note),
                   ),
                 ),
@@ -917,7 +918,7 @@ class _SelectedTextSheetState
                       theme,
                       onPressed: () => _saveLearningItem(
                         ref
-                            .read(textSelectionProvider)
+                            .read(riverpod_reading.readingProvider)
                             .addAIExpressionLearningItem(note),
                       ),
                     ),
@@ -954,12 +955,12 @@ class _SelectedTextSheetState
     Key? key,
     required VoidCallback onPressed,
   }) {
-    final textSelection = ref.watch(textSelectionProvider);
+    final reader = ref.read(riverpod_reading.readingProvider);
     return Tooltip(
       message: '加入学习卡片',
       child: IconButton(
         key: key,
-        onPressed: textSelection.canCreateLearningItems ? onPressed : null,
+        onPressed: reader.canCreateLearningItems ? onPressed : null,
         icon: const Icon(Icons.add_card_outlined, size: 18),
         visualDensity: VisualDensity.compact,
         padding: EdgeInsets.zero,

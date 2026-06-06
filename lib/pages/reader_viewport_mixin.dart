@@ -10,7 +10,7 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
 
   void _syncDailyGoalWatcher(
     CurrentBookController currentBook,
-    ReadingTimeController readingTime,
+    ReadingTimeState readingTime,
   );
 
   void _checkDailyReadingGoal();
@@ -30,7 +30,7 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
 
   void _primeReaderState(
     CurrentBookController currentBook,
-    ReadingTimeController readingTime,
+    ReadingTimeState readingTime,
   ) {
     _lastReaderLocationKey = _readerLocationKey(currentBook);
     _lastReaderViewportKey = _readerViewportKey(currentBook);
@@ -66,7 +66,7 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
 
   void _onReaderStateChanged(
     CurrentBookController currentBook,
-    ReadingTimeController readingTime,
+    ReadingTimeState readingTime,
   ) {
     _syncDailyGoalWatcher(currentBook, readingTime);
 

@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../models/analysis_result.dart';
-import '../providers/reading/text_selection_provider.dart';
+import '../providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 import '../providers/reading/word_lookup_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/analysis_service.dart';
@@ -141,7 +142,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
     if (selectedText.isEmpty) return;
     final pageText = _page?.plainText ?? '';
     ref
-        .read(textSelectionProvider)
+        .read(riverpod_reading.readingProvider)
         .analyzeSelectedTextAI(selectedText, sourceText: pageText);
     _showSelectedTextSheet(selectedText);
   }

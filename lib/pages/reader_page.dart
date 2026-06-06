@@ -8,12 +8,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
-import '../providers/reading/bookmark_provider.dart';
+import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/current_book_provider.dart';
-import '../providers/reading/reading_config_provider.dart';
-import '../providers/reading/reading_search_provider.dart';
-import '../providers/reading/reading_time_provider.dart';
-import '../providers/reading/text_selection_provider.dart';
+import '../providers/reading/reading_config_notifier.dart';
+import '../providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
+import '../providers/reading/reading_search_notifier.dart';
+import '../providers/reading/reading_time_notifier.dart';
 import '../providers/reading/word_lookup_provider.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
@@ -132,7 +133,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final selectedText = text.trim();
     if (selectedText.isEmpty) return;
     final analyzerName = '${settings.aiProvider.label} AI';
-    ref.read(textSelectionProvider).analyzeSelectedTextAI(selectedText);
+    ref.read(riverpod_reading.readingProvider.notifier).analyzeSelectedTextAI(selectedText);
     if (_isWideScreen) {
       ref.read(wordLookupProvider).clearWordLookup();
       setState(() {
@@ -219,8 +220,8 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final search = riverpod.ProviderScope.containerOf(
       context,
       listen: false,
-    ).read(readingSearchProvider);
-    search.clearSourceHighlight();
+    ).read(readingSearchNotifierProvider.notifier);
+    search.clearSearch();
     setState(() {
       _searchSheetOpen = true;
       _searchShowingAll = false;
@@ -248,7 +249,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final search = riverpod.ProviderScope.containerOf(
       context,
       listen: false,
-    ).read(readingSearchProvider);
+    ).read(readingSearchNotifierProvider.notifier);
     unawaited(search.searchInBook(value, includeAll: _searchShowingAll));
   }
 
@@ -257,7 +258,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final search = riverpod.ProviderScope.containerOf(
       context,
       listen: false,
-    ).read(readingSearchProvider);
+    ).read(readingSearchNotifierProvider.notifier);
     unawaited(search.searchAllInBook());
   }
 
@@ -265,7 +266,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final search = riverpod.ProviderScope.containerOf(
       context,
       listen: false,
-    ).read(readingSearchProvider);
+    ).read(readingSearchNotifierProvider.notifier);
     await search.goToSearchResult(result);
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -319,7 +320,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final bookmarks = riverpod.ProviderScope.containerOf(
       context,
       listen: false,
-    ).read(bookmarkProvider);
+    ).read(bookmarkNotifierProvider.notifier);
     if (bookmarks.isCurrentPositionBookmarked()) {
       _hideReadingReminder();
       showModalBottomSheet(
@@ -359,7 +360,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     });
   }
 
-  Color _readerBackgroundColor(ReadingConfigController config) {
+  Color _readerBackgroundColor(ReadingConfigState config) {
     switch (config.readingTheme) {
       case 'sepia':
         return const Color(0xFFF5ECD7);
@@ -373,11 +374,12 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   @override
   Widget build(BuildContext context) {
     ref.listen<CurrentBookController>(currentBookProvider, (_, currentBook) {
-      _onReaderStateChanged(currentBook, ref.read(readingTimeProvider));
+      _onReaderStateChanged(currentBook, ref.read(readingTimeNotifierProvider));
     });
     final currentBook = ref.watch(currentBookProvider);
-    final config = ref.watch(readingConfigProvider);
-    final readingTime = ref.watch(readingTimeProvider);
+
+    final config = ref.watch(readingConfigNotifierProvider);
+    final readingTime = ref.watch(readingTimeNotifierProvider);
     final settings = ref.watch(settingsProvider);
     if (_lastReaderLocationKey == null) {
       _primeReaderState(currentBook, readingTime);
@@ -403,9 +405,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         ? currentBook.book!.chapters[currentBook.currentChapter].title
         : result.title;
     final colorSettings = settings.colors;
-    final search = ref.watch(readingSearchProvider);
+    final search = ref.watch(readingSearchNotifierProvider);
     final lookup = ref.watch(wordLookupProvider);
-    final bookmarks = ref.watch(bookmarkProvider);
+    ref.watch(bookmarkNotifierProvider);
+    final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
 
     return _buildKeyboardScope(
       LayoutBuilder(
@@ -443,7 +446,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
                 ReaderNavBar(
                   currentBook: currentBook,
                   config: config,
-                  bookmarks: bookmarks,
+                  bookmarks: bookmarkNotifier,
                   chapterTitle: chapterTitle,
                   layoutWidth: _layoutWidth,
                   displayProgressListenable: _displayProgressNotifier,
@@ -497,7 +500,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   }
 
   Widget _buildPageScaffold({
-    required ReadingConfigController config,
+    required ReadingConfigState config,
     required Widget child,
   }) {
     return ColoredBox(color: _readerBackgroundColor(config), child: child);

@@ -1,10 +1,14 @@
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
+import 'package:flow_read/providers/reading/reading_time_notifier.dart';
+import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/screens/home_screen.dart';
+import 'package:flow_read/services/reading_time_service.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/storage/repositories/reading_time_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
@@ -22,12 +26,14 @@ void main() {
 
     final provider = _HomeReadingProvider();
     final settings = _HomeSettingsService();
+    final timeService = _SidebarReadingTimeService();
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           settingsProvider.overrideWith((ref) => settings),
+          readingTimeServiceProvider.overrideWith((ref) => timeService),
         ],
         child: const MaterialApp(home: HomeScreen()),
       ),
@@ -42,12 +48,14 @@ void main() {
   ) async {
     final provider = _ImportingHomeReadingProvider();
     final settings = _HomeSettingsService();
+    final timeService = _HomeReadingTimeService();
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           settingsProvider.overrideWith((ref) => settings),
+          readingTimeServiceProvider.overrideWith((ref) => timeService),
         ],
         child: const MaterialApp(home: HomeScreen()),
       ),
@@ -76,12 +84,14 @@ void main() {
   ) async {
     final provider = _ImportingHomeReadingProvider();
     final settings = _HomeSettingsService();
+    final timeService = _HomeReadingTimeService();
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           settingsProvider.overrideWith((ref) => settings),
+          readingTimeServiceProvider.overrideWith((ref) => timeService),
         ],
         child: const MaterialApp(home: HomeScreen()),
       ),
@@ -111,12 +121,14 @@ void main() {
   ) async {
     final provider = _ImportingHomeReadingProvider();
     final settings = _HomeSettingsService();
+    final timeService = _HomeReadingTimeService();
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           settingsProvider.overrideWith((ref) => settings),
+          readingTimeServiceProvider.overrideWith((ref) => timeService),
         ],
         child: const MaterialApp(home: HomeScreen()),
       ),
@@ -255,4 +267,48 @@ class _HomeSettingsService extends SettingsService {
 
   @override
   bool get reviewFeatureEnabled => false;
+
+  @override
+  int get dailyReadingGoalSeconds => 30 * 60;
+}
+
+class _HomeReadingTimeService extends ReadingTimeService {
+  _HomeReadingTimeService()
+    : super(repository: _FakeReadingTimeRepository());
+}
+
+class _SidebarReadingTimeService extends ReadingTimeService {
+  _SidebarReadingTimeService()
+    : super(repository: _FakeReadingTimeRepository());
+
+  @override
+  int secondsForWeek([DateTime? _]) => 2 * 3600;
+
+  @override
+  int secondsForMonth([DateTime? _]) => 8 * 3600;
+
+  @override
+  List<int> secondsByDayForWeek([DateTime? _]) =>
+      const [1800, 1800, 3600, 0, 0, 0, 0];
+
+  @override
+  List<int> secondsByDayForMonth([DateTime? _]) =>
+      List<int>.filled(31, 30 * 60);
+
+  @override
+  DateTime get currentDate => DateTime(2026, 5, 20);
+}
+
+class _FakeReadingTimeRepository implements ReadingTimeRepository {
+  @override
+  Future<void> init() async {}
+
+  @override
+  int secondsFor(String key) => 0;
+
+  @override
+  Future<void> putSeconds(String key, int seconds) async {}
+
+  @override
+  Future<void> close() async {}
 }

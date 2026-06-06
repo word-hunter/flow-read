@@ -12,7 +12,7 @@ mixin ReaderDailyGoalMixin on riverpod.ConsumerState<ReaderPage> {
   // ignore: unused_element
   void _syncDailyGoalWatcher(
     CurrentBookController currentBook,
-    ReadingTimeController readingTime,
+    ReadingTimeState readingTime,
   ) {
     if (!currentBook.isReading) {
       _dailyGoalCheckTimer?.cancel();
@@ -32,7 +32,7 @@ mixin ReaderDailyGoalMixin on riverpod.ConsumerState<ReaderPage> {
 
   void _checkDailyReadingGoal() {
     if (!mounted) return;
-    final readingTime = ref.read(readingTimeProvider);
+    final readingTime = ref.read(readingTimeNotifierProvider);
     final reached = readingTime.dailyReadingGoalReached;
     if (!reached) {
       _wasDailyGoalReached = false;

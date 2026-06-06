@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/user_vocabulary.dart';
-import '../providers/reading/bookmark_provider.dart';
+import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/vocabulary_provider.dart';
 import '../providers/reading/word_lookup_provider.dart';
 import '../providers/settings_provider.dart';
@@ -30,7 +30,8 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
   Widget build(BuildContext context) {
     final lookup = ref.watch(wordLookupProvider);
     final vocabulary = ref.watch(vocabularyProvider);
-    final bookmarks = ref.watch(bookmarkProvider);
+    ref.watch(bookmarkNotifierProvider);
+    final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
     final word = lookup.selectedWord ?? widget.word;
@@ -40,7 +41,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
       _learningItemSaved = false;
       _showAIAnalysis = false;
     }
-    final isBookmarked = bookmarks.isBookmarked(word) || _bookmarkAdded;
+    final isBookmarked = bookmarkNotifier.isBookmarked(word) || _bookmarkAdded;
     final status = vocabulary.getWordStatus(word);
 
     return DraggableScrollableSheet(
@@ -67,7 +68,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
               _buildBottomActions(
                 lookup,
                 vocabulary,
-                bookmarks,
+                bookmarkNotifier,
                 settings,
                 theme,
                 word,
@@ -118,7 +119,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
   Widget _buildBottomActions(
     WordLookupController lookup,
     VocabularyController vocabulary,
-    BookmarkController bookmarks,
+    BookmarkNotifier bookmarkNotifier,
     SettingsService settings,
     ThemeData theme,
     String word,
@@ -228,7 +229,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                     icon: Icons.help_outline,
                     color: AppColors.familiarityLow,
                     onPressed: () =>
-                        _markWordUnknown(vocabulary, bookmarks, word),
+                        _markWordUnknown(vocabulary, bookmarkNotifier, word),
                   ),
                 ),
             ],
@@ -295,7 +296,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                   child: FilledButton.icon(
                     onPressed: lookup.selectedWordTranslation != null
                         ? () {
-                            bookmarks.addBookmark(
+                            bookmarkNotifier.addBookmark(
                               word,
                               lookup.selectedWordTranslation!,
                             );
@@ -340,12 +341,12 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
 
   Future<void> _markWordUnknown(
     VocabularyController vocabulary,
-    BookmarkController bookmarks,
+    BookmarkNotifier bookmarkNotifier,
     String word,
   ) async {
     await vocabulary.markWordUnknown(word);
-    if (bookmarks.isBookmarked(word)) {
-      bookmarks.removeBookmark(word);
+    if (bookmarkNotifier.isBookmarked(word)) {
+      bookmarkNotifier.removeBookmark(word);
     }
     if (mounted) setState(() => _bookmarkAdded = false);
   }

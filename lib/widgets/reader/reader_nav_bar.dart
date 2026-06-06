@@ -3,9 +3,9 @@ import 'dart:async' show unawaited;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
-import '../../providers/reading/bookmark_provider.dart';
+import '../../providers/reading/bookmark_notifier.dart';
 import '../../providers/reading/current_book_provider.dart';
-import '../../providers/reading/reading_config_provider.dart';
+import '../../providers/reading/reading_config_notifier.dart';
 import '../font_settings_sheet.dart';
 import '../toc_bottom_sheet.dart';
 import 'reader_location_summary.dart';
@@ -17,8 +17,8 @@ class ReaderNavBar extends StatelessWidget {
   static const double _toolbarInfoWidth = 540;
 
   final CurrentBookController currentBook;
-  final ReadingConfigController config;
-  final BookmarkController bookmarks;
+  final ReadingConfigState config;
+  final BookmarkNotifier bookmarks;
   final String chapterTitle;
   final double layoutWidth;
   final ValueListenable<double> displayProgressListenable;
@@ -494,6 +494,6 @@ class ReaderNavBar extends StatelessWidget {
   }
 }
 
-bool _isDarkReadingTheme(ReadingConfigController config) {
+bool _isDarkReadingTheme(ReadingConfigState config) {
   return config.readingTheme == 'dark';
 }

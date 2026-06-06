@@ -1,9 +1,9 @@
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flow_read/models/reader_font.dart';
-import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
-import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/reading/reading_config_notifier.dart';
+import 'package:flow_read/providers/reading/services_provider.dart';
+import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/widgets/font_settings_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
@@ -13,12 +13,16 @@ void main() {
   testWidgets('font settings sheet exposes and selects Literata', (
     tester,
   ) async {
-    final provider = _FakeReadingProvider();
+    final configService = _FakeReadingConfigService();
 
     await tester.pumpWidget(
-      _withReadingProvider(
-        provider,
-        const MaterialApp(home: Scaffold(body: FontSettingsSheet())),
+      riverpod.ProviderScope(
+        overrides: [
+          readingConfigServiceProvider.overrideWith((ref) => configService),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: FontSettingsSheet()),
+        ),
       ),
     );
 
@@ -38,7 +42,7 @@ void main() {
     await tester.tap(find.byKey(literataTile));
     await tester.pumpAndSettle();
 
-    expect(provider.fontFamily, ReaderFonts.literata);
+    expect(configService.fontFamily, ReaderFonts.literata);
     expect(
       find.descendant(
         of: find.byKey(literataTile),
@@ -51,12 +55,14 @@ void main() {
   testWidgets('desktop dropdown relies on the reader and omits preview card', (
     tester,
   ) async {
-    final provider = _FakeReadingProvider();
+    final configService = _FakeReadingConfigService();
 
     await tester.pumpWidget(
-      _withReadingProvider(
-        provider,
-        const MaterialApp(
+      riverpod.ProviderScope(
+        overrides: [
+          readingConfigServiceProvider.overrideWith((ref) => configService),
+        ],
+        child: const MaterialApp(
           home: Scaffold(
             body: Center(
               child: FontSettingsDropdownPanel(width: 720, maxHeight: 640),
@@ -78,20 +84,22 @@ void main() {
     (
       tester,
     ) async {
-      final provider = _FakeReadingProvider();
+    final configService = _FakeReadingConfigService();
 
-      await tester.pumpWidget(
-        _withReadingProvider(
-          provider,
-          const MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: FontSettingsDropdownPanel(width: 720, maxHeight: 640),
-              ),
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          readingConfigServiceProvider.overrideWith((ref) => configService),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: FontSettingsDropdownPanel(width: 720),
             ),
           ),
         ),
-      );
+      ),
+    );
 
       await tester.scrollUntilVisible(
         find.text('具体字体'),
@@ -113,11 +121,14 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    final provider = _FakeReadingProvider();
+    final configService = _FakeReadingConfigService();
 
     await tester.pumpWidget(
-      _withReadingProvider(
-        provider,
+      riverpod.ProviderScope(
+        overrides: [
+          readingConfigServiceProvider.overrideWith((ref) => configService),
+        ],
+        child:
         const MaterialApp(
           home: Scaffold(
             body: Center(child: FontSettingsDropdownPanel(width: 720)),
@@ -135,11 +146,14 @@ void main() {
   });
 
   testWidgets('setting option cards expose hover feedback', (tester) async {
-    final provider = _FakeReadingProvider();
+    final configService = _FakeReadingConfigService();
 
     await tester.pumpWidget(
-      _withReadingProvider(
-        provider,
+      riverpod.ProviderScope(
+        overrides: [
+          readingConfigServiceProvider.overrideWith((ref) => configService),
+        ],
+        child:
         const MaterialApp(
           home: Scaffold(
             body: Center(
@@ -183,11 +197,14 @@ void main() {
   testWidgets('theme hover target is limited to the preview card', (
     tester,
   ) async {
-    final provider = _FakeReadingProvider();
+    final configService = _FakeReadingConfigService();
 
     await tester.pumpWidget(
-      _withReadingProvider(
-        provider,
+      riverpod.ProviderScope(
+        overrides: [
+          readingConfigServiceProvider.overrideWith((ref) => configService),
+        ],
+        child:
         const MaterialApp(
           home: Scaffold(
             body: Center(
@@ -215,15 +232,6 @@ void main() {
   });
 }
 
-Widget _withReadingProvider(ReadingProvider provider, Widget child) {
-  return riverpod.ProviderScope(
-    overrides: [
-      riverpod_reading.readingProvider.overrideWith((ref) => provider),
-    ],
-    child: child,
-  );
-}
-
 BoxDecoration _cardDecoration(WidgetTester tester, Key key) {
   final container = find
       .descendant(of: find.byKey(key), matching: find.byType(AnimatedContainer))
@@ -232,7 +240,7 @@ BoxDecoration _cardDecoration(WidgetTester tester, Key key) {
       as BoxDecoration;
 }
 
-class _FakeReadingProvider extends ReadingProvider {
+class _FakeReadingConfigService extends ReadingConfigService {
   double _fontSize = 16;
   double _lineHeight = 2;
   String _fontFamily = ReaderFonts.defaultFamily;
@@ -248,29 +256,25 @@ class _FakeReadingProvider extends ReadingProvider {
   String get fontFamily => _fontFamily;
 
   @override
-  String get readingTheme => _readingTheme;
+  String get theme => _readingTheme;
 
   @override
-  void setFontSize(double size) {
+  Future<void> setFontSize(double size) async {
     _fontSize = size;
-    notifyListeners();
   }
 
   @override
-  void setFontFamily(String family) {
+  Future<void> setFontFamily(String family) async {
     _fontFamily = family;
-    notifyListeners();
   }
 
   @override
-  void setLineHeight(double height) {
+  Future<void> setLineHeight(double height) async {
     _lineHeight = height;
-    notifyListeners();
   }
 
   @override
-  void setReadingTheme(String theme) {
+  Future<void> setTheme(String theme) async {
     _readingTheme = theme;
-    notifyListeners();
   }
 }

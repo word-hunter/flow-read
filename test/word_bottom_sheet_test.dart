@@ -1,7 +1,10 @@
+import 'package:flow_read/models/bookmarked_word.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
+import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
+import 'package:flow_read/services/bookmark_service.dart';
 import 'package:flow_read/services/dictionary/word_repository.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/word_bottom_sheet.dart';
@@ -22,12 +25,14 @@ void main() {
 
     final provider = _WordBookmarkReadingProvider();
     final settings = _WordBottomSheetSettingsService();
+    final bookmarkService = _TrackingBookmarkService();
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
           settingsProvider.overrideWith((ref) => settings),
+          bookmarkServiceProvider.overrideWith((ref) => bookmarkService),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -46,19 +51,20 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, '加入生词本'));
     await tester.pumpAndSettle();
 
-    expect(provider.addedBookmark, isTrue);
+    expect(bookmarkService.savedWords.isNotEmpty, isTrue);
     expect(find.text('已加入生词本'), findsOneWidget);
   });
 }
 
 class _WordBookmarkReadingProvider extends ReadingProvider {
-  bool addedBookmark = false;
-
   @override
   String? get selectedWord => 'flow';
 
   @override
   String? get selectedWordTranslation => 'movement';
+
+  @override
+  String? get activeBookId => 'test-book';
 
   @override
   DictionaryEntry? get selectedWordEntry => const DictionaryEntry(
@@ -67,21 +73,20 @@ class _WordBookmarkReadingProvider extends ReadingProvider {
       Meaning(partOfSpeech: 'noun', definitions: ['movement']),
     ],
   );
+}
+
+class _TrackingBookmarkService extends BookmarkService {
+  final List<BookmarkedWord> savedWords = [];
 
   @override
-  bool isBookmarked(String word) => addedBookmark;
-
-  @override
-  void addBookmark(String word, String translation) {
-    addedBookmark = true;
-    notifyListeners();
+  Future<void> saveWordBookmarks(String bookId, List<BookmarkedWord> words) async {
+    savedWords
+      ..clear()
+      ..addAll(words);
   }
 
   @override
-  void removeBookmark(String word) {
-    addedBookmark = false;
-    notifyListeners();
-  }
+  List<BookmarkedWord> loadWordBookmarks(String bookId) => savedWords;
 }
 
 class _WordBottomSheetSettingsService extends SettingsService {

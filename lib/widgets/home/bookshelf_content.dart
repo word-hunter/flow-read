@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:file_picker/file_picker.dart';
 import '../../models/book_metadata.dart';
 import '../../providers/reading/bookshelf_provider.dart';
-import '../../providers/reading/reading_time_provider.dart';
+import '../../providers/reading/reading_time_notifier.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/epub_import_source.dart';
 import 'featured_book_card.dart';
@@ -46,7 +46,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   @override
   Widget build(BuildContext context) {
     final provider = ref.watch(bookshelfProvider);
-    final readingTime = ref.watch(readingTimeProvider);
+    final readingTimeNotifier = ref.read(readingTimeNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
     final allBooks = provider.allBooks;
@@ -103,7 +103,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
               progressPercent: (featuredBook.globalProgress * 100).toInt(),
               currentChapter: featuredBook.currentChapter,
               totalChapters: featuredBook.totalChapters,
-              readingTimeSeconds: readingTime.readingTimeSecondsForBook(
+              readingTimeSeconds: readingTimeNotifier.readingTimeSecondsForBook(
                 featuredBook.id,
               ),
               difficulty: provider.difficultyForBook(featuredBook.id),

@@ -4,7 +4,7 @@ import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 
 import '../../models/analysis_result.dart';
 import '../../models/rss_models.dart';
-import '../../providers/reading/text_selection_provider.dart';
+import '../../providers/reading/text_selection_notifier.dart';
 import '../../providers/reading/word_lookup_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/analysis_service.dart';
@@ -433,16 +433,17 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
   ) {
     final selectedText = text.trim();
     if (selectedText.isEmpty) return;
-    final textSelection = ref.read(textSelectionProvider);
-    textSelection.analyzeSelectedText(selectedText);
+    final notifier = ref.read(textSelectionNotifierProvider.notifier);
+    notifier.analyzeSelectedText(selectedText);
+    final state = ref.watch(textSelectionNotifierProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SelectedTextSheet(
         selectedText: selectedText,
-        analysis: textSelection.selectedAnalysis,
-        breakdowns: textSelection.selectedBreakdowns,
+        analysis: state.selectedAnalysis,
+        breakdowns: state.selectedBreakdowns,
       ),
     );
   }

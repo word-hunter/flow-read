@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../providers/reading/current_book_provider.dart';
 import '../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
-import '../providers/reading/reading_time_provider.dart';
+import '../providers/reading/reading_time_notifier.dart';
 import '../providers/reading_provider.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
@@ -507,7 +507,7 @@ class _WideHomeLayout extends riverpod.ConsumerWidget {
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final theme = Theme.of(context);
-    final readingTime = ref.watch(readingTimeProvider);
+    final readingTime = ref.watch(readingTimeNotifierProvider);
     final settings = ref.watch(settingsProvider);
     final visibleTabs = HomeScreen._visibleTabs(showRss: showRss);
     HomeScreen._redirectHiddenTab(context, currentBook, visibleTabs);

@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/reading/bookmark_provider.dart';
+import '../providers/reading/bookmark_notifier.dart';
+import '../providers/reading/reading_provider_riverpod.dart'
+    as riverpod_reading;
 
 class BookmarkSheet extends ConsumerWidget {
   const BookmarkSheet({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bookmarkController = ref.watch(bookmarkProvider);
+    final bookmarkState = ref.watch(bookmarkNotifierProvider);
+    final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
+    final reader = ref.read(riverpod_reading.readingProvider);
     final theme = Theme.of(context);
-    final bookmarks = bookmarkController.readingBookmarks;
+    final bookmarks = bookmarkState.readingBookmarks;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.5,
@@ -109,7 +113,7 @@ class BookmarkSheet extends ConsumerWidget {
                           final bookmark = bookmarks[index];
                           final isCurrent =
                               bookmark.chapterIndex ==
-                              bookmarkController.currentChapter;
+                              reader.currentChapter;
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -151,7 +155,7 @@ class BookmarkSheet extends ConsumerWidget {
                                 : null,
                             trailing: IconButton(
                               icon: const Icon(Icons.close, size: 18),
-                              onPressed: () => bookmarkController
+                              onPressed: () => bookmarkNotifier
                                   .removeReadingBookmark(index),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(
@@ -161,7 +165,7 @@ class BookmarkSheet extends ConsumerWidget {
                             ),
                             onTap: () {
                               Navigator.pop(context);
-                              bookmarkController.goToReadingBookmark(bookmark);
+                              bookmarkNotifier.goToReadingBookmark(bookmark);
                             },
                           );
                         },

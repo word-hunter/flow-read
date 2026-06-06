@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../models/reader_font.dart';
-import '../providers/reading/reading_config_provider.dart';
+import '../providers/reading/reading_config_notifier.dart';
 
 class FontSettingsSheet extends StatelessWidget {
   const FontSettingsSheet({super.key});
@@ -111,7 +111,8 @@ class _FontSettingsPanelContent extends riverpod.ConsumerWidget {
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
-    final provider = ref.watch(readingConfigProvider);
+    final state = ref.watch(readingConfigNotifierProvider);
+    final notifier = ref.read(readingConfigNotifierProvider.notifier);
     final theme = Theme.of(context);
     final panelPadding = padding.resolve(Directionality.of(context));
 
@@ -131,7 +132,7 @@ class _FontSettingsPanelContent extends riverpod.ConsumerWidget {
                 const SizedBox(height: 14),
                 _ReadingPreviewCard(
                   key: const ValueKey('reading-settings-preview'),
-                  provider: provider,
+                  config: state,
                 ),
               ],
             ],
@@ -151,7 +152,12 @@ class _FontSettingsPanelContent extends riverpod.ConsumerWidget {
                   18,
                 ),
                 children: [
-                  _CompactAdjustmentGrid(provider: provider),
+                  _CompactAdjustmentGrid(
+                    fontSize: state.fontSize,
+                    lineHeight: state.lineHeight,
+                    onFontSizeChanged: notifier.setFontSize,
+                    onLineHeightChanged: notifier.setLineHeight,
+                  ),
                   const SizedBox(height: 16),
                   Divider(
                     height: 1,
@@ -161,15 +167,25 @@ class _FontSettingsPanelContent extends riverpod.ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
                   if (twoColumn)
-                    _DesktopChoiceGrid(provider: provider)
+                    _DesktopChoiceGrid(
+                      fontFamily: state.fontFamily,
+                      readingTheme: state.readingTheme,
+                      onFontFamilyChanged: notifier.setFontFamily,
+                      onReadingThemeChanged: notifier.setReadingTheme,
+                    )
                   else
-                    _CompactChoiceStack(provider: provider),
+                    _CompactChoiceStack(
+                      fontFamily: state.fontFamily,
+                      readingTheme: state.readingTheme,
+                      onFontFamilyChanged: notifier.setFontFamily,
+                      onReadingThemeChanged: notifier.setReadingTheme,
+                    ),
                 ],
               );
             },
           ),
         ),
-        _PanelFooter(provider: provider),
+        _PanelFooter(onRestoreDefaults: notifier.restoreDefaults),
       ],
     );
   }
@@ -221,20 +237,20 @@ class _PanelHeader extends StatelessWidget {
 }
 
 class _ReadingPreviewCard extends StatelessWidget {
-  final ReadingConfigController provider;
+  final ReadingConfigState config;
 
-  const _ReadingPreviewCard({super.key, required this.provider});
+  const _ReadingPreviewCard({super.key, required this.config});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final palette = _themePalette(provider.readingTheme, theme);
-    final fontSize = provider.fontSize.clamp(15.0, 20.0).toDouble();
+    final palette = _themePalette(config.readingTheme, theme);
+    final fontSize = config.fontSize.clamp(15.0, 20.0).toDouble();
     final bodyStyle = TextStyle(
       color: palette.foreground,
-      fontFamily: provider.fontFamily,
+      fontFamily: config.fontFamily,
       fontSize: fontSize,
-      height: provider.lineHeight.clamp(1.4, 2.4).toDouble(),
+      height: config.lineHeight.clamp(1.4, 2.4).toDouble(),
       letterSpacing: 0,
     );
 
@@ -329,20 +345,24 @@ class _ReadingPreviewCard extends StatelessWidget {
 }
 
 class _FontSizeControl extends StatelessWidget {
-  final ReadingConfigController provider;
+  final double fontSize;
+  final ValueChanged<double> onFontSizeChanged;
 
-  const _FontSizeControl({required this.provider});
+  const _FontSizeControl({
+    required this.fontSize,
+    required this.onFontSizeChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     return _CompactAdjustControl(
       title: '字体大小',
-      valueLabel: '${provider.fontSize.round()} pt',
-      value: provider.fontSize,
+      valueLabel: '${fontSize.round()} pt',
+      value: fontSize,
       min: 12,
       max: 24,
       divisions: 12,
-      onChanged: provider.setFontSize,
+      onChanged: onFontSizeChanged,
       step: 1,
       minLabel: '小',
       maxLabel: '超大',
@@ -351,21 +371,25 @@ class _FontSizeControl extends StatelessWidget {
 }
 
 class _LineHeightControl extends StatelessWidget {
-  final ReadingConfigController provider;
+  final double lineHeight;
+  final ValueChanged<double> onLineHeightChanged;
 
-  const _LineHeightControl({required this.provider});
+  const _LineHeightControl({
+    required this.lineHeight,
+    required this.onLineHeightChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final level = _lineHeightLevel(provider.lineHeight);
+    final level = _lineHeightLevel(lineHeight);
     return _CompactAdjustControl(
       title: '行间距',
-      valueLabel: '${provider.lineHeight.toStringAsFixed(1)} 倍 · $level',
-      value: provider.lineHeight,
+      valueLabel: '${lineHeight.toStringAsFixed(1)} 倍 · $level',
+      value: lineHeight,
       min: 1.4,
       max: 2.8,
       divisions: 7,
-      onChanged: provider.setLineHeight,
+      onChanged: onLineHeightChanged,
       step: 0.2,
       minLabel: '紧凑',
       maxLabel: '宽松',
@@ -374,9 +398,17 @@ class _LineHeightControl extends StatelessWidget {
 }
 
 class _CompactAdjustmentGrid extends StatelessWidget {
-  final ReadingConfigController provider;
+  final double fontSize;
+  final double lineHeight;
+  final ValueChanged<double> onFontSizeChanged;
+  final ValueChanged<double> onLineHeightChanged;
 
-  const _CompactAdjustmentGrid({required this.provider});
+  const _CompactAdjustmentGrid({
+    required this.fontSize,
+    required this.lineHeight,
+    required this.onFontSizeChanged,
+    required this.onLineHeightChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -386,17 +418,33 @@ class _CompactAdjustmentGrid extends StatelessWidget {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _FontSizeControl(provider: provider)),
+              Expanded(
+                child: _FontSizeControl(
+                  fontSize: fontSize,
+                  onFontSizeChanged: onFontSizeChanged,
+                ),
+              ),
               const SizedBox(width: 14),
-              Expanded(child: _LineHeightControl(provider: provider)),
+              Expanded(
+                child: _LineHeightControl(
+                  lineHeight: lineHeight,
+                  onLineHeightChanged: onLineHeightChanged,
+                ),
+              ),
             ],
           );
         }
         return Column(
           children: [
-            _FontSizeControl(provider: provider),
+            _FontSizeControl(
+              fontSize: fontSize,
+              onFontSizeChanged: onFontSizeChanged,
+            ),
             const SizedBox(height: 12),
-            _LineHeightControl(provider: provider),
+            _LineHeightControl(
+              lineHeight: lineHeight,
+              onLineHeightChanged: onLineHeightChanged,
+            ),
           ],
         );
       },
@@ -660,9 +708,17 @@ class _HoverableSettingsCardState extends State<_HoverableSettingsCard> {
 }
 
 class _DesktopChoiceGrid extends StatelessWidget {
-  final ReadingConfigController provider;
+  final String fontFamily;
+  final String readingTheme;
+  final ValueChanged<String> onFontFamilyChanged;
+  final ValueChanged<String> onReadingThemeChanged;
 
-  const _DesktopChoiceGrid({required this.provider});
+  const _DesktopChoiceGrid({
+    required this.fontFamily,
+    required this.readingTheme,
+    required this.onFontFamilyChanged,
+    required this.onReadingThemeChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -672,46 +728,78 @@ class _DesktopChoiceGrid extends StatelessWidget {
         Expanded(
           child: Column(
             children: [
-              _FontStyleSection(provider: provider),
+              _FontStyleSection(
+                fontFamily: fontFamily,
+                onFontFamilyChanged: onFontFamilyChanged,
+              ),
               const SizedBox(height: 22),
-              _ThemeSection(provider: provider),
+              _ThemeSection(
+                readingTheme: readingTheme,
+                onReadingThemeChanged: onReadingThemeChanged,
+              ),
             ],
           ),
         ),
         const SizedBox(width: 40),
-        Expanded(child: _SpecificFontSection(provider: provider)),
+        Expanded(
+          child: _SpecificFontSection(
+            fontFamily: fontFamily,
+            onFontFamilyChanged: onFontFamilyChanged,
+          ),
+        ),
       ],
     );
   }
 }
 
 class _CompactChoiceStack extends StatelessWidget {
-  final ReadingConfigController provider;
+  final String fontFamily;
+  final String readingTheme;
+  final ValueChanged<String> onFontFamilyChanged;
+  final ValueChanged<String> onReadingThemeChanged;
 
-  const _CompactChoiceStack({required this.provider});
+  const _CompactChoiceStack({
+    required this.fontFamily,
+    required this.readingTheme,
+    required this.onFontFamilyChanged,
+    required this.onReadingThemeChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _FontStyleSection(provider: provider),
+        _FontStyleSection(
+          fontFamily: fontFamily,
+          onFontFamilyChanged: onFontFamilyChanged,
+        ),
         const SizedBox(height: 22),
-        _SpecificFontSection(provider: provider),
+        _SpecificFontSection(
+          fontFamily: fontFamily,
+          onFontFamilyChanged: onFontFamilyChanged,
+        ),
         const SizedBox(height: 22),
-        _ThemeSection(provider: provider),
+        _ThemeSection(
+          readingTheme: readingTheme,
+          onReadingThemeChanged: onReadingThemeChanged,
+        ),
       ],
     );
   }
 }
 
 class _FontStyleSection extends StatelessWidget {
-  final ReadingConfigController provider;
+  final String fontFamily;
+  final ValueChanged<String> onFontFamilyChanged;
 
-  const _FontStyleSection({required this.provider});
+  const _FontStyleSection({
+    required this.fontFamily,
+    required this.onFontFamilyChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final selectedCategory = _fontCategoryFor(provider.fontFamily);
+    final selectedCategory = _fontCategoryFor(fontFamily);
     return _Section(
       title: '字体风格',
       child: LayoutBuilder(
@@ -726,7 +814,7 @@ class _FontStyleSection extends StatelessWidget {
                 child: _FontStyleCard(
                   category: category,
                   selected: selectedCategory == category.id,
-                  onTap: () => provider.setFontFamily(category.defaultFamily),
+                  onTap: () => onFontFamilyChanged(category.defaultFamily),
                 ),
               );
             }).toList(),
@@ -812,13 +900,17 @@ class _FontStyleCard extends StatelessWidget {
 }
 
 class _SpecificFontSection extends StatelessWidget {
-  final ReadingConfigController provider;
+  final String fontFamily;
+  final ValueChanged<String> onFontFamilyChanged;
 
-  const _SpecificFontSection({required this.provider});
+  const _SpecificFontSection({
+    required this.fontFamily,
+    required this.onFontFamilyChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final selectedFamily = ReaderFonts.normalizeFamily(provider.fontFamily);
+    final selectedFamily = ReaderFonts.normalizeFamily(fontFamily);
     final category = _fontCategoryFor(selectedFamily);
     final options = ReaderFonts.options
         .where((option) => _fontCategoryFor(option.family) == category)
@@ -834,7 +926,7 @@ class _SpecificFontSection extends StatelessWidget {
             child: _FontFamilyTile(
               option: option,
               selected: selectedFamily == option.family,
-              onTap: () => provider.setFontFamily(option.family),
+              onTap: () => onFontFamilyChanged(option.family),
             ),
           );
         }).toList(),
@@ -925,9 +1017,13 @@ class _FontFamilyTile extends StatelessWidget {
 }
 
 class _ThemeSection extends StatelessWidget {
-  final ReadingConfigController provider;
+  final String readingTheme;
+  final ValueChanged<String> onReadingThemeChanged;
 
-  const _ThemeSection({required this.provider});
+  const _ThemeSection({
+    required this.readingTheme,
+    required this.onReadingThemeChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -944,8 +1040,8 @@ class _ThemeSection extends StatelessWidget {
                 width: cardWidth.clamp(88.0, 132.0).toDouble(),
                 child: _ThemeCard(
                   choice: choice,
-                  selected: provider.readingTheme == choice.key,
-                  onTap: () => provider.setReadingTheme(choice.key),
+                  selected: readingTheme == choice.key,
+                  onTap: () => onReadingThemeChanged(choice.key),
                 ),
               );
             }).toList(),
@@ -1065,9 +1161,9 @@ class _Section extends StatelessWidget {
 }
 
 class _PanelFooter extends StatelessWidget {
-  final ReadingConfigController provider;
+  final VoidCallback onRestoreDefaults;
 
-  const _PanelFooter({required this.provider});
+  const _PanelFooter({required this.onRestoreDefaults});
 
   @override
   Widget build(BuildContext context) {
@@ -1085,7 +1181,7 @@ class _PanelFooter extends StatelessWidget {
         child: Row(
           children: [
             TextButton.icon(
-              onPressed: () => _restoreDefaults(provider),
+              onPressed: onRestoreDefaults,
               icon: const Icon(Icons.restart_alt, size: 18),
               label: const Text('恢复默认'),
             ),
@@ -1267,8 +1363,4 @@ _PreviewPalette _themePalette(String key, ThemeData theme) {
         ? Colors.white.withValues(alpha: 0.08)
         : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
   );
-}
-
-void _restoreDefaults(ReadingConfigController provider) {
-  provider.restoreDefaults();
 }

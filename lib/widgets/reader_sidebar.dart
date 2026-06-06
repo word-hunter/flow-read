@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/analysis_result.dart';
 import '../models/user_vocabulary.dart';
-import '../providers/reading/bookmark_provider.dart';
+import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/current_book_provider.dart';
 import '../providers/reading/vocabulary_provider.dart';
 import '../providers/reading/word_lookup_provider.dart';
@@ -46,7 +46,8 @@ class ReaderSidebar extends ConsumerWidget {
     final currentBook = ref.watch(currentBookProvider);
     final lookup = ref.watch(wordLookupProvider);
     final vocabulary = ref.watch(vocabularyProvider);
-    final bookmarks = ref.watch(bookmarkProvider);
+    ref.watch(bookmarkNotifierProvider);
+    final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
     final theme = Theme.of(context);
 
     return Column(
@@ -63,7 +64,7 @@ class ReaderSidebar extends ConsumerWidget {
           child: _buildVocabularyPanel(context, theme, result, lookup),
         ),
         if (lookup.selectedWord != null)
-          _buildFloatingWordCard(theme, lookup, vocabulary, bookmarks),
+          _buildFloatingWordCard(theme, lookup, vocabulary, bookmarkNotifier),
       ],
     );
   }
@@ -332,7 +333,7 @@ class ReaderSidebar extends ConsumerWidget {
     ThemeData theme,
     WordLookupController lookup,
     VocabularyController vocabulary,
-    BookmarkController bookmarks,
+    BookmarkNotifier bookmarkNotifier,
   ) {
     final word = lookup.selectedWord!;
     final status = vocabulary.getWordStatus(word);
@@ -372,7 +373,7 @@ class ReaderSidebar extends ConsumerWidget {
               ),
               IconButton(
                 icon: Icon(
-                  bookmarks.isBookmarked(word)
+                  bookmarkNotifier.isBookmarked(word)
                       ? Icons.bookmark
                       : Icons.bookmark_border,
                   size: 20,
@@ -380,10 +381,10 @@ class ReaderSidebar extends ConsumerWidget {
                 ),
                 onPressed: () {
                   if (lookup.selectedWordTranslation != null) {
-                    if (bookmarks.isBookmarked(word)) {
-                      bookmarks.removeBookmark(word);
+                    if (bookmarkNotifier.isBookmarked(word)) {
+                      bookmarkNotifier.removeBookmark(word);
                     } else {
-                      bookmarks.addBookmark(
+                      bookmarkNotifier.addBookmark(
                         word,
                         lookup.selectedWordTranslation!,
                       );

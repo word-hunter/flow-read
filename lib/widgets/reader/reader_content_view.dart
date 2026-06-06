@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../models/analysis_result.dart';
 import '../../models/content_block.dart';
 import '../../providers/reading/current_book_provider.dart';
-import '../../providers/reading/reading_config_provider.dart';
-import '../../providers/reading/reading_search_provider.dart';
+import '../../providers/reading/reading_config_notifier.dart';
+import '../../providers/reading/reading_search_notifier.dart';
 import '../../providers/reading/word_lookup_provider.dart';
 import '../../services/settings_service.dart' show VocabularyColorSettings;
 import '../reader_text_view.dart';
@@ -18,8 +18,8 @@ class ReaderContentView extends StatelessWidget {
   final VocabularyColorSettings colorSettings;
   final bool aiFeaturesEnabled;
   final CurrentBookController currentBook;
-  final ReadingConfigController config;
-  final ReadingSearchFacade search;
+  final ReadingConfigState config;
+  final ReadingSearchState search;
   final WordLookupController lookup;
   final ScrollController scrollController;
   final bool isWideScreen;
@@ -194,14 +194,14 @@ class ReaderContentView extends StatelessWidget {
     );
   }
 
-  String _effectiveHighlightQuery(ReadingSearchFacade search) {
+  String _effectiveHighlightQuery(ReadingSearchState search) {
     return isSearchPanelVisible ? search.query : search.sourceHighlightQuery;
   }
 
   Widget _buildTitleBlock(
     AnalysisResult result,
     ThemeData theme,
-    ReadingConfigController config,
+    ReadingConfigState config,
   ) {
     final titleColor = _readerTextColor(config);
     final dividerColor = _isDarkReadingTheme(config)
@@ -314,7 +314,7 @@ class ReaderContentView extends StatelessWidget {
   }
 }
 
-Color _readerTextColor(ReadingConfigController config) {
+Color _readerTextColor(ReadingConfigState config) {
   switch (config.readingTheme) {
     case 'dark':
       return const Color(0xFFE8E2D6);
@@ -325,7 +325,7 @@ Color _readerTextColor(ReadingConfigController config) {
   }
 }
 
-Color _readerMutedTextColor(ReadingConfigController config) {
+Color _readerMutedTextColor(ReadingConfigState config) {
   switch (config.readingTheme) {
     case 'dark':
       return const Color(0xFFC8C1B7);
@@ -336,13 +336,13 @@ Color _readerMutedTextColor(ReadingConfigController config) {
   }
 }
 
-bool _isDarkReadingTheme(ReadingConfigController config) {
+bool _isDarkReadingTheme(ReadingConfigState config) {
   return config.readingTheme == 'dark';
 }
 
 TextStyle _buildBaseTextStyle(
   ThemeData theme,
-  ReadingConfigController config,
+  ReadingConfigState config,
 ) {
   return (theme.textTheme.bodyLarge ?? const TextStyle()).copyWith(
     fontSize: config.fontSize,

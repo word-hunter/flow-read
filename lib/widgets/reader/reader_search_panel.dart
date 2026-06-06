@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../../models/reading_search_result.dart';
-import '../../providers/reading/reading_search_provider.dart';
+import '../../providers/reading/reading_search_notifier.dart';
 import '../reader_text_view.dart'
     show searchHighlightBackgroundFor, searchHighlightForegroundFor;
 
@@ -84,7 +84,7 @@ class _ReaderSearchPanel extends riverpod.ConsumerWidget {
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
-    final search = ref.watch(readingSearchProvider);
+    final search = ref.watch(readingSearchNotifierProvider);
     final results = search.results;
     final query = search.query;
     return Padding(
@@ -195,7 +195,7 @@ class _SearchField extends StatelessWidget {
 }
 
 class _SearchStatus extends StatelessWidget {
-  final ReadingSearchFacade search;
+  final ReadingSearchState search;
   final bool expanded;
 
   const _SearchStatus({required this.search, required this.expanded});
