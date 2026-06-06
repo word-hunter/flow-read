@@ -10,6 +10,8 @@ import 'user_vocabulary_service.dart';
 import 'word_level_service.dart';
 
 class AnalysisService {
+  static final _wsRegex = RegExp(r'\s+');
+
   static AnalysisResult analyzeChapter(
     String title,
     String text, [
@@ -21,35 +23,42 @@ class AnalysisService {
     final sentences = _splitSentences(text, lm);
     final words = _extractWords(text, lm);
 
+    final canonicalWords = words
+        .map((w) => _canonicalWord(w, wordLevelService, lm))
+        .toList(growable: false);
+
+    final canonicalIndex = <String, int>{};
+    for (var i = 0; i < canonicalWords.length; i++) {
+      canonicalIndex.putIfAbsent(canonicalWords[i], () => i);
+    }
+
+    final sentenceWordCounts = sentences
+        .map((s) => s.trim().split(_wsRegex).length)
+        .toList(growable: false);
+
     final vocabulary = _analyzeVocabulary(
       words,
+      canonicalWords,
+      canonicalIndex,
       userVocab,
       wordLevelService,
       lm,
     );
-    final knownWords = _extractKnownWords(
-      words,
-      userVocab,
-      wordLevelService,
-      lm,
-    );
-    final learningWords = _extractLearningWords(
-      words,
-      userVocab,
-      wordLevelService,
-      lm,
-    );
+    final knownWords = _extractKnownWords(canonicalWords, userVocab);
+    final learningWords = _extractLearningWords(canonicalWords, userVocab);
     final syntaxPatterns = _analyzeSyntax(sentences, lm);
     final comprehension = _buildComprehension(
       sentences,
       vocabulary,
       syntaxPatterns,
+      words.length,
     );
     final practice = _buildPractice(sentences, vocabulary, syntaxPatterns);
     final difficulty = _calculateDifficulty(
       vocabulary,
       syntaxPatterns,
       sentences,
+      sentenceWordCounts,
     );
 
     return AnalysisResult(
@@ -166,7 +175,9 @@ class AnalysisService {
   }
 
   static List<Vocabulary> _analyzeVocabulary(
-    List<String> words, [
+    List<String> words,
+    List<String> canonicalWords,
+    Map<String, int> canonicalIndex, [
     UserVocabularyService? userVocab,
     WordLevelService? wordLevelService,
     LanguageModule? languageModule,
@@ -175,15 +186,16 @@ class AnalysisService {
     final result = <Vocabulary>[];
     final seen = <String>{};
 
-    for (final word in words) {
-      final lower = _canonicalWord(word, wordLevelService, lm);
+    for (var i = 0; i < canonicalWords.length; i++) {
+      final lower = canonicalWords[i];
       if (!_isStudyWord(lower, lm) || seen.contains(lower)) continue;
 
       if (userVocab != null && userVocab.isKnown(lower)) continue;
 
       seen.add(lower);
 
-      final context = _extractContext(words, word, wordLevelService, lm);
+      final idx = canonicalIndex[lower] ?? i;
+      final context = _extractContext(words, idx);
       final meaning = _generateSimpleMeaning(lower, lm);
       double familiarity = userVocab != null && userVocab.isLearning(lower)
           ? 0.45
@@ -219,62 +231,41 @@ class AnalysisService {
   }
 
   static Set<String> _extractKnownWords(
-    List<String> words, [
+    List<String> canonicalWords, [
     UserVocabularyService? userVocab,
-    WordLevelService? wordLevelService,
-    LanguageModule? languageModule,
   ]) {
-    final lm = _resolveLanguageModule(languageModule);
     if (userVocab == null) return {};
     final seen = <String>{};
-    for (final w in words) {
-      final lower = _canonicalWord(w, wordLevelService, lm);
-      if (lower.length < AppConstants.minWordLength) continue;
-      if (seen.contains(lower)) continue;
-      if (userVocab.isKnown(lower)) {
-        seen.add(lower);
+    for (final w in canonicalWords) {
+      if (w.length < AppConstants.minWordLength) continue;
+      if (seen.contains(w)) continue;
+      if (userVocab.isKnown(w)) {
+        seen.add(w);
       }
     }
     return seen;
   }
 
   static Set<String> _extractLearningWords(
-    List<String> words, [
+    List<String> canonicalWords, [
     UserVocabularyService? userVocab,
-    WordLevelService? wordLevelService,
-    LanguageModule? languageModule,
   ]) {
-    final lm = _resolveLanguageModule(languageModule);
     if (userVocab == null) return {};
     final seen = <String>{};
-    for (final w in words) {
-      final lower = _canonicalWord(w, wordLevelService, lm);
-      if (lower.length < AppConstants.minWordLength) continue;
-      if (seen.contains(lower)) continue;
-      if (userVocab.isLearning(lower)) {
-        seen.add(lower);
+    for (final w in canonicalWords) {
+      if (w.length < AppConstants.minWordLength) continue;
+      if (seen.contains(w)) continue;
+      if (userVocab.isLearning(w)) {
+        seen.add(w);
       }
     }
     return seen;
   }
 
-  static String _extractContext(
-    List<String> allWords,
-    String targetWord, [
-    WordLevelService? wordLevelService,
-    LanguageModule? languageModule,
-  ]) {
-    final lm = _resolveLanguageModule(languageModule);
-    final targetCanonical = _canonicalWord(targetWord, wordLevelService, lm);
-    final idx = allWords.indexWhere(
-      (w) => _canonicalWord(w, wordLevelService, lm) == targetCanonical,
-    );
-    if (idx == -1) return targetWord;
-
+  static String _extractContext(List<String> allWords, int idx) {
     final start = (idx - 4).clamp(0, allWords.length);
     final end = (idx + 5).clamp(0, allWords.length);
     final context = allWords.sublist(start, end).join(' ');
-
     return '...$context...';
   }
 
@@ -334,8 +325,7 @@ class AnalysisService {
     final patterns = <SyntaxPattern>[];
 
     for (final sentence in sentences) {
-      final words = sentence.trim().split(RegExp(r'\s+'));
-      final wordCount = words.length;
+      final wordCount = sentence.trim().split(_wsRegex).length;
       final lower = sentence.toLowerCase();
 
       if (wordCount > AppConstants.longSentenceThreshold) {
@@ -382,8 +372,8 @@ class AnalysisService {
     List<String> sentences,
     List<Vocabulary> vocabulary,
     List<SyntaxPattern> syntax,
+    int wordCount,
   ) {
-    final wordCount = sentences.join(' ').split(RegExp(r'\s+')).length;
     final sentenceCount = sentences.length;
 
     return Comprehension(
@@ -488,6 +478,7 @@ class AnalysisService {
     List<Vocabulary> vocabulary,
     List<SyntaxPattern> syntax,
     List<String> sentences,
+    List<int> sentenceWordCounts,
   ) {
     final avgFamiliarity = vocabulary.isEmpty
         ? 1.0
@@ -501,12 +492,8 @@ class AnalysisService {
 
     final longSentenceRatio = sentences.isEmpty
         ? 0.0
-        : sentences
-                  .where(
-                    (s) =>
-                        s.split(RegExp(r'\s+')).length >
-                        AppConstants.veryLongSentenceThreshold,
-                  )
+        : sentenceWordCounts
+                  .where((c) => c > AppConstants.veryLongSentenceThreshold)
                   .length /
               sentences.length;
     final syntaxDifficulty = (syntax.length * 12 + longSentenceRatio * 50)
