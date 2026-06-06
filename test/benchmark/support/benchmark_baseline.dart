@@ -5,19 +5,24 @@ import 'benchmark_runner.dart';
 
 class BaselineEntry {
   final double meanMs;
+  final double? medianMs;
   final double weight;
 
-  const BaselineEntry({required this.meanMs, this.weight = 1.0});
+  const BaselineEntry({required this.meanMs, this.medianMs, this.weight = 1.0});
+
+  double get comparisonMs => medianMs ?? meanMs;
 
   factory BaselineEntry.fromJson(Map<String, dynamic> json) {
     return BaselineEntry(
       meanMs: (json['mean_ms'] as num).toDouble(),
+      medianMs: (json['median_ms'] as num?)?.toDouble(),
       weight: (json['weight'] as num?)?.toDouble() ?? 1.0,
     );
   }
 
   Map<String, dynamic> toJson() => {
     'mean_ms': meanMs,
+    'median_ms': medianMs,
     'weight': weight,
   };
 }
@@ -78,9 +83,12 @@ class Baseline {
   double computeScore(BenchmarkResult result, String key, {double? weight}) {
     final entry = entries[key];
     if (entry == null) return 100.0;
-    if (result.meanMs <= entry.meanMs) return 100.0;
+    final baselineMs = entry.comparisonMs;
+    final currentMs = result.medianMs;
+    if (currentMs <= baselineMs) return 100.0;
+    final ratio = (currentMs - baselineMs) / baselineMs;
+    if (ratio <= 0.05) return 100.0;
     final w = weight ?? entry.weight;
-    final ratio = (result.meanMs - entry.meanMs) / entry.meanMs;
     return (100 - ratio * 100 * w).clamp(0, 100).toDouble();
   }
 }

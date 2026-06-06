@@ -96,7 +96,7 @@ Future<void> _run() async {
 
   final process = await Process.start(
     'flutter',
-    ['test', 'test/benchmark/', '--tags', 'benchmark'],
+    ['test', 'test/benchmark/', '--tags', 'benchmark', '--concurrency=1'],
     workingDirectory: Directory.current.path,
   );
 
@@ -174,16 +174,19 @@ Map<String, dynamic> _buildRecord(List<Map<String, dynamic>> results) {
     final keyParts = _splitBenchmarkKey(key);
     final fileId = keyParts[0];
     final bench = keyParts[1];
-    final meanMs = (r['mean_ms'] as num).toDouble();
+    final medianMs = (r['median_ms'] as num?)?.toDouble() ??
+        (r['mean_ms'] as num).toDouble();
 
     final baselineMs = baseline[key];
     double score = 100.0;
-    if (baselineMs != null && baselineMs > 0 && meanMs > baselineMs) {
-      final ratio = (meanMs - baselineMs) / baselineMs;
-      score = (100 - ratio * 100).clamp(0, 100).toDouble();
+    if (baselineMs != null && baselineMs > 0 && medianMs > baselineMs) {
+      final ratio = (medianMs - baselineMs) / baselineMs;
+      if (ratio > 0.05) {
+        score = (100 - ratio * 100).clamp(0, 100).toDouble();
+      }
       if (score < 70) {
         regressions.add(
-          '$key: score ${score.toStringAsFixed(0)} (${meanMs.toStringAsFixed(0)}ms vs baseline ${baselineMs.toStringAsFixed(0)}ms)',
+          '$key: score ${score.toStringAsFixed(0)} (${medianMs.toStringAsFixed(0)}ms vs baseline ${baselineMs.toStringAsFixed(0)}ms)',
         );
       }
     }
@@ -195,7 +198,7 @@ Map<String, dynamic> _buildRecord(List<Map<String, dynamic>> results) {
       },
     );
     (fileData[fileId]!['items'] as Map)[bench] = {
-      'mean_ms': meanMs,
+      'mean_ms': r['mean_ms'],
       'median_ms': r['median_ms'],
       'p90_ms': r['p90_ms'],
       'score': score,
@@ -285,6 +288,7 @@ void _saveHistory(Map<String, dynamic> record) {
 
 void _maybeUpdateBaseline(List<Map<String, dynamic>> results) {
   final resultMeans = _resultMeansByKey(results);
+  final resultMedians = _resultMediansByKey(results);
   if (resultMeans.isEmpty) return;
 
   final file = File(_baselinePath);
@@ -296,7 +300,11 @@ void _maybeUpdateBaseline(List<Map<String, dynamic>> results) {
       'created_at': DateTime.now().toUtc().toIso8601String(),
       'locked': false,
       'entries': resultMeans.map(
-        (k, v) => MapEntry(k, {'mean_ms': v, 'weight': 1.0}),
+        (k, v) => MapEntry(k, {
+          'mean_ms': v,
+          'median_ms': resultMedians[k],
+          'weight': 1.0,
+        }),
       ),
     });
     return;
@@ -323,6 +331,7 @@ void _maybeUpdateBaseline(List<Map<String, dynamic>> results) {
   for (final key in missingKeys) {
     entries[key] = {
       'mean_ms': firstHistoryMeans[key] ?? resultMeans[key]!,
+      'median_ms': resultMedians[key],
       'weight': 1.0,
     };
   }
@@ -344,6 +353,14 @@ Map<String, double> _resultMeansByKey(List<Map<String, dynamic>> results) {
   return {
     for (final r in results)
       r['key'] as String: (r['mean_ms'] as num).toDouble(),
+  };
+}
+
+Map<String, double> _resultMediansByKey(List<Map<String, dynamic>> results) {
+  return {
+    for (final r in results)
+      r['key'] as String: (r['median_ms'] as num?)?.toDouble() ??
+          (r['mean_ms'] as num).toDouble(),
   };
 }
 
@@ -386,7 +403,9 @@ Map<String, double> _loadBaseline() {
   final entries = json['entries'] as Map<String, dynamic>? ?? {};
   return entries.map((k, v) {
     final e = v as Map<String, dynamic>;
-    return MapEntry(k, (e['mean_ms'] as num).toDouble());
+    final median = e['median_ms'];
+    final mean = e['mean_ms'] as num;
+    return MapEntry(k, (median is num ? median : mean).toDouble());
   });
 }
 

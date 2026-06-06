@@ -37,8 +37,8 @@ class BenchmarkResult {
 BenchmarkResult runBenchmark({
   required String name,
   required FutureOr<void> Function() fn,
-  int iterations = 10,
-  int warmup = 2,
+  int iterations = 30,
+  int warmup = 5,
   bool verbose = true,
 }) {
   final timingsMs = <double>[];
@@ -62,25 +62,10 @@ BenchmarkResult runBenchmark({
     task.finish();
     final elapsedMs = stopwatch.elapsedMicroseconds / 1000.0;
     stopwatch.reset();
+    timingsMs.add(elapsedMs);
     if (verbose) {
       // ignore: avoid_print
       print('    [$name] iter ${i + 1}/$iterations  ${elapsedMs.toStringAsFixed(0)}ms');
-    }
-    if (i > 0 || timingsMs.isEmpty || elapsedMs < (timingsMs.isNotEmpty ? timingsMs.first * 2 : double.infinity)) {
-      timingsMs.add(elapsedMs);
-    }
-  }
-
-  // If we filtered too aggressively, use all
-  if (timingsMs.length < max(1, iterations ~/ 2)) {
-    timingsMs.clear();
-    stopwatch.reset();
-    for (var i = 0; i < iterations; i++) {
-      stopwatch.start();
-      fn();
-      stopwatch.stop();
-      timingsMs.add(stopwatch.elapsedMicroseconds / 1000.0);
-      stopwatch.reset();
     }
   }
 
@@ -105,8 +90,8 @@ BenchmarkResult runBenchmark({
 Future<BenchmarkResult> runBenchmarkAsync({
   required String name,
   required FutureOr<void> Function() fn,
-  int iterations = 10,
-  int warmup = 2,
+  int iterations = 30,
+  int warmup = 5,
   bool verbose = true,
 }) async {
   final timingsMs = <double>[];
@@ -128,24 +113,10 @@ Future<BenchmarkResult> runBenchmarkAsync({
     task.finish();
     final elapsedMs = stopwatch.elapsedMicroseconds / 1000.0;
     stopwatch.reset();
+    timingsMs.add(elapsedMs);
     if (verbose) {
       // ignore: avoid_print
       print('    [$name] iter ${i + 1}/$iterations  ${elapsedMs.toStringAsFixed(0)}ms');
-    }
-    if (i > 0 || timingsMs.isEmpty || elapsedMs < (timingsMs.isNotEmpty ? timingsMs.first * 2 : double.infinity)) {
-      timingsMs.add(elapsedMs);
-    }
-  }
-
-  if (timingsMs.length < max(1, iterations ~/ 2)) {
-    timingsMs.clear();
-    stopwatch.reset();
-    for (var i = 0; i < iterations; i++) {
-      stopwatch.start();
-      await fn();
-      stopwatch.stop();
-      timingsMs.add(stopwatch.elapsedMicroseconds / 1000.0);
-      stopwatch.reset();
     }
   }
 
