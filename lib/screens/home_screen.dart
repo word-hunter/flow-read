@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
+import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
@@ -166,7 +167,7 @@ class _ImportProgressHost extends riverpod.ConsumerWidget {
 
     return _ImportProgressOverlayHost(
       importProgressNotifier: importProgressNotifier,
-      onCancel: () => ref.read(riverpod_reading.readingProvider).cancelImport(),
+      onCancel: () => ref.read(bookshelfNotifierProvider.notifier).cancelImport(),
       child: child,
     );
   }

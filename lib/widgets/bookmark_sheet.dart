@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/reading/bookmark_notifier.dart';
-import '../providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
+import '../providers/reading/current_book_notifier.dart';
 
 class BookmarkSheet extends ConsumerWidget {
   const BookmarkSheet({super.key});
@@ -12,7 +11,7 @@ class BookmarkSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bookmarkState = ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
-    final reader = ref.read(riverpod_reading.readingProvider);
+    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
     final theme = Theme.of(context);
     final bookmarks = bookmarkState.readingBookmarks;
 
@@ -113,7 +112,7 @@ class BookmarkSheet extends ConsumerWidget {
                           final bookmark = bookmarks[index];
                           final isCurrent =
                               bookmark.chapterIndex ==
-                              reader.currentChapter;
+                              currentChapter;
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 8,

@@ -5,7 +5,7 @@ import '../models/ai_summary.dart';
 import '../models/chapter_ai_coverage.dart';
 import '../models/chapter_ai_status.dart';
 import '../providers/reading/ai_notifier.dart';
-import '../providers/reading/reading_provider_riverpod.dart' as riverpod_reading;
+import '../providers/reading/current_book_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
@@ -41,7 +41,7 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
     final aiState = ref.watch(aiNotifierProvider);
     final aiNotifier = ref.read(aiNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
-    final currentChapter = ref.read(riverpod_reading.readingProvider).currentChapter;
+    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
     final theme = Theme.of(context);
 
     return DraggableScrollableSheet(

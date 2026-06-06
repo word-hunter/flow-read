@@ -4,6 +4,7 @@ import '../../models/user_vocabulary.dart';
 import '../../providers/reading/bookmark_notifier.dart';
 import '../../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
+import '../../providers/reading/services_provider.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/reading/word_lookup_notifier.dart';
 import '../../providers/reading_provider.dart';
@@ -168,8 +169,8 @@ class _ReaderWordSidebarState
                   lookupState: lookupState,
                   lookupNotifier: lookupNotifier,
                   word: word,
-                  wordLevelService: reader.wordLevelService,
-                  canPronounceWords: reader.canPronounceWords,
+                  wordLevelService: ref.read(wordLevelServiceProvider),
+                  canPronounceWords: true,
                 ),
               ),
             ),
@@ -519,18 +520,12 @@ class _ReaderWordSidebarState
           if (analysis.pronunciation.isNotEmpty) ...[
             Row(
               children: [
-                if (reader.canPronounceWords)
+                if (true)
                   PronunciationButton(
                     word: word,
                     onSpeakWord: lookupNotifier.speakWord,
                     buttonSize: 28,
                     iconSize: 16,
-                  )
-                else
-                  Icon(
-                    Icons.volume_up_rounded,
-                    size: 16,
-                    color: AppColors.vocabLearning.withValues(alpha: 0.45),
                   ),
                 const SizedBox(width: 4),
                 Flexible(

@@ -6,9 +6,11 @@ import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
+import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/reading_provider.dart';
+import '../services/word_level_service.dart';
 import '../theme/app_colors.dart';
 import 'dictionary_detail_view.dart';
 import 'pronunciation_button.dart';
@@ -55,6 +57,7 @@ class ReaderSidebar extends ConsumerWidget {
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
     final reader = ref.read(riverpod_reading.readingProvider);
+    final wordLevelService = ref.read(wordLevelServiceProvider);
     final theme = Theme.of(context);
 
     return Column(
@@ -68,11 +71,11 @@ class ReaderSidebar extends ConsumerWidget {
           ),
         ],
         Expanded(
-          child: _buildVocabularyPanel(context, theme, result, lookupState, reader),
+          child: _buildVocabularyPanel(context, theme, result, lookupState, reader, wordLevelService),
         ),
         if (lookupState.selectedWord != null)
           _buildFloatingWordCard(
-            theme, lookupState, lookupNotifier, vocabularyNotifier, bookmarkNotifier, reader,
+            theme, lookupState, lookupNotifier, vocabularyNotifier, bookmarkNotifier, reader, wordLevelService,
           ),
       ],
     );
@@ -197,6 +200,7 @@ class ReaderSidebar extends ConsumerWidget {
     AnalysisResult result,
     WordLookupState lookupState,
     ReadingProvider reader,
+    WordLevelService wordLevelService,
   ) {
     if (result.vocabulary.isEmpty) {
       return Center(
@@ -347,6 +351,7 @@ class ReaderSidebar extends ConsumerWidget {
     VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
     ReadingProvider reader,
+    WordLevelService wordLevelService,
   ) {
     final word = lookupState.selectedWord!;
     final status = vocabularyNotifier.getWordStatus(word);
@@ -407,7 +412,7 @@ class ReaderSidebar extends ConsumerWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
-              if (reader.canPronounceWords)
+              if (true)
                 PronunciationButton(
                   word: word,
                   onSpeakWord: lookupNotifier.speakWord,
@@ -428,8 +433,8 @@ class ReaderSidebar extends ConsumerWidget {
             lookupNotifier: lookupNotifier,
             word: word,
             showWordHeader: false,
-            wordLevelService: reader.wordLevelService,
-            canPronounceWords: reader.canPronounceWords,
+            wordLevelService: wordLevelService,
+            canPronounceWords: true,
           ),
           const SizedBox(height: 10),
           Row(

@@ -16,6 +16,7 @@ import '../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import '../providers/reading/reading_search_notifier.dart';
 import '../providers/reading/reading_time_notifier.dart';
+import '../providers/reading/services_provider.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
@@ -431,7 +432,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               config: config,
               search: search,
               lookupState: lookupState,
-              wordLevelService: reader.wordLevelService,
+              wordLevelService: ref.read(wordLevelServiceProvider),
               activeLanguageModule: reader.activeLanguageModule,
               scrollController: _scrollController,
               isWideScreen: isWide,

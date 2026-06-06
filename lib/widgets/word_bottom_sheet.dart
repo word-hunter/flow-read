@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/user_vocabulary.dart';
+import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
+import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/reading_provider.dart';
@@ -130,8 +132,8 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
       lookupState: lookupState,
       lookupNotifier: lookupNotifier,
       word: word,
-      wordLevelService: reader.wordLevelService,
-      canPronounceWords: reader.canPronounceWords,
+      wordLevelService: ref.read(wordLevelServiceProvider),
+      canPronounceWords: true,
     );
   }
 
@@ -166,11 +168,11 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
             child: OutlinedButton.icon(
               onPressed: lookupState.isAnalyzingWord || !canToggleAIAnalysis
                   ? null
-                  : () {
+                    : () {
                       setState(() => _showAIAnalysis = !_showAIAnalysis);
                       if (_showAIAnalysis) {
                         lookupNotifier.setAnalyzingWord(true);
-                        reader.analyzeWordAI(
+                        ref.read(aiNotifierProvider.notifier).analyzeWordAI(
                           word,
                           lookupState
                                   .selectedWordEntry
@@ -181,7 +183,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                               word,
                         ).whenComplete(() {
                           if (mounted) {
-                            lookupNotifier.setAIWordAnalysis(reader.aiWordAnalysis);
+                            lookupNotifier.setAIWordAnalysis(ref.read(aiNotifierProvider).aiWordAnalysis);
                             lookupNotifier.setAnalyzingWord(false);
                           }
                         });

@@ -6,6 +6,7 @@ import '../models/ai_text_analysis.dart';
 import '../models/analysis_result.dart';
 import '../models/learning_item.dart';
 import '../models/sentence_breakdown.dart';
+import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import '../utils/syntax_helpers.dart';
@@ -193,10 +194,10 @@ class _SelectedTextSheetState
   // ======== 分析 Tab ========
 
   Widget _buildAnalysisTab(ThemeData theme, ScrollController scrollController) {
-    final reader = ref.watch(riverpod_reading.readingProvider);
-    final aiAnalysis = reader.aiTextAnalysis;
-    final isAnalyzing = reader.isAnalyzingText;
-    final error = reader.errorMessage;
+    final aiState = ref.watch(aiNotifierProvider);
+    final aiAnalysis = aiState.aiTextAnalysis;
+    final isAnalyzing = aiState.isAnalyzingText;
+    final error = aiState.errorMessage;
     final analysisError =
         error != null &&
         (error.startsWith('AI 解析失败') ||
