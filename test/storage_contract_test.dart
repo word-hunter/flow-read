@@ -30,12 +30,14 @@ void main() {
     expect(backupDataBoxes, everyElement(isIn(HiveBoxNames.bootstrapBoxes)));
     expect(backupDataBoxes, contains(HiveBoxNames.learningAnalyticsFor('en')));
     expect(backupDataBoxes, isNot(contains(HiveBoxNames.wordLevels)));
+    expect(HiveBoxNames.bootstrapBoxes, contains(HiveBoxNames.bookGlossary));
+    expect(backupDataBoxes, isNot(contains(HiveBoxNames.bookGlossary)));
     expect(
       backupDataBoxes,
       isNot(contains(HiveBoxNames.dictionaryCacheFor('en'))),
     );
 
-    expect(HiveTypeIds.reserved, hasLength(7));
+    expect(HiveTypeIds.reserved, hasLength(8));
   });
 
   test('storage migrations persist the current schema version', () async {

@@ -4,7 +4,7 @@
 
 Last updated: 2026-06-06
 
-## Hive 持久化模型（7 个）
+## Hive 持久化模型（8 个）
 
 | Type ID | 模型 | Box | 关键字段 |
 |---------|------|-----|----------|
@@ -15,8 +15,9 @@ Last updated: 2026-06-06
 | 4 | `WordLevelInfo` | `word_levels` (global) | word, level (enum), origins |
 | 10 | `RssFeedSubscription` | `rss_subscriptions` (global) | url, title, description, imageUrl, lastFetchedAt |
 | 11 | `LearningItem` | `learning_items_{lang}` | id, type, prompt, answer, note, studyGoal, source, sourceContext, familiarity, createdAt, lastReviewedAt |
+| 12 | `BookGlossaryEntry` | `book_glossary` (global) | id, bookId, word, canonicalForm, explanation, sourceContext, createdAt, lastAccessedAt |
 
-**空闲 Type ID**：5, 6, 7, 8, 9, 12+
+**空闲 Type ID**：5, 6, 7, 8, 9, 13+
 
 ## 纯内存模型（非 Hive）
 
@@ -44,6 +45,12 @@ Last updated: 2026-06-06
 | `WordAnalysis` | AI 词汇详解（definitions, usage, etymology） |
 | `ChapterAIStatus` | 章节 AI 状态机（unconfigured/loading/cacheHit/failed/fallback/generated） |
 | `ChapterAISummaryCoverage` | 已生成章节覆盖率 |
+| `AIContextSnapshot` | 统一 AI 助手上下文快照 |
+| `AIAssistantActionType` | 统一 AI 助手动作枚举 |
+| `AIActionResult` | 统一 AI 动作结果 sealed class |
+| `AIAutomationSettings` | AI 自动化模式设置 |
+| `ReadingInsightProfile` | 运行时阅读画像 |
+| `CharacterRegistryEntry` | 人物注册表条目 |
 
 ## 语言模块模型
 
@@ -64,7 +71,7 @@ Last updated: 2026-06-06
 | `TokenizedText` | 非 Hive | — | 已实现 |
 | `UserVocabularyEntry` | 非 Hive（JSON value） | `user_vocabulary_{lang}` | 已实现 |
 | `UserVocabularyKey(languageId, canonical)` | 非 Hive | — | 已实现 |
-| `BookGlossaryEntry` | 12 | `book_glossary` (global) | 1.7.0 实现 |
+| `BookGlossaryEntry` | 12 | `book_glossary` (global) | 已实现 |
 
 ## Hive Type ID 约束
 
@@ -77,7 +84,8 @@ static const reserved = <int>{
   4, // WordLevelInfo
   10, // RssFeedSubscription
   11, // LearningItem
-  // 5-9 free, 12+ free
+  12, // BookGlossaryEntry
+  // 5-9 free, 13+ free
 };
 ```
 

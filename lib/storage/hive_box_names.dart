@@ -20,6 +20,7 @@ class HiveBoxNames {
   static const settings = 'settings';
   static const wordLevels = 'word_levels';
   static const rssSubscriptions = 'rss_subscriptions';
+  static const bookGlossary = 'book_glossary';
 
   static String booksFor(String lang) => 'books_${_normalize(lang)}';
   static String userVocabularyFor(String lang) =>
@@ -62,6 +63,7 @@ class HiveBoxNames {
       ...languageScopedBoxesFor(lang),
       wordLevels,
       rssSubscriptions,
+      bookGlossary,
     ];
   }
 
@@ -79,6 +81,7 @@ class HiveBoxNames {
     'learning_analytics_en',
     wordLevels,
     rssSubscriptions,
+    bookGlossary,
   ];
 
   static String _normalize(String lang) {

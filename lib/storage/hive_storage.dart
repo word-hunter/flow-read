@@ -1,6 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/book_metadata.dart';
+import '../models/book_glossary_entry.dart';
 import '../models/bookmarked_word.dart';
 import '../models/learning_item.dart';
 import '../models/reading_bookmark.dart';
@@ -32,6 +33,10 @@ void registerFlowReadHiveAdapters() {
     RssFeedSubscriptionAdapter(),
   );
   _registerHiveAdapter(HiveTypeIds.learningItem, LearningItemAdapter());
+  _registerHiveAdapter(
+    HiveTypeIds.bookGlossaryEntry,
+    BookGlossaryEntryAdapter(),
+  );
 }
 
 void registerFlowReadLanguageModules() {
@@ -60,6 +65,7 @@ Future<void> openFlowReadHiveBoxes() async {
     Hive.openBox<WordLevelInfo>(HiveBoxNames.wordLevels),
     Hive.openBox<String>(HiveBoxNames.dictionaryCacheFor(languageCode)),
     Hive.openBox<RssFeedSubscription>(HiveBoxNames.rssSubscriptions),
+    Hive.openBox<BookGlossaryEntry>(HiveBoxNames.bookGlossary),
     Hive.openBox<String>(HiveBoxNames.wordContextsFor(languageCode)),
     Hive.openBox<LearningItem>(HiveBoxNames.learningItemsFor(languageCode)),
     Hive.openBox<int>(HiveBoxNames.learningAnalyticsFor(languageCode)),

@@ -8,6 +8,7 @@ class HiveTypeIds {
   static const wordLevelInfo = 4;
   static const rssFeedSubscription = 10;
   static const learningItem = 11;
+  static const bookGlossaryEntry = 12;
 
   static const reserved = <int>{
     bookMetadata,
@@ -17,5 +18,6 @@ class HiveTypeIds {
     wordLevelInfo,
     rssFeedSubscription,
     learningItem,
+    bookGlossaryEntry,
   };
 }

@@ -20,6 +20,7 @@ Last updated: 2026-06-06
 | `settings` | 所有应用设置 | 字符串 key（`aiProviderId`, `themeMode`, `dictionarySources` 等） |
 | `word_levels` | 单词等级映射 | 单词字符串 |
 | `rss_subscriptions` | RSS 订阅 | Hive key（自动生成） |
+| `book_glossary` | 作品词汇缓存 | `BookGlossaryEntry.id` |
 
 ### 按语言分区的 Box
 
@@ -43,9 +44,9 @@ Last updated: 2026-06-06
 ```dart
 bootstrapStorage() {
   Hive.init(path);
-  registerAdapters();          // 注册 7 个 HiveAdapter
+  registerAdapters();          // 注册 8 个 HiveAdapter
   registerLanguageModules();   // EnglishLanguageModule → LanguageRegistry
-  openBoxes();                 // settings + en-boxes × 10 + word_levels + rss_subscriptions
+  openBoxes();                 // settings + en-boxes × 10 + word_levels + rss_subscriptions + book_glossary
   runMigrations();             // v1 → v2 迁移
 }
 ```
