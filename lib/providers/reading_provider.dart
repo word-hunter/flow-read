@@ -599,6 +599,58 @@ class ReadingProvider extends ChangeNotifier {
     );
   }
 
+  Future<void> setBookSourceLanguageOverride(
+    String bookId,
+    String code,
+  ) async {
+    final normalized = LanguageRegistry.normalizeLanguageCode(code);
+    if (normalized == null) return;
+    final metadata = _metadataForBook(bookId);
+    if (metadata == null) return;
+    await _persistBookMetadataUpdate(
+      metadata.copyWith(
+        sourceLanguageOverride: normalized,
+        languageConfidence: 1.0,
+      ),
+    );
+  }
+
+  Future<void> clearBookSourceLanguageOverride(String bookId) async {
+    final metadata = _metadataForBook(bookId);
+    if (metadata == null) return;
+    final hasDetectedLanguage = metadata.sourceLanguage != null;
+    final restoredConfidence = hasDetectedLanguage
+        ? metadata.languageConfidence == 1.0
+              ? 0.9
+              : metadata.languageConfidence
+        : null;
+    await _persistBookMetadataUpdate(
+      metadata.copyWith(
+        clearSourceLanguageOverride: true,
+        languageConfidence: restoredConfidence,
+        clearLanguageConfidence: !hasDetectedLanguage,
+      ),
+    );
+  }
+
+  BookMetadata? _metadataForBook(String bookId) {
+    return _bookService.books.where((book) => book.id == bookId).firstOrNull;
+  }
+
+  Future<void> _persistBookMetadataUpdate(BookMetadata metadata) async {
+    await _bookService.addBook(metadata);
+    if (metadata.id == _activeBookId) {
+      _allVocab.clear();
+      if (_book != null) {
+        await _analyzeCurrentChapter();
+      } else {
+        notifyListeners();
+      }
+      return;
+    }
+    notifyListeners();
+  }
+
   // ============================================================
   // Dependency injection
   // ============================================================

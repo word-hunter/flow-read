@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flow_read/providers/backup_provider.dart';
+import 'package:flow_read/providers/reading/reading_provider_riverpod.dart';
+import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/screens/settings_screen.dart';
 import 'package:flow_read/services/app_links.dart';
@@ -30,6 +32,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           backupProvider.overrideWith((ref) => backup),
+          readingProvider.overrideWith((ref) => ReadingProvider()),
           settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: SettingsScreen()),
@@ -53,6 +56,7 @@ void main() {
     expect(find.text('每日目标'), findsOneWidget);
     expect(find.text('每日 1 小时'), findsOneWidget);
     expect(find.text('周目标 6 小时'), findsOneWidget);
+    expect(find.text('内容语言'), findsOneWidget);
 
     await tester.tap(find.text('词典').first);
     await tester.pump(const Duration(milliseconds: 250));
@@ -62,6 +66,7 @@ void main() {
 
     await tester.tap(find.text('AI 设置'));
     await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('默认解释语言'), findsOneWidget);
     expect(find.text('服务商'), findsWidgets);
     expect(find.text('Base URL'), findsWidgets);
     expect(find.text('模型'), findsWidgets);

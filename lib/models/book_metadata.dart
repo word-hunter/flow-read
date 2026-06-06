@@ -121,6 +121,9 @@ class BookMetadata {
     String? sourceLanguageOverride,
     double? languageConfidence,
     String? targetExplanationLanguage,
+    bool clearSourceLanguageOverride = false,
+    bool clearLanguageConfidence = false,
+    bool clearTargetExplanationLanguage = false,
   }) {
     return BookMetadata(
       id: id ?? this.id,
@@ -140,11 +143,15 @@ class BookMetadata {
       difficultyComputedAt: difficultyComputedAt ?? this.difficultyComputedAt,
       chapterScrollOffset: chapterScrollOffset ?? this.chapterScrollOffset,
       sourceLanguage: sourceLanguage ?? this.sourceLanguage,
-      sourceLanguageOverride:
-          sourceLanguageOverride ?? this.sourceLanguageOverride,
-      languageConfidence: languageConfidence ?? this.languageConfidence,
-      targetExplanationLanguage:
-          targetExplanationLanguage ?? this.targetExplanationLanguage,
+      sourceLanguageOverride: clearSourceLanguageOverride
+          ? null
+          : sourceLanguageOverride ?? this.sourceLanguageOverride,
+      languageConfidence: clearLanguageConfidence
+          ? null
+          : languageConfidence ?? this.languageConfidence,
+      targetExplanationLanguage: clearTargetExplanationLanguage
+          ? null
+          : targetExplanationLanguage ?? this.targetExplanationLanguage,
     );
   }
 

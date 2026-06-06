@@ -41,4 +41,29 @@ void main() {
     expect(updated.targetExplanationLanguage, 'ja');
     expect(updated.effectiveTargetExplanationLanguage('zh'), 'ja');
   });
+
+  test('copyWith can clear nullable language overrides explicitly', () {
+    final metadata = BookMetadata(
+      id: 'book-1',
+      title: 'Fixture',
+      author: 'Author',
+      sourcePath: '/tmp/book.epub',
+      sourceLanguage: 'en',
+      sourceLanguageOverride: 'ja',
+      languageConfidence: 1.0,
+      targetExplanationLanguage: 'en',
+    );
+
+    final updated = metadata.copyWith(
+      clearSourceLanguageOverride: true,
+      clearLanguageConfidence: true,
+      clearTargetExplanationLanguage: true,
+    );
+
+    expect(updated.sourceLanguageOverride, isNull);
+    expect(updated.languageConfidence, isNull);
+    expect(updated.targetExplanationLanguage, isNull);
+    expect(updated.effectiveSourceLanguage, 'en');
+    expect(updated.effectiveTargetExplanationLanguage('zh'), 'zh');
+  });
 }

@@ -95,6 +95,36 @@ void main() {
     expect(vocabulary.map((vocab) => vocab.languageId).toSet(), {'ja'});
   });
 
+  test('persists and clears book source language override', () async {
+    final provider = ReadingProvider()
+      ..setBookService(
+        BookService(documentsDirectoryProvider: () async => documentsDir),
+      );
+    await provider.init();
+
+    await provider.importBookFromBytes(
+      bytes: _buildEpub(),
+      fileName: 'override.epub',
+    );
+
+    final imported = provider.allBooks.single;
+    await provider.setBookSourceLanguageOverride(imported.id, 'ja');
+
+    final overridden = booksBox().get(imported.id)!;
+    expect(overridden.sourceLanguage, 'en');
+    expect(overridden.sourceLanguageOverride, 'ja');
+    expect(overridden.languageConfidence, 1.0);
+    expect(provider.activeBookMetadata?.effectiveSourceLanguage, 'ja');
+
+    await provider.clearBookSourceLanguageOverride(imported.id);
+
+    final restored = booksBox().get(imported.id)!;
+    expect(restored.sourceLanguage, 'en');
+    expect(restored.sourceLanguageOverride, isNull);
+    expect(restored.languageConfidence, 0.9);
+    expect(provider.activeBookMetadata?.effectiveSourceLanguage, 'en');
+  });
+
   test('keeps path imports as an internal book source copy', () async {
     final provider = ReadingProvider()
       ..setBookService(

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../providers/backup_provider.dart';
 import '../providers/reading/ai_provider.dart';
 import '../providers/reading/bookshelf_provider.dart';
+import '../providers/reading/reading_provider_riverpod.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/ai_cache_service.dart';
@@ -310,6 +311,15 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
               ),
               SettingsSection.reading => SettingsReadingSection(
                 settings: settings,
+                activeBookMetadata: ref
+                    .watch(readingProvider)
+                    .activeBookMetadata,
+                onBookSourceLanguageChanged: ref
+                    .read(readingProvider)
+                    .setBookSourceLanguageOverride,
+                onClearBookSourceLanguageOverride: ref
+                    .read(readingProvider)
+                    .clearBookSourceLanguageOverride,
               ),
               SettingsSection.dictionary => SettingsDictionarySection(
                 settings: settings,

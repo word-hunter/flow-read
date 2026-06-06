@@ -1,3 +1,4 @@
+import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/services/app_update_service.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_config.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_registry.dart';
@@ -10,6 +11,47 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('reading section shows current book language override', (
+    tester,
+  ) async {
+    String? clearedBookId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SettingsReadingSection(
+              settings: SettingsService(),
+              activeBookMetadata: const BookMetadata(
+                id: 'book-1',
+                title: 'Fixture',
+                author: 'Author',
+                sourcePath: '/tmp/book.epub',
+                sourceLanguage: 'en',
+                sourceLanguageOverride: 'ja',
+                languageConfidence: 1.0,
+              ),
+              onBookSourceLanguageChanged: (_, _) async {},
+              onClearBookSourceLanguageOverride: (bookId) async {
+                clearedBookId = bookId;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('当前书籍语言'), findsOneWidget);
+    expect(find.textContaining('自动检测：English'), findsOneWidget);
+    expect(find.text('当前覆盖：JA'), findsOneWidget);
+    expect(find.text('恢复自动检测'), findsOneWidget);
+
+    await tester.tap(find.text('恢复自动检测'));
+    await tester.pump();
+
+    expect(clearedBookId, 'book-1');
+  });
+
   testWidgets('dictionary section shows all source controls', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
