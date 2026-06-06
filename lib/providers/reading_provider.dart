@@ -258,6 +258,7 @@ class ReadingProvider extends ChangeNotifier {
   // -- Core --
   Book? get book => _book;
   String? get activeBookId => _activeBookId;
+  BookMetadata? get activeBookMetadata => _activeBookMetadata;
   AnalysisResult? get result => _result;
   int get currentChapter => _currentChapter;
   double get readingProgress => _readingProgress;
@@ -313,6 +314,12 @@ class ReadingProvider extends ChangeNotifier {
   }
 
   Uint8List? getCoverBytes(String bookId) => _bookService.loadCover(bookId);
+
+  BookMetadata? get _activeBookMetadata {
+    final bookId = _activeBookId;
+    if (bookId == null) return null;
+    return _bookService.books.where((book) => book.id == bookId).firstOrNull;
+  }
 
   int noteCountForBook(String bookId) {
     final wordCount = _bookmarkService?.loadWordBookmarks(bookId).length ?? 0;
@@ -512,6 +519,14 @@ class ReadingProvider extends ChangeNotifier {
   bool get isLoadingChapterAISummaryCoverage =>
       _isLoadingChapterAISummaryCoverage;
   String get summaryLanguage => _summaryLanguage;
+  String get effectiveTargetExplanationLanguage {
+    final globalLanguage = _settings?.targetExplanationLanguage ?? 'zh';
+    return _activeBookMetadata?.effectiveTargetExplanationLanguage(
+          globalLanguage,
+        ) ??
+        globalLanguage;
+  }
+
   AIPracticeSet? get aiPractice => _aiPractice;
   bool get isGeneratingPractice => _isGeneratingPractice;
   WordAnalysis? get aiWordAnalysis => _aiWordAnalysis;
@@ -762,6 +777,11 @@ class ReadingProvider extends ChangeNotifier {
         );
       }
 
+      final sourceLanguage = LanguageRegistry.normalizeLanguageCode(
+        book.language,
+      );
+      final languageConfidence = sourceLanguage == null ? null : 0.9;
+
       final metadata = restoredMeta == null
           ? BookMetadata(
               id: effectiveBookId,
@@ -771,9 +791,8 @@ class ReadingProvider extends ChangeNotifier {
               coverPath: coverPath,
               totalChapters: book.chapters.length,
               lastReadAt: DateTime.now(),
-              sourceLanguage: LanguageRegistry.normalizeLanguageCode(
-                book.language,
-              ),
+              sourceLanguage: sourceLanguage,
+              languageConfidence: languageConfidence,
             )
           : restoredMeta.copyWith(
               title: book.title,
@@ -781,9 +800,9 @@ class ReadingProvider extends ChangeNotifier {
               sourcePath: copiedPath,
               coverPath: coverPath ?? restoredMeta.coverPath,
               totalChapters: book.chapters.length,
-              sourceLanguage:
-                  LanguageRegistry.normalizeLanguageCode(book.language) ??
-                  restoredMeta.sourceLanguage,
+              sourceLanguage: sourceLanguage ?? restoredMeta.sourceLanguage,
+              languageConfidence:
+                  languageConfidence ?? restoredMeta.languageConfidence,
               currentChapter: _clampChapterIndex(
                 restoredMeta.currentChapter,
                 book.chapters.length,
@@ -1990,6 +2009,9 @@ class ReadingProvider extends ChangeNotifier {
         selectedText: request.selectedText,
         currentPassage: request.currentPassage,
         sourceLanguage: request.sourceLanguage,
+        outputLanguage: OutputLanguage.fromCode(
+          effectiveTargetExplanationLanguage,
+        ),
         spoilerBoundary: request.spoilerBoundary,
       );
       _settings?.incrementAIUsage(textAnalysis: true);
@@ -2011,6 +2033,9 @@ class ReadingProvider extends ChangeNotifier {
       _aiTranslation = await _aiService!.translateText(
         text,
         sourceLanguage: SourceLanguage.inferFromText(text),
+        outputLanguage: OutputLanguage.fromCode(
+          effectiveTargetExplanationLanguage,
+        ),
         spoilerBoundary: SpoilerBoundary.currentPassage(),
       );
     } catch (e) {
@@ -2065,6 +2090,9 @@ class ReadingProvider extends ChangeNotifier {
       final chapterText = _result!.passageText;
       final openingText = _chapterPreviewOpening(chapterText);
       final sourceLanguage = SourceLanguage.inferFromText(openingText);
+      final outputLanguage = OutputLanguage.fromCode(
+        effectiveTargetExplanationLanguage,
+      );
       final vocabulary = _result!.vocabulary.map((v) => v.word).toList();
       final contentHash = AICacheService.contentHashFor(
         jsonEncode({
@@ -2079,7 +2107,7 @@ class ReadingProvider extends ChangeNotifier {
         contentHash: contentHash,
         promptVersion: _aiService!.promptVersion,
         sourceLanguage: sourceLanguage.code,
-        outputLanguage: OutputLanguage.zhHans.code,
+        outputLanguage: outputLanguage.code,
       );
       if (cacheJson != null) {
         _aiChapterPreview = AIChapterPreview.fromJson(
@@ -2099,7 +2127,7 @@ class ReadingProvider extends ChangeNotifier {
         openingText: openingText,
         vocabulary: vocabulary,
         sourceLanguage: sourceLanguage,
-        outputLanguage: OutputLanguage.zhHans,
+        outputLanguage: outputLanguage,
         spoilerBoundary: SpoilerBoundary.chapter(
           bookId: bookId,
           chapterIndex: _currentChapter,
@@ -2114,7 +2142,7 @@ class ReadingProvider extends ChangeNotifier {
         contentHash: contentHash,
         promptVersion: _aiService!.promptVersion,
         sourceLanguage: sourceLanguage.code,
-        outputLanguage: OutputLanguage.zhHans.code,
+        outputLanguage: outputLanguage.code,
       );
     } catch (e) {
       _errorMessage = '生成读前预览失败: $e';
@@ -2172,6 +2200,9 @@ class ReadingProvider extends ChangeNotifier {
     final sourceLanguage = SourceLanguage.inferFromText(
       '$sentence $chapterText',
     );
+    final outputLanguage = OutputLanguage.fromCode(
+      effectiveTargetExplanationLanguage,
+    );
     final contentHash = AICacheService.contentHashFor(
       jsonEncode({
         'word': word.trim().toLowerCase(),
@@ -2189,7 +2220,7 @@ class ReadingProvider extends ChangeNotifier {
         contentHash: contentHash,
         promptVersion: _aiService!.promptVersion,
         sourceLanguage: sourceLanguage.code,
-        outputLanguage: OutputLanguage.zhHans.code,
+        outputLanguage: outputLanguage.code,
       );
       if (cacheJson != null) {
         _aiWordAnalysis = WordAnalysis.fromJson(
@@ -2212,6 +2243,7 @@ class ReadingProvider extends ChangeNotifier {
         sentence: sentence,
         chapterContext: chapterText,
         sourceLanguage: sourceLanguage,
+        outputLanguage: outputLanguage,
         spoilerBoundary: SpoilerBoundary.currentPassage(),
       );
       _aiWordAnalysis = analysis;
@@ -2223,7 +2255,7 @@ class ReadingProvider extends ChangeNotifier {
         contentHash: contentHash,
         promptVersion: _aiService!.promptVersion,
         sourceLanguage: sourceLanguage.code,
-        outputLanguage: OutputLanguage.zhHans.code,
+        outputLanguage: outputLanguage.code,
       );
     } catch (e) {
       _errorMessage = 'AI 单词解析失败: $e';

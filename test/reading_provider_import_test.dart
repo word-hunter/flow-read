@@ -9,6 +9,7 @@ import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/epub_import_source.dart';
 import 'package:flow_read/services/epub_parse_worker.dart';
+import 'package:flow_read/services/settings_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
@@ -43,10 +44,38 @@ void main() {
 
     final metadata = provider.allBooks.single;
     expect(metadata.sourceLanguage, 'en');
+    expect(metadata.languageConfidence, 0.9);
     expect(metadata.effectiveSourceLanguage, 'en');
     expect(metadata.sourcePath, startsWith('${documentsDir.path}/books/'));
     expect(metadata.sourcePath, endsWith('.epub'));
     expect(await File(metadata.sourcePath).readAsBytes(), bytes);
+  });
+
+  test('prefers book explanation language over global setting', () async {
+    final settings = SettingsService();
+    await settings.init();
+    await settings.setTargetExplanationLanguage('en');
+    final provider = ReadingProvider()
+      ..setBookService(
+        BookService(documentsDirectoryProvider: () async => documentsDir),
+      )
+      ..setSettings(settings);
+    await provider.init();
+
+    await provider.importBookFromBytes(
+      bytes: _buildEpub(),
+      fileName: 'language.epub',
+    );
+
+    final imported = provider.allBooks.single;
+    expect(provider.effectiveTargetExplanationLanguage, 'en');
+
+    await booksBox().put(
+      imported.id,
+      imported.copyWith(targetExplanationLanguage: 'zh'),
+    );
+
+    expect(provider.effectiveTargetExplanationLanguage, 'zh');
   });
 
   test('keeps path imports as an internal book source copy', () async {

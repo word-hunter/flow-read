@@ -2,13 +2,13 @@
 
 > @source lib/storage/hive_type_ids.dart lib/models/
 
-Last updated: 2026-06-03
+Last updated: 2026-06-06
 
 ## Hive 持久化模型（7 个）
 
 | Type ID | 模型 | Box | 关键字段 |
 |---------|------|-----|----------|
-| 0 | `BookMetadata` | `books_{lang}` | id, title, author, sourcePath, coverPath, totalChapters, globalProgress, currentChapter, chapterProgress, lastReadAt, difficultyStudyWords, difficultyRatingJson, chapterScrollOffset, **sourceLanguage(15)**, **sourceLanguageOverride(16)** |
+| 0 | `BookMetadata` | `books_{lang}` | id, title, author, sourcePath, coverPath, totalChapters, globalProgress, currentChapter, chapterProgress, lastReadAt, difficultyStudyWords, difficultyRatingJson, chapterScrollOffset, **sourceLanguage(15)**, **sourceLanguageOverride(16)**, **languageConfidence(17)**, **targetExplanationLanguage(18)** |
 | 1 | `BookmarkedWord` | `word_bookmarks_{lang}` | word, bookId, chapterIndex, context, note, createdAt |
 | 2 | `ReadingBookmark` | `reading_bookmarks_{lang}` | chapterIndex, characterOffset, note, label, createdAt |
 | 3 | `ReadingConfig` | `reading_config_{lang}` | fontSize, fontFamily, lineHeight, themeMode, pageMargins |

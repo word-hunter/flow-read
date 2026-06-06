@@ -57,6 +57,12 @@ class BookMetadata {
   @HiveField(16)
   final String? sourceLanguageOverride;
 
+  @HiveField(17)
+  final double? languageConfidence;
+
+  @HiveField(18)
+  final String? targetExplanationLanguage;
+
   const BookMetadata({
     required this.id,
     required this.title,
@@ -75,10 +81,15 @@ class BookMetadata {
     this.chapterScrollOffset,
     this.sourceLanguage,
     this.sourceLanguageOverride,
+    this.languageConfidence,
+    this.targetExplanationLanguage,
   });
 
   String get effectiveSourceLanguage =>
       sourceLanguageOverride ?? sourceLanguage ?? 'en';
+
+  String effectiveTargetExplanationLanguage(String globalLanguage) =>
+      targetExplanationLanguage ?? globalLanguage;
 
   BookDifficultyRating? get difficultyRating {
     final json = difficultyRatingJson;
@@ -108,6 +119,8 @@ class BookMetadata {
     double? chapterScrollOffset,
     String? sourceLanguage,
     String? sourceLanguageOverride,
+    double? languageConfidence,
+    String? targetExplanationLanguage,
   }) {
     return BookMetadata(
       id: id ?? this.id,
@@ -129,6 +142,9 @@ class BookMetadata {
       sourceLanguage: sourceLanguage ?? this.sourceLanguage,
       sourceLanguageOverride:
           sourceLanguageOverride ?? this.sourceLanguageOverride,
+      languageConfidence: languageConfidence ?? this.languageConfidence,
+      targetExplanationLanguage:
+          targetExplanationLanguage ?? this.targetExplanationLanguage,
     );
   }
 
@@ -150,6 +166,8 @@ class BookMetadata {
     'chapterScrollOffset': chapterScrollOffset,
     'sourceLanguage': sourceLanguage,
     'sourceLanguageOverride': sourceLanguageOverride,
+    'languageConfidence': languageConfidence,
+    'targetExplanationLanguage': targetExplanationLanguage,
   };
 
   factory BookMetadata.fromJson(Map<String, dynamic> json) {
@@ -185,6 +203,8 @@ class BookMetadata {
       chapterScrollOffset: (json['chapterScrollOffset'] as num?)?.toDouble(),
       sourceLanguage: json['sourceLanguage']?.toString(),
       sourceLanguageOverride: json['sourceLanguageOverride']?.toString(),
+      languageConfidence: (json['languageConfidence'] as num?)?.toDouble(),
+      targetExplanationLanguage: json['targetExplanationLanguage']?.toString(),
     );
   }
 }
