@@ -194,11 +194,20 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
                   result,
                   theme,
                   onWordTapped:
-                      (word, contextText, {contextWordStart, contextWordEnd}) {
+                      (
+                        surface,
+                        canonical,
+                        languageId,
+                        contextText, {
+                        contextWordStart,
+                        contextWordEnd,
+                      }) {
                         _showWordSheet(
                           context,
                           wordLookup,
-                          word,
+                          surface,
+                          canonical,
+                          languageId,
                           contextText,
                           contextWordStart: contextWordStart,
                           contextWordEnd: contextWordEnd,
@@ -396,12 +405,16 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     BuildContext context,
     WordLookupController wordLookup,
     String word,
+    String canonical,
+    String languageId,
     String contextText, {
     int? contextWordStart,
     int? contextWordEnd,
   }) {
     wordLookup.lookupWord(
       word,
+      canonicalForm: canonical,
+      languageCode: languageId,
       contextText: contextText,
       contextWordStart: contextWordStart,
       contextWordEnd: contextWordEnd,

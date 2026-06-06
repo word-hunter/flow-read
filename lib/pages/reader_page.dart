@@ -93,7 +93,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   }
 
   void _onWordTapped(
-    String word,
+    String surface,
+    String canonical,
+    String languageId,
     String contextText, {
     int? contextWordStart,
     int? contextWordEnd,
@@ -101,7 +103,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     _hideReadingReminder();
     final lookup = ref.read(wordLookupProvider);
     lookup.lookupWord(
-      word,
+      surface,
+      canonicalForm: canonical,
+      languageCode: languageId,
       contextText: contextText,
       contextWordStart: contextWordStart,
       contextWordEnd: contextWordEnd,
@@ -117,7 +121,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => WordBottomSheet(word: word),
+        builder: (_) => WordBottomSheet(word: surface),
       ).whenComplete(lookup.clearWordLookup);
     }
   }

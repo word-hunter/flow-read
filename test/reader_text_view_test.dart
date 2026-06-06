@@ -58,7 +58,7 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
     );
 
@@ -88,7 +88,7 @@ void main() {
       block,
       result,
       theme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
     );
 
@@ -114,7 +114,7 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       fontFamily: 'Literata',
     );
@@ -141,7 +141,7 @@ void main() {
       block,
       result,
       theme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       fontFamily: 'Literata',
     );
@@ -170,7 +170,7 @@ void main() {
       block,
       result,
       theme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       baseTextColor: readerTextColor,
     );
@@ -193,7 +193,7 @@ void main() {
             result,
             ThemeData(),
             baseTextColor: readerTextColor,
-            onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+            onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
           ),
         ),
       ),
@@ -237,7 +237,7 @@ void main() {
             lineHeight: 2.1,
             fontFamily: 'Literata',
             baseTextColor: readerTextColor,
-            onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+            onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
           ),
         ),
       ),
@@ -290,7 +290,7 @@ void main() {
             ThemeData(),
             fontSize: 20,
             lineHeight: 1.8,
-            onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+            onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
           ),
         ),
       ),
@@ -298,7 +298,8 @@ void main() {
 
     final richText = tester.widget<RichText>(
       find.byWidgetPredicate(
-        (widget) => widget is RichText && widget.text.toPlainText() == 'Heading',
+        (widget) =>
+            widget is RichText && widget.text.toPlainText() == 'Heading',
       ),
     );
     expect(richText.text.style?.fontSize, 30);
@@ -339,14 +340,14 @@ void main() {
         text,
         contractionResult,
         theme,
-        onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+        onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
         colorSettings: colorSettings,
       );
       final blockSpan = buildStyledBlock(
         TextBlock(type: BlockType.paragraph, spans: const [StyledText(text)]),
         contractionResult,
         theme,
-        onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+        onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
         colorSettings: colorSettings,
       );
 
@@ -374,7 +375,7 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       searchQuery: 'known',
     );
@@ -392,7 +393,7 @@ void main() {
       'known learning mystery',
       result,
       lightTheme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       searchQuery: 'known',
     );
@@ -400,7 +401,7 @@ void main() {
       'known learning mystery',
       result,
       darkTheme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       searchQuery: 'mystery',
     );
@@ -433,7 +434,7 @@ void main() {
       'known learning mystery known',
       result,
       theme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       lookupHighlightWord: 'known',
     );
@@ -459,7 +460,7 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       lookupHighlightWord: 'learning',
     );
@@ -467,7 +468,7 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       lookupHighlightWord: 'mystery',
     );
@@ -491,7 +492,7 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       searchQuery: 'known',
       lookupHighlightWord: 'known',
@@ -516,7 +517,7 @@ void main() {
       block,
       result,
       theme,
-      onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
       colorSettings: colorSettings,
       lookupHighlightWord: 'mystery',
     );
@@ -530,6 +531,8 @@ void main() {
   testWidgets('highlighted word text spans remain tappable', (tester) async {
     final theme = ThemeData();
     String? tappedWord;
+    String? tappedCanonical;
+    String? tappedLanguageId;
     String? tappedContext;
     int? tappedContextWordStart;
     int? tappedContextWordEnd;
@@ -538,12 +541,22 @@ void main() {
       'known learning mystery',
       result,
       theme,
-      onWordTapped: (word, context, {contextWordStart, contextWordEnd}) {
-        tappedWord = word;
-        tappedContext = context;
-        tappedContextWordStart = contextWordStart;
-        tappedContextWordEnd = contextWordEnd;
-      },
+      onWordTapped:
+          (
+            word,
+            canonical,
+            languageId,
+            context, {
+            contextWordStart,
+            contextWordEnd,
+          }) {
+            tappedWord = word;
+            tappedCanonical = canonical;
+            tappedLanguageId = languageId;
+            tappedContext = context;
+            tappedContextWordStart = contextWordStart;
+            tappedContextWordEnd = contextWordEnd;
+          },
       colorSettings: colorSettings,
     );
 
@@ -555,6 +568,8 @@ void main() {
     (mystery.recognizer as TapGestureRecognizer).onTap?.call();
 
     expect(tappedWord, 'mystery');
+    expect(tappedCanonical, 'mystery');
+    expect(tappedLanguageId, 'en');
     expect(tappedContext, '...mystery...');
     expect(tappedContextWordStart, 3);
     expect(tappedContextWordEnd, 10);
@@ -564,6 +579,9 @@ void main() {
     tester,
   ) async {
     final theme = ThemeData();
+    String? tappedWord;
+    String? tappedCanonical;
+    String? tappedLanguageId;
     String? tappedContext;
     int? tappedContextWordStart;
     int? tappedContextWordEnd;
@@ -572,11 +590,22 @@ void main() {
       'known learning known',
       result,
       theme,
-      onWordTapped: (word, context, {contextWordStart, contextWordEnd}) {
-        tappedContext = context;
-        tappedContextWordStart = contextWordStart;
-        tappedContextWordEnd = contextWordEnd;
-      },
+      onWordTapped:
+          (
+            word,
+            canonical,
+            languageId,
+            context, {
+            contextWordStart,
+            contextWordEnd,
+          }) {
+            tappedWord = word;
+            tappedCanonical = canonical;
+            tappedLanguageId = languageId;
+            tappedContext = context;
+            tappedContextWordStart = contextWordStart;
+            tappedContextWordEnd = contextWordEnd;
+          },
       colorSettings: colorSettings,
     );
 
@@ -586,6 +615,9 @@ void main() {
 
     (known.recognizer as TapGestureRecognizer).onTap?.call();
 
+    expect(tappedWord, 'known');
+    expect(tappedCanonical, 'known');
+    expect(tappedLanguageId, 'en');
     expect(tappedContext, 'known learning known');
     expect(tappedContextWordStart, 0);
     expect(tappedContextWordEnd, 5);
@@ -608,7 +640,8 @@ void main() {
                 ),
                 result,
                 ThemeData(),
-                onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+                onWordTapped:
+                    (_, _, _, _, {contextWordStart, contextWordEnd}) {},
               ),
             ),
           ),
@@ -637,7 +670,7 @@ void main() {
               ImageBlock(src: 'cover.gif', bytes: _transparentGif),
               result,
               ThemeData(),
-              onWordTapped: (_, _, {contextWordStart, contextWordEnd}) {},
+              onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
             ),
           ),
         ),

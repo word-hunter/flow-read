@@ -110,14 +110,18 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   }
 
   void _onWordTapped(
-    String word,
+    String surface,
+    String canonical,
+    String languageId,
     String contextText, {
     int? contextWordStart,
     int? contextWordEnd,
   }) {
     final lookup = ref.read(wordLookupProvider);
     lookup.lookupWord(
-      word,
+      surface,
+      canonicalForm: canonical,
+      languageCode: languageId,
       contextText: contextText,
       contextWordStart: contextWordStart,
       contextWordEnd: contextWordEnd,
@@ -126,7 +130,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => WordBottomSheet(word: word),
+      builder: (_) => WordBottomSheet(word: surface),
     ).whenComplete(lookup.clearWordLookup);
   }
 

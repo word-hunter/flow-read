@@ -20,7 +20,9 @@ import 'reader/epub_image_layout.dart';
 
 typedef WordTapCallback =
     void Function(
-      String word,
+      String surface,
+      String canonical,
+      String languageId,
       String contextText, {
       int? contextWordStart,
       int? contextWordEnd,
@@ -59,6 +61,8 @@ List<String> splitIntoParagraphs(String text) {
 
 TextSpan buildTappableWordSpan({
   required String word,
+  required String canonical,
+  required String languageId,
   required Color color,
   required TextStyle textStyle,
   required WordTapCallback onWordTapped,
@@ -87,6 +91,8 @@ TextSpan buildTappableWordSpan({
     recognizer: TapGestureRecognizer()
       ..onTap = () => onWordTapped(
         word,
+        canonical,
+        languageId,
         contextText,
         contextWordStart: contextWordStart,
         contextWordEnd: contextWordEnd,
@@ -96,6 +102,8 @@ TextSpan buildTappableWordSpan({
 
 TextSpan buildPlainLookupWordSpan({
   required String word,
+  required String canonical,
+  required String languageId,
   required TextStyle textStyle,
   required WordTapCallback onWordTapped,
   required String contextText,
@@ -118,6 +126,8 @@ TextSpan buildPlainLookupWordSpan({
     recognizer: TapGestureRecognizer()
       ..onTap = () => onWordTapped(
         word,
+        canonical,
+        languageId,
         contextText,
         contextWordStart: contextWordStart,
         contextWordEnd: contextWordEnd,
@@ -630,6 +640,8 @@ class _HighlightBuilder {
         spans.add(
           buildTappableWordSpan(
             word: word,
+            canonical: token.canonical,
+            languageId: token.languageId,
             color: color,
             textStyle: _baseTextStyle(),
             theme: theme,
@@ -644,6 +656,8 @@ class _HighlightBuilder {
         spans.add(
           buildTappableWordSpan(
             word: word,
+            canonical: token.canonical,
+            languageId: token.languageId,
             color: learningColor,
             textStyle: _baseTextStyle(),
             theme: theme,
@@ -661,6 +675,8 @@ class _HighlightBuilder {
         spans.add(
           buildPlainLookupWordSpan(
             word: word,
+            canonical: token.canonical,
+            languageId: token.languageId,
             textStyle: _baseTextStyle(),
             theme: theme,
             searchQuery: searchQuery,
@@ -677,6 +693,8 @@ class _HighlightBuilder {
         spans.add(
           buildTappableWordSpan(
             word: word,
+            canonical: token.canonical,
+            languageId: token.languageId,
             color: unknownColor,
             textStyle: _baseTextStyle(),
             theme: theme,
@@ -823,6 +841,8 @@ class _StyledBlockBuilder {
         spans.add(
           buildTappableWordSpan(
             word: word,
+            canonical: token.canonical,
+            languageId: token.languageId,
             color: color,
             textStyle: _textStyleFor(wordStyle),
             theme: theme,
@@ -837,6 +857,8 @@ class _StyledBlockBuilder {
         spans.add(
           buildTappableWordSpan(
             word: word,
+            canonical: token.canonical,
+            languageId: token.languageId,
             color: learningColor,
             textStyle: _textStyleFor(wordStyle),
             theme: theme,
@@ -854,6 +876,8 @@ class _StyledBlockBuilder {
         spans.add(
           buildPlainLookupWordSpan(
             word: word,
+            canonical: token.canonical,
+            languageId: token.languageId,
             textStyle: _textStyleFor(wordStyle),
             theme: theme,
             searchQuery: searchQuery,
@@ -870,6 +894,8 @@ class _StyledBlockBuilder {
         spans.add(
           buildTappableWordSpan(
             word: word,
+            canonical: token.canonical,
+            languageId: token.languageId,
             color: unknownColor,
             textStyle: _textStyleFor(wordStyle),
             theme: theme,

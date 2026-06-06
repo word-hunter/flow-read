@@ -221,7 +221,12 @@ class ReaderSidebar extends ConsumerWidget {
             ),
           ),
           child: InkWell(
-            onTap: () => onWordTapped(vocab.word, vocab.context),
+            onTap: () => onWordTapped(
+              vocab.word,
+              lookup.activeLanguageModule.canonicalize(vocab.word),
+              lookup.activeLanguageModule.languageCode,
+              vocab.context,
+            ),
             borderRadius: BorderRadius.circular(10),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

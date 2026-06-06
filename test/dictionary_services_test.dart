@@ -554,6 +554,36 @@ void main() {
         provider.dispose();
       },
     );
+
+    test('ReadingProvider lookup accepts structured token metadata', () async {
+      final repository = _CountingRepository(
+        const DictionaryEntry(
+          word: 'run',
+          meanings: [
+            Meaning(partOfSpeech: 'verb', definitions: ['move quickly']),
+          ],
+        ),
+      );
+      final provider = ReadingProvider()..setWordRepository(repository);
+
+      await provider.lookupWord(
+        'Running',
+        canonicalForm: 'run',
+        languageCode: 'ja',
+        contextText: 'Running through the rain.',
+        contextWordStart: 0,
+        contextWordEnd: 7,
+      );
+
+      expect(repository.lastWord, 'run');
+      expect(repository.lastLanguageCode, 'ja');
+      expect(provider.selectedWord, 'Running');
+      expect(provider.selectedWordContext, 'Running through the rain.');
+      expect(provider.selectedWordContextStart, 0);
+      expect(provider.selectedWordContextEnd, 7);
+
+      provider.dispose();
+    });
   });
 
   testWidgets(
@@ -1444,6 +1474,7 @@ void main() {
 class _CountingRepository implements WordRepository {
   final DictionaryEntry? entry;
   int calls = 0;
+  String? lastWord;
   String? lastLanguageCode;
 
   _CountingRepository(this.entry);
@@ -1454,6 +1485,7 @@ class _CountingRepository implements WordRepository {
     String languageCode = 'en',
   }) async {
     calls += 1;
+    lastWord = word;
     lastLanguageCode = languageCode;
     return entry;
   }

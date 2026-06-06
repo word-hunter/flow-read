@@ -1427,12 +1427,16 @@ class ReadingProvider extends ChangeNotifier {
 
   Future<void> lookupWord(
     String word, {
+    String? canonicalForm,
+    String? languageCode,
+    String? reading,
     String? contextText,
     int? contextWordStart,
     int? contextWordEnd,
     bool trackReadingLookup = false,
   }) async {
     _wordLookupHistory.clear();
+    final activeModule = activeLanguageModule;
     final normalizedContext = _normalizeLookupContext(
       contextText,
       contextWordStart: contextWordStart,
@@ -1441,14 +1445,23 @@ class ReadingProvider extends ChangeNotifier {
     await _lookupWord(
       DictionaryLookupRequest(
         word: word,
-        languageCode: activeLanguageModule.languageCode,
-        canonicalForm: activeLanguageModule.canonicalize(word),
+        languageCode:
+            _nonEmptyOrNull(languageCode) ?? activeModule.languageCode,
+        canonicalForm:
+            _nonEmptyOrNull(canonicalForm) ?? activeModule.canonicalize(word),
+        reading: _nonEmptyOrNull(reading),
         contextText: normalizedContext.text,
         contextWordStart: normalizedContext.wordStart,
         contextWordEnd: normalizedContext.wordEnd,
       ),
       trackReadingLookup: trackReadingLookup,
     );
+  }
+
+  String? _nonEmptyOrNull(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed;
   }
 
   Future<void> lookupRelatedWord(String word) async {

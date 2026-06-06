@@ -37,6 +37,9 @@ class WordLookupController {
 
   Future<void> lookupWord(
     String word, {
+    String? canonicalForm,
+    String? languageCode,
+    String? reading,
     String? contextText,
     int? contextWordStart,
     int? contextWordEnd,
@@ -44,6 +47,9 @@ class WordLookupController {
   }) {
     return _reader.lookupWord(
       word,
+      canonicalForm: canonicalForm,
+      languageCode: languageCode,
+      reading: reading,
       contextText: contextText,
       contextWordStart: contextWordStart,
       contextWordEnd: contextWordEnd,
