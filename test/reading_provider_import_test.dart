@@ -78,6 +78,23 @@ void main() {
     expect(provider.effectiveTargetExplanationLanguage, 'zh');
   });
 
+  test('aggregates vocabulary with imported source language', () async {
+    final provider = ReadingProvider()
+      ..setBookService(
+        BookService(documentsDirectoryProvider: () async => documentsDir),
+      );
+    await provider.init();
+
+    await provider.importBookFromBytes(
+      bytes: _buildEpub(language: 'ja'),
+      fileName: 'japanese.epub',
+    );
+
+    final vocabulary = provider.getAllVocabulary();
+    expect(vocabulary, isNotEmpty);
+    expect(vocabulary.map((vocab) => vocab.languageId).toSet(), {'ja'});
+  });
+
   test('keeps path imports as an internal book source copy', () async {
     final provider = ReadingProvider()
       ..setBookService(
@@ -389,7 +406,7 @@ class _StallingBookService extends BookService {
   }
 }
 
-Uint8List _buildEpub() {
+Uint8List _buildEpub({String language = 'en-US'}) {
   final archive = Archive();
 
   void addString(String path, String content) {
@@ -412,7 +429,7 @@ Uint8List _buildEpub() {
         <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
           <dc:title>Fixture Book</dc:title>
           <dc:creator>Fixture Author</dc:creator>
-          <dc:language>en-US</dc:language>
+          <dc:language>$language</dc:language>
         </metadata>
         <manifest>
           <item id="chapter1" href="Text/chapter1.xhtml" media-type="application/xhtml+xml"/>

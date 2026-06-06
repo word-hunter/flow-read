@@ -28,7 +28,7 @@ Last updated: 2026-06-06
 | `UserWordStatus` | `user_vocabulary.dart` | 枚举：known, learning |
 | `UserVocabularyKey` | `user_vocabulary.dart` | 语言感知词汇 key（languageId + canonical） |
 | `UserVocabularyEntry` | `user_vocabulary.dart` | 用户词汇状态 entry（status + timestamps + source metadata） |
-| `AggregatedVocabulary` | `aggregated_vocabulary.dart` | 跨章节聚合词汇视图 |
+| `AggregatedVocabulary` | `aggregated_vocabulary.dart` | 跨章节聚合词汇视图（word + languageId） |
 | `BookDifficulty` | `book_difficulty.dart` | l1~l5 难度等级 + 评分 |
 | `ReadingToken` | `reading_token.dart` | 结构化阅读 token（surface/canonical/languageId/offsets） |
 | `TokenizedText` | `reading_token.dart` | 原文、语言和 token 流，用于 reader 渲染和点击定位 |

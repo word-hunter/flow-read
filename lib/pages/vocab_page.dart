@@ -327,6 +327,8 @@ class _VocabItem extends StatelessWidget {
     }
   }
 
+  String _languageLabel(String code) => code.toUpperCase();
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -356,6 +358,27 @@ class _VocabItem extends StatelessWidget {
                       ),
                     ),
                   ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer.withValues(
+                        alpha: 0.5,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      _languageLabel(vocab.languageId),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: theme.colorScheme.onSecondaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   if (vocab.level != null)
                     Container(
                       padding: const EdgeInsets.symmetric(

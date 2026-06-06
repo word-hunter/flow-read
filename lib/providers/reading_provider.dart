@@ -1343,27 +1343,46 @@ class ReadingProvider extends ChangeNotifier {
 
   void _updateAllVocab() {
     if (_result == null) return;
-    _allVocab.removeWhere((key, _) => _userVocab?.isKnown(key) ?? false);
+    _allVocab.removeWhere(
+      (_, vocab) => _userVocab?.isKnown(vocab.word) ?? false,
+    );
+    final languageId = _activeVocabularyLanguageId;
     for (final v in _result!.vocabulary) {
       final lower = v.word;
       if (_userVocab?.isKnown(lower) ?? false) continue;
-      if (_allVocab.containsKey(lower)) {
-        final existing = _allVocab[lower]!;
-        _allVocab[lower] = existing.copyWith(
+      final vocabularyKey = _aggregatedVocabularyKey(languageId, lower);
+      if (_allVocab.containsKey(vocabularyKey)) {
+        final existing = _allVocab[vocabularyKey]!;
+        _allVocab[vocabularyKey] = existing.copyWith(
           chapterIndices: existing.updatedChapters(_currentChapter),
           level: v.level,
+          languageId: languageId,
         );
       } else {
-        _allVocab[lower] = AggregatedVocabulary(
+        _allVocab[vocabularyKey] = AggregatedVocabulary(
           word: lower,
           meaning: v.meaning,
           firstChapter: _currentChapter,
           context: v.context,
           chapterIndices: {_currentChapter},
           level: v.level,
+          languageId: languageId,
         );
       }
     }
+  }
+
+  String get _activeVocabularyLanguageId {
+    final sourceLanguage = _activeBookMetadata?.effectiveSourceLanguage;
+    return LanguageRegistry.normalizeLanguageCode(sourceLanguage) ??
+        LanguageRegistry.normalizeLanguageCode(
+          _settings?.activeSourceLanguage,
+        ) ??
+        HiveBoxNames.defaultLanguageCode;
+  }
+
+  String _aggregatedVocabularyKey(String languageId, String canonical) {
+    return '${languageId.toLowerCase().trim()}_${canonical.toLowerCase().trim()}';
   }
 
   // ============================================================

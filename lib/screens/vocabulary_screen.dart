@@ -6,6 +6,7 @@ import '../models/learning_item.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading/vocabulary_provider.dart';
 import '../providers/reading/word_lookup_provider.dart';
+import '../services/language/language_registry.dart';
 import '../theme/app_colors.dart';
 import '../widgets/word_bottom_sheet.dart';
 import '../widgets/word_mastery_confetti.dart';
@@ -25,6 +26,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
   _VocabularyView _view = _VocabularyView.words;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  String? _languageFilter;
   Timer? _debounce;
 
   @override
@@ -57,10 +59,14 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
     final theme = Theme.of(context);
     final allVocab = vocabulary.getAllVocabulary(alphabetical: _sortAlpha);
     final allLearningItems = vocabulary.learningItems;
+    final languageOptions = _languageOptionsFor(allVocab);
+    final effectiveLanguageFilter = languageOptions.contains(_languageFilter)
+        ? _languageFilter
+        : null;
 
-    final filtered = _searchQuery.isEmpty
-        ? allVocab
-        : allVocab.where((v) => v.word.contains(_searchQuery)).toList();
+    final filtered = allVocab
+        .where((v) => _matchesVocabulary(v, effectiveLanguageFilter))
+        .toList();
     final filteredLearningItems = _searchQuery.isEmpty
         ? allLearningItems
         : allLearningItems.where((item) => _matchesLearningItem(item)).toList();
@@ -84,7 +90,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
       ),
       body: Column(
         children: [
-          _buildSearchBar(theme),
+          _buildSearchBar(theme, languageOptions, effectiveLanguageFilter),
           _buildViewToggle(theme),
           if (_view == _VocabularyView.words) ...[
             _buildStatsBar(theme, filtered.length, unknownCount, learningCount),
@@ -146,6 +152,28 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
         item.sourceText.toLowerCase().contains(query);
   }
 
+  bool _matchesVocabulary(
+    AggregatedVocabulary vocab,
+    String? languageFilter,
+  ) {
+    if (languageFilter != null && vocab.languageId != languageFilter) {
+      return false;
+    }
+    if (_searchQuery.isEmpty) return true;
+    return vocab.word.toLowerCase().contains(_searchQuery);
+  }
+
+  List<String> _languageOptionsFor(List<AggregatedVocabulary> vocabulary) {
+    final languageIds =
+        vocabulary
+            .map((vocab) => vocab.languageId.toLowerCase().trim())
+            .where((code) => code.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    return languageIds;
+  }
+
   void _openWordDetail(
     BuildContext context,
     WordLookupController lookup,
@@ -160,41 +188,106 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
     ).whenComplete(lookup.clearWordLookup);
   }
 
-  Widget _buildSearchBar(ThemeData theme) {
+  Widget _buildSearchBar(
+    ThemeData theme,
+    List<String> languageOptions,
+    String? selectedLanguageId,
+  ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: _view == _VocabularyView.words
-              ? 'Search words...'
-              : 'Search learning cards...',
-          hintStyle: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: _view == _VocabularyView.words
+                    ? 'Search words...'
+                    : 'Search learning cards...',
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () => _searchController.clear(),
+                      )
+                    : null,
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
           ),
-          prefixIcon: Icon(
-            Icons.search,
-            size: 20,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  onPressed: () => _searchController.clear(),
-                )
-              : null,
-          filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+          if (_view == _VocabularyView.words && languageOptions.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            _buildLanguageFilter(theme, languageOptions, selectedLanguageId),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageFilter(
+    ThemeData theme,
+    List<String> languageOptions,
+    String? selectedLanguageId,
+  ) {
+    return Tooltip(
+      message: 'Language',
+      child: Container(
+        height: 48,
+        constraints: const BoxConstraints(minWidth: 82),
+        padding: const EdgeInsets.only(left: 10, right: 6),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
             alpha: 0.3,
           ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String?>(
+            value: selectedLanguageId,
+            isDense: true,
+            icon: const Icon(Icons.expand_more, size: 18),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('All'),
+              ),
+              ...languageOptions.map(
+                (code) => DropdownMenuItem<String?>(
+                  value: code,
+                  child: Text(_languageLabel(code)),
+                ),
+              ),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _languageFilter = value;
+              });
+            },
           ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
         ),
       ),
     );
+  }
+
+  String _languageLabel(String code) {
+    final normalized = code.toLowerCase().trim();
+    final module = LanguageRegistry.instance.get(normalized);
+    return (module?.languageCode ?? normalized).toUpperCase();
   }
 
   Widget _buildViewToggle(ThemeData theme) {
@@ -471,6 +564,8 @@ class _VocabItem extends StatelessWidget {
     }
   }
 
+  String _languageLabel(String code) => code.toUpperCase();
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -505,6 +600,27 @@ class _VocabItem extends StatelessWidget {
                         ),
                       ),
                     ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.secondaryContainer.withValues(
+                          alpha: 0.5,
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _languageLabel(vocab.languageId),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontSize: 10,
+                          color: theme.colorScheme.onSecondaryContainer,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
                     if (vocab.level != null)
                       Container(
                         padding: const EdgeInsets.symmetric(

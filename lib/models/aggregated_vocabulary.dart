@@ -5,6 +5,7 @@ class AggregatedVocabulary {
   final String context;
   final Set<int> chapterIndices;
   final String? level;
+  final String languageId;
 
   const AggregatedVocabulary({
     required this.word,
@@ -13,6 +14,7 @@ class AggregatedVocabulary {
     required this.context,
     this.chapterIndices = const {},
     this.level,
+    this.languageId = 'en',
   });
 
   AggregatedVocabulary copyWith({
@@ -21,6 +23,7 @@ class AggregatedVocabulary {
     String? context,
     Set<int>? chapterIndices,
     String? level,
+    String? languageId,
   }) {
     return AggregatedVocabulary(
       word: word,
@@ -29,6 +32,7 @@ class AggregatedVocabulary {
       context: context ?? this.context,
       chapterIndices: chapterIndices ?? this.chapterIndices,
       level: level ?? this.level,
+      languageId: languageId ?? this.languageId,
     );
   }
 
