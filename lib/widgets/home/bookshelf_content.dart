@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:file_picker/file_picker.dart';
 import '../../models/book_metadata.dart';
-import '../../providers/reading/bookshelf_provider.dart';
+import '../../providers/reading/bookshelf_notifier.dart';
 import '../../providers/reading/reading_time_notifier.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/epub_import_source.dart';
@@ -45,12 +45,13 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = ref.watch(bookshelfProvider);
+    final bookshelfState = ref.watch(bookshelfNotifierProvider);
+    final bookshelfNotifier = ref.read(bookshelfNotifierProvider.notifier);
     final readingTimeNotifier = ref.read(readingTimeNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
-    final allBooks = provider.allBooks;
-    _queueDifficultyRatings(provider, allBooks);
+    final allBooks = bookshelfState.books;
+    _queueDifficultyRatings(bookshelfNotifier, allBooks);
 
     final filteredBooks = _sortedBooks(
       _searchQuery.isEmpty
@@ -62,11 +63,11 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
                       b.author.toLowerCase().contains(_searchQuery),
                 )
                 .toList(),
-      provider,
+      bookshelfNotifier,
     );
 
     if (allBooks.isEmpty) {
-      return _buildEmptyState(context, provider, theme);
+      return _buildEmptyState(context, bookshelfState, bookshelfNotifier, theme);
     }
 
     final featuredCandidates = [...filteredBooks]..sort(_compareByRecent);
@@ -78,17 +79,17 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(theme, provider),
-          if (provider.isLoadingBookDifficulties) ...[
+          _buildHeader(theme, bookshelfState, bookshelfNotifier),
+          if (bookshelfNotifier.isLoadingBookDifficulties) ...[
             const SizedBox(height: 14),
-            _buildDifficultyLoadingBanner(theme, provider),
+            _buildDifficultyLoadingBanner(theme, bookshelfNotifier),
           ],
           if (settings.reviewFeatureEnabled &&
-              provider.learningItemCount > 0) ...[
+              bookshelfNotifier.learningItemCount > 0) ...[
             const SizedBox(height: 14),
             TodayReviewCard(
-              dueCount: provider.todayReviewDueCount,
-              totalLearningItems: provider.learningItemCount,
+              dueCount: bookshelfNotifier.todayReviewDueCount,
+              totalLearningItems: bookshelfNotifier.learningItemCount,
               onStart: () => Navigator.pushNamed(context, '/spaced_review'),
             ),
           ],
@@ -99,29 +100,31 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
             FeaturedBookCard(
               title: featuredBook.title,
               author: featuredBook.author,
-              coverBytes: provider.getCoverBytes(featuredBook.id),
+              coverBytes: bookshelfNotifier.getCoverBytes(featuredBook.id),
               progressPercent: (featuredBook.globalProgress * 100).toInt(),
               currentChapter: featuredBook.currentChapter,
               totalChapters: featuredBook.totalChapters,
               readingTimeSeconds: readingTimeNotifier.readingTimeSecondsForBook(
                 featuredBook.id,
               ),
-              difficulty: provider.difficultyForBook(featuredBook.id),
-              isDifficultyLoading: provider.isBookDifficultyLoading(
+              difficulty: bookshelfNotifier.difficultyForBook(featuredBook.id),
+              isDifficultyLoading: bookshelfNotifier.isBookDifficultyLoading(
                 featuredBook.id,
               ),
               lastReadAt: featuredBook.lastReadAt,
-              onContinueReading: () => _openBook(provider, featuredBook.id),
-              onRename: () => _renameBook(provider, featuredBook),
-              onRemove: () => _confirmRemoveBook(provider, featuredBook),
+              onContinueReading: () =>
+                  _openBook(bookshelfState, bookshelfNotifier, featuredBook.id),
+              onRename: () => _renameBook(bookshelfNotifier, featuredBook),
+              onRemove: () =>
+                  _confirmRemoveBook(bookshelfNotifier, featuredBook),
             ),
             const SizedBox(height: 34),
           ],
           _buildBookshelfHeader(
             theme,
-            provider,
+            bookshelfNotifier,
             bookCount: filteredBooks.length,
-            isDifficultyLoading: provider.isLoadingBookDifficulties,
+            isDifficultyLoading: bookshelfNotifier.isLoadingBookDifficulties,
           ),
           const SizedBox(height: 12),
           BookShelfRow(
@@ -130,13 +133,15 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
                   (b) => BookShelfData(
                     title: b.title,
                     author: b.author,
-                    coverBytes: provider.getCoverBytes(b.id),
+                    coverBytes: bookshelfNotifier.getCoverBytes(b.id),
                     progressPercent: (b.globalProgress * 100).toInt(),
-                    difficulty: provider.difficultyForBook(b.id),
-                    isDifficultyLoading: provider.isBookDifficultyLoading(b.id),
-                    onTap: () => _openBook(provider, b.id),
-                    onRename: () => _renameBook(provider, b),
-                    onRemove: () => _confirmRemoveBook(provider, b),
+                    difficulty: bookshelfNotifier.difficultyForBook(b.id),
+                    isDifficultyLoading:
+                        bookshelfNotifier.isBookDifficultyLoading(b.id),
+                    onTap: () =>
+                        _openBook(bookshelfState, bookshelfNotifier, b.id),
+                    onRename: () => _renameBook(bookshelfNotifier, b),
+                    onRemove: () => _confirmRemoveBook(bookshelfNotifier, b),
                   ),
                 )
                 .toList(),
@@ -149,19 +154,19 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   }
 
   void _queueDifficultyRatings(
-    BookshelfController provider,
+    BookshelfNotifier notifier,
     List<BookMetadata> books,
   ) {
     if (books.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(provider.ensureBookDifficulties(books));
+      unawaited(notifier.ensureBookDifficulties(books));
     });
   }
 
   List<BookMetadata> _sortedBooks(
     List<BookMetadata> books,
-    BookshelfController provider,
+    BookshelfNotifier notifier,
   ) {
     final sorted = [...books];
     int byTitle(BookMetadata a, BookMetadata b) {
@@ -180,8 +185,8 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     }
 
     int byDifficulty(BookMetadata a, BookMetadata b) {
-      final aRating = provider.difficultyForBook(a.id);
-      final bRating = provider.difficultyForBook(b.id);
+      final aRating = notifier.difficultyForBook(a.id);
+      final bRating = notifier.difficultyForBook(b.id);
       if (aRating == null && bRating == null) return _compareByRecent(a, b);
       if (aRating == null) return 1;
       if (bRating == null) return -1;
@@ -209,15 +214,15 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     return bTime.compareTo(aTime);
   }
 
-  Widget _buildHeader(ThemeData theme, BookshelfController provider) {
+  Widget _buildHeader(ThemeData theme, BookshelfState state, BookshelfNotifier notifier) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final addButton = FilledButton.icon(
-            onPressed: provider.isLoading ? null : () => _importEpub(provider),
+            onPressed: state.isLoading ? null : () => _importEpub(notifier),
             icon: const Icon(Icons.add, size: 18),
-            label: Text(provider.isLoading ? '导入中' : '添加书籍'),
+            label: Text(state.isLoading ? '导入中' : '添加书籍'),
             style: FilledButton.styleFrom(
               minimumSize: const Size(0, 40),
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -259,7 +264,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
 
   Widget _buildDifficultyLoadingBanner(
     ThemeData theme,
-    BookshelfController provider,
+    BookshelfNotifier notifier,
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -285,7 +290,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                '正在异步计算 ${provider.loadingBookDifficultyCount} 本书的难易度，完成后会显示评级和生词量依据。',
+                '正在异步计算 ${notifier.loadingBookDifficultyCount} 本书的难易度，完成后会显示评级和生词量依据。',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -361,7 +366,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
 
   Widget _buildBookshelfHeader(
     ThemeData theme,
-    BookshelfController provider, {
+    BookshelfNotifier notifier, {
     required int bookCount,
     required bool isDifficultyLoading,
   }) {
@@ -385,7 +390,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
         ),
       ],
     );
-    final sortMenu = _buildSortMenu(theme, provider);
+    final sortMenu = _buildSortMenu(theme, notifier);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -414,11 +419,11 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     );
   }
 
-  Widget _buildSortMenu(ThemeData theme, BookshelfController provider) {
+  Widget _buildSortMenu(ThemeData theme, BookshelfNotifier notifier) {
     return PopupMenuButton<_BookSortMode>(
       tooltip: '排序',
       initialValue: _sortMode,
-      onSelected: (value) => _onSortSelected(provider, value),
+      onSelected: (value) => _onSortSelected(notifier, value),
       itemBuilder: (context) => [
         _sortMenuItem(_BookSortMode.recent, '最近阅读', Icons.schedule),
         _sortMenuItem(_BookSortMode.title, '书名 A-Z', Icons.sort_by_alpha),
@@ -463,10 +468,10 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     );
   }
 
-  void _onSortSelected(BookshelfController provider, _BookSortMode value) {
+  void _onSortSelected(BookshelfNotifier notifier, _BookSortMode value) {
     setState(() => _sortMode = value);
     if (value == _BookSortMode.difficulty) {
-      unawaited(provider.ensureBookDifficulties(provider.allBooks));
+      unawaited(notifier.ensureBookDifficulties(notifier.allBooks));
     }
   }
 
@@ -500,7 +505,8 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
 
   Widget _buildEmptyState(
     BuildContext context,
-    BookshelfController provider,
+    BookshelfState state,
+    BookshelfNotifier notifier,
     ThemeData theme,
   ) {
     return Center(
@@ -530,22 +536,22 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            if (provider.isLoading && provider.importStage.isNotEmpty) ...[
+            if (state.isLoading && state.importStage.isNotEmpty) ...[
               const LinearProgressIndicator(minHeight: 4),
               const SizedBox(height: 12),
               Text(
-                provider.importStage,
+                state.importStage,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ] else
               FilledButton.icon(
-                onPressed: provider.isLoading
+                onPressed: state.isLoading
                     ? null
-                    : () => _importEpub(provider),
+                    : () => _importEpub(notifier),
                 icon: const Icon(Icons.file_open),
-                label: Text(provider.isLoading ? '导入中...' : '导入 EPUB'),
+                label: Text(state.isLoading ? '导入中...' : '导入 EPUB'),
               ),
           ],
         ),
@@ -553,21 +559,21 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     );
   }
 
-  void _openBook(BookshelfController provider, String bookId) async {
-    final opened = await provider.switchToBook(bookId);
+  void _openBook(BookshelfState state, BookshelfNotifier notifier, String bookId) async {
+    final opened = await notifier.switchToBook(bookId);
     if (!mounted) return;
     if (!opened) {
-      final message = provider.errorMessage ?? '打开书籍失败';
+      final message = state.errorMessage ?? '打开书籍失败';
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
-    provider.enterReader();
+    notifier.enterReader();
   }
 
   Future<void> _confirmRemoveBook(
-    BookshelfController provider,
+    BookshelfNotifier notifier,
     BookMetadata book,
   ) async {
     final confirmed = await showDialog<bool>(
@@ -625,7 +631,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     );
 
     if (confirmed != true) return;
-    await provider.removeBook(book.id);
+    await notifier.removeBook(book.id);
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -633,7 +639,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   }
 
   Future<void> _renameBook(
-    BookshelfController provider,
+    BookshelfNotifier notifier,
     BookMetadata book,
   ) async {
     final controller = TextEditingController(text: book.title);
@@ -666,14 +672,14 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
 
     final trimmed = renamedTitle?.trim();
     if (trimmed == null || trimmed.isEmpty || trimmed == book.title) return;
-    await provider.renameBook(book.id, trimmed);
+    await notifier.renameBook(book.id, trimmed);
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('已重命名为《$trimmed》')));
   }
 
-  Future<void> _importEpub(BookshelfController provider) async {
+  Future<void> _importEpub(BookshelfNotifier notifier) async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['epub'],
@@ -690,6 +696,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
       return;
     }
 
-    await provider.importBookFromSource(source);
+    await notifier.importBookFromSource(source);
   }
 }

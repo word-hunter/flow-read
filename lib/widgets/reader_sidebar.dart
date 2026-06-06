@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/analysis_result.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading/bookmark_notifier.dart';
-import '../providers/reading/current_book_provider.dart';
-import '../providers/reading/vocabulary_provider.dart';
+import '../providers/reading/current_book_notifier.dart';
+import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_provider.dart';
 import '../theme/app_colors.dart';
 import 'dictionary_detail_view.dart';
@@ -43,9 +43,11 @@ class ReaderSidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentBook = ref.watch(currentBookProvider);
+    final currentBookState = ref.watch(currentBookNotifierProvider);
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
     final lookup = ref.watch(wordLookupProvider);
-    final vocabulary = ref.watch(vocabularyProvider);
+    ref.watch(vocabularyNotifierProvider);
+    final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
     final theme = Theme.of(context);
@@ -53,8 +55,8 @@ class ReaderSidebar extends ConsumerWidget {
     return Column(
       children: [
         _buildHeader(theme),
-        if (currentBook.hasBook && currentBook.chapterCount > 1) ...[
-          _buildChapterList(context, theme, currentBook),
+        if (currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 1) ...[
+          _buildChapterList(context, theme, currentBookNotifier, currentBookState),
           Divider(
             height: 1,
             color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
@@ -64,7 +66,7 @@ class ReaderSidebar extends ConsumerWidget {
           child: _buildVocabularyPanel(context, theme, result, lookup),
         ),
         if (lookup.selectedWord != null)
-          _buildFloatingWordCard(theme, lookup, vocabulary, bookmarkNotifier),
+          _buildFloatingWordCard(theme, lookup, vocabularyNotifier, bookmarkNotifier),
       ],
     );
   }
@@ -135,7 +137,8 @@ class ReaderSidebar extends ConsumerWidget {
   Widget _buildChapterList(
     BuildContext context,
     ThemeData theme,
-    CurrentBookController currentBook,
+    CurrentBookNotifier currentBook,
+    CurrentBookState currentBookState,
   ) {
     return SizedBox(
       height: 160,
@@ -143,7 +146,7 @@ class ReaderSidebar extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         itemCount: currentBook.chapterCount,
         itemBuilder: (context, index) {
-          final isSelected = index == currentBook.currentChapter;
+          final isSelected = index == currentBookState.currentChapter;
           return ListTile(
             dense: true,
             selected: isSelected,
@@ -332,11 +335,11 @@ class ReaderSidebar extends ConsumerWidget {
   Widget _buildFloatingWordCard(
     ThemeData theme,
     WordLookupController lookup,
-    VocabularyController vocabulary,
+    VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
   ) {
     final word = lookup.selectedWord!;
-    final status = vocabulary.getWordStatus(word);
+    final status = vocabularyNotifier.getWordStatus(word);
 
     return Container(
       margin: const EdgeInsets.all(8),
@@ -424,10 +427,10 @@ class ReaderSidebar extends ConsumerWidget {
                     label: 'Known',
                     icon: Icons.check_circle_outline,
                     color: AppColors.familiarityHigh,
-                    onTap: () => vocabulary.markWordKnown(
-                      word,
-                      celebrationOrigin: origin(),
-                    ),
+                      onTap: () => vocabularyNotifier.markWordKnown(
+                        word,
+                        celebrationOrigin: origin(),
+                      ),
                   ),
                 ),
               if (status != UserWordStatus.learning)
@@ -435,14 +438,14 @@ class ReaderSidebar extends ConsumerWidget {
                   label: 'Learning',
                   icon: Icons.school_outlined,
                   color: AppColors.vocabLearning,
-                  onTap: () => vocabulary.markWordLearning(word),
+                    onTap: () => vocabularyNotifier.markWordLearning(word),
                 ),
               if (status != null)
                 _miniActionChip(
                   label: 'Unknown',
                   icon: Icons.help_outline,
                   color: AppColors.familiarityLow,
-                  onTap: () => vocabulary.markWordUnknown(word),
+                    onTap: () => vocabularyNotifier.markWordUnknown(word),
                 ),
             ],
           ),

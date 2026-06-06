@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/current_book_notifier.dart';
 import '../widgets/difficulty_gauge.dart';
 
 class DashboardScreen extends riverpod.ConsumerWidget {
@@ -8,7 +8,8 @@ class DashboardScreen extends riverpod.ConsumerWidget {
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
-    final result = ref.watch(currentBookProvider).result;
+    ref.watch(currentBookNotifierProvider);
+    final result = ref.read(currentBookNotifierProvider.notifier).result;
     if (result == null) return const Center(child: CircularProgressIndicator());
 
     final theme = Theme.of(context);

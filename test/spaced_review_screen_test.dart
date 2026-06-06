@@ -1,13 +1,98 @@
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
+import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/screens/spaced_review_screen.dart';
+import 'package:flow_read/services/learning_item_service.dart';
 import 'package:flow_read/services/review_schedule_service.dart';
+import 'package:flow_read/storage/repositories/learning_item_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
+
+class _InMemoryLearningItemRepository implements LearningItemRepository {
+  final List<LearningItem> _items = [];
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  Iterable<LearningItem> get values => _items;
+
+  @override
+  Iterable<dynamic> get keys => _items.map((i) => i.id);
+
+  @override
+  int get length => _items.length;
+
+  @override
+  LearningItem? get(dynamic id) {
+    try {
+      return _items.firstWhere((item) => item.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> put(String id, LearningItem item) async {
+    final index = _items.indexWhere((i) => i.id == id);
+    if (index >= 0) {
+      _items[index] = item;
+    } else {
+      _items.add(item);
+    }
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _items.removeWhere((item) => item.id == id);
+  }
+
+  @override
+  Future<void> deleteAll(Iterable<dynamic> keys) async {
+    final keySet = keys.toSet();
+    _items.removeWhere((item) => keySet.contains(item.id));
+  }
+
+  @override
+  Future<void> clear() async {
+    _items.clear();
+  }
+
+  @override
+  Future<void> close() async {}
+}
+
+class _StubReviewScheduleService extends ReviewScheduleService {
+  _StubReviewScheduleService(super.learningItemService);
+
+  final List<LearningReviewCard> _cards = [];
+
+  void setCards(List<LearningReviewCard> cards) {
+    _cards
+      ..clear()
+      ..addAll(cards);
+  }
+
+  @override
+  List<LearningReviewCard> buildSessionCards({DateTime? now, int? limit}) =>
+      _cards.toList();
+
+  @override
+  Future<LearningItem?> recordReview(
+    String id,
+    LearningReviewResult result, {
+    DateTime? reviewedAt,
+  }) async {
+    return null;
+  }
+
+  @override
+  int dueCount({DateTime? now}) => _cards.length;
+}
 
 void main() {
   testWidgets('fill blank review requires input before showing source answer', (
@@ -42,10 +127,19 @@ void main() {
       ),
     ]);
 
+    final learningItemService = LearningItemService(
+      repository: _InMemoryLearningItemRepository(),
+    );
+    final reviewService =
+        _StubReviewScheduleService(learningItemService);
+    reviewService.setCards(provider.todayReviewCards);
+
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
           riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          learningItemServiceProvider.overrideWith((ref) => learningItemService),
+          reviewScheduleServiceProvider.overrideWith((ref) => reviewService),
         ],
         child: const MaterialApp(home: SpacedReviewScreen()),
       ),
@@ -78,10 +172,21 @@ void main() {
     try {
       final provider = _FakeReadingProvider([_reviewCard()]);
 
+      final learningItemService = LearningItemService(
+        repository: _InMemoryLearningItemRepository(),
+      );
+      final reviewService =
+          _StubReviewScheduleService(learningItemService);
+      reviewService.setCards(provider.todayReviewCards);
+
       await tester.pumpWidget(
         riverpod.ProviderScope(
           overrides: [
             riverpod_reading.readingProvider.overrideWith((ref) => provider),
+            learningItemServiceProvider
+                .overrideWith((ref) => learningItemService),
+            reviewScheduleServiceProvider
+                .overrideWith((ref) => reviewService),
           ],
           child: const MaterialApp(home: SpacedReviewScreen()),
         ),

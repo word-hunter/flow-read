@@ -4,7 +4,7 @@ import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../models/reading_token.dart';
-import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/word_lookup_provider.dart';
 import '../services/common_words.dart';
 import '../services/english_word_utils.dart';
@@ -952,7 +952,8 @@ bool _isCommonContraction(
 
 Widget buildChapterNav(
   BuildContext context,
-  CurrentBookController currentBook,
+  CurrentBookNotifier currentBook,
+  CurrentBookState currentBookState,
   ThemeData theme,
 ) {
   return Container(
@@ -970,13 +971,13 @@ Widget buildChapterNav(
         IconButton(
           icon: const Icon(Icons.chevron_left),
           tooltip: '上一个目录项',
-          onPressed: currentBook.currentChapter > 0
-              ? () => currentBook.goToChapter(currentBook.currentChapter - 1)
+          onPressed: currentBookState.currentChapter > 0
+              ? () => currentBook.goToChapter(currentBookState.currentChapter - 1)
               : null,
         ),
         Expanded(
           child: Text(
-            '位置 ${currentBook.currentChapter + 1} / ${currentBook.chapterCount}',
+            '位置 ${currentBookState.currentChapter + 1} / ${currentBook.chapterCount}',
             textAlign: TextAlign.center,
             style: theme.textTheme.labelMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
@@ -986,8 +987,8 @@ Widget buildChapterNav(
         IconButton(
           icon: const Icon(Icons.chevron_right),
           tooltip: '下一个目录项',
-          onPressed: currentBook.currentChapter < currentBook.chapterCount - 1
-              ? () => currentBook.goToChapter(currentBook.currentChapter + 1)
+          onPressed: currentBookState.currentChapter < currentBook.chapterCount - 1
+              ? () => currentBook.goToChapter(currentBookState.currentChapter + 1)
               : null,
         ),
       ],

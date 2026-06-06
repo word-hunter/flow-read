@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:file_picker/file_picker.dart';
 import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
-import '../providers/reading/bookshelf_provider.dart';
+import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../services/app_links.dart';
 import '../services/epub_import_source.dart';
@@ -18,13 +18,13 @@ const _logoAsset = 'assets/brand/flow_read_logo.png';
 
 void _queueDifficultyRatings(
   BuildContext context,
-  BookshelfController provider,
+  BookshelfNotifier notifier,
   List<BookMetadata> books,
 ) {
   if (books.isEmpty) return;
   WidgetsBinding.instance.addPostFrameCallback((_) {
     if (!context.mounted) return;
-    unawaited(provider.ensureBookDifficulties(books));
+    unawaited(notifier.ensureBookDifficulties(books));
   });
 }
 
@@ -49,11 +49,12 @@ class _NarrowBookshelf extends riverpod.ConsumerWidget {
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
-    final provider = ref.watch(bookshelfProvider);
+    final bookshelfState = ref.watch(bookshelfNotifierProvider);
+    final bookshelfNotifier = ref.read(bookshelfNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
-    final books = provider.allBooks;
-    _queueDifficultyRatings(context, provider, books);
+    final books = bookshelfState.books;
+    _queueDifficultyRatings(context, bookshelfNotifier, books);
 
     return Scaffold(
       appBar: AppBar(
@@ -74,17 +75,17 @@ class _NarrowBookshelf extends riverpod.ConsumerWidget {
           ? _buildBookListWithDifficultyStatus(
               context,
               books,
-              provider,
+              bookshelfNotifier,
               settings,
               theme,
               isNarrow: true,
             )
-          : _buildEmptyState(context, provider, theme),
+          : _buildEmptyState(context, bookshelfState, bookshelfNotifier, theme),
       floatingActionButton: books.isNotEmpty
           ? FloatingActionButton.extended(
-              onPressed: provider.isLoading
+              onPressed: bookshelfState.isLoading
                   ? null
-                  : () => _importEpub(context, provider),
+                  : () => _importEpub(context, bookshelfNotifier),
               icon: const Icon(Icons.add),
               label: const Text('导入'),
             )
@@ -105,11 +106,12 @@ class _WideBookshelfState extends riverpod.ConsumerState<_WideBookshelf> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = ref.watch(bookshelfProvider);
+    final bookshelfState = ref.watch(bookshelfNotifierProvider);
+    final bookshelfNotifier = ref.read(bookshelfNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
-    final books = provider.allBooks;
-    _queueDifficultyRatings(context, provider, books);
+    final books = bookshelfState.books;
+    _queueDifficultyRatings(context, bookshelfNotifier, books);
 
     return Scaffold(
       appBar: AppBar(
@@ -136,18 +138,18 @@ class _WideBookshelfState extends riverpod.ConsumerState<_WideBookshelf> {
           ? _buildBookListWithDifficultyStatus(
               context,
               books,
-              provider,
+              bookshelfNotifier,
               settings,
               theme,
               isNarrow: false,
               isGrid: _isGridView,
             )
-          : _buildEmptyState(context, provider, theme),
+          : _buildEmptyState(context, bookshelfState, bookshelfNotifier, theme),
       floatingActionButton: books.isNotEmpty
           ? FloatingActionButton.extended(
-              onPressed: provider.isLoading
+              onPressed: bookshelfState.isLoading
                   ? null
-                  : () => _importEpub(context, provider),
+                  : () => _importEpub(context, bookshelfNotifier),
               icon: const Icon(Icons.add),
               label: const Text('导入新书'),
             )
@@ -159,7 +161,7 @@ class _WideBookshelfState extends riverpod.ConsumerState<_WideBookshelf> {
 Widget _buildBookListWithDifficultyStatus(
   BuildContext context,
   List<BookMetadata> books,
-  BookshelfController provider,
+  BookshelfNotifier notifier,
   SettingsService settings,
   ThemeData theme, {
   required bool isNarrow,
@@ -167,13 +169,13 @@ Widget _buildBookListWithDifficultyStatus(
 }) {
   return Column(
     children: [
-      if (provider.isLoadingBookDifficulties)
-        _buildDifficultyLoadingBanner(theme, provider),
-      if (settings.reviewFeatureEnabled && provider.learningItemCount > 0) ...[
+      if (notifier.isLoadingBookDifficulties)
+        _buildDifficultyLoadingBanner(theme, notifier),
+      if (settings.reviewFeatureEnabled && notifier.learningItemCount > 0) ...[
         const SizedBox(height: 12),
         TodayReviewCard(
-          dueCount: provider.todayReviewDueCount,
-          totalLearningItems: provider.learningItemCount,
+          dueCount: notifier.todayReviewDueCount,
+          totalLearningItems: notifier.learningItemCount,
           onStart: () => Navigator.pushNamed(context, '/spaced_review'),
         ),
       ],
@@ -181,7 +183,7 @@ Widget _buildBookListWithDifficultyStatus(
         child: _buildBookList(
           context,
           books,
-          provider,
+          notifier,
           theme,
           isNarrow: isNarrow,
           isGrid: isGrid,
@@ -193,7 +195,7 @@ Widget _buildBookListWithDifficultyStatus(
 
 Widget _buildDifficultyLoadingBanner(
   ThemeData theme,
-  BookshelfController provider,
+  BookshelfNotifier notifier,
 ) {
   return Padding(
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -219,7 +221,7 @@ Widget _buildDifficultyLoadingBanner(
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '正在异步计算 ${provider.loadingBookDifficultyCount} 本书的难易度，完成后会显示评级和生词量依据。',
+              '正在异步计算 ${notifier.loadingBookDifficultyCount} 本书的难易度，完成后会显示评级和生词量依据。',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -237,7 +239,7 @@ Widget _buildDifficultyLoadingBanner(
 Widget _buildBookList(
   BuildContext context,
   List<BookMetadata> books,
-  BookshelfController provider,
+  BookshelfNotifier notifier,
   ThemeData theme, {
   required bool isNarrow,
   bool isGrid = false,
@@ -253,7 +255,7 @@ Widget _buildBookList(
           books[index],
           theme,
           _BookCardSize.compact,
-          provider,
+          notifier,
         ),
       ),
     );
@@ -275,7 +277,7 @@ Widget _buildBookList(
           books[index],
           theme,
           _BookCardSize.medium,
-          provider,
+          notifier,
         ),
       ),
     );
@@ -291,7 +293,7 @@ Widget _buildBookList(
         books[index],
         theme,
         _BookCardSize.large,
-        provider,
+        notifier,
       ),
     ),
   );
@@ -304,7 +306,7 @@ Widget _buildBookCard(
   BookMetadata meta,
   ThemeData theme,
   _BookCardSize size,
-  BookshelfController provider,
+  BookshelfNotifier notifier,
 ) {
   final isCompact = size == _BookCardSize.compact;
   final isMedium = size == _BookCardSize.medium;
@@ -313,7 +315,7 @@ Widget _buildBookCard(
   final progressPercent = (meta.globalProgress * 100).toInt();
 
   final coverWidget = _buildCover(
-    provider,
+    notifier,
     meta,
     theme,
     coverWidth,
@@ -325,7 +327,7 @@ Widget _buildBookCard(
     meta,
     theme,
     progressPercent,
-    provider,
+    notifier,
   );
 
   if (isMedium) {
@@ -338,7 +340,7 @@ Widget _buildBookCard(
         ),
       ),
       child: InkWell(
-        onTap: () => _openBook(context, provider, meta.id),
+        onTap: () => _openBook(context, notifier, meta.id),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -359,7 +361,7 @@ Widget _buildBookCard(
       ),
     ),
     child: InkWell(
-      onTap: () => _openBook(context, provider, meta.id),
+      onTap: () => _openBook(context, notifier, meta.id),
       borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -377,14 +379,14 @@ Widget _buildBookCard(
 }
 
 Widget _buildCover(
-  BookshelfController provider,
+  BookshelfNotifier notifier,
   BookMetadata meta,
   ThemeData theme,
   double width,
   double height,
   bool isCompact,
 ) {
-  final coverBytes = provider.getCoverBytes(meta.id);
+  final coverBytes = notifier.getCoverBytes(meta.id);
 
   return SizedBox(
     width: width,
@@ -441,7 +443,7 @@ Widget _buildBookDetails(
   BookMetadata meta,
   ThemeData theme,
   int progressPercent,
-  BookshelfController provider,
+  BookshelfNotifier notifier,
 ) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,12 +464,12 @@ Widget _buildBookDetails(
           color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
-      if (provider.difficultyForBook(meta.id) != null ||
-          provider.isBookDifficultyLoading(meta.id)) ...[
+      if (notifier.difficultyForBook(meta.id) != null ||
+          notifier.isBookDifficultyLoading(meta.id)) ...[
         const SizedBox(height: 12),
         _BookDifficultySummary(
-          rating: provider.difficultyForBook(meta.id),
-          isLoading: provider.isBookDifficultyLoading(meta.id),
+          rating: notifier.difficultyForBook(meta.id),
+          isLoading: notifier.isBookDifficultyLoading(meta.id),
         ),
       ],
       const SizedBox(height: 20),
@@ -503,7 +505,7 @@ Widget _buildBookDetails(
       ),
       const SizedBox(height: 16),
       FilledButton.icon(
-        onPressed: () => _openBook(context, provider, meta.id),
+        onPressed: () => _openBook(context, notifier, meta.id),
         icon: const Icon(Icons.menu_book, size: 18),
         label: const Text('继续阅读'),
       ),
@@ -577,18 +579,19 @@ class _BookDifficultySummary extends StatelessWidget {
 
 void _openBook(
   BuildContext context,
-  BookshelfController provider,
+  BookshelfNotifier notifier,
   String bookId,
 ) async {
-  await provider.switchToBook(bookId);
+  await notifier.switchToBook(bookId);
   if (context.mounted) {
-    provider.enterReader();
+    notifier.enterReader();
   }
 }
 
 Widget _buildEmptyState(
   BuildContext context,
-  BookshelfController provider,
+  BookshelfState state,
+  BookshelfNotifier notifier,
   ThemeData theme,
 ) {
   return Center(
@@ -619,13 +622,13 @@ Widget _buildEmptyState(
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          if (provider.isLoading && provider.importStage.isNotEmpty) ...[
+          if (state.isLoading && state.importStage.isNotEmpty) ...[
             Column(
               children: [
                 const LinearProgressIndicator(minHeight: 4),
                 const SizedBox(height: 12),
                 Text(
-                  provider.importStage,
+                  state.importStage,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -634,10 +637,10 @@ Widget _buildEmptyState(
             ),
           ] else
             FilledButton.icon(
-              onPressed: provider.isLoading
+              onPressed: state.isLoading
                   ? null
-                  : () => _importEpub(context, provider),
-              icon: provider.isLoading
+                  : () => _importEpub(context, notifier),
+              icon: state.isLoading
                   ? SizedBox(
                       width: 18,
                       height: 18,
@@ -647,9 +650,9 @@ Widget _buildEmptyState(
                       ),
                     )
                   : const Icon(Icons.file_open),
-              label: Text(provider.isLoading ? '导入中...' : '导入 EPUB'),
+              label: Text(state.isLoading ? '导入中...' : '导入 EPUB'),
             ),
-          if (provider.errorMessage != null) ...[
+          if (state.errorMessage != null) ...[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -667,7 +670,7 @@ Widget _buildEmptyState(
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      provider.errorMessage!,
+                      state.errorMessage!,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onErrorContainer,
                       ),
@@ -679,7 +682,7 @@ Widget _buildEmptyState(
                       size: 18,
                       color: theme.colorScheme.error,
                     ),
-                    onPressed: provider.clearError,
+                    onPressed: notifier.clearError,
                   ),
                 ],
               ),
@@ -693,7 +696,7 @@ Widget _buildEmptyState(
 
 Future<void> _importEpub(
   BuildContext context,
-  BookshelfController provider,
+  BookshelfNotifier notifier,
 ) async {
   final result = await FilePicker.pickFiles(
     type: FileType.custom,
@@ -712,7 +715,7 @@ Future<void> _importEpub(
     return;
   }
 
-  await provider.importBookFromSource(source);
+  await notifier.importBookFromSource(source);
 }
 
 void _showAbout(BuildContext context) {

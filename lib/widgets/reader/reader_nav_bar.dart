@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 import '../../providers/reading/bookmark_notifier.dart';
-import '../../providers/reading/current_book_provider.dart';
+import '../../providers/reading/current_book_notifier.dart';
 import '../../providers/reading/reading_config_notifier.dart';
 import '../font_settings_sheet.dart';
 import '../toc_bottom_sheet.dart';
@@ -16,7 +16,8 @@ class ReaderNavBar extends StatelessWidget {
   static const double _toolbarButtonHeight = 32;
   static const double _toolbarInfoWidth = 540;
 
-  final CurrentBookController currentBook;
+  final CurrentBookNotifier currentBook;
+  final CurrentBookState currentBookState;
   final ReadingConfigState config;
   final BookmarkNotifier bookmarks;
   final String chapterTitle;
@@ -41,6 +42,7 @@ class ReaderNavBar extends StatelessWidget {
   const ReaderNavBar({
     super.key,
     required this.currentBook,
+    required this.currentBookState,
     required this.config,
     required this.bookmarks,
     required this.chapterTitle,
@@ -80,13 +82,13 @@ class ReaderNavBar extends StatelessWidget {
         ? chapterTitle.trim()
         : '当前位置';
     final chapterMetaPrefix = currentBook.hasBook
-        ? '${currentBook.currentChapter + 1} / ${currentBook.chapterCount} · '
+        ? '${currentBookState.currentChapter + 1} / ${currentBook.chapterCount} · '
         : null;
     final canGoPreviousChapter =
-        currentBook.hasBook && currentBook.currentChapter > 0;
+        currentBook.hasBook && currentBookState.currentChapter > 0;
     final canGoNextChapter =
         currentBook.hasBook &&
-        currentBook.currentChapter < currentBook.chapterCount - 1;
+        currentBookState.currentChapter < currentBook.chapterCount - 1;
 
     return Container(
       constraints: const BoxConstraints(minHeight: 44),
@@ -128,7 +130,7 @@ class ReaderNavBar extends StatelessWidget {
                         onPressed: canGoPreviousChapter
                             ? () => unawaited(
                                 currentBook.goToChapter(
-                                  currentBook.currentChapter - 1,
+                                  currentBookState.currentChapter - 1,
                                 ),
                               )
                             : null,
@@ -167,7 +169,7 @@ class ReaderNavBar extends StatelessWidget {
                         onPressed: canGoNextChapter
                             ? () => unawaited(
                                 currentBook.goToChapter(
-                                  currentBook.currentChapter + 1,
+                                  currentBookState.currentChapter + 1,
                                 ),
                               )
                             : null,
@@ -231,7 +233,7 @@ class ReaderNavBar extends StatelessWidget {
                       if (canGoPreviousChapter) {
                         unawaited(
                           currentBook.goToChapter(
-                            currentBook.currentChapter - 1,
+                            currentBookState.currentChapter - 1,
                           ),
                         );
                       }
@@ -240,7 +242,7 @@ class ReaderNavBar extends StatelessWidget {
                       if (canGoNextChapter) {
                         unawaited(
                           currentBook.goToChapter(
-                            currentBook.currentChapter + 1,
+                            currentBookState.currentChapter + 1,
                           ),
                         );
                       }

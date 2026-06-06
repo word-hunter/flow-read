@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/book_difficulty.dart';
 import '../models/learning_analytics.dart';
 import '../providers/reading/bookmark_notifier.dart';
-import '../providers/reading/current_book_provider.dart';
-import '../providers/reading/vocabulary_provider.dart';
+import '../providers/reading/current_book_notifier.dart';
+import '../providers/reading/vocabulary_notifier.dart';
 import '../widgets/reading_desk/donut_chart_painter.dart';
 
 class StatsPage extends ConsumerWidget {
@@ -13,19 +13,21 @@ class StatsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final vocabulary = ref.watch(vocabularyProvider);
+    final vocabState = ref.watch(vocabularyNotifierProvider);
+    final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
     final bookmarks = ref.watch(bookmarkNotifierProvider);
-    final currentBook = ref.watch(currentBookProvider);
+    ref.watch(currentBookNotifierProvider);
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
     final theme = Theme.of(context);
-    final allVocab = vocabulary.getAllVocabulary();
-    final bookDifficulty = vocabulary.currentBookDifficulty;
-    final chapterReport = vocabulary.currentChapterLearningReport;
-    final weeklySummary = vocabulary.weeklyLearningSummary;
+    final allVocab = vocabularyNotifier.getAllVocabulary();
+    final bookDifficulty = vocabState.currentBookDifficulty;
+    final chapterReport = vocabularyNotifier.currentChapterLearningReport;
+    final weeklySummary = vocabularyNotifier.weeklyLearningSummary;
 
-    final knownCount = vocabulary.knownWordCount;
-    final learningCount = vocabulary.learningWordCount;
+    final knownCount = vocabularyNotifier.knownWordCount;
+    final learningCount = vocabularyNotifier.learningWordCount;
     final newCount = allVocab
-        .where((v) => vocabulary.getWordStatus(v.word) == null)
+        .where((v) => vocabularyNotifier.getWordStatus(v.word) == null)
         .length;
     final total = knownCount + learningCount + newCount;
     final donutSegments = _buildDonutSegments(
@@ -83,9 +85,9 @@ class StatsPage extends ConsumerWidget {
                     _buildStatGrid(
                       context,
                       knownCount: knownCount,
-                      totalVocabularyCount: vocabulary.totalVocabularyCount,
+                      totalVocabularyCount: vocabularyNotifier.totalVocabularyCount,
                       bookmarkCount: bookmarks.bookmarkedWords.length,
-                      chapterCount: currentBook.chapterCount,
+                      chapterCount: currentBookNotifier.chapterCount,
                     ),
                   ],
                 ),

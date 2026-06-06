@@ -1,3 +1,4 @@
+import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import 'package:flow_read/providers/reading_provider.dart';
@@ -87,6 +88,9 @@ class _FakeReadingProvider extends ReadingProvider {
 
   @override
   String? get errorMessage => null;
+
+  @override
+  List<BookMetadata> get allBooks => const [];
 
   @override
   Future<BookImportResult> importBook(String filePath) async {

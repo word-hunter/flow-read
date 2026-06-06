@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../providers/reading/bookmark_notifier.dart';
-import '../providers/reading/bookshelf_provider.dart';
+import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading/reading_time_notifier.dart';
 import '../providers/settings_provider.dart';
 import 'settings_screen.dart';
@@ -12,11 +12,11 @@ class ProfileScreen extends riverpod.ConsumerWidget {
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final bookmarks = ref.watch(bookmarkNotifierProvider);
-    final bookshelf = ref.watch(bookshelfProvider);
+    final bookshelfState = ref.watch(bookshelfNotifierProvider);
     final readingTime = ref.watch(readingTimeNotifierProvider);
     final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
-    final bookCount = bookshelf.bookCount;
+    final bookCount = bookshelfState.books.length;
     final vocabCount = bookmarks.bookmarkedWords.length;
     final aiUsage = settings.aiUsage;
 

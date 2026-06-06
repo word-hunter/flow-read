@@ -4,7 +4,7 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
-import '../providers/reading/vocabulary_provider.dart';
+import '../providers/reading/vocabulary_notifier.dart';
 
 typedef WordMasteryAnchorBuilder =
     Widget Function(BuildContext context, Offset? Function() origin);
@@ -66,10 +66,10 @@ class _WordMasteryConfettiHostState
   @override
   Widget build(BuildContext context) {
     final celebration = ref.watch(
-      vocabularyProvider.select(
-        (vocabulary) => (
-          tick: vocabulary.wordMasteredCelebrationTick,
-          origin: vocabulary.wordMasteredCelebrationOrigin,
+      vocabularyNotifierProvider.select(
+        (state) => (
+          tick: state.wordMasteredCelebrationTick,
+          origin: state.wordMasteredCelebrationOrigin,
         ),
       ),
     );

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/ai_practice_questions.dart';
+import '../models/learning_item.dart';
 import '../models/review_question.dart';
 import '../providers/reading/ai_provider.dart';
-import '../providers/reading/current_book_provider.dart';
-import '../providers/reading/learning_provider.dart';
+import '../providers/reading/current_book_notifier.dart';
+import '../providers/reading/services_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/review_service.dart';
 import '../theme/app_colors.dart';
@@ -20,13 +21,14 @@ class ReviewScreen extends riverpod.ConsumerStatefulWidget {
 class _ReviewScreenState extends riverpod.ConsumerState<ReviewScreen> {
   @override
   Widget build(BuildContext context) {
-    final currentBook = ref.watch(currentBookProvider);
+    final currentBookState = ref.watch(currentBookNotifierProvider);
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
     final ai = ref.watch(aiProvider);
-    final result = currentBook.result;
+    final result = currentBookNotifier.result;
     if (result == null) return const Center(child: CircularProgressIndicator());
 
     final chapterTitle =
-        currentBook.book?.chapters[currentBook.currentChapter].title ??
+        currentBookNotifier.book?.chapters[currentBookState.currentChapter].title ??
         result.title;
 
     final aiPractice = ai.aiPractice;
@@ -836,7 +838,6 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
 
     final selectedAnswer = options[selectedIndex].text;
     final isCorrect = selectedAnswer == question.answer;
-    final learning = ref.read(learningProvider);
     setState(() {
       _showAnswers[index] = true;
       _answerRecords[index] = PracticeAnswerRecord(
@@ -848,14 +849,40 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
       );
     });
 
-    await learning.recordPracticeAnswer(isCorrect: isCorrect);
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
+    final currentBookState = ref.read(currentBookNotifierProvider);
+    final bookId = currentBookNotifier.activeBookId;
+    if (bookId != null) {
+      await ref.read(learningAnalyticsServiceProvider).recordPracticeAnswer(
+        bookId: bookId,
+        chapterIndex: currentBookState.currentChapter,
+        isCorrect: isCorrect,
+      );
+    }
     if (isCorrect) return;
-    await learning.addPracticeMistakeLearningItem(question, selectedAnswer);
+    await ref.read(learningItemServiceProvider).saveDraft(
+      LearningItemDraft.questionMistake(
+        question: question.question,
+        correctAnswer: question.answer,
+        selectedAnswer: selectedAnswer,
+        sourceExcerpt: question.sourceExcerpt,
+        explanation: question.answerExplanation,
+        source: LearningItemSource(
+          bookId: bookId ?? '',
+          chapterIndex: currentBookNotifier.book != null ? currentBookState.currentChapter : -1,
+          chapterTitle: currentBookNotifier.book?.chapters[currentBookState.currentChapter].title ?? '',
+        ),
+        metadata: {
+          'questionType': question.type,
+          'difficulty': question.difficulty,
+        },
+      ),
+    );
   }
 
   void _showSourceInReader(PracticeQuestion question) {
     ref
-        .read(currentBookProvider)
+        .read(currentBookNotifierProvider.notifier)
         .highlightSourceExcerpt(
           question.sourceExcerpt,
         );

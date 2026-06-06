@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/current_book_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
 
@@ -182,7 +182,7 @@ class TrainingPage extends riverpod.ConsumerWidget {
 
   void _navigateToTraining(BuildContext context, _TrainingType type) {
     final container = riverpod.ProviderScope.containerOf(context);
-    final currentBook = container.read(currentBookProvider);
+    final currentBookNotifier = container.read(currentBookNotifierProvider.notifier);
     final settings = container.read(settingsProvider);
     if (type.requiresReviewFeature && !settings.reviewFeatureEnabled) {
       ScaffoldMessenger.of(
@@ -190,7 +190,7 @@ class TrainingPage extends riverpod.ConsumerWidget {
       ).showSnackBar(const SnackBar(content: Text('请先在设置中开启轻量复习测试功能')));
       return;
     }
-    if (!currentBook.hasBook && !currentBook.hasBeenOpened) {
+    if (!currentBookNotifier.hasBook && !container.read(currentBookNotifierProvider).hasBeenOpened) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Please load a book first')));

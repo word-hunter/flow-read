@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/aggregated_vocabulary.dart';
 import '../models/user_vocabulary.dart';
-import '../providers/reading/vocabulary_provider.dart';
+import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/dictionary_detail_view.dart';
@@ -50,7 +50,8 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
 
   @override
   Widget build(BuildContext context) {
-    final vocabulary = ref.watch(vocabularyProvider);
+    ref.watch(vocabularyNotifierProvider);
+    final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
     final lookup = ref.watch(wordLookupProvider);
     final theme = Theme.of(context);
 
@@ -70,16 +71,16 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
         borderRadius: BorderRadius.circular(24),
         child: Column(
           children: [
-            _buildHeader(vocabulary, theme),
+            _buildHeader(vocabularyNotifier, theme),
             _buildSearchBar(theme),
-            Expanded(child: _buildBody(vocabulary, lookup, theme)),
+            Expanded(child: _buildBody(vocabularyNotifier, lookup, theme)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(VocabularyController vocabulary, ThemeData theme) {
+  Widget _buildHeader(VocabularyNotifier vocabularyNotifier, ThemeData theme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
@@ -107,7 +108,7 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${vocabulary.totalVocabularyCount} words',
+              '${vocabularyNotifier.totalVocabularyCount} words',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -155,7 +156,7 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
   }
 
   Widget _buildBody(
-    VocabularyController vocabulary,
+    VocabularyNotifier vocabularyNotifier,
     WordLookupController lookup,
     ThemeData theme,
   ) {
@@ -163,7 +164,7 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
       return _buildWordDetail(context, lookup, theme);
     }
 
-    final allVocab = vocabulary.getAllVocabulary();
+    final allVocab = vocabularyNotifier.getAllVocabulary();
     final filtered = _searchQuery.isEmpty
         ? allVocab
         : allVocab.where((v) => v.word.contains(_searchQuery)).toList();
@@ -219,11 +220,11 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
         final vocab = filtered[index];
         return _VocabItem(
           vocab: vocab,
-          status: vocabulary.getWordStatus(vocab.word),
+          status: vocabularyNotifier.getWordStatus(vocab.word),
           onMarkKnown: (origin) =>
-              vocabulary.markWordKnown(vocab.word, celebrationOrigin: origin),
-          onMarkLearning: () => vocabulary.markWordLearning(vocab.word),
-          onMarkUnknown: () => vocabulary.markWordUnknown(vocab.word),
+              vocabularyNotifier.markWordKnown(vocab.word, celebrationOrigin: origin),
+          onMarkLearning: () => vocabularyNotifier.markWordLearning(vocab.word),
+          onMarkUnknown: () => vocabularyNotifier.markWordUnknown(vocab.word),
           onTap: () => lookup.lookupWord(vocab.word),
         );
       },

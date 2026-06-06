@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/user_vocabulary.dart';
 import '../providers/reading/bookmark_notifier.dart';
-import '../providers/reading/vocabulary_provider.dart';
+import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
@@ -29,7 +29,8 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final lookup = ref.watch(wordLookupProvider);
-    final vocabulary = ref.watch(vocabularyProvider);
+    ref.watch(vocabularyNotifierProvider);
+    final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
@@ -42,7 +43,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
       _showAIAnalysis = false;
     }
     final isBookmarked = bookmarkNotifier.isBookmarked(word) || _bookmarkAdded;
-    final status = vocabulary.getWordStatus(word);
+    final status = vocabularyNotifier.getWordStatus(word);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.45,
@@ -67,7 +68,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
               ),
               _buildBottomActions(
                 lookup,
-                vocabulary,
+                vocabularyNotifier,
                 bookmarkNotifier,
                 settings,
                 theme,
@@ -118,7 +119,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
 
   Widget _buildBottomActions(
     WordLookupController lookup,
-    VocabularyController vocabulary,
+    VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
     SettingsService settings,
     ThemeData theme,
@@ -204,10 +205,10 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                       label: 'Known',
                       icon: Icons.check_circle_outline,
                       color: AppColors.familiarityHigh,
-                      onPressed: () => vocabulary.markWordKnown(
-                        word,
-                        celebrationOrigin: origin(),
-                      ),
+                          onPressed: () => vocabularyNotifier.markWordKnown(
+                            word,
+                            celebrationOrigin: origin(),
+                          ),
                     ),
                   ),
                 ),
@@ -218,7 +219,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                     label: 'Learning',
                     icon: Icons.school_outlined,
                     color: AppColors.vocabLearning,
-                    onPressed: () => vocabulary.markWordLearning(word),
+                      onPressed: () => vocabularyNotifier.markWordLearning(word),
                   ),
                 ),
               if (status != null || isBookmarked)
@@ -229,7 +230,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                     icon: Icons.help_outline,
                     color: AppColors.familiarityLow,
                     onPressed: () =>
-                        _markWordUnknown(vocabulary, bookmarkNotifier, word),
+                        _markWordUnknown(vocabularyNotifier, bookmarkNotifier, word),
                   ),
                 ),
             ],
@@ -340,11 +341,11 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
   }
 
   Future<void> _markWordUnknown(
-    VocabularyController vocabulary,
+    VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
     String word,
   ) async {
-    await vocabulary.markWordUnknown(word);
+    await vocabularyNotifier.markWordUnknown(word);
     if (bookmarkNotifier.isBookmarked(word)) {
       bookmarkNotifier.removeBookmark(word);
     }

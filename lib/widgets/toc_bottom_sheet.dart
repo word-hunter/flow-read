@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/chapter.dart';
 import '../models/content_block.dart';
-import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/current_book_notifier.dart';
 
 class TocBottomSheet extends riverpod.ConsumerWidget {
   const TocBottomSheet({super.key});
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
-    final currentBook = ref.watch(currentBookProvider);
-    final book = currentBook.book;
+    ref.watch(currentBookNotifierProvider);
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
+    final book = currentBookNotifier.book;
     if (book == null) return const SizedBox.shrink();
 
     return DraggableScrollableSheet(
@@ -52,8 +53,9 @@ class TocDropdownPanel extends riverpod.ConsumerWidget {
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
-    final currentBook = ref.watch(currentBookProvider);
-    final book = currentBook.book;
+    ref.watch(currentBookNotifierProvider);
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
+    final book = currentBookNotifier.book;
     if (book == null) return const SizedBox.shrink();
 
     final screenSize = MediaQuery.sizeOf(context);
@@ -245,12 +247,13 @@ class _TocPanelContentState extends riverpod.ConsumerState<_TocPanelContent> {
 
   @override
   Widget build(BuildContext context) {
-    final currentBook = ref.watch(currentBookProvider);
+    final currentBookState = ref.watch(currentBookNotifierProvider);
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
     final theme = Theme.of(context);
-    final book = currentBook.book;
+    final book = currentBookNotifier.book;
     if (book == null) return const SizedBox.shrink();
     _queueInitialChapterPosition(
-      currentBook.currentChapter,
+      currentBookState.currentChapter,
       book.chapters.length,
     );
 
@@ -258,7 +261,7 @@ class _TocPanelContentState extends riverpod.ConsumerState<_TocPanelContent> {
       children: [
         _TocPanelHeader(
           itemCount: book.chapters.length,
-          currentChapter: currentBook.currentChapter,
+          currentChapter: currentBookState.currentChapter,
           showDragHandle: widget.showDragHandle,
           onClose: widget.onClose,
         ),
@@ -281,13 +284,13 @@ class _TocPanelContentState extends riverpod.ConsumerState<_TocPanelContent> {
                 ),
                 itemCount: book.chapters.length,
                 itemBuilder: (context, index) {
-                  final isSelected = index == currentBook.currentChapter;
+                  final isSelected = index == currentBookState.currentChapter;
                   return _TocChapterTile(
                     index: index,
                     label: _chapterLabel(book.chapters[index], index),
                     isSelected: isSelected,
                     onTap: () {
-                      currentBook.goToChapter(index);
+                      currentBookNotifier.goToChapter(index);
                       widget.onChapterSelected?.call(index);
                     },
                   );

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/aggregated_vocabulary.dart';
 import '../models/learning_item.dart';
 import '../models/user_vocabulary.dart';
-import '../providers/reading/vocabulary_provider.dart';
+import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_provider.dart';
 import '../services/language/language_registry.dart';
 import '../theme/app_colors.dart';
@@ -54,11 +54,12 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final vocabulary = ref.watch(vocabularyProvider);
+    ref.watch(vocabularyNotifierProvider);
+    final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
     final lookup = ref.watch(wordLookupProvider);
     final theme = Theme.of(context);
-    final allVocab = vocabulary.getAllVocabulary(alphabetical: _sortAlpha);
-    final allLearningItems = vocabulary.learningItems;
+    final allVocab = vocabularyNotifier.getAllVocabulary(alphabetical: _sortAlpha);
+    final allLearningItems = vocabularyNotifier.learningItems;
     final languageOptions = _languageOptionsFor(allVocab);
     final effectiveLanguageFilter = languageOptions.contains(_languageFilter)
         ? _languageFilter
@@ -72,11 +73,11 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
         : allLearningItems.where((item) => _matchesLearningItem(item)).toList();
 
     final unknownCount = filtered
-        .where((v) => vocabulary.getWordStatus(v.word) == null)
+        .where((v) => vocabularyNotifier.getWordStatus(v.word) == null)
         .length;
     final learningCount = filtered
         .where(
-          (v) => vocabulary.getWordStatus(v.word) == UserWordStatus.learning,
+          (v) => vocabularyNotifier.getWordStatus(v.word) == UserWordStatus.learning,
         )
         .length;
 
@@ -105,15 +106,15 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
                         final vocab = filtered[index];
                         return _VocabItem(
                           vocab: vocab,
-                          status: vocabulary.getWordStatus(vocab.word),
-                          onMarkKnown: (origin) => vocabulary.markWordKnown(
+                          status: vocabularyNotifier.getWordStatus(vocab.word),
+                          onMarkKnown: (origin) => vocabularyNotifier.markWordKnown(
                             vocab.word,
                             celebrationOrigin: origin,
                           ),
                           onMarkLearning: () =>
-                              vocabulary.markWordLearning(vocab.word),
+                              vocabularyNotifier.markWordLearning(vocab.word),
                           onMarkUnknown: () =>
-                              vocabulary.markWordUnknown(vocab.word),
+                              vocabularyNotifier.markWordUnknown(vocab.word),
                           onTap: () => _openWordDetail(context, lookup, vocab),
                         );
                       },
@@ -132,7 +133,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
                         return _LearningItemCard(
                           item: item,
                           onDelete: () =>
-                              vocabulary.deleteLearningItem(item.id),
+                              vocabularyNotifier.deleteLearningItem(item.id),
                         );
                       },
                     ),

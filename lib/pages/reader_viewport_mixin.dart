@@ -9,7 +9,7 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
   Map<int, GlobalKey> get _contentKeys;
 
   void _syncDailyGoalWatcher(
-    CurrentBookController currentBook,
+    CurrentBookState currentBookState,
     ReadingTimeState readingTime,
   );
 
@@ -29,60 +29,62 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
   int _visibleContentCount = 0;
 
   void _primeReaderState(
-    CurrentBookController currentBook,
+    CurrentBookState currentBookState,
+    CurrentBookNotifier currentBookNotifier,
     ReadingTimeState readingTime,
   ) {
-    _lastReaderLocationKey = _readerLocationKey(currentBook);
-    _lastReaderViewportKey = _readerViewportKey(currentBook);
-    _hadReaderResult = currentBook.result != null;
-    _syncDailyGoalWatcher(currentBook, readingTime);
+    _lastReaderLocationKey = _readerLocationKey(currentBookState, currentBookNotifier);
+    _lastReaderViewportKey = _readerViewportKey(currentBookState, currentBookNotifier);
+    _hadReaderResult = currentBookNotifier.result != null;
+    _syncDailyGoalWatcher(currentBookState, readingTime);
     if (_hadReaderResult) {
       _queueViewportSync(
-        progress: currentBook.readingProgress,
-        scrollOffset: currentBook.readingScrollOffset,
+        progress: currentBookState.readingProgress,
+        scrollOffset: currentBookState.readingScrollOffset,
         locationChanged: false,
       );
     }
   }
 
-  String _readerLocationKey(CurrentBookController currentBook) {
-    final book = currentBook.book;
+  String _readerLocationKey(CurrentBookState currentBookState, CurrentBookNotifier currentBookNotifier) {
+    final book = currentBookNotifier.book;
     final bookKey =
-        currentBook.activeBookId ??
+        currentBookNotifier.activeBookId ??
         (book == null
             ? 'standalone'
             : '${identityHashCode(book)}:${book.title}');
-    return '$bookKey:${currentBook.currentChapter}';
+    return '$bookKey:${currentBookState.currentChapter}';
   }
 
-  String _readerViewportKey(CurrentBookController currentBook) {
-    final progress = currentBook.readingProgress.clamp(0.0, 1.0);
-    final scrollOffset = currentBook.readingScrollOffset;
+  String _readerViewportKey(CurrentBookState currentBookState, CurrentBookNotifier currentBookNotifier) {
+    final progress = currentBookState.readingProgress.clamp(0.0, 1.0);
+    final scrollOffset = currentBookState.readingScrollOffset;
     final offsetKey = scrollOffset == null
         ? 'ratio'
         : scrollOffset.toStringAsFixed(1);
-    return '${_readerLocationKey(currentBook)}:${progress.toStringAsFixed(4)}:$offsetKey';
+    return '${_readerLocationKey(currentBookState, currentBookNotifier)}:${progress.toStringAsFixed(4)}:$offsetKey';
   }
 
   void _onReaderStateChanged(
-    CurrentBookController currentBook,
+    CurrentBookState currentBookState,
     ReadingTimeState readingTime,
   ) {
-    _syncDailyGoalWatcher(currentBook, readingTime);
+    _syncDailyGoalWatcher(currentBookState, readingTime);
 
-    final hasResult = currentBook.result != null;
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
+    final hasResult = currentBookNotifier.result != null;
     final resultBecameReady = !_hadReaderResult && hasResult;
     _hadReaderResult = hasResult;
 
-    final nextLocationKey = _readerLocationKey(currentBook);
-    final nextViewportKey = _readerViewportKey(currentBook);
+    final nextLocationKey = _readerLocationKey(currentBookState, currentBookNotifier);
+    final nextViewportKey = _readerViewportKey(currentBookState, currentBookNotifier);
     if (_lastReaderLocationKey == null || _lastReaderViewportKey == null) {
       _lastReaderLocationKey = nextLocationKey;
       _lastReaderViewportKey = nextViewportKey;
       if (hasResult) {
         _queueViewportSync(
-          progress: currentBook.readingProgress,
-          scrollOffset: currentBook.readingScrollOffset,
+          progress: currentBookState.readingProgress,
+          scrollOffset: currentBookState.readingScrollOffset,
           locationChanged: false,
         );
       }
@@ -96,8 +98,8 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
     _lastReaderViewportKey = nextViewportKey;
     if (hasResult) {
       _queueViewportSync(
-        progress: currentBook.readingProgress,
-        scrollOffset: currentBook.readingScrollOffset,
+        progress: currentBookState.readingProgress,
+        scrollOffset: currentBookState.readingScrollOffset,
         locationChanged: locationChanged,
       );
     }
@@ -170,12 +172,13 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
     }
     final progress = (_scrollController.offset / maxScroll).clamp(0.0, 1.0);
     _setDisplayProgress(progress);
-    final currentBook = ref.read(currentBookProvider);
-    currentBook.updateReadingProgress(
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
+    final currentBookState = ref.read(currentBookNotifierProvider);
+    currentBookNotifier.updateReadingProgress(
       progress,
       scrollOffset: _scrollController.offset,
     );
-    _lastReaderViewportKey = _readerViewportKey(currentBook);
+    _lastReaderViewportKey = _readerViewportKey(currentBookState, currentBookNotifier);
     _checkDailyReadingGoal();
   }
 
@@ -187,9 +190,10 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
 
   List<String> _paragraphsFor(
     AnalysisResult result,
-    CurrentBookController currentBook,
+    CurrentBookState currentBookState,
+    CurrentBookNotifier currentBookNotifier,
   ) {
-    final locationKey = _readerLocationKey(currentBook);
+    final locationKey = _readerLocationKey(currentBookState, currentBookNotifier);
     final sourceText = result.passageText;
     final cached = _cachedParagraphs;
     if (cached != null &&

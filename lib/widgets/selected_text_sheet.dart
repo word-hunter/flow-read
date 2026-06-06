@@ -8,7 +8,6 @@ import '../models/learning_item.dart';
 import '../models/sentence_breakdown.dart';
 import '../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
-import '../providers/reading/text_selection_notifier.dart';
 import '../utils/syntax_helpers.dart';
 
 class SelectedTextSheet extends riverpod.ConsumerStatefulWidget {

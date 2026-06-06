@@ -73,12 +73,13 @@ mixin ReaderKeyboardMixin on riverpod.ConsumerState<ReaderPage> {
   void _turnChapter(int direction) {
     if (direction == 0) return;
 
-    final currentBook = ref.read(currentBookProvider);
-    if (!currentBook.hasBook || currentBook.chapterCount <= 1) return;
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
+    if (!currentBookNotifier.hasBook || currentBookNotifier.chapterCount <= 1) return;
 
-    final nextChapter = currentBook.currentChapter + direction;
-    if (nextChapter < 0 || nextChapter >= currentBook.chapterCount) return;
+    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
+    final nextChapter = currentChapter + direction;
+    if (nextChapter < 0 || nextChapter >= currentBookNotifier.chapterCount) return;
 
-    unawaited(currentBook.goToChapter(nextChapter));
+    unawaited(currentBookNotifier.goToChapter(nextChapter));
   }
 }

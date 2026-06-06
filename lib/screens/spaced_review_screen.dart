@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../models/learning_item.dart';
-import '../providers/reading/learning_provider.dart';
+import '../providers/reading/services_provider.dart';
 import '../services/review_schedule_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
@@ -28,7 +28,7 @@ class _SpacedReviewScreenState
   @override
   void initState() {
     super.initState();
-    _cards = ref.read(learningProvider).todayReviewCards;
+    _cards = ref.read(reviewScheduleServiceProvider).buildSessionCards();
     _answerController.addListener(_onInputChanged);
   }
 
@@ -583,8 +583,8 @@ class _SpacedReviewScreenState
     final card = _cards[_currentIndex];
     setState(() => _isSaving = true);
     await ref
-        .read(learningProvider)
-        .recordLearningReview(
+        .read(reviewScheduleServiceProvider)
+        .recordReview(
           card.item.id,
           result,
         );

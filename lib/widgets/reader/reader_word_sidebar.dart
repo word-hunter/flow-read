@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../../models/user_vocabulary.dart';
 import '../../providers/reading/bookmark_notifier.dart';
-import '../../providers/reading/vocabulary_provider.dart';
+import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/reading/word_lookup_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/settings_service.dart';
@@ -31,7 +31,8 @@ class _ReaderWordSidebarState
   @override
   Widget build(BuildContext context) {
     final lookup = ref.watch(wordLookupProvider);
-    final vocabulary = ref.watch(vocabularyProvider);
+    ref.watch(vocabularyNotifierProvider);
+    final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
@@ -61,8 +62,8 @@ class _ReaderWordSidebarState
                 ? _buildEmptyState(theme)
                 : _buildLookupLayout(
                     lookup,
-                    vocabulary,
-                    bookmarkNotifier,
+                      vocabularyNotifier,
+                      bookmarkNotifier,
                     settings,
                     theme,
                     word,
@@ -136,13 +137,13 @@ class _ReaderWordSidebarState
 
   Widget _buildLookupLayout(
     WordLookupController lookup,
-    VocabularyController vocabulary,
+    VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
     SettingsService settings,
     ThemeData theme,
     String word,
   ) {
-    final status = vocabulary.getWordStatus(word);
+    final status = vocabularyNotifier.getWordStatus(word);
     final isBookmarked = bookmarkNotifier.isBookmarked(word);
 
     return LayoutBuilder(
@@ -164,7 +165,7 @@ class _ReaderWordSidebarState
               constraints: BoxConstraints(maxHeight: persistentPanelMaxHeight),
               child: _buildPersistentLearningPanel(
                 lookup,
-                vocabulary,
+                vocabularyNotifier,
                 bookmarkNotifier,
                 settings,
                 theme,
@@ -181,7 +182,7 @@ class _ReaderWordSidebarState
 
   Widget _buildPersistentLearningPanel(
     WordLookupController lookup,
-    VocabularyController vocabulary,
+    VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
     SettingsService settings,
     ThemeData theme,
@@ -214,7 +215,7 @@ class _ReaderWordSidebarState
             const SizedBox(height: 16),
             _buildLearningStatusSection(
               lookup,
-              vocabulary,
+              vocabularyNotifier,
               bookmarkNotifier,
               theme,
               word,
@@ -307,7 +308,7 @@ class _ReaderWordSidebarState
 
   Widget _buildLearningStatusSection(
     WordLookupController lookup,
-    VocabularyController vocabulary,
+    VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
     ThemeData theme,
     String word,
@@ -327,12 +328,12 @@ class _ReaderWordSidebarState
               showSelectedIcon: false,
               onSelectionChanged: (selection) {
                 if (selection.isEmpty) {
-                  _markWordUnknown(vocabulary, bookmarkNotifier, word);
+                  _markWordUnknown(vocabularyNotifier, bookmarkNotifier, word);
                   return;
                 }
                 _applyWordAction(
                   lookup,
-                  vocabulary,
+                  vocabularyNotifier,
                   bookmarkNotifier,
                   word,
                   selection.single,
@@ -383,7 +384,7 @@ class _ReaderWordSidebarState
 
   Future<void> _applyWordAction(
     WordLookupController lookup,
-    VocabularyController vocabulary,
+    VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
     String word,
     _WordAction action, {
@@ -391,24 +392,24 @@ class _ReaderWordSidebarState
   }) async {
     switch (action) {
       case _WordAction.known:
-        await vocabulary.markWordKnown(
+        await vocabularyNotifier.markWordKnown(
           word,
           celebrationOrigin: celebrationOrigin?.call(),
         );
         break;
       case _WordAction.learning:
-        await _addToLearning(lookup, vocabulary, bookmarkNotifier, word);
+        await _addToLearning(lookup, vocabularyNotifier, bookmarkNotifier, word);
         break;
     }
     if (mounted) setState(() {});
   }
 
   Future<void> _markWordUnknown(
-    VocabularyController vocabulary,
+    VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
     String word,
   ) async {
-    await vocabulary.markWordUnknown(word);
+    await vocabularyNotifier.markWordUnknown(word);
     if (bookmarkNotifier.isBookmarked(word)) {
       bookmarkNotifier.removeBookmark(word);
     }
@@ -417,11 +418,11 @@ class _ReaderWordSidebarState
 
   Future<void> _addToLearning(
     WordLookupController lookup,
-    VocabularyController vocabulary,
+    VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
     String word,
   ) async {
-    await vocabulary.markWordLearning(word);
+    await vocabularyNotifier.markWordLearning(word);
     final translation = lookup.selectedWordTranslation?.trim();
     if (translation != null &&
         translation.isNotEmpty &&

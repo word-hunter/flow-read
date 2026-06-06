@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/analysis_result.dart';
 import '../../models/content_block.dart';
-import '../../providers/reading/current_book_provider.dart';
+import '../../providers/reading/current_book_notifier.dart';
 import '../../providers/reading/reading_config_notifier.dart';
 import '../../providers/reading/reading_search_notifier.dart';
 import '../../providers/reading/word_lookup_provider.dart';
@@ -17,7 +17,7 @@ class ReaderContentView extends StatelessWidget {
   final ThemeData theme;
   final VocabularyColorSettings colorSettings;
   final bool aiFeaturesEnabled;
-  final CurrentBookController currentBook;
+  final CurrentBookNotifier currentBook;
   final ReadingConfigState config;
   final ReadingSearchState search;
   final WordLookupController lookup;

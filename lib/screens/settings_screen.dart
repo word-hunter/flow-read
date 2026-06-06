@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../providers/backup_provider.dart';
 import '../providers/reading/ai_provider.dart';
-import '../providers/reading/bookshelf_provider.dart';
+import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading/reading_provider_riverpod.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../providers/settings_provider.dart';
@@ -665,7 +665,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     if (!confirmed || !mounted) return;
 
     final backup = ref.read(backupProvider);
-    final bookshelf = ref.read(bookshelfProvider);
+    final bookshelf = ref.read(bookshelfNotifierProvider.notifier);
     final rssNotifier = ref.read(rssProvider);
 
     try {
@@ -694,7 +694,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     if (!confirmed || !mounted) return;
 
     final backup = ref.read(backupProvider);
-    final bookshelf = ref.read(bookshelfProvider);
+    final bookshelf = ref.read(bookshelfNotifierProvider.notifier);
 
     setState(() => _importingWordHunter = true);
     try {

@@ -9,7 +9,7 @@ import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
 import '../providers/reading/bookmark_notifier.dart';
-import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/reading_config_notifier.dart';
 import '../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
@@ -158,8 +158,8 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   }
 
   void _showTocSheet() {
-    final currentBook = ref.read(currentBookProvider);
-    if (!currentBook.hasBook) return;
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
+    if (!currentBookNotifier.hasBook) return;
     _hideReadingReminder();
     showModalBottomSheet(
       context: context,
@@ -373,18 +373,19 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<CurrentBookController>(currentBookProvider, (_, currentBook) {
-      _onReaderStateChanged(currentBook, ref.read(readingTimeNotifierProvider));
+    ref.listen(currentBookNotifierProvider, (_, currentBookState) {
+      _onReaderStateChanged(currentBookState, ref.read(readingTimeNotifierProvider));
     });
-    final currentBook = ref.watch(currentBookProvider);
+    final currentBookState = ref.watch(currentBookNotifierProvider);
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
 
     final config = ref.watch(readingConfigNotifierProvider);
     final readingTime = ref.watch(readingTimeNotifierProvider);
     final settings = ref.watch(settingsProvider);
     if (_lastReaderLocationKey == null) {
-      _primeReaderState(currentBook, readingTime);
+      _primeReaderState(currentBookState, currentBookNotifier, readingTime);
     }
-    final result = currentBook.result;
+    final result = currentBookNotifier.result;
     if (result == null) {
       return _buildKeyboardScope(
         _buildPageScaffold(
@@ -394,15 +395,15 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       );
     }
 
-    final blocks = currentBook.hasBook && currentBook.chapterCount > 0
-        ? currentBook.book!.chapters[currentBook.currentChapter].blocks
+    final blocks = currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 0
+        ? currentBookNotifier.book!.chapters[currentBookState.currentChapter].blocks
         : const <ContentBlock>[];
     final paragraphs = blocks.isEmpty
-        ? _paragraphsFor(result, currentBook)
+        ? _paragraphsFor(result, currentBookState, currentBookNotifier)
         : const <String>[];
     final theme = Theme.of(context);
-    final chapterTitle = currentBook.hasBook && currentBook.chapterCount > 0
-        ? currentBook.book!.chapters[currentBook.currentChapter].title
+    final chapterTitle = currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 0
+        ? currentBookNotifier.book!.chapters[currentBookState.currentChapter].title
         : result.title;
     final colorSettings = settings.colors;
     final search = ref.watch(readingSearchNotifierProvider);
@@ -424,7 +425,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               theme: theme,
               colorSettings: colorSettings,
               aiFeaturesEnabled: settings.aiFeaturesEnabled,
-              currentBook: currentBook,
+              currentBook: currentBookNotifier,
               config: config,
               search: search,
               lookup: lookup,
@@ -444,7 +445,8 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
             child: Column(
               children: [
                 ReaderNavBar(
-                  currentBook: currentBook,
+                  currentBook: currentBookNotifier,
+                  currentBookState: currentBookState,
                   config: config,
                   bookmarks: bookmarkNotifier,
                   chapterTitle: chapterTitle,

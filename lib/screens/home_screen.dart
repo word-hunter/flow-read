@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import '../providers/reading/current_book_provider.dart';
+import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/reading_provider_riverpod.dart'
     as riverpod_reading;
 import '../providers/reading/reading_time_notifier.dart';
@@ -68,25 +68,28 @@ class HomeScreen extends riverpod.ConsumerWidget {
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
-    final currentBook = ref.watch(currentBookProvider);
+    final currentBookState = ref.watch(currentBookNotifierProvider);
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
 
     Widget content;
-    if (currentBook.isReading && currentBook.hasBook) {
+    if (currentBookState.isReading && currentBookNotifier.hasBook) {
       content = const ReadingDeskScreen();
     } else {
       content = LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth >= AppConstants.wideBreakpoint) {
             return _WideHomeLayout(
-              currentBook: currentBook,
+              currentBook: currentBookNotifier,
+              currentBookState: currentBookState,
               showRss: settings.rssFeatureEnabled,
             );
           }
           return _buildNarrowLayout(
             context,
-            currentBook,
+            currentBookNotifier,
             showRss: settings.rssFeatureEnabled,
+            currentBookState: currentBookState,
           );
         },
       );
@@ -97,12 +100,13 @@ class HomeScreen extends riverpod.ConsumerWidget {
 
   Widget _buildNarrowLayout(
     BuildContext context,
-    CurrentBookController currentBook, {
+    CurrentBookNotifier currentBook, {
     required bool showRss,
+    CurrentBookState currentBookState = const CurrentBookState(),
   }) {
     final visibleTabs = _visibleTabs(showRss: showRss);
-    _redirectHiddenTab(context, currentBook, visibleTabs);
-    final selectedIndex = _visibleIndexFor(currentBook.currentTab, visibleTabs);
+    _redirectHiddenTab(context, currentBook, currentBookState, visibleTabs);
+    final selectedIndex = _visibleIndexFor(currentBookState.currentTab, visibleTabs);
 
     return Scaffold(
       body: IndexedStack(
@@ -135,12 +139,13 @@ class HomeScreen extends riverpod.ConsumerWidget {
 
   static void _redirectHiddenTab(
     BuildContext context,
-    CurrentBookController currentBook,
+    CurrentBookNotifier currentBook,
+    CurrentBookState currentBookState,
     List<int> visibleTabs,
   ) {
-    if (visibleTabs.contains(currentBook.currentTab)) return;
+    if (visibleTabs.contains(currentBookState.currentTab)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted || visibleTabs.contains(currentBook.currentTab)) {
+      if (!context.mounted || visibleTabs.contains(currentBookState.currentTab)) {
         return;
       }
       currentBook.switchTab(visibleTabs.first);
@@ -491,10 +496,11 @@ class _AnimatedImportProgressBarState extends State<_AnimatedImportProgressBar>
 }
 
 class _WideHomeLayout extends riverpod.ConsumerWidget {
-  final CurrentBookController currentBook;
+  final CurrentBookNotifier currentBook;
+  final CurrentBookState currentBookState;
   final bool showRss;
 
-  const _WideHomeLayout({required this.currentBook, required this.showRss});
+  const _WideHomeLayout({required this.currentBook, required this.currentBookState, required this.showRss});
 
   static const _widePanels = <Widget>[
     BookshelfContent(),
@@ -510,9 +516,9 @@ class _WideHomeLayout extends riverpod.ConsumerWidget {
     final readingTime = ref.watch(readingTimeNotifierProvider);
     final settings = ref.watch(settingsProvider);
     final visibleTabs = HomeScreen._visibleTabs(showRss: showRss);
-    HomeScreen._redirectHiddenTab(context, currentBook, visibleTabs);
+    HomeScreen._redirectHiddenTab(context, currentBook, currentBookState, visibleTabs);
     final selectedIndex = HomeScreen._visibleIndexFor(
-      currentBook.currentTab,
+      currentBookState.currentTab,
       visibleTabs,
     );
 
@@ -520,7 +526,7 @@ class _WideHomeLayout extends riverpod.ConsumerWidget {
       body: Row(
         children: [
           HomeSidebar(
-            currentTab: currentBook.currentTab,
+            currentTab: currentBookState.currentTab,
             onTabChanged: currentBook.switchTab,
             readingTimeSeconds: readingTime.weekReadingTimeSeconds,
             monthReadingTimeSeconds: readingTime.monthReadingTimeSeconds,

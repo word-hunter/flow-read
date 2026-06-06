@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
 
-import '../providers/reading/bookshelf_provider.dart';
+import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading_provider.dart';
 
 class EpubDropImporter extends riverpod.ConsumerStatefulWidget {
@@ -70,8 +70,9 @@ class _EpubDropImporterState extends riverpod.ConsumerState<EpubDropImporter> {
       return;
     }
 
-    final bookshelf = ref.read(bookshelfProvider);
-    if (bookshelf.isLoading || _importingDroppedFiles) {
+    final notifier = ref.read(bookshelfNotifierProvider.notifier);
+    final state = ref.read(bookshelfNotifierProvider);
+    if (state.isLoading || _importingDroppedFiles) {
       _showSnackBar('正在导入 EPUB，请稍后再试');
       return;
     }
@@ -79,13 +80,14 @@ class _EpubDropImporterState extends riverpod.ConsumerState<EpubDropImporter> {
     setState(() => _importingDroppedFiles = true);
     try {
       for (final path in epubPaths) {
-        final result = await bookshelf.importBook(path);
+        final result = await notifier.importBook(path);
         if (!mounted) return;
         if (result == BookImportResult.cancelled) {
           _showSnackBar('已取消导入');
           return;
         }
-        final errorMessage = bookshelf.errorMessage;
+        final errorMessage =
+            ref.read(bookshelfNotifierProvider).errorMessage;
         if (result == BookImportResult.failed) {
           _showSnackBar(
             errorMessage == null ? '导入失败' : _importErrorMessage(errorMessage),
