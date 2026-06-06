@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/book.dart';
 import '../../models/book_difficulty.dart';
 import '../../models/book_metadata.dart';
 import '../../services/epub_import_source.dart';
@@ -12,6 +13,7 @@ class BookshelfState {
   const BookshelfState({
     this.books = const [],
     this.activeBookId,
+    this.book,
     this.isLoading = false,
     this.errorMessage,
     this.importStage = '',
@@ -25,6 +27,7 @@ class BookshelfState {
 
   final List<BookMetadata> books;
   final String? activeBookId;
+  final Book? book;
   final bool isLoading;
   final String? errorMessage;
   final String importStage;
@@ -35,9 +38,12 @@ class BookshelfState {
   final String? importFileName;
   final BookImportResult lastImportResult;
 
+  int get chapterCount => book?.chapters.length ?? 0;
+
   BookshelfState copyWith({
     List<BookMetadata>? books,
     String? activeBookId,
+    Book? book,
     bool? isLoading,
     String? errorMessage,
     String? importStage,
@@ -47,11 +53,13 @@ class BookshelfState {
     double? importProgress,
     String? importFileName,
     BookImportResult? lastImportResult,
+    bool clearBook = false,
     bool clearError = false,
   }) {
     return BookshelfState(
       books: books ?? this.books,
       activeBookId: activeBookId ?? this.activeBookId,
+      book: clearBook ? null : (book ?? this.book),
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       importStage: importStage ?? this.importStage,
@@ -69,6 +77,7 @@ class BookshelfState {
     return other is BookshelfState &&
         other.books.length == books.length &&
         other.activeBookId == activeBookId &&
+        identical(other.book, book) &&
         other.isLoading == isLoading &&
         other.errorMessage == errorMessage &&
         other.importStage == importStage &&
@@ -84,6 +93,7 @@ class BookshelfState {
   int get hashCode => Object.hash(
         books.length,
         activeBookId,
+        book?.title,
         isLoading,
         errorMessage,
         importStage,
@@ -100,26 +110,39 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
   @override
   BookshelfState build() {
     final reader = ref.watch(readingProvider);
-    return BookshelfState(
-      books: reader.allBooks,
-      activeBookId: reader.activeBookId,
-      isLoading: reader.isLoading,
-      errorMessage: reader.errorMessage,
-      importStage: reader.importStage,
-      isImportingBook: reader.isImportingBook,
-      isCancellingImport: reader.isCancellingImport,
-      canCancelImport: reader.canCancelImport,
-      importProgress: reader.importProgress,
-      importFileName: reader.importFileName,
-      lastImportResult: reader.lastImportResult,
-    );
+    try {
+      return BookshelfState(
+        books: reader.allBooks,
+        activeBookId: reader.activeBookId,
+        book: reader.book,
+        isLoading: reader.isLoading,
+        errorMessage: reader.errorMessage,
+        importStage: reader.importStage,
+        isImportingBook: reader.isImportingBook,
+        isCancellingImport: reader.isCancellingImport,
+        canCancelImport: reader.canCancelImport,
+        importProgress: reader.importProgress,
+        importFileName: reader.importFileName,
+        lastImportResult: reader.lastImportResult,
+      );
+    } catch (_) {
+      return BookshelfState(
+        book: reader.book,
+        activeBookId: reader.activeBookId,
+        isLoading: reader.isLoading,
+      );
+    }
   }
 
   // ---- Book Management ----
 
   List<BookMetadata> get allBooks {
-    final reader = ref.read(readingProvider);
-    return reader.allBooks;
+    try {
+      final reader = ref.read(readingProvider);
+      return reader.allBooks;
+    } catch (_) {
+      return state.books;
+    }
   }
 
   int get bookCount => allBooks.length;
@@ -171,7 +194,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     state = state.copyWith(
       isLoading: false,
       activeBookId: reader.activeBookId,
-      books: reader.allBooks,
+      book: reader.book,
       errorMessage: reader.errorMessage,
     );
     return result;
@@ -186,8 +209,8 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     final reader = ref.read(readingProvider);
     await reader.removeBook(bookId);
     state = state.copyWith(
-      books: reader.allBooks,
       activeBookId: reader.activeBookId,
+      clearBook: true,
     );
   }
 
@@ -223,8 +246,8 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     _syncImportState();
     final reader = ref.read(readingProvider);
     state = state.copyWith(
-      books: reader.allBooks,
       activeBookId: reader.activeBookId,
+      book: reader.book,
       lastImportResult: result,
     );
     return result;

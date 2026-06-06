@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/analysis_result.dart';
 import '../../models/book.dart';
 import '../../models/book_difficulty.dart';
+import 'bookshelf_notifier.dart';
 import 'reading_provider_riverpod.dart';
 
 @immutable
@@ -82,36 +83,31 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
   }
 
   Book? get book {
-    final reader = ref.read(readingProvider);
-    return reader.book;
+    final shelf = ref.read(bookshelfNotifierProvider);
+    return shelf.book ?? ref.read(readingProvider).book;
   }
 
   String? get activeBookId {
-    final reader = ref.read(readingProvider);
-    return reader.activeBookId;
+    final shelf = ref.read(bookshelfNotifierProvider);
+    return shelf.activeBookId ?? ref.read(readingProvider).activeBookId;
   }
+
+  int get chapterCount {
+    final shelf = ref.read(bookshelfNotifierProvider);
+    return shelf.chapterCount;
+  }
+
+  bool get hasBook => activeBookId != null;
 
   AnalysisResult? get result {
     final reader = ref.read(readingProvider);
     return reader.result;
   }
 
-  int get chapterCount {
-    final reader = ref.read(readingProvider);
-    return reader.chapterCount;
-  }
-
-  bool get hasBook {
-    final reader = ref.read(readingProvider);
-    return reader.hasBook;
-  }
-
   BookDifficultyRating? get currentBookDifficulty {
     final reader = ref.read(readingProvider);
     return reader.currentBookDifficulty;
   }
-
-  // ---- Navigation ----
 
   void updateReadingProgress(double progress, {double? scrollOffset}) {
     final reader = ref.read(readingProvider);
