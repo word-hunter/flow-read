@@ -20,6 +20,8 @@ import '../../services/word_context_service.dart';
 import '../../services/word_level_service.dart';
 import '../../storage/hive_box_names.dart';
 import '../settings_provider.dart';
+import 'bookshelf_notifier.dart';
+import 'current_book_notifier.dart';
 import 'reading_provider_riverpod.dart';
 import 'services_provider.dart';
 
@@ -164,7 +166,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
   BookDifficultyRating? difficultyForBook(String bookId) {
     final reader = ref.read(readingProvider);
-    if (bookId == reader.activeBookId) return state.currentBookDifficulty;
+    final activeBookId =
+        ref.read(bookshelfNotifierProvider).activeBookId ?? reader.activeBookId;
+    if (bookId == activeBookId) return state.currentBookDifficulty;
     return _bookDifficultyById[bookId];
   }
 
@@ -206,8 +210,11 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
     for (final meta in pending) {
       try {
-        final book = meta.id == reader.activeBookId && reader.book != null
-            ? reader.book!
+        final shelf = ref.read(bookshelfNotifierProvider);
+        final shelfBook = shelf.book ?? reader.book;
+        final activeBookId = shelf.activeBookId ?? reader.activeBookId;
+        final book = meta.id == activeBookId && shelfBook != null
+            ? shelfBook
             : await EpubParseWorker.parseInIsolate(meta.sourcePath);
         final studyWords = AnalysisService.collectBookStudyWords(
           book,
@@ -301,7 +308,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
   Future<void> _analyzeCurrentChapter() async {
     final reader = ref.read(readingProvider);
-    if (reader.book == null) return;
+    final shelfBook =
+        ref.read(bookshelfNotifierProvider).book ?? reader.book;
+    if (shelfBook == null) return;
     _updateAllVocab();
   }
 
@@ -310,6 +319,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     final vocab = reader.userVocabulary;
     final result = reader.result;
     if (result == null) return;
+    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
     _allVocab.removeWhere(
       (_, aggVocab) => reader.userVocabulary?.isKnown(aggVocab.word) ?? false,
     );
@@ -322,7 +332,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
         final existing = _allVocab[vocabularyKey]!;
         _allVocab[vocabularyKey] = existing.copyWith(
           chapterIndices:
-              existing.updatedChapters(reader.currentChapter),
+              existing.updatedChapters(currentChapter),
           level: v.level,
           languageId: languageId,
         );
@@ -330,9 +340,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
         _allVocab[vocabularyKey] = AggregatedVocabulary(
           word: lower,
           meaning: v.meaning,
-          firstChapter: reader.currentChapter,
+          firstChapter: currentChapter,
           context: v.context,
-          chapterIndices: {reader.currentChapter},
+          chapterIndices: {currentChapter},
           level: v.level,
           languageId: languageId,
         );
@@ -400,7 +410,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
       _bookDifficultyFailureKeys.remove(meta.id);
     }
     final reader = ref.read(readingProvider);
-    if (meta.id == reader.activeBookId) {
+    final activeBookId =
+        ref.read(bookshelfNotifierProvider).activeBookId ?? reader.activeBookId;
+    if (meta.id == activeBookId) {
       state = state.copyWith(currentBookDifficulty: rating);
     }
     if (cached != null && _isDifficultyCacheStale(meta)) {
@@ -438,7 +450,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     final bookService = ref.read(bookServiceProvider);
     _bookStudyWordsById[bookId] = studyWords;
     _bookDifficultyById[bookId] = rating;
-    if (bookId == reader.activeBookId) {
+    final activeBookId =
+        ref.read(bookshelfNotifierProvider).activeBookId ?? reader.activeBookId;
+    if (bookId == activeBookId) {
       state = state.copyWith(currentBookDifficulty: rating);
     }
     await bookService.updateDifficultyCache(

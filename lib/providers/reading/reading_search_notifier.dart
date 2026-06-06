@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'bookshelf_notifier.dart';
+import 'current_book_notifier.dart';
 import '../../controllers/reading_search_controller.dart';
 import '../../models/reading_search_result.dart';
 import 'reading_provider_riverpod.dart';
@@ -92,24 +94,25 @@ class ReadingSearchNotifier extends Notifier<ReadingSearchState> {
 
   Future<void> searchInBook(String query, {bool includeAll = false}) async {
     final reader = ref.read(readingProvider);
-    return _searchController.search(reader.book, query, includeAll: includeAll);
+    return _searchController.search(ref.read(bookshelfNotifierProvider).book ?? reader.book, query, includeAll: includeAll);
   }
 
   Future<void> searchAllInBook() {
     final reader = ref.read(readingProvider);
-    return _searchController.searchAll(reader.book);
+    return _searchController.searchAll(ref.read(bookshelfNotifierProvider).book ?? reader.book);
   }
 
   Future<void> goToSearchResult(ReadingSearchResult result) async {
     final reader = ref.read(readingProvider);
-    if (reader.book == null) return;
+    final book = ref.read(bookshelfNotifierProvider).book ?? reader.book;
+    if (book == null) return;
     if (result.chapterIndex < 0 ||
-        result.chapterIndex >= reader.book!.chapters.length) {
+        result.chapterIndex >= book.chapters.length) {
       return;
     }
 
     _searchController.activateResult(result);
-    if (result.chapterIndex != reader.currentChapter) {
+    if (result.chapterIndex != ref.read(currentBookNotifierProvider).currentChapter) {
       await reader.goToChapter(result.chapterIndex);
     }
   }

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/bookmarked_word.dart';
 import '../../models/reading_bookmark.dart';
 import '../../services/bookmark_service.dart';
+import 'bookshelf_notifier.dart';
+import 'current_book_notifier.dart';
 import 'reading_provider_riverpod.dart';
 import 'services_provider.dart';
 
@@ -56,17 +58,18 @@ class BookmarkNotifier extends Notifier<BookmarkState> {
   }
 
   bool isCurrentPositionBookmarked() {
-    final reader = ref.read(readingProvider);
+    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
+    final readingProgress = ref.read(currentBookNotifierProvider).readingProgress;
     return state.readingBookmarks.any(
       (b) =>
-          b.chapterIndex == reader.currentChapter &&
-          (b.progress - reader.readingProgress).abs() < 0.01,
+          b.chapterIndex == currentChapter &&
+          (b.progress - readingProgress).abs() < 0.01,
     );
   }
 
   void addBookmark(String word, String translation) {
     final reader = ref.read(readingProvider);
-    final activeBookId = reader.activeBookId;
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId ?? reader.activeBookId;
     if (activeBookId == null) return;
     final lower = word.toLowerCase().trim();
     if (state.bookmarkedWords.any((b) => b.word.toLowerCase() == lower)) return;
@@ -100,7 +103,7 @@ class BookmarkNotifier extends Notifier<BookmarkState> {
 
   void removeBookmark(String word) {
     final reader = ref.read(readingProvider);
-    final activeBookId = reader.activeBookId;
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId ?? reader.activeBookId;
     if (activeBookId == null) return;
     final lower = word.toLowerCase().trim();
     final updated = state.bookmarkedWords
@@ -112,25 +115,28 @@ class BookmarkNotifier extends Notifier<BookmarkState> {
 
   void addReadingBookmark() {
     final reader = ref.read(readingProvider);
-    final activeBookId = reader.activeBookId;
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId ?? reader.activeBookId;
     if (activeBookId == null || isCurrentPositionBookmarked()) return;
 
+    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
+    final readingProgress = ref.read(currentBookNotifierProvider).readingProgress;
     String excerpt = '';
     final result = reader.result;
     if (result != null) {
       final paragraphs = result.passageText.split(RegExp(r'\n\s*\n'));
       final idx =
-          (reader.readingProgress * paragraphs.length).round().clamp(0, paragraphs.length - 1);
+          (readingProgress * paragraphs.length).round().clamp(0, paragraphs.length - 1);
       excerpt = paragraphs[idx].trim();
       if (excerpt.length > 80) excerpt = '${excerpt.substring(0, 80)}...';
     }
+    final book = ref.read(bookshelfNotifierProvider).book ?? reader.book;
     String chapterTitle =
-        reader.book?.chapters[reader.currentChapter].title ?? '';
+        book?.chapters[currentChapter].title ?? '';
 
     final updated = [
       ReadingBookmark(
-        chapterIndex: reader.currentChapter,
-        progress: reader.readingProgress,
+        chapterIndex: currentChapter,
+        progress: readingProgress,
         chapterTitle: chapterTitle,
         excerpt: excerpt,
         createdAt: DateTime.now(),
@@ -144,7 +150,7 @@ class BookmarkNotifier extends Notifier<BookmarkState> {
 
   void removeReadingBookmark(int index) {
     final reader = ref.read(readingProvider);
-    final activeBookId = reader.activeBookId;
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId ?? reader.activeBookId;
     if (activeBookId == null ||
         index < 0 ||
         index >= state.readingBookmarks.length) {
@@ -158,9 +164,10 @@ class BookmarkNotifier extends Notifier<BookmarkState> {
 
   void goToReadingBookmark(ReadingBookmark bookmark) {
     final reader = ref.read(readingProvider);
-    if (reader.book == null) return;
+    final book = ref.read(bookshelfNotifierProvider).book ?? reader.book;
+    if (book == null) return;
     if (bookmark.chapterIndex >= 0 &&
-        bookmark.chapterIndex < reader.book!.chapters.length) {
+        bookmark.chapterIndex < book.chapters.length) {
       reader.goToChapter(bookmark.chapterIndex);
     }
   }
