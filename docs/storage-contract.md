@@ -28,7 +28,7 @@ Last updated: 2026-06-06
 | Box 模式 | 内容 | 存储模型 |
 |----------|------|----------|
 | `books_{lang}` | 书籍元数据 | `BookMetadata` (0) |
-| `user_vocabulary_{lang}` | 用户词汇状态 | `UserWordStatus` enum (int) |
+| `user_vocabulary_{lang}` | 用户词汇状态 | `${lang}_${canonical}` → `UserVocabularyEntry` JSON |
 | `word_bookmarks_{lang}` | 单词书签 | `BookmarkedWord` (1) |
 | `reading_bookmarks_{lang}` | 阅读书签 | `ReadingBookmark` (2) |
 | `reading_config_{lang}` | 阅读器配置 | `ReadingConfig` (3) |

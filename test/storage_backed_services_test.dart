@@ -52,6 +52,13 @@ void main() {
     expect(service.getStatus(' migrating '), UserWordStatus.learning);
     expect(service.knownWords, contains('flow'));
     expect(service.learningWords, contains('migrating'));
+    expect(userVocabularyBox().containsKey('en_flow'), isTrue);
+    expect(userVocabularyBox().containsKey('flow'), isFalse);
+    final entryJson =
+        jsonDecode(userVocabularyBox().get('en_flow')!) as Map<String, dynamic>;
+    expect(entryJson['status'], 'known');
+    expect(entryJson['key'], containsPair('languageId', 'en'));
+    expect(entryJson['key'], containsPair('canonical', 'flow'));
     expect(populatedSignature, isNot(emptySignature));
 
     await service.setUnknown('FLOW');
@@ -73,8 +80,28 @@ void main() {
 
     expect(english.getStatus('flow'), UserWordStatus.known);
     expect(japanese.getStatus('flow'), UserWordStatus.learning);
-    expect(userVocabularyBox().get('flow'), 'known');
-    expect(userVocabularyBox(languageCode: 'ja').get('flow'), 'learning');
+    expect(userVocabularyBox().containsKey('en_flow'), isTrue);
+    expect(
+      userVocabularyBox(languageCode: 'ja').containsKey('ja_flow'),
+      isTrue,
+    );
+  });
+
+  test('user vocabulary migrates legacy bare word keys on init', () async {
+    await userVocabularyBox().put('flow', 'known');
+    await userVocabularyBox().put('migrating', 'learning');
+
+    final service = UserVocabularyService();
+    await service.init();
+
+    expect(service.getStatus('flow'), UserWordStatus.known);
+    expect(service.getStatus('migrating'), UserWordStatus.learning);
+    expect(service.knownWords, contains('flow'));
+    expect(service.learningWords, contains('migrating'));
+    expect(userVocabularyBox().containsKey('flow'), isFalse);
+    expect(userVocabularyBox().containsKey('migrating'), isFalse);
+    expect(userVocabularyBox().containsKey('en_flow'), isTrue);
+    expect(userVocabularyBox().containsKey('en_migrating'), isTrue);
   });
 
   test('reading config persists clamped display settings', () async {

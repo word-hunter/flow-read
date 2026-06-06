@@ -26,6 +26,8 @@ Last updated: 2026-06-06
 | `Chapter` | `chapter.dart` | 章节内容（title, plainText, contentBlocks） |
 | `ContentBlock` | `content_block.dart` | EPUB 渲染块（text / image） |
 | `UserWordStatus` | `user_vocabulary.dart` | 枚举：known, learning |
+| `UserVocabularyKey` | `user_vocabulary.dart` | 语言感知词汇 key（languageId + canonical） |
+| `UserVocabularyEntry` | `user_vocabulary.dart` | 用户词汇状态 entry（status + timestamps + source metadata） |
 | `AggregatedVocabulary` | `aggregated_vocabulary.dart` | 跨章节聚合词汇视图 |
 | `BookDifficulty` | `book_difficulty.dart` | l1~l5 难度等级 + 评分 |
 | `ReadingToken` | `reading_token.dart` | 结构化阅读 token（surface/canonical/languageId/offsets） |
@@ -60,8 +62,8 @@ Last updated: 2026-06-06
 |------|---------|-----|------|
 | `ReadingToken` | 非 Hive | — | 已实现 |
 | `TokenizedText` | 非 Hive | — | 已实现 |
-| `UserVocabularyEntry` | 非 Hive（重构） | `user_vocabulary_{lang}` | 待实现 |
-| `UserVocabularyKey(languageId, canonical)` | 非 Hive | — | 待实现 |
+| `UserVocabularyEntry` | 非 Hive（JSON value） | `user_vocabulary_{lang}` | 已实现 |
+| `UserVocabularyKey(languageId, canonical)` | 非 Hive | — | 已实现 |
 | `BookGlossaryEntry` | 12 | `book_glossary` (global) | 1.7.0 实现 |
 
 ## Hive Type ID 约束
