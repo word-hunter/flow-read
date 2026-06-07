@@ -2,8 +2,10 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 
+@Deprecated('Use PaletteId from package:flow_design_system instead')
 enum AppThemeId { classic, ocean, forest, highContrast }
 
+@Deprecated('Use PaletteIdLabels from package:flow_design_system instead')
 extension AppThemeIdLabels on AppThemeId {
   String get label {
     switch (this) {
@@ -103,6 +105,7 @@ class ReaderThemeTokens extends ThemeExtension<ReaderThemeTokens> {
   }
 }
 
+@Deprecated('Use FlowTheme.build() from package:flow_design_system instead')
 class AppTheme {
   static const _warmBeige = Color(0xFFFFFDF9);
 

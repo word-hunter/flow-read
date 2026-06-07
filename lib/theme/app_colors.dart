@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+@Deprecated('Use FunctionalColors from package:flow_design_system instead')
 abstract final class AppColors {
   static const familiarityLow = Color(0xFFE74C3C);
   static const familiarityMediumLow = Color(0xFFE67E22);
