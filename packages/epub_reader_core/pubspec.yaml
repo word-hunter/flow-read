@@ -2,6 +2,7 @@ name: epub_reader_core
 description: Lightweight EPUB parsing and reader-oriented content model for Flow Read.
 publish_to: 'none'
 version: 0.1.0
+resolution: workspace
 
 environment:
   sdk: ^3.11.5

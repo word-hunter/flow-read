@@ -1,0 +1,22 @@
+scripts:
+  analyze:
+    run: dart analyze
+    description: Run static analysis on all packages.
+  test:
+    run: fvm flutter test
+    description: Run all tests across the workspace.
+    exec:
+      concurrency: 1
+  format:
+    run: dart format --output=none --set-exit-if-changed .
+    description: Check formatting across the workspace.
+  check-versions:
+    run: dart run tool/check_versions.dart
+    description: Verify SDK and shared dependency versions are consistent across all pubspec files.
+  bootstrap:
+    run: dart run melos bootstrap
+    description: Run pub get on root and all workspace packages.
+
+ide:
+  intellij:
+    enabled: false

@@ -1,5 +1,5 @@
-name: flow_read_image_viewer
-description: Reusable image preview and viewer widgets for Flow Read reading surfaces.
+name: flow_design_system
+description: Cross-platform composable Design System for Flow Read. Provides tokens, palettes, shells, and theme building.
 publish_to: 'none'
 version: 0.1.0
 resolution: workspace
@@ -10,8 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  file_picker: ^11.0.2
-  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
