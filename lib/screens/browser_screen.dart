@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
+import '../models/ai_context_snapshot.dart';
 import '../models/analysis_result.dart';
 import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/services_provider.dart';
@@ -10,11 +11,10 @@ import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../services/analysis_service.dart';
-import '../services/llm_client.dart';
-import '../services/reading_assistant_agent.dart';
 import '../services/settings_service.dart';
 import '../services/web_content_service.dart';
 import '../theme/app_constants.dart';
+import '../widgets/ai_assistant_panel.dart';
 import '../widgets/selected_text_action_toolbar.dart';
 import '../widgets/reader_text_view.dart';
 import '../widgets/selected_text_sheet.dart';
@@ -38,17 +38,13 @@ class BrowserScreen extends riverpod.ConsumerStatefulWidget {
 class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   final _webContentService = WebContentService();
   final _addressController = TextEditingController();
-  final _questionController = TextEditingController();
   final _scrollController = ScrollController();
 
   WebPageContent? _page;
   AnalysisResult? _analysis;
   bool _isLoading = false;
   String? _error;
-  bool _assistantOpen = false;
-  bool _assistantBusy = false;
-  String? _assistantOutput;
-  String? _assistantError;
+  bool _showAssistant = false;
 
   @override
   void initState() {
@@ -66,7 +62,6 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   void dispose() {
     _webContentService.close();
     _addressController.dispose();
-    _questionController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -78,9 +73,8 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
     setState(() {
       _isLoading = true;
       _error = null;
-      _assistantOutput = null;
-      _assistantError = null;
     });
+    ref.read(aiAssistantControllerProvider).clear();
 
     try {
       final page = await _webContentService.fetch(input);
@@ -162,64 +156,21 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
     );
   }
 
-  Future<void> _summarizePage() async {
-    final settings = ref.read(settingsProvider);
-    if (!settings.aiFeaturesEnabled) return;
+  void _openAssistant() {
+    if (!ref.read(settingsProvider).aiFeaturesEnabled) return;
     final page = _page;
     if (page == null || page.plainText.trim().isEmpty) return;
-    await _runAssistant(() {
-      return ReadingAssistantAgent(LLMClient(settings)).summarize(
-        ReadingAssistantContext(
-          surface: ReadingAssistantSurface.browser,
-          title: page.title,
-          text: page.plainText,
-          url: page.url.toString(),
-        ),
-      );
-    });
-  }
 
-  Future<void> _askQuestion() async {
-    final settings = ref.read(settingsProvider);
-    if (!settings.aiFeaturesEnabled) return;
-    final page = _page;
-    final question = _questionController.text.trim();
-    if (page == null || page.plainText.trim().isEmpty || question.isEmpty) {
-      return;
-    }
-    await _runAssistant(() {
-      return ReadingAssistantAgent(LLMClient(settings)).answer(
-        context: ReadingAssistantContext(
-          surface: ReadingAssistantSurface.browser,
-          title: page.title,
-          text: page.plainText,
-          url: page.url.toString(),
-        ),
-        question: question,
-      );
-    });
-  }
-
-  Future<void> _runAssistant(Future<String> Function() task) async {
-    setState(() {
-      _assistantOpen = true;
-      _assistantBusy = true;
-      _assistantError = null;
-    });
-    try {
-      final output = await task();
-      if (!mounted) return;
-      setState(() {
-        _assistantOutput = output.trim();
-        _assistantBusy = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _assistantError = '$e';
-        _assistantBusy = false;
-      });
-    }
+    final assistant = ref.read(aiAssistantControllerProvider);
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.rssArticle,
+        articleTitle: page.title,
+        articleContent: page.plainText,
+        articleUrl: page.url.toString(),
+      ),
+    );
+    setState(() => _showAssistant = true);
   }
 
   @override
@@ -241,14 +192,20 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
                       ? Row(
                           children: [
                             Expanded(child: _buildPageBody(theme)),
-                            if (_assistantOpen) ...[
+                            if (_showAssistant) ...[
                               VerticalDivider(
                                 width: 1,
                                 color: theme.colorScheme.outlineVariant,
                               ),
                               SizedBox(
                                 width: 340,
-                                child: _buildAssistantPanel(theme, settings),
+                                child: AIAssistantPanel(
+                                  controller: ref.read(
+                                    aiAssistantControllerProvider,
+                                  ),
+                                  onClose: () =>
+                                      setState(() => _showAssistant = false),
+                                ),
                               ),
                             ],
                           ],
@@ -256,10 +213,16 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
                       : Column(
                           children: [
                             Expanded(child: _buildPageBody(theme)),
-                            if (_assistantOpen)
+                            if (_showAssistant)
                               SizedBox(
                                 height: 320,
-                                child: _buildAssistantPanel(theme, settings),
+                                child: AIAssistantPanel(
+                                  controller: ref.read(
+                                    aiAssistantControllerProvider,
+                                  ),
+                                  onClose: () =>
+                                      setState(() => _showAssistant = false),
+                                ),
                               ),
                           ],
                         ),
@@ -329,13 +292,16 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
           ),
           IconButton(
             icon: Icon(
-              _assistantOpen ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+              _showAssistant ? Icons.auto_awesome : Icons.auto_awesome_outlined,
             ),
             tooltip: settings.aiFeaturesEnabled
                 ? 'AI 助手'
                 : settings.aiFeatureDisabledReason,
             onPressed: settings.aiFeaturesEnabled
-                ? () => setState(() => _assistantOpen = !_assistantOpen)
+                ? () {
+                    if (!_showAssistant) _openAssistant();
+                    setState(() => _showAssistant = !_showAssistant);
+                  }
                 : null,
           ),
         ],
@@ -475,116 +441,6 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
             onPressed: () => setState(() => _error = null),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAssistantPanel(ThemeData theme, SettingsService settings) {
-    final aiFeaturesEnabled = settings.aiFeaturesEnabled;
-    return Container(
-      color: theme.colorScheme.surface,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.auto_awesome,
-                size: 18,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'AI 助手',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.close, size: 18),
-                tooltip: '关闭',
-                onPressed: () => setState(() => _assistantOpen = false),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _page == null || _assistantBusy || !aiFeaturesEnabled
-                  ? null
-                  : _summarizePage,
-              icon: _assistantBusy
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.summarize_outlined),
-              label: Text(_assistantBusy ? '处理中...' : '总结当前文章'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _questionController,
-            minLines: 2,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: '询问当前文章',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton.icon(
-              onPressed: _assistantBusy || !aiFeaturesEnabled
-                  ? null
-                  : _askQuestion,
-              icon: const Icon(Icons.send_outlined, size: 18),
-              label: const Text('提问'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.35,
-                ),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.45,
-                  ),
-                ),
-              ),
-              child: _assistantBusy
-                  ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
-                      child: Text(
-                        _assistantError ??
-                            _assistantOutput ??
-                            (aiFeaturesEnabled
-                                ? '等待提问或总结'
-                                : settings.aiFeatureDisabledReason),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          height: 1.55,
-                          color: _assistantError == null
-                              ? theme.colorScheme.onSurface
-                              : theme.colorScheme.error,
-                        ),
-                      ),
-                    ),
-            ),
           ),
         ],
       ),

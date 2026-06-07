@@ -248,6 +248,38 @@ class ArticlePromptRequest {
   });
 }
 
+class BookGlossaryPromptRequest {
+  final String word;
+  final String canonicalForm;
+  final SourceLanguage sourceLanguage;
+  final OutputLanguage outputLanguage;
+  final String currentPassage;
+  final List<String> earlierOccurrences;
+  final List<CharacterCardSnippet> relatedCharacters;
+  final SpoilerBoundary spoilerBoundary;
+
+  const BookGlossaryPromptRequest({
+    required this.word,
+    required this.canonicalForm,
+    required this.sourceLanguage,
+    required this.outputLanguage,
+    required this.currentPassage,
+    required this.spoilerBoundary,
+    this.earlierOccurrences = const [],
+    this.relatedCharacters = const [],
+  });
+}
+
+class CharacterCardSnippet {
+  final String name;
+  final String description;
+
+  const CharacterCardSnippet({
+    required this.name,
+    required this.description,
+  });
+}
+
 class PromptSections {
   static String flowReadRole(SourceLanguage sourceLanguage) {
     return 'You are a Flow Read reading tutor embedded in a Flutter reading app. '
@@ -673,6 +705,41 @@ $question''';
     return _result(request, systemPrompt, userPrompt);
   }
 
+  PromptBuildResult buildBookGlossaryExplanation(
+    BookGlossaryPromptRequest request,
+  ) {
+    final systemPrompt = [
+      PromptSections.preamble(
+        sourceLanguage: request.sourceLanguage,
+        outputLanguage: request.outputLanguage,
+        spoilerBoundary: request.spoilerBoundary,
+      ),
+      'Task: explain the meaning of a word or phrase as it is used in this book. '
+          'Use the provided passage and earlier occurrences as context. '
+          'Write a concise, glossary-style explanation (1-3 sentences) '
+          'suitable for a book glossary entry. '
+          'If related characters are provided, mention how the word relates to them. '
+          'Do not add pronunciation guides, grammar notes, or usage tips.',
+    ].join('\n\n');
+
+    final occurrenceLines = request.earlierOccurrences.isNotEmpty
+        ? '\n## Earlier occurrences\n${request.earlierOccurrences.asMap().entries.map((e) => '${e.key + 1}. ${e.value}').join('\n')}'
+        : '';
+
+    final characterLines = request.relatedCharacters.isNotEmpty
+        ? '\n## Related characters\n${request.relatedCharacters.map((c) => '- ${c.name}: ${c.description}').join('\n')}'
+        : '';
+
+    final userPrompt =
+        '''## Word
+${request.word} (${request.canonicalForm})
+
+## Current passage
+${request.currentPassage}$occurrenceLines$characterLines''';
+
+    return _result(request, systemPrompt, userPrompt);
+  }
+
   PromptBuildResult _result(
     Object request,
     String systemPrompt,
@@ -686,6 +753,7 @@ $question''';
       TranslationPromptRequest r => r.sourceLanguage,
       WordAnalysisPromptRequest r => r.sourceLanguage,
       ArticlePromptRequest r => r.sourceLanguage,
+      BookGlossaryPromptRequest r => r.sourceLanguage,
       _ => SourceLanguage.english,
     };
     final outputLanguage = switch (request) {
@@ -696,6 +764,7 @@ $question''';
       TranslationPromptRequest r => r.outputLanguage,
       WordAnalysisPromptRequest r => r.outputLanguage,
       ArticlePromptRequest r => r.outputLanguage,
+      BookGlossaryPromptRequest r => r.outputLanguage,
       _ => OutputLanguage.zhHans,
     };
     final spoilerBoundary = switch (request) {
@@ -706,6 +775,7 @@ $question''';
       TranslationPromptRequest r => r.spoilerBoundary,
       WordAnalysisPromptRequest r => r.spoilerBoundary,
       ArticlePromptRequest r => r.spoilerBoundary,
+      BookGlossaryPromptRequest r => r.spoilerBoundary,
       _ => SpoilerBoundary.currentPassage(),
     };
     return PromptBuildResult(
