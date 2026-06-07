@@ -245,6 +245,8 @@ class AINotifier extends Notifier<AIState> {
 
   Future<void> analyzeSelectedTextAI(String text, {String? sourceText}) async {
     if (!_ensureAIReady()) return;
+    final ai = _aiService;
+    if (ai == null) return;
     final currentResult =
         ref.read(currentBookNotifierProvider).result;
     final request = _passageRequestBuilder.buildSelectedTextAnalysis(
@@ -259,7 +261,7 @@ class AINotifier extends Notifier<AIState> {
       clearError: true,
     );
     try {
-      final analysis = await _aiService!.analyzeText(
+      final analysis = await ai.analyzeText(
         selectedText: request.selectedText,
         currentPassage: request.currentPassage,
         sourceLanguage: request.sourceLanguage,
@@ -284,13 +286,15 @@ class AINotifier extends Notifier<AIState> {
 
   Future<void> translateSelectedTextAI(String text) async {
     if (!_ensureAIReady()) return;
+    final ai = _aiService;
+    if (ai == null) return;
     state = state.copyWith(
       isTranslatingText: true,
       aiTranslation: null,
       clearError: true,
     );
     try {
-      final translation = await _aiService!.translateText(
+      final translation = await ai.translateText(
         text,
         sourceLanguage: SourceLanguage.inferFromText(text),
         outputLanguage:
@@ -382,12 +386,14 @@ class AINotifier extends Notifier<AIState> {
         }),
       );
 
-      if (_aiCache != null && _aiService != null) {
-        final cacheJson = await _aiCache!.loadChapterPreview(
+      final ai = _aiService;
+      final cache = _aiCache;
+      if (ai != null && cache != null) {
+        final cacheJson = await cache.loadChapterPreview(
           bookId,
           _currentChapter,
           contentHash: contentHash,
-          promptVersion: _aiService!.promptVersion,
+          promptVersion: ai.promptVersion,
           sourceLanguage: sourceLanguage.code,
           outputLanguage: outputLanguage.code,
         );
@@ -406,7 +412,8 @@ class AINotifier extends Notifier<AIState> {
         }
       }
 
-      final preview = await _aiService!.generateChapterPreview(
+      if (ai == null) return;
+      final preview = await ai.generateChapterPreview(
         chapterTitle: chapter.title,
         openingText: openingText,
         vocabulary: vocabulary,
@@ -422,13 +429,13 @@ class AINotifier extends Notifier<AIState> {
         chapterAIStatus: ChapterAIStatus.fromPreview(preview),
         isGeneratingChapterPreview: false,
       );
-      if (_aiCache != null && _aiService != null) {
-        await _aiCache!.saveChapterPreview(
+      if (cache != null) {
+        await cache.saveChapterPreview(
           bookId,
           _currentChapter,
           jsonEncode(preview.toJson()),
           contentHash: contentHash,
-          promptVersion: _aiService!.promptVersion,
+          promptVersion: ai.promptVersion,
           sourceLanguage: sourceLanguage.code,
           outputLanguage: outputLanguage.code,
         );
@@ -512,13 +519,15 @@ class AINotifier extends Notifier<AIState> {
     final cacheBookId = _activeBookId ?? 'word-analysis';
     final cacheChapterIndex = _currentChapter;
 
-    if (_aiCache != null && _aiService != null) {
+    final aiForCache = _aiService;
+    final cacheForLookup = _aiCache;
+    if (aiForCache != null && cacheForLookup != null) {
       try {
-        final cacheJson = await _aiCache!.loadWordAnalysis(
+        final cacheJson = await cacheForLookup.loadWordAnalysis(
           cacheBookId,
           cacheChapterIndex,
           contentHash: contentHash,
-          promptVersion: _aiService!.promptVersion,
+          promptVersion: aiForCache.promptVersion,
           sourceLanguage: sourceLanguage.code,
           outputLanguage: outputLanguage.code,
         );
@@ -534,9 +543,11 @@ class AINotifier extends Notifier<AIState> {
       } catch (_) {}
     }
 
+    final ai = _aiService;
+    if (ai == null) return;
     state = state.copyWith(isAnalyzingWord: true, aiWordAnalysis: null);
     try {
-      final analysis = await _aiService!.analyzeWord(
+      final analysis = await ai.analyzeWord(
         word: word,
         sentence: sentence,
         chapterContext: chapterText,
@@ -549,13 +560,13 @@ class AINotifier extends Notifier<AIState> {
         aiWordAnalysis: analysis,
         isAnalyzingWord: false,
       );
-      if (_aiCache != null && _aiService != null) {
-        await _aiCache!.saveWordAnalysis(
+      if (cacheForLookup != null) {
+        await cacheForLookup.saveWordAnalysis(
           cacheBookId,
           cacheChapterIndex,
           jsonEncode(analysis.toJson()),
           contentHash: contentHash,
-          promptVersion: _aiService!.promptVersion,
+          promptVersion: ai.promptVersion,
           sourceLanguage: sourceLanguage.code,
           outputLanguage: outputLanguage.code,
         );
@@ -605,8 +616,10 @@ class AINotifier extends Notifier<AIState> {
   }
 
   ChapterAIJob _createChapterAIJob() {
+    final ai = _aiService;
+    if (ai == null) throw StateError('AI service not initialized');
     return ChapterAIJob.fromServices(
-      aiService: _aiService!,
+      aiService: ai,
       cache: _aiCache,
       settings: _settings,
     );
