@@ -72,6 +72,8 @@ class WordLevelService {
 
   int get wordCount => _levelMap.length;
 
+  Map<String, String> get originMap => Map.unmodifiable(_originMap);
+
   Future<void> _importBuiltinDict() async {
     if (_repository.isNotEmpty) return;
 

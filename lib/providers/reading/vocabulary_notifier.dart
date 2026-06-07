@@ -232,10 +232,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
                 shelfBook != null
             ? shelfBook
             : await EpubParseWorker.parseInIsolate(meta.sourcePath);
-        final studyWords = AnalysisService.collectBookStudyWords(
+        final studyWords = await AnalysisService.collectBookStudyWordsAsync(
           book,
           _wordLevelService,
-          _activeLanguageModule,
         );
         final rating = AnalysisService.rateBookDifficulty(
           studyWords,

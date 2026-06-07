@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import '../models/analysis_result.dart';
 import '../models/book.dart';
 import '../models/book_difficulty.dart';
@@ -125,6 +127,57 @@ class AnalysisService {
       studyWords.addAll(
         collectStudyWords(chapter.plainText, wordLevelService, lm),
       );
+    }
+    return studyWords;
+  }
+
+  static Future<Set<String>> collectBookStudyWordsAsync(
+    Book book, [
+    WordLevelService? wordLevelService,
+  ]) async {
+    final originMap = wordLevelService?.originMap ?? const {};
+    final languageCode =
+        LanguageRegistry.instance.defaultModule?.languageCode ?? 'en';
+    final chapterTexts = book.chapters
+        .map((chapter) => chapter.plainText)
+        .toList(growable: false);
+
+    return Isolate.run(
+      () => _collectBookStudyWordsInIsolate(
+        chapterTexts,
+        originMap,
+        languageCode,
+      ),
+    );
+  }
+
+  static Set<String> _collectBookStudyWordsInIsolate(
+    List<String> chapterTexts,
+    Map<String, String> originMap,
+    String languageCode,
+  ) {
+    final lm = LanguageRegistry.instance.get(languageCode);
+    if (lm == null) return {};
+
+    String canonicalForm(String word) {
+      final canonical = lm.canonicalize(word);
+      if (canonical.isEmpty) return canonical;
+      return originMap[canonical] ?? canonical;
+    }
+
+    bool isStudyWord(String word) {
+      if (word.length < AppConstants.minWordLength) return false;
+      if (lm.isCommonWord(word, maxLength: 6)) return false;
+      return true;
+    }
+
+    final studyWords = <String>{};
+    for (final text in chapterTexts) {
+      for (final word in lm.tokenize(text)) {
+        final lower = canonicalForm(word);
+        if (!isStudyWord(lower)) continue;
+        studyWords.add(lower);
+      }
     }
     return studyWords;
   }
