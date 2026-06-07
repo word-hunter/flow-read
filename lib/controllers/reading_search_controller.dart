@@ -43,6 +43,7 @@ class ReadingSearchController extends ChangeNotifier {
     notifyListeners();
 
     final limit = includeAll ? null : collapsedSearchLimit;
+    var batchCount = 0;
     await for (final progress in ReadingSearchService.search(
       book,
       trimmedQuery,
@@ -60,7 +61,10 @@ class ReadingSearchController extends ChangeNotifier {
       final result = progress.result;
       if (result == null) continue;
       _results.add(result);
-      notifyListeners();
+      batchCount++;
+      if (batchCount % 10 == 0) {
+        notifyListeners();
+      }
     }
 
     if (generation != _generation) return;
