@@ -3,12 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/user_vocabulary.dart';
 import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/bookmark_notifier.dart';
-import '../providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
 import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
-import '../providers/reading_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
@@ -40,7 +37,6 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
-    final reader = ref.read(riverpod_reading.readingProvider);
     final theme = Theme.of(context);
     final word = lookupState.selectedWord ?? widget.word;
     if (_currentWord != word) {
@@ -70,7 +66,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                 child: SingleChildScrollView(
                   controller: scrollController,
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-                  child: _buildContent(lookupState, lookupNotifier, word, reader),
+                  child: _buildContent(lookupState, lookupNotifier, word),
                 ),
               ),
               _buildBottomActions(
@@ -81,7 +77,6 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                 settings,
                 theme,
                 word,
-                reader,
                 status,
                 isBookmarked,
               ),
@@ -126,7 +121,6 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     WordLookupState lookupState,
     WordLookupNotifier lookupNotifier,
     String word,
-    ReadingProvider reader,
   ) {
     return DictionaryDetailView.fromWordLookup(
       lookupState: lookupState,
@@ -145,7 +139,6 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     SettingsService settings,
     ThemeData theme,
     String word,
-    ReadingProvider reader,
     UserWordStatus? status,
     bool isBookmarked,
   ) {
@@ -270,9 +263,9 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed:
-                        reader.canCreateLearningItems &&
+                        vocabularyNotifier.canCreateLearningItems &&
                             lookupState.selectedWordTranslation != null
-                        ? () => _addLearningItem(reader)
+                        ? () => _addLearningItem()
                         : null,
                     icon: const Icon(Icons.add_card_outlined, size: 20),
                     label: const Text('加入学习卡片'),
@@ -348,8 +341,8 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     );
   }
 
-  Future<void> _addLearningItem(ReadingProvider reader) async {
-    final result = await reader.addSelectedWordLearningItem();
+  Future<void> _addLearningItem() async {
+    final result = await ref.read(vocabularyNotifierProvider.notifier).addSelectedWordLearningItem();
     if (!mounted) return;
     if (result != null) {
       setState(() => _learningItemSaved = true);

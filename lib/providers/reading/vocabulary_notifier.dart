@@ -300,6 +300,31 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     await reader.deleteLearningItem(id);
   }
 
+  bool get canCreateLearningItems {
+    final reader = ref.read(readingProvider);
+    return reader.canCreateLearningItems;
+  }
+
+  Future<LearningItemSaveResult?> addSelectedWordLearningItem() {
+    final reader = ref.read(readingProvider);
+    return reader.addSelectedWordLearningItem();
+  }
+
+  Future<LearningItemSaveResult?> addSelectedTextLearningItem() {
+    final reader = ref.read(readingProvider);
+    return reader.addSelectedTextLearningItem();
+  }
+
+  LanguageModule get activeLanguageModule {
+    final reader = ref.read(readingProvider);
+    return reader.activeLanguageModule;
+  }
+
+  UserVocabularyService? get userVocabulary {
+    final reader = ref.read(readingProvider);
+    return reader.userVocabulary;
+  }
+
   List<WordContextExample> importedExamplesFor(String word) {
     return _wordContextService?.examplesFor(word) ?? const [];
   }

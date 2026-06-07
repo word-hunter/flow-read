@@ -1477,10 +1477,20 @@ void main() {
     final settings = _AIEnabledSettingsService();
 
     await tester.pumpWidget(
-      _withReadingProvider(
-        provider,
-        settings,
-        const MaterialApp(
+      riverpod.ProviderScope(
+        overrides: [
+          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          settingsProvider.overrideWith((ref) => settings),
+          aiServiceProvider.overrideWith((ref) => _StubAIService()),
+          aiCacheServiceProvider.overrideWith((ref) => _StubAICacheService()),
+          wordRepositoryProvider.overrideWith((ref) => WordNetRepository()),
+          wordContextServiceProvider.overrideWith(
+            (ref) => WordContextService(
+              repository: _InMemoryWordContextRepository(),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
           home: Scaffold(
             body: SizedBox(width: 360, height: 640, child: ReaderWordSidebar()),
           ),
@@ -1507,7 +1517,8 @@ void main() {
     );
 
     await tester.tap(find.byIcon(Icons.auto_awesome_outlined));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     final phoneticText = tester.widget<Text>(find.text('/ˈkwɪkənd/'));
     expect(phoneticText.style?.fontFamily, 'Lucida Grande');
@@ -1665,6 +1676,26 @@ class _AIAnalysisReadingProvider extends ReadingProvider {
   WordAnalysis? _analysis;
 
   @override
+  AnalysisResult? get result => const AnalysisResult(
+    passageText: 'The footsteps quickened in the hallway.',
+    title: 'Test Chapter',
+    vocabulary: [],
+    syntaxPatterns: [],
+    comprehension: Comprehension(
+      whatHappened: '',
+      whyHappened: '',
+      implicitMeaning: '',
+    ),
+    practice: [],
+    difficulty: Difficulty(
+      vocab: 1,
+      syntax: 1,
+      inference: 1,
+      explanation: '',
+    ),
+  );
+
+  @override
   String? get selectedWord => 'quicken';
 
   @override
@@ -1708,6 +1739,58 @@ class _AIAnalysisReadingProvider extends ReadingProvider {
   Future<void> speakWord(String word) async {
     spokenWords.add(word);
   }
+}
+
+class _StubAIService extends AIService {
+  _StubAIService() : super(LLMClient(_AIEnabledSettingsService()));
+
+  @override
+  Future<WordAnalysis> analyzeWord({
+    required String word,
+    required String sentence,
+    required String chapterContext,
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
+    return const WordAnalysis(
+      pronunciation: '/ˈkwɪkənd/',
+      meanings: [
+        ContextualMeaning(meaning: '加快，加速', explanation: '这里描述脚步在语境中变快。'),
+      ],
+      usageTips: ['常用于描述心跳、步伐、节奏等加快。'],
+      memoryTip: '',
+    );
+  }
+}
+
+class _StubAICacheService extends AICacheService {
+  _StubAICacheService() : super();
+
+  @override
+  Future<String?> loadWordAnalysis(
+    String bookId,
+    int chapterIndex, {
+    required String contentHash,
+    required int promptVersion,
+    required String sourceLanguage,
+    String outputLanguage = 'zh-Hans',
+    String? modelConfigFingerprint,
+  }) async {
+    return null;
+  }
+
+  @override
+  Future<void> saveWordAnalysis(
+    String bookId,
+    int chapterIndex,
+    String jsonString, {
+    required String contentHash,
+    required int promptVersion,
+    required String sourceLanguage,
+    String outputLanguage = 'zh-Hans',
+    String? modelConfigFingerprint,
+  }) async {}
 }
 
 class _AIWordCacheReadingProvider extends ReadingProvider {

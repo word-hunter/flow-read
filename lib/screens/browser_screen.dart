@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../models/analysis_result.dart';
 import '../providers/reading/ai_notifier.dart';
-import '../providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
+import '../providers/reading/services_provider.dart';
+import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../services/analysis_service.dart';
@@ -85,13 +85,13 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
     try {
       final page = await _webContentService.fetch(input);
       if (!mounted) return;
-      final reader = ref.read(riverpod_reading.readingProvider);
+      final vocNotifier = ref.read(vocabularyNotifierProvider.notifier);
       final analysis = AnalysisService.analyzeChapter(
         page.title,
         page.plainText,
-        reader.userVocabulary,
-        reader.wordLevelService,
-        reader.activeLanguageModule,
+        vocNotifier.userVocabulary,
+        ref.read(wordLevelServiceProvider),
+        vocNotifier.activeLanguageModule,
       );
       setState(() {
         _page = page;
@@ -368,8 +368,6 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
     final analysis = _analysis!;
     final lookupState = ref.watch(wordLookupNotifierProvider);
     final settings = ref.watch(settingsProvider);
-    final reader = ref.read(riverpod_reading.readingProvider);
-
     return SelectedTextActionRegion(
       actionsBuilder: (context, selectedText, closeToolbar) => [
         SelectedTextAction.copy(
@@ -429,8 +427,8 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
                         fontFamily: 'Serif',
                         colorSettings: settings.colors,
                         lookupHighlightWord: lookupState.selectedWord,
-                        wordLevelService: reader.wordLevelService,
-                        languageModule: reader.activeLanguageModule,
+                        wordLevelService: ref.read(wordLevelServiceProvider),
+                        languageModule: ref.read(vocabularyNotifierProvider.notifier).activeLanguageModule,
                       ),
                       style: theme.textTheme.bodyLarge?.copyWith(
                         height: 1.75,

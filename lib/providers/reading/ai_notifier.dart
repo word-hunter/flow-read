@@ -9,6 +9,7 @@ import '../../models/ai_summary.dart';
 import '../../models/ai_text_analysis.dart';
 import '../../models/chapter_ai_coverage.dart';
 import '../../models/chapter_ai_status.dart';
+import '../../models/learning_item.dart';
 import '../../models/word_analysis.dart';
 import '../../services/ai_cache_service.dart';
 import '../../services/ai_service.dart';
@@ -164,6 +165,37 @@ class AINotifier extends Notifier<AIState> {
       aiWordAnalysis: reader.aiWordAnalysis,
       isAnalyzingWord: reader.isAnalyzingWord,
     );
+  }
+
+  bool get aiFeaturesEnabled {
+    final reader = ref.read(readingProvider);
+    return reader.aiFeaturesEnabled;
+  }
+
+  String get aiFeatureDisabledReason {
+    final reader = ref.read(readingProvider);
+    return reader.aiFeatureDisabledReason;
+  }
+
+  Future<LearningItemSaveResult?> addAIGrammarLearningItem(
+    GrammarPoint point,
+  ) {
+    final reader = ref.read(readingProvider);
+    return reader.addAIGrammarLearningItem(point);
+  }
+
+  Future<LearningItemSaveResult?> addAIVocabularyLearningItem(
+    VocabularyNote note,
+  ) {
+    final reader = ref.read(readingProvider);
+    return reader.addAIVocabularyLearningItem(note);
+  }
+
+  Future<LearningItemSaveResult?> addAIExpressionLearningItem(
+    ExpressionNote note,
+  ) {
+    final reader = ref.read(readingProvider);
+    return reader.addAIExpressionLearningItem(note);
   }
 
   Future<void> analyzeSelectedTextAI(String text, {String? sourceText}) async {

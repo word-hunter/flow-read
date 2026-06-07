@@ -4,12 +4,9 @@ import '../models/analysis_result.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
-import '../providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
 import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
-import '../providers/reading_provider.dart';
 import '../services/word_level_service.dart';
 import '../theme/app_colors.dart';
 import 'dictionary_detail_view.dart';
@@ -56,7 +53,6 @@ class ReaderSidebar extends ConsumerWidget {
     final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
-    final reader = ref.read(riverpod_reading.readingProvider);
     final wordLevelService = ref.read(wordLevelServiceProvider);
     final theme = Theme.of(context);
 
@@ -71,11 +67,11 @@ class ReaderSidebar extends ConsumerWidget {
           ),
         ],
         Expanded(
-          child: _buildVocabularyPanel(context, theme, result, lookupState, reader, wordLevelService),
+          child: _buildVocabularyPanel(context, theme, result, lookupState, vocabularyNotifier, wordLevelService),
         ),
         if (lookupState.selectedWord != null)
           _buildFloatingWordCard(
-            theme, lookupState, lookupNotifier, vocabularyNotifier, bookmarkNotifier, reader, wordLevelService,
+            theme, lookupState, lookupNotifier, vocabularyNotifier, bookmarkNotifier, wordLevelService,
           ),
       ],
     );
@@ -199,7 +195,7 @@ class ReaderSidebar extends ConsumerWidget {
     ThemeData theme,
     AnalysisResult result,
     WordLookupState lookupState,
-    ReadingProvider reader,
+    VocabularyNotifier vocabularyNotifier,
     WordLevelService wordLevelService,
   ) {
     if (result.vocabulary.isEmpty) {
@@ -239,8 +235,8 @@ class ReaderSidebar extends ConsumerWidget {
           child: InkWell(
             onTap: () => onWordTapped(
               vocab.word,
-              reader.activeLanguageModule.canonicalize(vocab.word),
-              reader.activeLanguageModule.languageCode,
+              vocabularyNotifier.activeLanguageModule.canonicalize(vocab.word),
+              vocabularyNotifier.activeLanguageModule.languageCode,
               vocab.context,
             ),
             borderRadius: BorderRadius.circular(10),
@@ -350,7 +346,6 @@ class ReaderSidebar extends ConsumerWidget {
     WordLookupNotifier lookupNotifier,
     VocabularyNotifier vocabularyNotifier,
     BookmarkNotifier bookmarkNotifier,
-    ReadingProvider reader,
     WordLevelService wordLevelService,
   ) {
     final word = lookupState.selectedWord!;

@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
-import '../providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
 import '../providers/reading/reading_time_notifier.dart';
 import '../providers/reading_provider.dart';
 import '../providers/settings_provider.dart';
@@ -162,7 +160,7 @@ class _ImportProgressHost extends riverpod.ConsumerWidget {
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final importProgressNotifier = ref
-        .read(riverpod_reading.readingProvider)
+        .read(bookshelfNotifierProvider.notifier)
         .importProgressNotifier;
 
     return _ImportProgressOverlayHost(

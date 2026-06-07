@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../../models/user_vocabulary.dart';
+import '../../providers/reading/ai_notifier.dart';
 import '../../providers/reading/bookmark_notifier.dart';
-import '../../providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
 import '../../providers/reading/services_provider.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/reading/word_lookup_notifier.dart';
-import '../../providers/reading_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_colors.dart';
@@ -41,7 +39,6 @@ class _ReaderWordSidebarState
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
-    final reader = ref.read(riverpod_reading.readingProvider);
     final theme = Theme.of(context);
     final word = lookupState.selectedWord;
 
@@ -74,7 +71,6 @@ class _ReaderWordSidebarState
                     settings,
                     theme,
                     word,
-                    reader,
                   ),
           ),
         ],
@@ -151,7 +147,6 @@ class _ReaderWordSidebarState
     SettingsService settings,
     ThemeData theme,
     String word,
-    ReadingProvider reader,
   ) {
     final status = vocabularyNotifier.getWordStatus(word);
     final isBookmarked = bookmarkNotifier.isBookmarked(word);
@@ -184,7 +179,6 @@ class _ReaderWordSidebarState
                 settings,
                 theme,
                 word,
-                reader,
                 status,
                 isBookmarked,
               ),
@@ -203,7 +197,6 @@ class _ReaderWordSidebarState
     SettingsService settings,
     ThemeData theme,
     String word,
-    ReadingProvider reader,
     UserWordStatus? status,
     bool isBookmarked,
   ) {
@@ -228,7 +221,7 @@ class _ReaderWordSidebarState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildContextSection(lookupState, lookupNotifier, settings, theme, word, reader),
+            _buildContextSection(lookupState, lookupNotifier, settings, theme, word),
             const SizedBox(height: 16),
             _buildLearningStatusSection(
               lookupState,
@@ -237,7 +230,6 @@ class _ReaderWordSidebarState
               bookmarkNotifier,
               theme,
               word,
-              reader,
               status,
               isBookmarked,
             ),
@@ -253,7 +245,6 @@ class _ReaderWordSidebarState
     SettingsService settings,
     ThemeData theme,
     String word,
-    ReadingProvider reader,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,11 +254,11 @@ class _ReaderWordSidebarState
           contextText: lookupState.selectedWordContext,
           contextWordStart: lookupState.selectedWordContextStart,
           contextWordEnd: lookupState.selectedWordContextEnd,
-          trailing: _buildAIContextAction(lookupState, lookupNotifier, settings, theme, word, reader),
+          trailing: _buildAIContextAction(lookupState, lookupNotifier, settings, theme, word),
         ),
         if (_showAIAnalysis) ...[
           const SizedBox(height: 10),
-          _buildAIAnalysisContent(lookupState, lookupNotifier, theme, word, reader),
+          _buildAIAnalysisContent(lookupState, lookupNotifier, theme, word),
         ],
       ],
     );
@@ -279,13 +270,13 @@ class _ReaderWordSidebarState
     SettingsService settings,
     ThemeData theme,
     String word,
-    ReadingProvider reader,
   ) {
+    final aiNotifier = ref.read(aiNotifierProvider.notifier);
     final canToggleAIAnalysis =
         _showAIAnalysis ||
-        (settings.aiFeaturesEnabled && reader.aiFeaturesEnabled);
+        (settings.aiFeaturesEnabled && aiNotifier.aiFeaturesEnabled);
     final disabledReason = settings.aiFeaturesEnabled
-        ? reader.aiFeatureDisabledReason
+        ? aiNotifier.aiFeatureDisabledReason
         : settings.aiFeatureDisabledReason;
     return IconButton(
       tooltip: _showAIAnalysis
@@ -300,10 +291,10 @@ class _ReaderWordSidebarState
               setState(() => _showAIAnalysis = !_showAIAnalysis);
               if (_showAIAnalysis) {
                 lookupNotifier.setAnalyzingWord(true);
-                reader.analyzeWordAI(word, _analysisContext(lookupState, word))
+                ref.read(aiNotifierProvider.notifier).analyzeWordAI(word, _analysisContext(lookupState, word))
                     .whenComplete(() {
                       if (mounted) {
-                        lookupNotifier.setAIWordAnalysis(reader.aiWordAnalysis);
+                        lookupNotifier.setAIWordAnalysis(ref.read(aiNotifierProvider).aiWordAnalysis);
                         lookupNotifier.setAnalyzingWord(false);
                       }
                     });
@@ -343,7 +334,6 @@ class _ReaderWordSidebarState
     BookmarkNotifier bookmarkNotifier,
     ThemeData theme,
     String word,
-    ReadingProvider reader,
     UserWordStatus? status,
     bool isBookmarked,
   ) {
@@ -483,7 +473,6 @@ class _ReaderWordSidebarState
     WordLookupNotifier lookupNotifier,
     ThemeData theme,
     String word,
-    ReadingProvider reader,
   ) {
     if (lookupState.isAnalyzingWord) {
       return const Center(

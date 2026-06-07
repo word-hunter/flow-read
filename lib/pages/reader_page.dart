@@ -12,11 +12,10 @@ import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/reading_config_notifier.dart';
-import '../providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
 import '../providers/reading/reading_search_notifier.dart';
 import '../providers/reading/reading_time_notifier.dart';
 import '../providers/reading/services_provider.dart';
+import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
@@ -412,7 +411,6 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final lookupState = ref.watch(wordLookupNotifierProvider);
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
-    final reader = ref.read(riverpod_reading.readingProvider);
 
     return _buildKeyboardScope(
       LayoutBuilder(
@@ -433,7 +431,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               search: search,
               lookupState: lookupState,
               wordLevelService: ref.read(wordLevelServiceProvider),
-              activeLanguageModule: reader.activeLanguageModule,
+              activeLanguageModule: ref.read(vocabularyNotifierProvider.notifier).activeLanguageModule,
               scrollController: _scrollController,
               isWideScreen: isWide,
               sidebarOpen: _sidebarOpen,

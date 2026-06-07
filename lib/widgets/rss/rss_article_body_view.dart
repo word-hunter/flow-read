@@ -4,15 +4,16 @@ import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 
 import '../../models/analysis_result.dart';
 import '../../models/rss_models.dart';
-import '../../providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
+import '../../providers/reading/services_provider.dart';
 import '../../providers/reading/text_selection_notifier.dart';
+import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/reading/word_lookup_notifier.dart';
-import '../../providers/reading_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/analysis_service.dart';
 import '../../services/app_logger.dart';
+import '../../services/language/language_module.dart';
 import '../../services/settings_service.dart';
+import '../../services/word_level_service.dart';
 import '../reader_text_view.dart';
 import '../selected_text_action_toolbar.dart';
 import '../selected_text_sheet.dart';
@@ -63,9 +64,10 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     final bodyText = text ?? _textFromBodyBlocks(bodyBlocks) ?? '';
     final lookupState = ref.watch(wordLookupNotifierProvider);
     final lookupNotifier = ref.read(wordLookupNotifierProvider.notifier);
-    final reader = ref.read(riverpod_reading.readingProvider);
+    final vocNotifier = ref.read(vocabularyNotifierProvider.notifier);
+    final wordLevelService = ref.read(wordLevelServiceProvider);
     final settings = ref.watch(settingsProvider);
-    final result = _analyzeArticleBody(reader, bodyText);
+    final result = _analyzeArticleBody(vocNotifier, bodyText, wordLevelService);
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,7 +80,8 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
             theme,
             lookupState,
             lookupNotifier,
-            reader,
+            vocNotifier.activeLanguageModule,
+            wordLevelService,
             settings,
           )
         else
@@ -92,7 +95,8 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
             theme,
             lookupState,
             lookupNotifier,
-            reader,
+            vocNotifier.activeLanguageModule,
+            wordLevelService,
             settings,
           ),
         ..._buildTrailingImages(article, bodyBlocks),
@@ -125,16 +129,17 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
   }
 
   AnalysisResult? _analyzeArticleBody(
-    ReadingProvider reader,
+    VocabularyNotifier vocNotifier,
     String bodyText,
+    WordLevelService wordLevelService,
   ) {
     try {
       return AnalysisService.analyzeChapter(
         article.title,
         bodyText,
-        reader.userVocabulary,
-        reader.wordLevelService,
-        reader.activeLanguageModule,
+        vocNotifier.userVocabulary,
+        wordLevelService,
+        vocNotifier.activeLanguageModule,
       );
     } catch (error, stackTrace) {
       AppLogger.instance.event(
@@ -155,7 +160,8 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     ThemeData theme,
     WordLookupState lookupState,
     WordLookupNotifier lookupNotifier,
-    ReadingProvider reader,
+    LanguageModule activeLanguageModule,
+    WordLevelService wordLevelService,
     SettingsService settings,
   ) {
     return bodyBlocks
@@ -168,7 +174,8 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
               theme,
               lookupState,
               lookupNotifier,
-              reader,
+              activeLanguageModule,
+              wordLevelService,
               settings,
             ),
             RssArticleImageBlock() => Padding(
@@ -197,7 +204,8 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     ThemeData theme,
     WordLookupState lookupState,
     WordLookupNotifier lookupNotifier,
-    ReadingProvider reader,
+    LanguageModule activeLanguageModule,
+    WordLevelService wordLevelService,
     SettingsService settings,
   ) {
     final style = _rssTextStyle(block, theme);
@@ -235,8 +243,8 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
                   colorSettings: settings.colors,
                   searchQuery: searchQuery,
                   lookupHighlightWord: lookupState.selectedWord,
-                  wordLevelService: reader.wordLevelService,
-                  languageModule: reader.activeLanguageModule,
+                  wordLevelService: wordLevelService,
+                  languageModule: activeLanguageModule,
                 )
                 as TextSpan,
             style: style,

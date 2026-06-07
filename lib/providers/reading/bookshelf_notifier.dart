@@ -285,6 +285,29 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     reader.clearError();
     state = state.copyWith(clearError: true);
   }
+
+  ImportProgressNotifier get importProgressNotifier {
+    final reader = ref.read(readingProvider);
+    return reader.importProgressNotifier;
+  }
+
+  BookMetadata? get activeBookMetadata {
+    final reader = ref.read(readingProvider);
+    return reader.activeBookMetadata;
+  }
+
+  Future<void> setBookSourceLanguageOverride(
+    String bookId,
+    String code,
+  ) {
+    final reader = ref.read(readingProvider);
+    return reader.setBookSourceLanguageOverride(bookId, code);
+  }
+
+  Future<void> clearBookSourceLanguageOverride(String bookId) {
+    final reader = ref.read(readingProvider);
+    return reader.clearBookSourceLanguageOverride(bookId);
+  }
 }
 
 final bookshelfNotifierProvider =
