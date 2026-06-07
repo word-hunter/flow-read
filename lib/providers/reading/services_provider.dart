@@ -8,6 +8,7 @@ import '../../services/ai_assistant_action_registry.dart';
 import '../../services/ai_assistant_controller.dart';
 import '../../services/ai_cache_service.dart';
 import '../../services/ai_service.dart';
+import '../../services/book_cache.dart';
 import '../../services/book_glossary_service.dart';
 import '../../services/book_service.dart';
 import '../../services/bookmark_service.dart';
@@ -29,6 +30,8 @@ import '../../services/user_vocabulary_service.dart';
 import '../../services/word_context_service.dart';
 import '../../services/word_level_service.dart';
 import '../settings_provider.dart';
+
+final bookCacheProvider = Provider<BookCache>((ref) => BookCache());
 
 final bookServiceProvider = Provider<BookService>((ref) => BookService());
 
