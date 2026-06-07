@@ -277,6 +277,32 @@ void main() {
     },
   );
 
+  test('book cover loading falls back to persisted cover path', () async {
+    final documentsDir = await Directory('${tempDir.path}/documents').create();
+    final legacyCoverDir = await Directory(
+      '${tempDir.path}/legacy-covers',
+    ).create();
+    final legacyCoverFile = File('${legacyCoverDir.path}/book-cover.png');
+    final legacyCoverBytes = Uint8List.fromList([9, 8, 7, 6]);
+    await legacyCoverFile.writeAsBytes(legacyCoverBytes);
+
+    final service = BookService(
+      documentsDirectoryProvider: () async => documentsDir,
+    );
+    await service.init();
+    await service.addBook(
+      BookMetadata(
+        id: 'book-1',
+        title: 'Flow',
+        author: 'Author',
+        sourcePath: '/imports/flow.epub',
+        coverPath: legacyCoverFile.path,
+      ),
+    );
+
+    expect(service.loadCover('book-1'), legacyCoverBytes);
+  });
+
   test('bookmarks persist word and reading bookmark payloads', () async {
     final service = BookmarkService();
     await service.init();

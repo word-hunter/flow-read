@@ -103,13 +103,28 @@ class BookService {
   }
 
   Uint8List? loadCover(String bookId) {
+    final paths = <String>[];
     final booksDir = _booksDir;
-    if (booksDir == null) return null;
+    if (booksDir != null) {
+      paths.add('$booksDir/${bookId}_cover.png');
+    }
 
-    final path = '$booksDir/${bookId}_cover.png';
-    final file = File(path);
-    if (!file.existsSync()) return null;
-    return file.readAsBytesSync();
+    final persistedCoverPath = _repository.get(bookId)?.coverPath;
+    if (persistedCoverPath != null && persistedCoverPath.trim().isNotEmpty) {
+      paths.add(persistedCoverPath);
+    }
+
+    for (final path in paths.toSet()) {
+      final file = File(path);
+      if (!file.existsSync()) continue;
+      try {
+        if (file.lengthSync() == 0) continue;
+        return file.readAsBytesSync();
+      } on FileSystemException {
+        continue;
+      }
+    }
+    return null;
   }
 
   Future<void> addBook(BookMetadata metadata) async {

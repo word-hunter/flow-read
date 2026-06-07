@@ -183,7 +183,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
   BookDifficultyRating? difficultyForBook(String bookId) {
     final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
-    if (bookId == activeBookId) return state.currentBookDifficulty;
+    if (bookId == activeBookId) {
+      return state.currentBookDifficulty ?? _bookDifficultyById[bookId];
+    }
     return _bookDifficultyById[bookId];
   }
 

@@ -80,6 +80,8 @@ void main() {
       ),
     );
 
+    expect(find.text('L5 · 暂不建议硬读'), findsOneWidget);
+
     final progress = tester.widget<LinearProgressIndicator>(
       find.byType(LinearProgressIndicator),
     );
