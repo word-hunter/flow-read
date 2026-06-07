@@ -19,4 +19,30 @@ class CharacterRegistryEntry {
         aliases.map((alias) => alias.toLowerCase()).contains(normalized) ||
         userOverrides.map((alias) => alias.toLowerCase()).contains(normalized);
   }
+
+  Map<String, dynamic> toJson() => {
+        'canonicalName': canonicalName,
+        'aliases': aliases.toList(),
+        'userOverrides': userOverrides.toList(),
+        'firstAppearanceChapter': firstAppearanceChapter,
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory CharacterRegistryEntry.fromJson(Map<String, dynamic> json) {
+    return CharacterRegistryEntry(
+      canonicalName: json['canonicalName'] as String? ?? '',
+      aliases: _toStringSet(json['aliases']),
+      userOverrides: _toStringSet(json['userOverrides']),
+      firstAppearanceChapter: json['firstAppearanceChapter'] as int?,
+      updatedAt:
+          DateTime.tryParse(json['updatedAt'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  static Set<String> _toStringSet(dynamic value) {
+    if (value is List) {
+      return value.map((e) => e.toString()).toSet();
+    }
+    return const {};
+  }
 }

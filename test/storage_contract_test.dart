@@ -31,7 +31,9 @@ void main() {
     expect(backupDataBoxes, contains(HiveBoxNames.learningAnalyticsFor('en')));
     expect(backupDataBoxes, isNot(contains(HiveBoxNames.wordLevels)));
     expect(HiveBoxNames.bootstrapBoxes, contains(HiveBoxNames.bookGlossary));
-    expect(backupDataBoxes, isNot(contains(HiveBoxNames.bookGlossary)));
+    expect(backupDataBoxes, contains(HiveBoxNames.bookGlossary));
+    expect(HiveBoxNames.bootstrapBoxes, contains(HiveBoxNames.characterRegistry));
+    expect(backupDataBoxes, contains(HiveBoxNames.characterRegistry));
     expect(
       backupDataBoxes,
       isNot(contains(HiveBoxNames.dictionaryCacheFor('en'))),

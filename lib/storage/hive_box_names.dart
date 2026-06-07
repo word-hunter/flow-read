@@ -21,6 +21,7 @@ class HiveBoxNames {
   static const wordLevels = 'word_levels';
   static const rssSubscriptions = 'rss_subscriptions';
   static const bookGlossary = 'book_glossary';
+  static const characterRegistry = 'character_registry';
 
   static String booksFor(String lang) => 'books_${_normalize(lang)}';
   static String userVocabularyFor(String lang) =>
@@ -64,6 +65,7 @@ class HiveBoxNames {
       wordLevels,
       rssSubscriptions,
       bookGlossary,
+      characterRegistry,
     ];
   }
 
@@ -82,6 +84,7 @@ class HiveBoxNames {
     wordLevels,
     rssSubscriptions,
     bookGlossary,
+    characterRegistry,
   ];
 
   static String _normalize(String lang) {

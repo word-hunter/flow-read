@@ -66,6 +66,7 @@ Future<void> openFlowReadHiveBoxes() async {
     Hive.openBox<String>(HiveBoxNames.dictionaryCacheFor(languageCode)),
     Hive.openBox<RssFeedSubscription>(HiveBoxNames.rssSubscriptions),
     Hive.openBox<BookGlossaryEntry>(HiveBoxNames.bookGlossary),
+    Hive.openBox<String>(HiveBoxNames.characterRegistry),
     Hive.openBox<String>(HiveBoxNames.wordContextsFor(languageCode)),
     Hive.openBox<LearningItem>(HiveBoxNames.learningItemsFor(languageCode)),
     Hive.openBox<int>(HiveBoxNames.learningAnalyticsFor(languageCode)),

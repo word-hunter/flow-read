@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../models/book_glossary_entry.dart';
 import '../models/book_metadata.dart';
 import '../models/learning_item.dart';
 import '../models/rss_models.dart';
@@ -73,6 +74,16 @@ class BackupService extends ChangeNotifier {
         box: () => Hive.box<RssFeedSubscription>(HiveBoxNames.rssSubscriptions),
         encode: _rssSubscriptionToJson,
         decode: (value) => _rssSubscriptionFromJson(_asStringKeyMap(value)),
+      ),
+      _BackupDataSegment.box<BookGlossaryEntry>(
+        boxName: HiveBoxNames.bookGlossary,
+        box: () => Hive.box<BookGlossaryEntry>(HiveBoxNames.bookGlossary),
+        encode: (value) => value.toJson(),
+        decode: (value) => BookGlossaryEntry.fromJson(_asStringKeyMap(value)),
+      ),
+      _BackupDataSegment.box<String>(
+        boxName: HiveBoxNames.characterRegistry,
+        box: () => Hive.box<String>(HiveBoxNames.characterRegistry),
       ),
     ];
   }
@@ -679,6 +690,16 @@ class BackupService extends ChangeNotifier {
       );
     }
     if (boxName == HiveBoxNames.rssSubscriptions) {
+      return _globalBackupSegments().firstWhere(
+        (segment) => segment.boxName == boxName,
+      );
+    }
+    if (boxName == HiveBoxNames.bookGlossary) {
+      return _globalBackupSegments().firstWhere(
+        (segment) => segment.boxName == boxName,
+      );
+    }
+    if (boxName == HiveBoxNames.characterRegistry) {
       return _globalBackupSegments().firstWhere(
         (segment) => segment.boxName == boxName,
       );
