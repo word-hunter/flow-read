@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
+import '../models/ai_context_snapshot.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
-import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/bookmark_notifier.dart';
+import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/reading_config_notifier.dart';
 import '../providers/reading/reading_search_notifier.dart';
@@ -19,6 +20,7 @@ import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
+import '../widgets/ai_assistant_panel.dart';
 import '../widgets/bookmark_sheet.dart';
 import '../widgets/font_settings_sheet.dart';
 import '../widgets/reader/reader_content_view.dart';
@@ -34,7 +36,7 @@ part 'reader_daily_goal_mixin.dart';
 part 'reader_keyboard_mixin.dart';
 part 'reader_viewport_mixin.dart';
 
-enum _ReaderSidebarMode { word, textAnalysis }
+enum _ReaderSidebarMode { word, textAnalysis, assistant }
 
 class ReaderPage extends riverpod.ConsumerStatefulWidget {
   const ReaderPage({super.key});
@@ -133,14 +135,30 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     if (!settings.aiFeaturesEnabled) return;
     final selectedText = text.trim();
     if (selectedText.isEmpty) return;
-    final analyzerName = '${settings.aiProvider.label} AI';
-    ref.read(aiNotifierProvider.notifier).analyzeSelectedTextAI(selectedText);
+
+    final assistant = ref.read(aiAssistantControllerProvider);
+    final currentBookNotifier = ref.read(currentBookNotifierProvider);
+    final bookshelfNotifier = ref.read(bookshelfNotifierProvider);
+    final book = bookshelfNotifier.book;
+
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.readerSelectedText,
+        selectedText: selectedText,
+        surroundingPassage: _extractPassage(selectedText),
+        bookId: bookshelfNotifier.activeBookId,
+        chapterIndex: currentBookNotifier.currentChapter,
+        chapterTitle: book?.chapters.isNotEmpty == true
+            ? book!.chapters[currentBookNotifier.currentChapter].title
+            : null,
+      ),
+    );
+
     if (_isWideScreen) {
       ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
       setState(() {
-        _sidebarMode = _ReaderSidebarMode.textAnalysis;
+        _sidebarMode = _ReaderSidebarMode.assistant;
         _sidebarSelectedText = selectedText;
-        _sidebarAnalyzerName = analyzerName;
         _sidebarOpen = true;
       });
       return;
@@ -150,12 +168,34 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => SelectedTextSheet(
-        selectedText: selectedText,
-        analysis: null,
-        analyzerName: analyzerName,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollController) => AIAssistantPanel(
+          controller: assistant,
+        ),
       ),
     );
+  }
+
+  String _extractPassage(String selectedText) {
+    final book = ref.read(bookshelfNotifierProvider).book;
+    if (book == null) return selectedText;
+    final current = ref.read(currentBookNotifierProvider);
+    final chapter = current.currentChapter < book.chapters.length
+        ? book.chapters[current.currentChapter]
+        : null;
+    final passage = chapter?.plainText ?? '';
+    if (passage.isEmpty) return selectedText;
+    final index = passage.indexOf(selectedText);
+    if (index < 0) return selectedText;
+    final start = index - 120 > 0 ? index - 120 : 0;
+    final end = index + selectedText.length + 120 < passage.length
+        ? index + selectedText.length + 120
+        : passage.length;
+    return passage.substring(start, end);
   }
 
   void _showTocSheet() {
@@ -581,6 +621,11 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         selectedText: _sidebarSelectedText,
         analysis: null,
         analyzerName: _sidebarAnalyzerName,
+        embedded: true,
+        onClose: () => setState(() => _sidebarOpen = false),
+      ),
+      _ReaderSidebarMode.assistant => AIAssistantPanel(
+        controller: ref.read(aiAssistantControllerProvider),
         embedded: true,
         onClose: () => setState(() => _sidebarOpen = false),
       ),
