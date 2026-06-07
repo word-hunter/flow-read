@@ -18,11 +18,16 @@ class BookService {
            documentsDirectoryProvider ?? getApplicationDocumentsDirectory,
        _clock = clock ?? DateTime.now;
 
+  static const _maxCoverCacheSize = 50;
+
   final BookMetadataRepository _repository;
   final Future<Directory> Function() _documentsDirectoryProvider;
   final DateTime Function() _clock;
 
   String? _booksDir;
+
+  final _coverCache = <String, Uint8List?>{};
+  final _coverAccessOrder = <String>[];
 
   List<BookMetadata> get books => _repository.values.toList();
 
@@ -103,6 +108,22 @@ class BookService {
   }
 
   Uint8List? loadCover(String bookId) {
+    if (_coverCache.containsKey(bookId)) {
+      return _coverCache[bookId];
+    }
+
+    final bytes = _readCoverFromDisk(bookId);
+    if (_coverAccessOrder.length >= _maxCoverCacheSize) {
+      final oldest = _coverAccessOrder.removeAt(0);
+      _coverCache.remove(oldest);
+    }
+    _coverCache[bookId] = bytes;
+    _coverAccessOrder.remove(bookId);
+    _coverAccessOrder.add(bookId);
+    return bytes;
+  }
+
+  Uint8List? _readCoverFromDisk(String bookId) {
     final paths = <String>[];
     final booksDir = _booksDir;
     if (booksDir != null) {
@@ -131,7 +152,18 @@ class BookService {
     await _repository.put(metadata.id, metadata);
   }
 
+  void clearCoverCacheFor(String bookId) {
+    _coverCache.remove(bookId);
+    _coverAccessOrder.remove(bookId);
+  }
+
+  void clearCoverCache() {
+    _coverCache.clear();
+    _coverAccessOrder.clear();
+  }
+
   Future<void> removeBook(String id) async {
+    clearCoverCacheFor(id);
     await _repository.delete(id);
     final coverFile = File(_coverFilePath(id));
     if (await coverFile.exists()) {

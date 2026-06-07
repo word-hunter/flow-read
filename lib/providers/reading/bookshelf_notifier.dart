@@ -439,6 +439,8 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     await bookService.init();
     final readingTime = ref.read(readingTimeServiceProvider);
     await readingTime.init();
+    ref.read(bookCacheProvider).clear();
+    bookService.clearCoverCache();
     state = state.copyWith(
       books: bookService.books,
       clearBook: true,
