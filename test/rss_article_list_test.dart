@@ -1,4 +1,5 @@
 import 'package:flow_read/models/rss_models.dart';
+import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/rss/rss_article_list.dart';
@@ -6,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
+
+import 'support/fake_word_level_service.dart';
 
 void main() {
   testWidgets('article list exposes original article action', (tester) async {
@@ -141,6 +144,9 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           settingsProvider.overrideWith((ref) => SettingsService()),
+          wordLevelServiceProvider.overrideWith(
+            (ref) => fakeWordLevelService(),
+          ),
         ],
         child: MaterialApp(
           home: Scaffold(

@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/fake_word_level_service.dart';
+
 void main() {
   testWidgets('analysis sheet shows selected text and AI result', (
     tester,
@@ -66,6 +68,9 @@ void main() {
           ),
           readingTimeServiceProvider.overrideWith(
             (ref) => _FakeReadingTimeService(),
+          ),
+          wordLevelServiceProvider.overrideWith(
+            (ref) => fakeWordLevelService(),
           ),
         ],
         child: const MaterialApp(
@@ -180,6 +185,9 @@ void main() {
           readingTimeServiceProvider.overrideWith(
             (ref) => _FakeReadingTimeService(),
           ),
+          wordLevelServiceProvider.overrideWith(
+            (ref) => fakeWordLevelService(),
+          ),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -250,6 +258,9 @@ void main() {
           readingTimeServiceProvider.overrideWith(
             (ref) => _FakeReadingTimeService(),
           ),
+          wordLevelServiceProvider.overrideWith(
+            (ref) => fakeWordLevelService(),
+          ),
         ],
         child: const MaterialApp(
           home: Scaffold(
@@ -310,8 +321,7 @@ class _SelectedTextAINotifier extends AINotifier {
 }
 
 class _FakeReadingConfigService extends ReadingConfigService {
-  _FakeReadingConfigService()
-    : super(repository: _FakeReadingConfigRepo());
+  _FakeReadingConfigService() : super(repository: _FakeReadingConfigRepo());
 }
 
 class _FakeReadingConfigRepo implements ReadingConfigRepository {
@@ -329,8 +339,7 @@ class _FakeReadingConfigRepo implements ReadingConfigRepository {
 }
 
 class _FakeReadingTimeService extends ReadingTimeService {
-  _FakeReadingTimeService()
-    : super(repository: _FakeReadingTimeRepo());
+  _FakeReadingTimeService() : super(repository: _FakeReadingTimeRepo());
 }
 
 class _FakeReadingTimeRepo implements ReadingTimeRepository {
