@@ -115,6 +115,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     } catch (_) {
       // BookService not yet available or not overridden in tests.
     }
+    unawaited(ref.read(wordLevelServiceProvider).init());
     return const VocabularyState();
   }
 

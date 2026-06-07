@@ -194,6 +194,8 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
     final languageModule = LanguageRegistry.instance.get(code) ??
         const EnglishLanguageModule();
 
+    await wordLevelService.init();
+
     final analysis = AnalysisService.analyzeChapter(
       chapter.title,
       chapter.plainText,

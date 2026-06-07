@@ -58,7 +58,9 @@ final wordRepositoryProvider = Provider<WordRepository>((ref) {
 });
 
 final wordLevelServiceProvider = Provider<WordLevelService>((ref) {
-  return WordLevelService();
+  final service = WordLevelService();
+  unawaited(service.init());
+  return service;
 });
 
 final wordContextServiceProvider = Provider<WordContextService>((ref) {

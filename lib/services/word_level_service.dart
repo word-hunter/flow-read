@@ -18,8 +18,15 @@ class WordLevelService {
 
   final Map<String, LevelKey> _levelMap = {};
   final Map<String, String> _originMap = {};
+  Future<void>? _initFuture;
 
   Future<void> init() async {
+    if (_initFuture != null) return _initFuture;
+    _initFuture = _doInit();
+    return _initFuture;
+  }
+
+  Future<void> _doInit() async {
     await _repository.init();
     _levelMap.clear();
     _originMap.clear();

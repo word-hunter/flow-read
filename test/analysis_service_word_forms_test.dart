@@ -43,6 +43,16 @@ void main() {
         originForm: 'answer',
         levelIndex: 0,
       ),
+      const WordLevelInfo(
+        word: 'spoken',
+        originForm: 'speak',
+        levelIndex: 0,
+      ),
+      const WordLevelInfo(
+        word: 'years',
+        originForm: 'year',
+        levelIndex: 0,
+      ),
     ]);
   });
 
@@ -157,6 +167,37 @@ void main() {
       expect(
         result.vocabulary.map((item) => item.word),
         isNot(contains('answers')),
+      );
+    },
+  );
+
+  test(
+    'known words are recognized in non-lemma forms (past participle, plural)',
+    () async {
+      final vocab = UserVocabularyService();
+      await vocab.init();
+      await vocab.setKnown('speak');
+      await vocab.setKnown('year');
+
+      final wordLevels = WordLevelService();
+      await wordLevels.init();
+
+      final result = AnalysisService.analyzeChapter(
+        'Non-lemma',
+        'She has spoken for three years.',
+        vocab,
+        wordLevels,
+      );
+
+      expect(result.knownWords, contains('speak'));
+      expect(result.knownWords, contains('year'));
+      expect(
+        result.vocabulary.map((item) => item.word),
+        isNot(contains('spoken')),
+      );
+      expect(
+        result.vocabulary.map((item) => item.word),
+        isNot(contains('years')),
       );
     },
   );
