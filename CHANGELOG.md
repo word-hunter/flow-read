@@ -10,6 +10,16 @@ This project follows a simple semantic versioning flow:
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-06-07
+
+### Fixed
+
+- 修复首页封面和难度标签显示
+
+### Changed
+
+- 更新项目说明和提交规范
+
 ## [1.7.0] - 2026-06-07
 
 ### 新增 — Unified Reading AI Assistant

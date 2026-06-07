@@ -1,10 +1,10 @@
 class FlowReadVersion {
-  static const name = '1.7.0';
+  static const name = '1.7.1';
   static const channel = 'stable';
-  static const releaseName = '1.7.0';
-  static const buildNumber = 13;
-  static const full = '1.7.0+13';
-  static const tag = 'v1.7.0';
-  static const shortDisplay = '1.7.0';
-  static const display = '1.7.0 (13)';
+  static const releaseName = '1.7.1';
+  static const buildNumber = 14;
+  static const full = '1.7.1+14';
+  static const tag = 'v1.7.1';
+  static const shortDisplay = '1.7.1';
+  static const display = '1.7.1 (14)';
 }
