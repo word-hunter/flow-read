@@ -208,6 +208,13 @@ This is NOT a CI gate — it's a quick sanity check before trusting docs for cod
 3. If docs and code disagree, **trust the code** and flag the stale doc
 4. After making a structural change (new Hive type, new box, renamed class), update the relevant doc
 
+## Git Commit Discipline
+
+- **Always run `git status` before committing** to verify only intended files are staged.
+- Never use `git add .` or `git add -A`; prefer `git add <specific-file>` to avoid accidentally staging gitignored or unrelated files.
+- Respect `.gitignore`. If a gitignored file appears in the staging area, use `git reset HEAD <file>` to unstage it before committing.
+- Only commit when the user explicitly requests it.
+
 ## Verification Expectations
 
 - Choose tests based on risk and touched code. A narrow parser or service change should get a focused unit test; shared UI or state changes should get widget/provider coverage.

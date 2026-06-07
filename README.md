@@ -4,6 +4,16 @@
   <img src="assets/brand/flow_read_logo.png" alt="Flow Read logo" width="140">
 </p>
 
+<p align="center">
+  <a href="https://github.com/word-hunter/flow-read/actions/workflows/ci.yml"><img src="https://github.com/word-hunter/flow-read/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/word-hunter/flow-read/releases"><img src="https://img.shields.io/github/v/release/word-hunter/flow-read?include_prereleases" alt="Release"></a>
+  <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-3.44.0-02569B?logo=flutter&logoColor=white" alt="Flutter"></a>
+  <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-%5E3.11.5-0175C2?logo=dart&logoColor=white" alt="Dart"></a>
+  <a href="https://github.com/word-hunter/flow-read/releases"><img src="https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple" alt="macOS"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/word-hunter/flow-read" alt="License"></a>
+  <a href="https://github.com/word-hunter/flow-read/commits/main"><img src="https://img.shields.io/github/last-commit/word-hunter/flow-read" alt="Last Commit"></a>
+</p>
+
 Flow Read 是一款面向英语阅读和词汇积累的 Flutter 应用，把书架、EPUB 阅读、查词、AI 辅助和本地备份放在同一个安静的工作流里。
 
 当前公开发布目标以 macOS 桌面端为主。代码结构也保留了 Flutter 多端能力，但移动端和其他桌面平台需要单独验证后再作为正式发行目标。
