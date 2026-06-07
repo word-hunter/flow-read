@@ -12,53 +12,34 @@ This project follows a simple semantic versioning flow:
 
 ## [1.7.0] - 2026-06-07
 
-### Added
+### 新增 — Unified Reading AI Assistant
 
-- complete remaining tasks — BookGlossaryPromptRequest + browser AI migration
-- wire AIAssistantController into reader page (Task 8/9/11)
-- add AIAssistantPanel widget (Task 7)
-- add ReadingInsightService (Task 4)
-- add BookGlossaryService (Task 5) and CharacterRegistry (Task 6)
-- complete Riverpod migration Phase 3 — eliminate ReadingProvider
-- migrate 7 controllers from ChangeNotifier wrapper to Notifier
-- bump 命令自动排除 scope=2.0 的提交，避免 2.0 功能代码混入小版本 changelog
-- add AI assistant controllers
-- add AI assistant action registry
-- add AI assistant data models
-- add language controls to settings
-- filter vocabulary by language
-- store user vocabulary with language keys
-- filter dictionary sources by language
-- pass structured word lookup metadata
-- add structured reading tokens
-- add book language metadata fields
-- add benchmark suite with auto-scan, profile tool, and HTML report
-- add parser progress callbacks
+- **统一 AI 助手面板**：`AIAssistantPanel` 组件，包含上下文卡片、操作条（解释/翻译/短语/指代/出题/总结/词汇/问答）、类型化结果渲染、追问输入、语言范围指示
+- **AI 基础设施**：`AIAssistantController` + `AIActionController` 生命周期管理，`AIAssistantActionRegistry` 动作可用性矩阵，统一上下文快照 `AIContextSnapshot`
+- **作品词库**：`BookGlossaryService` 基于 HiveType 12 的 `BookGlossaryEntry` 缓存，支持按书查词、批量写入、备份/导入
+- **人物注册表**：`CharacterRegistry` 三层匹配（规范化名称 / 别名 / 用户手动覆盖），按书持久化
+- **阅读画像**：`ReadingInsightService` 运行时计算查词密度（每千词查词次数）和重复查询率
+- **作品词汇 AI 解释**：`PromptBuilder.buildBookGlossaryExplanation()` 结合当前段落、前文出现位置、人物卡片生成语境解释
+- **浏览器 AI 统一**：`browser_screen.dart` 从独立 AI 状态迁移至 `AIAssistantPanel`，删除 ~110 行重复代码
 
-### Fixed
+### 新增 — Multilingual Foundation 补齐
 
-- WordLevelService.init() never called after Riverpod migration
-- add service provider overrides for remaining migration tests
-- stabilize reader scrolling
-- 优化 EPUB 导入进度体验
-- adjust empty fallback hint
-- remove inactive font dropdown icon
+- **书籍语言元数据**：`BookMetadata.languageConfidence`、`targetExplanationLanguage` per-book 覆盖
+- **结构化 Token**：`ReadingToken` / `TokenizedText` 携带 surface/canonical/languageId/offset
+- **词汇状态语言隔离**：`UserVocabularyEntry` + `UserVocabularyKey(languageId, canonical)`，旧数据懒迁移
+- **词典来源语言过滤**：`DictionarySourceConfig.supportedLanguages`，Collins/WordNet/Longman 默认 `en`
+- **语言设置 UI**：书籍原文语言手动修正入口、默认解释语言下拉选择
+- **词汇页语言标签/筛选**：`AggregatedVocabulary.languageId`，支持按语言筛选和标签展示
+- **单词点击回调扩展**：从只传 word → 传 surface/canonical/languageId/contextText，避免重复 canonicalize
 
-### Changed
+### 变更
 
-- detach ChangeNotifier listener from ReadingProvider
-- zero UI readingProvider refs, all via notifier delegation
-- reduce UI readingProvider refs to notifiers
-- cross-reference notifiers for book/activeBookId/currentChapter
-- bookshelf owns Book in state, current_book cross-references
-- migrate wordLookup and AI providers to Notifier, delete old controllers
-- migrate vocabulary, currentBook, bookshelf, learning to Notifier
-- improve benchmark stability — median scoring, more iterations, concurrency control
-- 增加 2.0 开关
-- 拆分阅读页并适配 Riverpod 3
-- 预 canonicalize + O(1) 上下文提取，减少重复计算
-- 优化大文件解析性能
-- upgrade Flutter SDK to 3.44.0
+- **AI 状态迁移**：阅读器文本/词汇分析均通过 `AIAssistantController` 路由，`AINotifier` 保留章节级 AI（总结/预习/练习）
+- **备份管线扩展**：`book_glossary` 和 `character_registry` 两个全局 box 纳入导出/导入
+
+### 修复
+
+- `WordLevelService.init()` 在 Riverpod 迁移后未被调用
 
 ## [1.6.1] - 2026-06-04
 
