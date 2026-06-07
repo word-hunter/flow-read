@@ -3,6 +3,8 @@ import '../palettes/palette.dart';
 import '../palettes/registry.dart';
 import '../shells/shell.dart';
 import '../shells/android_shell.dart';
+import '../shells/ios_shell.dart';
+import '../shells/macos_standard_shell.dart';
 import '../tokens/typography.dart';
 import '../tokens/spacing.dart';
 import '../tokens/radii.dart';
@@ -14,6 +16,8 @@ class FlowTheme {
 
   static final Map<ShellId, Shell> _shells = {
     ShellId.android: const AndroidShell(),
+    ShellId.ios: const IosShell(),
+    ShellId.macosStandard: const MacOsStandardShell(),
   };
 
   static Shell getShell(ShellId id) {
@@ -44,7 +48,21 @@ class FlowTheme {
     final radii = defaultRadiiPrimitives;
     final durations = defaultDurationPrimitives;
 
-    return shell.buildTheme(
+    final flowThemeData = FlowThemeData(
+      shellId: shellId,
+      paletteId: paletteId,
+      colors: semantic,
+      buttonTokens: shell.buttonTokens,
+      cardTokens: shell.cardTokens,
+      navigationTokens: shell.navigationTokens,
+      surfaceStrategy: shell.surfaceStrategy,
+      typography: typography,
+      spacing: spacing,
+      radii: radii,
+      durations: durations,
+    );
+
+    final theme = shell.buildTheme(
       colorScheme: colorScheme,
       colors: semantic,
       brightness: brightness,
@@ -53,6 +71,13 @@ class FlowTheme {
       radii: radii,
       durations: durations,
       scaffoldBackgroundColor: scaffoldBackgroundColor,
+    );
+
+    return theme.copyWith(
+      extensions: [
+        ...theme.extensions.values,
+        flowThemeData,
+      ],
     );
   }
 

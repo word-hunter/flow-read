@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import 'providers/settings_provider.dart';
 import 'screens/dashboard_screen.dart';
@@ -21,10 +22,36 @@ import 'widgets/release_notes_gate.dart';
 import 'widgets/theme_transition.dart';
 import 'widgets/word_mastery_confetti.dart';
 
+import 'package:flow_design_system/flow_design_system.dart';
+
+const _v2CompileTime = bool.fromEnvironment('FLOW_V2', defaultValue: false);
+bool _v2Enabled = false;
+
+Future<void> _loadEnvConfig() async {
+  if (_v2CompileTime) {
+    _v2Enabled = true;
+    return;
+  }
+  try {
+    final content = await rootBundle.loadString('.env');
+    for (final line in content.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
+      final eq = trimmed.indexOf('=');
+      if (eq < 0) continue;
+      if (trimmed.substring(0, eq).trim() == 'FLOW_V2') {
+        _v2Enabled = trimmed.substring(eq + 1).trim().toLowerCase() == 'true';
+        return;
+      }
+    }
+  } catch (_) {}
+}
+
 void main() {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      await _loadEnvConfig();
       _registerBundledFontLicenses();
       await _initializeLogging();
       _installGlobalErrorLogging();
@@ -282,6 +309,31 @@ class _CurrentRouteObserver extends NavigatorObserver {
   }
 }
 
+PaletteId _toPaletteId(AppThemeId id) {
+  return switch (id) {
+    AppThemeId.classic => PaletteId.classic,
+    AppThemeId.ocean => PaletteId.ocean,
+    AppThemeId.forest => PaletteId.forest,
+    AppThemeId.highContrast => PaletteId.highContrast,
+  };
+}
+
+const _availableShells = {ShellId.android, ShellId.ios, ShellId.macosStandard};
+
+ShellId _resolveDefaultShell() {
+  ShellId preferred;
+  if (Platform.isMacOS) {
+    preferred = ShellId.macosStandard;
+  } else if (Platform.isWindows) {
+    preferred = ShellId.windows;
+  } else if (Platform.isIOS) {
+    preferred = ShellId.ios;
+  } else {
+    preferred = ShellId.android;
+  }
+  return _availableShells.contains(preferred) ? preferred : ShellId.android;
+}
+
 class FlowReadApp extends StatefulWidget {
   const FlowReadApp({super.key});
 
@@ -362,14 +414,41 @@ class _FlowReadAppState extends State<FlowReadApp> {
       builder: (context, ref, _) {
         final settings = ref.watch(settingsProvider);
         final themeId = settings.appThemeId;
+        final v2 = _v2Enabled;
+
+        if (v2) {
+          // ignore: avoid_print
+          debugPrint(
+            '[V2] enabled | shell: ${_resolveDefaultShell().name}'
+            ' | palette: ${_toPaletteId(themeId).name}'
+            ' | mode: ${settings.themeMode.name}',
+          );
+        }
+
+        final lightTheme = v2
+            ? FlowTheme.build(
+                shellId: _resolveDefaultShell(),
+                paletteId: _toPaletteId(themeId),
+                brightness: Brightness.light,
+              )
+            : AppTheme.lightThemeFor(themeId);
+
+        final darkTheme = v2
+            ? FlowTheme.build(
+                shellId: _resolveDefaultShell(),
+                paletteId: _toPaletteId(themeId),
+                brightness: Brightness.dark,
+              )
+            : AppTheme.darkThemeFor(themeId);
+
         return ThemeTransitionHost(
           child: MaterialApp(
             navigatorKey: _navigatorKey,
             navigatorObservers: [_routeObserver],
             title: 'Flow Read',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightThemeFor(themeId),
-            darkTheme: AppTheme.darkThemeFor(themeId),
+            theme: lightTheme,
+            darkTheme: darkTheme,
             themeMode: settings.themeMode,
             themeAnimationDuration: const Duration(milliseconds: 220),
             themeAnimationCurve: Curves.easeOutCubic,

@@ -7,6 +7,8 @@ export 'palettes/forest.dart';
 export 'palettes/high_contrast.dart';
 export 'shells/shell.dart';
 export 'shells/android_shell.dart';
+export 'shells/ios_shell.dart';
+export 'shells/macos_standard_shell.dart';
 export 'theme/flow_theme.dart';
 export 'theme/flow_theme_data.dart';
 export 'theme/reader_theme_tokens.dart';

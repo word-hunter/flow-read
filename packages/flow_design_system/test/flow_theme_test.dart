@@ -67,10 +67,10 @@ void main() {
     });
 
     test('unknown shell throws', () {
-      // ShellId.ios is not yet registered
+      // ShellId.windows is not yet registered
       expect(
         () => FlowTheme.build(
-          shellId: ShellId.ios,
+          shellId: ShellId.windows,
           paletteId: PaletteId.classic,
           brightness: Brightness.light,
         ),
