@@ -248,7 +248,11 @@ class ReadingProvider extends ChangeNotifier {
   bool _isAnalyzingWord = false;
 
   ReadingProvider() {
-    _searchController.addListener(notifyListeners);
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    // Search controller updates handled by ReadingSearchNotifier
   }
 
   // ============================================================
@@ -2521,7 +2525,7 @@ class ReadingProvider extends ChangeNotifier {
     _importCancelTimer?.cancel();
     _activeImportParseTask?.cancel();
     _difficultyRefreshTimer?.cancel();
-    _searchController.removeListener(notifyListeners);
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _importProgressNotifier.dispose();
     _pronunciationService?.dispose();
