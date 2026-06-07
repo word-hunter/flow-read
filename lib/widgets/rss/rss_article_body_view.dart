@@ -11,7 +11,7 @@ import '../../providers/reading/word_lookup_notifier.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/analysis_service.dart';
 import '../../services/app_logger.dart';
-import '../../services/language/language_module.dart';
+import 'package:flow_language/flow_language.dart';
 import '../../services/settings_service.dart';
 import '../../services/word_level_service.dart';
 import '../reader_text_view.dart';

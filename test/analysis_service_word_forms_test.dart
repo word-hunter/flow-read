@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:flow_read/models/reading_token.dart';
+import 'package:flow_language/flow_language.dart';
+
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/analysis_service.dart';
-import 'package:flow_read/services/language/language_module.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -1,15 +1,12 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flow_language/english/english.dart';
+import 'package:flow_language/flow_language.dart';
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
-import '../models/reading_token.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
-import '../services/common_words.dart';
-import '../services/english_word_utils.dart';
-import '../services/language/english_language_module.dart';
-import '../services/language/language_module.dart';
 import '../services/settings_service.dart';
 import '../services/word_level_service.dart';
 import '../theme/app_colors.dart';
@@ -611,7 +608,8 @@ class _HighlightBuilder {
 
   InlineSpan buildParagraph(String paragraph) {
     final spans = <InlineSpan>[];
-    final module = languageModule ?? const EnglishLanguageModule();
+    final module = languageModule ?? LanguageRegistry.instance.defaultModule;
+    if (module == null) throw StateError('No language module registered');
     final tokens = module.tokenizeToTokens(paragraph).tokens;
 
     for (final token in tokens) {
@@ -798,7 +796,8 @@ class _StyledBlockBuilder {
   InlineSpan build() {
     final fullText = block.plainText;
     final spans = <InlineSpan>[];
-    final module = languageModule ?? const EnglishLanguageModule();
+    final module = languageModule ?? LanguageRegistry.instance.defaultModule;
+    if (module == null) throw StateError('No language module registered');
     final tokens = module.tokenizeToTokens(fullText).tokens;
 
     // Build offset-to-style mapping

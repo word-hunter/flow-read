@@ -5,8 +5,7 @@ import '../../models/ai_text_analysis.dart';
 import '../../models/analysis_result.dart';
 import '../../models/sentence_breakdown.dart';
 import '../../services/analysis_service.dart';
-import '../../services/language/english_language_module.dart';
-import '../../services/language/language_registry.dart';
+import 'package:flow_language/flow_language.dart';
 import '../settings_provider.dart';
 import 'services_provider.dart';
 
@@ -87,17 +86,17 @@ class TextSelectionNotifier extends Notifier<TextSelectionState> {
     final sentenceAnalyzer = ref.read(sentenceAnalyzerProvider);
     final settings = ref.read(settingsProvider);
     final code = settings.activeSourceLanguage;
-    final languageModule =
+    final module =
         LanguageRegistry.instance.get(code) ??
-        LanguageRegistry.instance.defaultModule ??
-        const EnglishLanguageModule();
+        LanguageRegistry.instance.defaultModule;
+    if (module == null) throw StateError('Language "$code" not registered');
 
     final analysis = AnalysisService.analyzeChapter(
       'Selected Text',
       text,
       userVocab,
       wordLevelService,
-      languageModule,
+      module,
     );
     final breakdowns = sentenceAnalyzer.analyze(text);
 

@@ -1,7 +1,5 @@
 import '../models/sentence_breakdown.dart';
-import 'language/english_language_module.dart';
-import 'language/language_module.dart';
-import 'language/language_registry.dart';
+import 'package:flow_language/flow_language.dart';
 
 // ============================================================
 // 抽象接口 —— AI 接入点：实现 SentenceAnalyzer 即可替换
@@ -231,10 +229,12 @@ class RuleBasedSentenceAnalyzer implements SentenceAnalyzer {
 
   // ---------- 断句 ----------
 
-  LanguageModule get _lm =>
-      _languageModule ??
-      LanguageRegistry.instance.defaultModule ??
-      const EnglishLanguageModule();
+  LanguageModule get _lm {
+    if (_languageModule != null) return _languageModule;
+    final defaultModule = LanguageRegistry.instance.defaultModule;
+    if (defaultModule != null) return defaultModule;
+    throw StateError('No language module registered');
+  }
 
   List<String> _splitSentences(String text) {
     final raw = _lm

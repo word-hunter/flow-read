@@ -10,7 +10,7 @@ import '../../models/book_difficulty.dart';
 import '../../models/book_metadata.dart';
 import '../../services/epub_import_source.dart';
 import '../../services/epub_parse_worker.dart';
-import '../../services/language/language_registry.dart';
+import 'package:flow_language/flow_language.dart';
 import 'current_book_notifier.dart';
 import 'services_provider.dart';
 import 'vocabulary_notifier.dart';

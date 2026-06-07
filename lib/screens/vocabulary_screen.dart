@@ -6,7 +6,7 @@ import '../models/learning_item.dart';
 import '../models/user_vocabulary.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
-import '../services/language/language_registry.dart';
+import 'package:flow_language/flow_language.dart';
 import '../theme/app_colors.dart';
 import '../widgets/word_bottom_sheet.dart';
 import '../widgets/word_mastery_confetti.dart';

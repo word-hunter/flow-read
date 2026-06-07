@@ -6,8 +6,7 @@ import '../../models/book.dart';
 import '../../models/book_difficulty.dart';
 import '../../services/analysis_service.dart';
 import '../../services/book_service.dart';
-import '../../services/language/english_language_module.dart';
-import '../../services/language/language_registry.dart';
+import 'package:flow_language/flow_language.dart';
 import '../../services/reading_time_service.dart';
 import '../settings_provider.dart';
 import 'ai_notifier.dart';
@@ -195,8 +194,9 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
     final wordLevelService = ref.read(wordLevelServiceProvider);
     final settings = ref.read(settingsProvider);
     final code = settings.activeSourceLanguage;
-    final languageModule =
-        LanguageRegistry.instance.get(code) ?? const EnglishLanguageModule();
+    final module = LanguageRegistry.instance.get(code);
+    if (module == null) throw StateError('Language "$code" not registered');
+    final languageModule = module;
 
     await wordLevelService.init();
 

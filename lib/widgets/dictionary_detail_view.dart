@@ -6,7 +6,7 @@ import '../models/word_level.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../services/compound_word_analyzer.dart';
 import '../services/dictionary/word_repository.dart';
-import '../services/english_word_utils.dart';
+import 'package:flow_language/english/english.dart';
 import '../services/word_level_service.dart';
 import 'imported_word_examples.dart';
 import 'pronunciation_button.dart';

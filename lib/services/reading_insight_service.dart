@@ -1,6 +1,6 @@
 import '../models/book.dart';
 import '../models/reading_insight_profile.dart';
-import 'english_word_utils.dart';
+import 'package:flow_language/english/english.dart';
 import 'learning_analytics_service.dart';
 
 class ReadingInsightService {

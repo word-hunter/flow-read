@@ -3,9 +3,7 @@ import '../models/book.dart';
 import '../models/book_difficulty.dart';
 import '../models/word_level.dart';
 import '../theme/app_constants.dart';
-import 'language/english_language_module.dart';
-import 'language/language_module.dart';
-import 'language/language_registry.dart';
+import 'package:flow_language/flow_language.dart';
 import 'user_vocabulary_service.dart';
 import 'word_level_service.dart';
 
@@ -75,9 +73,10 @@ class AnalysisService {
   }
 
   static LanguageModule _resolveLanguageModule(LanguageModule? module) {
-    return module ??
-        LanguageRegistry.instance.defaultModule ??
-        const EnglishLanguageModule();
+    if (module != null) return module;
+    final defaultModule = LanguageRegistry.instance.defaultModule;
+    if (defaultModule != null) return defaultModule;
+    throw StateError('No language module registered');
   }
 
   static List<String> _splitSentences(String text, LanguageModule lm) {

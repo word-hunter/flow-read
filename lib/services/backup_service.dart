@@ -16,7 +16,7 @@ import '../storage/hive_box_names.dart';
 import '../storage/storage_migrations.dart';
 import 'backup_archive.dart' as archive;
 import 'backup_folder_access.dart';
-import 'language/language_registry.dart';
+import 'package:flow_language/flow_language.dart';
 import 'settings_service.dart';
 
 class BackupException implements Exception {

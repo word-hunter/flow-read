@@ -2,7 +2,7 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../models/word_level.dart';
 import '../storage/repositories/word_level_repository.dart';
-import 'english_word_utils.dart';
+import 'package:flow_language/english/english.dart';
 
 typedef WordLevelAssetLoader = Future<String> Function(String assetPath);
 

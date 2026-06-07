@@ -7,7 +7,7 @@ import '../../services/app_version.dart';
 import '../../services/backup_service.dart';
 import '../../services/dictionary/dictionary_source_config.dart';
 import '../../services/dictionary/dictionary_source_test_service.dart';
-import '../../services/language/language_registry.dart';
+import 'package:flow_language/flow_language.dart';
 import '../../services/mac_permission_diagnostics.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_theme.dart';

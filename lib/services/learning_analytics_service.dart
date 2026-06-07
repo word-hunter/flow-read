@@ -3,7 +3,7 @@ import '../models/book.dart';
 import '../models/learning_analytics.dart';
 import '../models/learning_item.dart';
 import '../storage/repositories/learning_analytics_repository.dart';
-import 'english_word_utils.dart';
+import 'package:flow_language/english/english.dart';
 import 'reading_time_service.dart';
 import 'user_vocabulary_service.dart';
 

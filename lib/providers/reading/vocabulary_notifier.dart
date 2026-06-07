@@ -13,9 +13,7 @@ import '../../models/user_vocabulary.dart';
 import '../../models/word_context_example.dart';
 import '../../services/analysis_service.dart';
 import '../../services/epub_parse_worker.dart';
-import '../../services/language/english_language_module.dart';
-import '../../services/language/language_module.dart';
-import '../../services/language/language_registry.dart';
+import 'package:flow_language/flow_language.dart';
 import '../../services/user_vocabulary_service.dart';
 import '../../services/word_context_service.dart';
 import '../../services/word_level_service.dart';
@@ -100,7 +98,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   LanguageModule get _activeLanguageModule {
     final settings = ref.read(settingsProvider);
     final code = settings.activeSourceLanguage;
-    return LanguageRegistry.instance.get(code) ?? const EnglishLanguageModule();
+    final module = LanguageRegistry.instance.get(code);
+    if (module == null) throw StateError('Language "$code" not registered');
+    return module;
   }
 
   @override

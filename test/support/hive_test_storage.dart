@@ -19,6 +19,7 @@ Future<Directory> initHiveTestStorage(
 
   Hive.init(hivePath);
   registerFlowReadHiveAdapters();
+  registerFlowReadLanguageModules();
   return tempDir;
 }
 

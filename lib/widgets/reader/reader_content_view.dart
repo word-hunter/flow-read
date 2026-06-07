@@ -6,7 +6,7 @@ import '../../providers/reading/current_book_notifier.dart';
 import '../../providers/reading/reading_config_notifier.dart';
 import '../../providers/reading/reading_search_notifier.dart';
 import '../../providers/reading/word_lookup_notifier.dart';
-import '../../services/language/language_module.dart';
+import 'package:flow_language/flow_language.dart';
 import '../../services/settings_service.dart' show VocabularyColorSettings;
 import '../../services/word_level_service.dart';
 import '../reader_text_view.dart';
