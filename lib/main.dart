@@ -44,7 +44,9 @@ Future<void> _loadEnvConfig() async {
         return;
       }
     }
-  } catch (_) {}
+  } catch (_) {
+    debugPrint('[FlowRead] Failed to load .env file, V2 flag defaults to disabled');
+  }
 }
 
 void main() {
@@ -83,6 +85,7 @@ Future<void> _initializeLogging() async {
     await AppLogger.instance.init();
     AppLogger.instance.event('app.start', source: 'main');
   } catch (_) {
+    debugPrint('[FlowRead] Logger initialization failed, continuing without logging');
     // Logging must never prevent the app from opening.
   }
 }

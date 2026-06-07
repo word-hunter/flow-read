@@ -277,6 +277,7 @@ class AINotifier extends Notifier<AIState> {
         );
       }
     } catch (e) {
+      debugPrint('[AI] analyzeText failed: $e');
       state = state.copyWith(
         errorMessage: 'AI 解析失败: $e',
         isAnalyzingText: false,
@@ -308,6 +309,7 @@ class AINotifier extends Notifier<AIState> {
         );
       }
     } catch (e) {
+      debugPrint('[AI] translateText failed: $e');
       state = state.copyWith(
         errorMessage: '翻译失败: $e',
         isTranslatingText: false,
@@ -345,6 +347,7 @@ class AINotifier extends Notifier<AIState> {
       );
       await _refreshChapterAISummaryCoverage();
     } catch (e) {
+      debugPrint('[AI] generateSummary failed: $e');
       state = state.copyWith(
         errorMessage: '生成总结失败: $e',
         chapterAIStatus: ChapterAIStatus.failed(
@@ -441,6 +444,7 @@ class AINotifier extends Notifier<AIState> {
         );
       }
     } catch (e) {
+      debugPrint('[AI] generateChapterPreview failed: $e');
       state = state.copyWith(
         errorMessage: '生成读前预览失败: $e',
         chapterAIStatus: ChapterAIStatus.failed(
@@ -489,6 +493,7 @@ class AINotifier extends Notifier<AIState> {
         isGeneratingPractice: false,
       );
     } catch (e) {
+      debugPrint('[AI] generatePractice failed: $e');
       state = state.copyWith(
         errorMessage: '生成练习题失败: $e',
         chapterAIStatus: ChapterAIStatus.failed(
@@ -540,7 +545,9 @@ class AINotifier extends Notifier<AIState> {
           );
           return;
         }
-      } catch (_) {}
+      } catch (_) {
+        debugPrint('[AI] word analysis cache lookup failed, falling back to API');
+      }
     }
 
     final ai = _aiService;
@@ -572,6 +579,7 @@ class AINotifier extends Notifier<AIState> {
         );
       }
     } catch (e) {
+      debugPrint('[AI] analyzeWord failed: $e');
       state = state.copyWith(
         errorMessage: 'AI 单词解析失败: $e',
         isAnalyzingWord: false,

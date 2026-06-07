@@ -237,6 +237,7 @@ class BackupService extends ChangeNotifier {
         updateLastBackup: true,
       );
     } catch (e) {
+      debugPrint('[BackupService] export failed: $e');
       final message = _describeExportError(e);
       _lastError = message;
       throw BackupException(message);
@@ -321,6 +322,7 @@ class BackupService extends ChangeNotifier {
           updateLastBackup: false,
         );
       } catch (e) {
+        debugPrint('[BackupService] pre-import backup (configured path) failed: $e');
         configuredError = e;
         // Fallback to documents directory.
       }
@@ -338,6 +340,7 @@ class BackupService extends ChangeNotifier {
         updateLastBackup: false,
       );
     } catch (e) {
+      debugPrint('[BackupService] pre-import backup (documents dir) failed: $e');
       final cause = configuredError ?? e;
       throw BackupException('导入前备份失败，当前数据未更改：${_describeExportError(cause)}');
     }
@@ -355,6 +358,7 @@ class BackupService extends ChangeNotifier {
     try {
       await _importBackupFile(filePath);
     } catch (e) {
+      debugPrint('[BackupService] import failed: $e');
       final message = e is BackupException ? e.message : e.toString();
       _lastError = message;
       if (e is BackupException) rethrow;
@@ -520,6 +524,7 @@ class BackupService extends ChangeNotifier {
       await _cleanupStaleImportingFiles(booksDir);
       await settings.reloadFromStorage();
     } catch (_) {
+      debugPrint('[BackupService] import data restoration failed');
       await _cleanupStaleImportingFiles(booksDir);
       throw const BackupException(
         '导入失败，当前数据可能已部分更改。\n'
@@ -542,6 +547,7 @@ class BackupService extends ChangeNotifier {
         await file.readAsString(),
       );
     } catch (e) {
+      debugPrint('[BackupService] Word Hunter parse failed: $e');
       throw BackupException('Word Hunter 备份格式无效：$e');
     }
     return importWordHunterPayload(parsed);
@@ -618,6 +624,7 @@ class BackupService extends ChangeNotifier {
         exampleCount: exampleCount,
       );
     } catch (e) {
+      debugPrint('[BackupService] Word Hunter merge failed: $e');
       _lastError = e.toString();
       rethrow;
     } finally {
@@ -903,12 +910,14 @@ class BackupService extends ChangeNotifier {
     try {
       await File(partPath).rename(finalPath);
     } catch (_) {
+      debugPrint('[BackupService] backup rename failed, retrying delete+rename');
       try {
         if (await File(finalPath).exists()) {
           await File(finalPath).delete();
         }
         await File(partPath).rename(finalPath);
       } catch (_) {
+        debugPrint('[BackupService] rename retry failed, falling back to copy+delete');
         await File(partPath).copy(finalPath);
         await File(partPath).delete();
       }
@@ -928,6 +937,7 @@ class BackupService extends ChangeNotifier {
         }
       }
     } catch (_) {
+      debugPrint('[BackupService] part file cleanup failed, continuing');
       // Non-critical cleanup.
     }
   }
@@ -941,6 +951,7 @@ class BackupService extends ChangeNotifier {
         }
       }
     } catch (_) {
+      debugPrint('[BackupService] stale importing file cleanup failed, continuing');
       // Best-effort cleanup.
     }
   }
@@ -949,6 +960,7 @@ class BackupService extends ChangeNotifier {
     try {
       await source.rename(target.path);
     } catch (_) {
+      debugPrint('[BackupService] staged file rename failed, retrying delete+rename');
       try {
         if (await target.exists()) {
           await target.delete();
@@ -1080,6 +1092,7 @@ class BackupService extends ChangeNotifier {
           .where((example) => example.text.isNotEmpty)
           .toList();
     } catch (_) {
+      debugPrint('[BackupService] context examples decode failed, returning empty list');
       return const [];
     }
   }

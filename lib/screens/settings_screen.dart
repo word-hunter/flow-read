@@ -467,6 +467,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
         _testingDictionarySources = false;
       });
     } catch (error) {
+      debugPrint('[Settings] source test failed: $error');
       if (!mounted) return;
       setState(() => _testingDictionarySources = false);
       _showSnackBar('词典来源测试失败：$error');
@@ -486,6 +487,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
       await aiCache.init();
       aiCacheCount = await aiCache.getCacheCount();
     } catch (_) {
+      debugPrint('[Settings] AI cache count lookup failed');
       aiCacheCount = null;
     }
 
@@ -494,6 +496,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
       await dictionaryCache.init();
       dictionaryCacheCount = dictionaryCache.entryCount;
     } catch (_) {
+      debugPrint('[Settings] dictionary cache count lookup failed');
       dictionaryCacheCount = null;
     }
 
@@ -624,6 +627,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
       if (!mounted) return;
       _showSnackBar('备份已生成：$path');
     } catch (e) {
+      debugPrint('[Settings] export backup failed: $e');
       if (!mounted) return;
       _showSnackBar('备份失败：$e');
     }
@@ -674,6 +678,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
       if (!mounted) return;
       _showSnackBar('备份已导入');
     } catch (e) {
+      debugPrint('[Settings] import backup failed: $e');
       if (!mounted) return;
       _showSnackBar('导入失败：$e');
     }
@@ -706,6 +711,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
         '${importResult.exampleCount} 条例句',
       );
     } catch (e) {
+      debugPrint('[Settings] import Word Hunter failed: $e');
       if (!mounted) return;
       _showSnackBar('Word Hunter 导入失败：$e');
     } finally {
@@ -795,6 +801,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
       });
       await _showUpdateCheckResultDialog(update);
     } catch (error) {
+      debugPrint('[Settings] update check failed: $error');
       if (!mounted) return;
       final message = _friendlyUpdateError(error);
       final fallbackActionLabel = error is AppUpdateException
@@ -908,6 +915,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
         _updateStatusMessage = '已准备好安装 Flow Read ${update.version}';
       });
     } catch (error) {
+      debugPrint('[Settings] download update failed: $error');
       if (!mounted) return;
       setState(() {
         _downloadingUpdate = false;
@@ -930,6 +938,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     try {
       await _updateInstaller.installUpdate(appPath);
     } catch (error) {
+      debugPrint('[Settings] install update failed: $error');
       if (!mounted) return;
       setState(() {
         _installingUpdate = false;
@@ -957,6 +966,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     try {
       await _logFolderOpener.openLogsFolder();
     } catch (error) {
+      debugPrint('[Settings] open logs folder failed: $error');
       if (!mounted) return;
       if (error is LogFolderOpenException) {
         _showSnackBar(error.message);
@@ -991,6 +1001,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
       }
       if (mounted) _showSnackBar('诊断报告已导出');
     } catch (error) {
+      debugPrint('[Settings] export diagnostics failed: $error');
       if (!mounted) return;
       _showSnackBar('导出诊断报告失败：$error');
     } finally {
@@ -1004,6 +1015,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     try {
       await _externalUrlLauncher.open(uri);
     } catch (error) {
+      debugPrint('[Settings] open external URL failed: $error');
       if (!mounted) return;
       _showSnackBar(_friendlyUpdateError(error));
     }
