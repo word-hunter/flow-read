@@ -1,4 +1,3 @@
-import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/providers/reading/bookshelf_notifier.dart';
 import 'package:flow_read/widgets/epub_drop_importer.dart';
 import 'package:flutter/material.dart';

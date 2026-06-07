@@ -24,9 +24,9 @@ void main() {
 
       expect(theme.useMaterial3, isTrue);
       expect(theme.visualDensity, VisualDensity.compact);
-      expect(theme.appBarTheme?.toolbarHeight, 38);
-      expect(theme.dividerTheme?.thickness, 0.5);
-      expect(theme.inputDecorationTheme?.isDense, isTrue);
+      expect(theme.appBarTheme.toolbarHeight, 38);
+      expect(theme.dividerTheme.thickness, 0.5);
+      expect(theme.inputDecorationTheme.isDense, isTrue);
     });
 
     test('produces correct ThemeData for classic dark', () {
@@ -42,7 +42,7 @@ void main() {
       );
 
       expect(theme.brightness, Brightness.dark);
-      expect(theme.dialogTheme?.elevation, 0);
+      expect(theme.dialogTheme.elevation, 0);
     });
 
     test('macos-specific curves are set', () {
@@ -106,8 +106,8 @@ void main() {
         durations: defaultDurationPrimitives,
       );
 
-      expect(theme.appBarTheme?.toolbarHeight, 38);
-      expect(theme.appBarTheme?.titleTextStyle?.fontSize, 13);
+      expect(theme.appBarTheme.toolbarHeight, 38);
+      expect(theme.appBarTheme.titleTextStyle?.fontSize, 13);
     });
 
     test('bottom sheet has small radius', () {
@@ -122,7 +122,7 @@ void main() {
         durations: defaultDurationPrimitives,
       );
 
-      expect(theme.bottomSheetTheme?.shape, isNotNull);
+      expect(theme.bottomSheetTheme.shape, isNotNull);
     });
   });
 

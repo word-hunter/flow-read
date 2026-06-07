@@ -7,7 +7,6 @@ import '../../models/sentence_breakdown.dart';
 import '../../services/analysis_service.dart';
 import '../../services/language/english_language_module.dart';
 import '../../services/language/language_registry.dart';
-import '../../storage/hive_box_names.dart';
 import '../settings_provider.dart';
 import 'services_provider.dart';
 
@@ -42,9 +41,15 @@ class TextSelectionState {
   }) {
     return TextSelectionState(
       selectedText: selectedText ?? this.selectedText,
-      selectedAnalysis: clearAnalysis ? null : (selectedAnalysis ?? this.selectedAnalysis),
-      selectedBreakdowns: clearBreakdowns ? null : (selectedBreakdowns ?? this.selectedBreakdowns),
-      aiTextAnalysis: clearAITextAnalysis ? null : (aiTextAnalysis ?? this.aiTextAnalysis),
+      selectedAnalysis: clearAnalysis
+          ? null
+          : (selectedAnalysis ?? this.selectedAnalysis),
+      selectedBreakdowns: clearBreakdowns
+          ? null
+          : (selectedBreakdowns ?? this.selectedBreakdowns),
+      aiTextAnalysis: clearAITextAnalysis
+          ? null
+          : (aiTextAnalysis ?? this.aiTextAnalysis),
       isAnalyzingText: isAnalyzingText ?? this.isAnalyzingText,
       errorMessage: errorMessage,
     );
@@ -62,12 +67,12 @@ class TextSelectionState {
 
   @override
   int get hashCode => Object.hash(
-        selectedText,
-        selectedAnalysis,
-        aiTextAnalysis,
-        isAnalyzingText,
-        errorMessage,
-      );
+    selectedText,
+    selectedAnalysis,
+    aiTextAnalysis,
+    isAnalyzingText,
+    errorMessage,
+  );
 }
 
 class TextSelectionNotifier extends Notifier<TextSelectionState> {
@@ -81,8 +86,9 @@ class TextSelectionNotifier extends Notifier<TextSelectionState> {
     final wordLevelService = ref.read(wordLevelServiceProvider);
     final sentenceAnalyzer = ref.read(sentenceAnalyzerProvider);
     final settings = ref.read(settingsProvider);
-    final code = settings.activeSourceLanguage ?? HiveBoxNames.defaultLanguageCode;
-    final languageModule = LanguageRegistry.instance.get(code) ??
+    final code = settings.activeSourceLanguage;
+    final languageModule =
+        LanguageRegistry.instance.get(code) ??
         LanguageRegistry.instance.defaultModule ??
         const EnglishLanguageModule();
 
@@ -126,5 +132,5 @@ class TextSelectionNotifier extends Notifier<TextSelectionState> {
 
 final textSelectionNotifierProvider =
     NotifierProvider<TextSelectionNotifier, TextSelectionState>(
-  TextSelectionNotifier.new,
-);
+      TextSelectionNotifier.new,
+    );

@@ -24,9 +24,9 @@ void main() {
 
       expect(theme.useMaterial3, isTrue);
       expect(theme.scaffoldBackgroundColor, palette.lightColorScheme.surface);
-      expect(theme.appBarTheme?.elevation, 0);
-      expect(theme.cardTheme?.shape, isNotNull);
-      expect(theme.dividerTheme?.thickness, 0.5);
+      expect(theme.appBarTheme.elevation, 0);
+      expect(theme.cardTheme.shape, isNotNull);
+      expect(theme.dividerTheme.thickness, 0.5);
     });
 
     test('produces correct ThemeData for classic dark', () {
@@ -42,7 +42,10 @@ void main() {
       );
 
       expect(theme.brightness, Brightness.dark);
-      expect(theme.appBarTheme?.backgroundColor?.alpha, greaterThan(0));
+      expect(
+        (theme.appBarTheme.backgroundColor!.a * 255.0).round().clamp(0, 255),
+        greaterThan(0),
+      );
     });
 
     test('ios-specific curves are set', () {
@@ -90,7 +93,7 @@ void main() {
         durations: defaultDurationPrimitives,
       );
 
-      expect(theme.appBarTheme?.centerTitle, isTrue);
+      expect(theme.appBarTheme.centerTitle, isTrue);
     });
 
     test('ios button tokens have correct min height', () {

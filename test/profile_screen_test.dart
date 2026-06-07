@@ -1,6 +1,5 @@
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/bookmarked_word.dart';
-import 'package:flow_read/models/reading_bookmark.dart';
 import 'package:flow_read/providers/reading/bookmark_notifier.dart';
 import 'package:flow_read/providers/reading/bookshelf_notifier.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';

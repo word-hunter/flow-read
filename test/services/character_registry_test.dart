@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flow_read/models/character_registry_entry.dart';
@@ -30,19 +29,22 @@ void main() {
     expect(registry.matchCanonical('book-1', 'Ned'), isNull);
   });
 
-  test('addEntry persists and matchCanonical finds by canonical name', () async {
-    await registry.addEntry(
-      'book-1',
-      CharacterRegistryEntry(
-        canonicalName: 'Eddard Stark',
-        aliases: const {'Ned'},
-        updatedAt: DateTime.utc(2026, 6, 1),
-      ),
-    );
+  test(
+    'addEntry persists and matchCanonical finds by canonical name',
+    () async {
+      await registry.addEntry(
+        'book-1',
+        CharacterRegistryEntry(
+          canonicalName: 'Eddard Stark',
+          aliases: const {'Ned'},
+          updatedAt: DateTime.utc(2026, 6, 1),
+        ),
+      );
 
-    expect(registry.matchCanonical('book-1', 'Eddard Stark'), 'Eddard Stark');
-    expect(registry.matchCanonical('book-1', 'eddard stark'), 'Eddard Stark');
-  });
+      expect(registry.matchCanonical('book-1', 'Eddard Stark'), 'Eddard Stark');
+      expect(registry.matchCanonical('book-1', 'eddard stark'), 'Eddard Stark');
+    },
+  );
 
   test('matchCanonical returns null for wrong book', () async {
     await registry.addEntry(
@@ -153,7 +155,12 @@ void main() {
         updatedAt: DateTime.utc(2026, 6, 1),
       ),
     );
-    await registry.addAlias('book-a', 'Harry Potter', 'Potter', userOverride: true);
+    await registry.addAlias(
+      'book-a',
+      'Harry Potter',
+      'Potter',
+      userOverride: true,
+    );
 
     final entries = registry.getAll('book-a');
     expect(entries.single.userOverrides, contains('Potter'));

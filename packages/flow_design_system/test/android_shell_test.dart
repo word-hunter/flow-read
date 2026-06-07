@@ -32,13 +32,15 @@ void main() {
 
       expect(theme.useMaterial3, isTrue);
       expect(theme.scaffoldBackgroundColor, palette.lightColorScheme.surface);
-      expect(theme.appBarTheme?.elevation, 0);
-      expect(theme.appBarTheme?.backgroundColor,
-          palette.lightColorScheme.surface);
-      expect(theme.cardTheme?.elevation, 0);
-      expect(theme.cardTheme?.shape, isNotNull);
-      expect(theme.bottomSheetTheme?.shape, isNotNull);
-      expect(theme.dialogTheme?.shape, isNotNull);
+      expect(theme.appBarTheme.elevation, 0);
+      expect(
+        theme.appBarTheme.backgroundColor,
+        palette.lightColorScheme.surface,
+      );
+      expect(theme.cardTheme.elevation, 0);
+      expect(theme.cardTheme.shape, isNotNull);
+      expect(theme.bottomSheetTheme.shape, isNotNull);
+      expect(theme.dialogTheme.shape, isNotNull);
     });
 
     test('produces correct ThemeData for classic dark', () {
@@ -54,7 +56,10 @@ void main() {
       );
 
       expect(theme.scaffoldBackgroundColor, palette.darkColorScheme.surface);
-      expect(theme.cardTheme?.color, palette.darkColorScheme.surfaceContainerHighest);
+      expect(
+        theme.cardTheme.color,
+        palette.darkColorScheme.surfaceContainerHighest,
+      );
     });
 
     test('respects scaffoldBackgroundColor override', () {
@@ -72,7 +77,7 @@ void main() {
       );
 
       expect(theme.scaffoldBackgroundColor, overrideColor);
-      expect(theme.appBarTheme?.backgroundColor, overrideColor);
+      expect(theme.appBarTheme.backgroundColor, overrideColor);
     });
 
     test('includes ReaderThemeTokens extension', () {
@@ -163,7 +168,7 @@ void main() {
     ];
 
     for (final palette in palettes) {
-      group('${palette.label}', () {
+      group(palette.label, () {
         test('light theme builds without error', () {
           expect(
             () => const AndroidShell().buildTheme(

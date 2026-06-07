@@ -9,7 +9,6 @@ import '../../services/book_service.dart';
 import '../../services/language/english_language_module.dart';
 import '../../services/language/language_registry.dart';
 import '../../services/reading_time_service.dart';
-import '../../storage/hive_box_names.dart';
 import '../settings_provider.dart';
 import 'ai_notifier.dart';
 import 'bookshelf_notifier.dart';
@@ -61,8 +60,9 @@ class CurrentBookState {
       hasBeenOpened: hasBeenOpened ?? this.hasBeenOpened,
       currentTab: currentTab ?? this.currentTab,
       result: clearResult ? null : (result ?? this.result),
-      currentBookDifficulty:
-          clearDifficulty ? null : (currentBookDifficulty ?? this.currentBookDifficulty),
+      currentBookDifficulty: clearDifficulty
+          ? null
+          : (currentBookDifficulty ?? this.currentBookDifficulty),
     );
   }
 
@@ -81,15 +81,15 @@ class CurrentBookState {
 
   @override
   int get hashCode => Object.hash(
-        currentChapter,
-        readingProgress,
-        readingScrollOffset,
-        isReading,
-        hasBeenOpened,
-        currentTab,
-        result,
-        currentBookDifficulty,
-      );
+    currentChapter,
+    readingProgress,
+    readingScrollOffset,
+    isReading,
+    hasBeenOpened,
+    currentTab,
+    result,
+    currentBookDifficulty,
+  );
 }
 
 class CurrentBookNotifier extends Notifier<CurrentBookState> {
@@ -111,13 +111,15 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
 
   AnalysisResult? get result => state.result;
 
-  BookDifficultyRating? get currentBookDifficulty => state.currentBookDifficulty;
+  BookDifficultyRating? get currentBookDifficulty =>
+      state.currentBookDifficulty;
 
   void updateReadingProgress(double progress, {double? scrollOffset}) {
     state = state.copyWith(
       readingProgress: progress.clamp(0.0, 1.0),
-      readingScrollOffset:
-          scrollOffset != null && scrollOffset >= 0 ? scrollOffset : null,
+      readingScrollOffset: scrollOffset != null && scrollOffset >= 0
+          ? scrollOffset
+          : null,
     );
   }
 
@@ -166,7 +168,9 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
   }
 
   void highlightSourceExcerpt(String excerpt) {
-    ref.read(readingSearchNotifierProvider.notifier).highlightSourceExcerpt(excerpt);
+    ref
+        .read(readingSearchNotifierProvider.notifier)
+        .highlightSourceExcerpt(excerpt);
   }
 
   // ---- Internal ----
@@ -190,9 +194,9 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
     final userVocab = ref.read(userVocabularyServiceProvider);
     final wordLevelService = ref.read(wordLevelServiceProvider);
     final settings = ref.read(settingsProvider);
-    final code = settings.activeSourceLanguage ?? HiveBoxNames.defaultLanguageCode;
-    final languageModule = LanguageRegistry.instance.get(code) ??
-        const EnglishLanguageModule();
+    final code = settings.activeSourceLanguage;
+    final languageModule =
+        LanguageRegistry.instance.get(code) ?? const EnglishLanguageModule();
 
     await wordLevelService.init();
 
@@ -209,5 +213,5 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
 
 final currentBookNotifierProvider =
     NotifierProvider<CurrentBookNotifier, CurrentBookState>(
-  CurrentBookNotifier.new,
-);
+      CurrentBookNotifier.new,
+    );

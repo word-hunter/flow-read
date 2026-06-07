@@ -1,7 +1,6 @@
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flow_read/models/reader_font.dart';
-import 'package:flow_read/providers/reading/reading_config_notifier.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/widgets/font_settings_sheet.dart';
@@ -84,22 +83,22 @@ void main() {
     (
       tester,
     ) async {
-    final configService = _FakeReadingConfigService();
+      final configService = _FakeReadingConfigService();
 
-    await tester.pumpWidget(
-      riverpod.ProviderScope(
-        overrides: [
-          readingConfigServiceProvider.overrideWith((ref) => configService),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: FontSettingsDropdownPanel(width: 720),
+      await tester.pumpWidget(
+        riverpod.ProviderScope(
+          overrides: [
+            readingConfigServiceProvider.overrideWith((ref) => configService),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: FontSettingsDropdownPanel(width: 720),
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
       await tester.scrollUntilVisible(
         find.text('具体字体'),
@@ -128,8 +127,7 @@ void main() {
         overrides: [
           readingConfigServiceProvider.overrideWith((ref) => configService),
         ],
-        child:
-        const MaterialApp(
+        child: const MaterialApp(
           home: Scaffold(
             body: Center(child: FontSettingsDropdownPanel(width: 720)),
           ),
@@ -153,8 +151,7 @@ void main() {
         overrides: [
           readingConfigServiceProvider.overrideWith((ref) => configService),
         ],
-        child:
-        const MaterialApp(
+        child: const MaterialApp(
           home: Scaffold(
             body: Center(
               child: FontSettingsDropdownPanel(width: 720, maxHeight: 640),
@@ -204,8 +201,7 @@ void main() {
         overrides: [
           readingConfigServiceProvider.overrideWith((ref) => configService),
         ],
-        child:
-        const MaterialApp(
+        child: const MaterialApp(
           home: Scaffold(
             body: Center(
               child: FontSettingsDropdownPanel(width: 720, maxHeight: 640),

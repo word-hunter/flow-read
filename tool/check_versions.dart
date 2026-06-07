@@ -5,13 +5,17 @@ import 'dart:io';
 /// auto-resolution (not yet implemented).
 
 void main(List<String> args) {
-  final fix = args.contains('--fix');
+  if (args.contains('--fix')) {
+    stderr.writeln('--fix is not implemented yet.');
+    exit(64);
+  }
   final workspaceRoot = Directory.current.path;
   final pubspecPaths = _findPubspecs(workspaceRoot);
 
   final allErrors = <String>[];
   final sdkVersions = <String, String>{}; // path -> version
-  final depVersions = <String, Map<String, String>>{}; // dep -> pkgName -> version
+  final depVersions =
+      <String, Map<String, String>>{}; // dep -> pkgName -> version
 
   for (final path in pubspecPaths) {
     final file = File(path);
@@ -78,7 +82,9 @@ void main(List<String> args) {
       final details = entry.value.entries
           .map((e) => '  ${e.key}: ${e.value}')
           .join('\n');
-      allErrors.add('Dependency "${entry.key}" has mismatched versions:\n$details');
+      allErrors.add(
+        'Dependency "${entry.key}" has mismatched versions:\n$details',
+      );
     }
   }
 
@@ -113,7 +119,13 @@ String? _extractString(List<String> lines, String key) {
 
 List<String> _findPubspecs(String root) {
   final result = <String>[];
-  final excludeSegments = {'.dart_tool', 'build', '.symlinks', 'ephemeral', 'Pods'};
+  final excludeSegments = {
+    '.dart_tool',
+    'build',
+    '.symlinks',
+    'ephemeral',
+    'Pods',
+  };
   for (final entity in Directory(root).listSync(recursive: true)) {
     if (entity is File && entity.path.endsWith('pubspec.yaml')) {
       final segments = entity.path.split(Platform.pathSeparator);

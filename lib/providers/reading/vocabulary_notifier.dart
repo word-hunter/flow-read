@@ -48,7 +48,8 @@ class VocabularyState {
     Offset? wordMasteredCelebrationOrigin,
   }) {
     return VocabularyState(
-      currentBookDifficulty: currentBookDifficulty ?? this.currentBookDifficulty,
+      currentBookDifficulty:
+          currentBookDifficulty ?? this.currentBookDifficulty,
       wordMasteredCelebrationTick:
           wordMasteredCelebrationTick ?? this.wordMasteredCelebrationTick,
       wordMasteredCelebrationWord:
@@ -69,11 +70,11 @@ class VocabularyState {
 
   @override
   int get hashCode => Object.hash(
-        currentBookDifficulty,
-        wordMasteredCelebrationTick,
-        wordMasteredCelebrationWord,
-        wordMasteredCelebrationOrigin,
-      );
+    currentBookDifficulty,
+    wordMasteredCelebrationTick,
+    wordMasteredCelebrationWord,
+    wordMasteredCelebrationOrigin,
+  );
 }
 
 class VocabularyNotifier extends Notifier<VocabularyState> {
@@ -92,17 +93,14 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
   UserVocabularyService? get _userVocab =>
       ref.read(userVocabularyServiceProvider);
-  WordLevelService? get _wordLevelService =>
-      ref.read(wordLevelServiceProvider);
+  WordLevelService? get _wordLevelService => ref.read(wordLevelServiceProvider);
   WordContextService? get _wordContextService =>
       ref.read(wordContextServiceProvider);
 
   LanguageModule get _activeLanguageModule {
     final settings = ref.read(settingsProvider);
-    final code =
-        settings.activeSourceLanguage ?? HiveBoxNames.defaultLanguageCode;
-    return LanguageRegistry.instance.get(code) ??
-        const EnglishLanguageModule();
+    final code = settings.activeSourceLanguage;
+    return LanguageRegistry.instance.get(code) ?? const EnglishLanguageModule();
   }
 
   @override
@@ -124,37 +122,31 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   int get totalVocabularyCount => _allVocab.length;
 
   List<LearningItem> get learningItems =>
-      ref.read(learningItemServiceProvider)?.allItems ?? const [];
+      ref.read(learningItemServiceProvider).allItems;
 
   int get knownWordCount => _userVocab?.knownWords.length ?? 0;
 
   int get learningWordCount => _userVocab?.learningWords.length ?? 0;
 
   int get todayReviewDueCount =>
-      ref.read(reviewScheduleServiceProvider)?.dueCount() ?? 0;
+      ref.read(reviewScheduleServiceProvider).dueCount();
 
-  int get learningItemCount =>
-      ref.read(learningItemServiceProvider)?.count ?? 0;
+  int get learningItemCount => ref.read(learningItemServiceProvider).count;
 
   ChapterLearningReport? get currentChapterLearningReport {
     final analytics = ref.read(learningAnalyticsServiceProvider);
     final book = ref.read(bookshelfNotifierProvider).book;
     final bookId = ref.read(bookshelfNotifierProvider).activeBookId;
     final readingTime = ref.read(readingTimeServiceProvider);
-    if (book == null ||
-        book.chapters.isEmpty ||
-        bookId == null ||
-        analytics == null) {
+    if (book == null || book.chapters.isEmpty || bookId == null) {
       return null;
     }
-    final currentChapter =
-        ref.read(currentBookNotifierProvider).currentChapter;
+    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
     return analytics.buildChapterReport(
       bookId: bookId,
       book: book,
       chapterIndex: currentChapter,
-      chapterProgress:
-          ref.read(currentBookNotifierProvider).readingProgress,
+      chapterProgress: ref.read(currentBookNotifierProvider).readingProgress,
       analysis: ref.read(currentBookNotifierProvider).result,
       readingTime: readingTime,
       userVocabulary: _userVocab,
@@ -165,7 +157,6 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
   WeeklyLearningSummary? get weeklyLearningSummary {
     final analytics = ref.read(learningAnalyticsServiceProvider);
-    if (analytics == null) return null;
     final readingTime = ref.read(readingTimeServiceProvider);
     final settings = ref.read(settingsProvider);
     return analytics.buildWeeklySummary(
@@ -191,8 +182,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   }
 
   BookDifficultyRating? difficultyForBook(String bookId) {
-    final activeBookId =
-        ref.read(bookshelfNotifierProvider).activeBookId;
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
     if (bookId == activeBookId) return state.currentBookDifficulty;
     return _bookDifficultyById[bookId];
   }
@@ -234,10 +224,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
     for (final meta in pending) {
       try {
-        final shelfBook =
-            ref.read(bookshelfNotifierProvider).book;
-        final book = meta.id ==
-                    ref.read(bookshelfNotifierProvider).activeBookId &&
+        final shelfBook = ref.read(bookshelfNotifierProvider).book;
+        final book =
+            meta.id == ref.read(bookshelfNotifierProvider).activeBookId &&
                 shelfBook != null
             ? shelfBook
             : await EpubParseWorker.parseInIsolate(meta.sourcePath);
@@ -246,8 +235,10 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
           _wordLevelService,
           _activeLanguageModule,
         );
-        final rating =
-            AnalysisService.rateBookDifficulty(studyWords, _userVocab);
+        final rating = AnalysisService.rateBookDifficulty(
+          studyWords,
+          _userVocab,
+        );
         await _persistBookDifficulty(meta.id, studyWords, rating);
         _bookDifficultyFailureKeys.remove(meta.id);
       } catch (_) {
@@ -310,17 +301,16 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   }
 
   Future<void> deleteLearningItem(String id) async {
-    await ref.read(learningItemServiceProvider)?.delete(id);
+    await ref.read(learningItemServiceProvider).delete(id);
   }
 
-  bool get canCreateLearningItems =>
-      ref.read(learningItemServiceProvider) != null;
+  bool get canCreateLearningItems => true;
 
   Future<LearningItemSaveResult?> addSelectedWordLearningItem() async {
     final service = ref.read(learningItemServiceProvider);
     final lookupState = ref.read(wordLookupNotifierProvider);
     final word = lookupState.selectedWord?.trim();
-    if (service == null || word == null || word.isEmpty) return null;
+    if (word == null || word.isEmpty) return null;
 
     final definition = lookupState.selectedWordTranslation?.trim() ?? '';
     final draft = LearningItemDraft.word(
@@ -331,8 +321,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
       metadata: {
         if (lookupState.selectedWordEntry?.sourceName != null)
           'dictionarySource': lookupState.selectedWordEntry!.sourceName!,
-        if (lookupState.selectedWordEntry?.phonetic?.trim().isNotEmpty ??
-            false)
+        if (lookupState.selectedWordEntry?.phonetic?.trim().isNotEmpty ?? false)
           'phonetic': lookupState.selectedWordEntry!.phonetic!.trim(),
       },
     );
@@ -344,10 +333,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     final textState = ref.read(textSelectionNotifierProvider);
     final selectedText = textState.selectedText?.trim();
     final analysis = textState.aiTextAnalysis;
-    if (service == null ||
-        selectedText == null ||
-        selectedText.isEmpty ||
-        analysis == null) {
+    if (selectedText == null || selectedText.isEmpty || analysis == null) {
       return null;
     }
     return service.saveDraft(
@@ -379,8 +365,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     final vocab = _userVocab;
     final result = ref.read(currentBookNotifierProvider).result;
     if (result == null) return;
-    final currentChapter =
-        ref.read(currentBookNotifierProvider).currentChapter;
+    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
     _allVocab.removeWhere(
       (_, aggVocab) => vocab?.isKnown(aggVocab.word) ?? false,
     );
@@ -415,8 +400,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     BookMetadata? activeBookMetadata;
     if (activeBookId != null) {
       final bookService = ref.read(bookServiceProvider);
-      activeBookMetadata =
-          bookService.books.where((b) => b.id == activeBookId).firstOrNull;
+      activeBookMetadata = bookService.books
+          .where((b) => b.id == activeBookId)
+          .firstOrNull;
     }
     final sourceLanguage = activeBookMetadata?.effectiveSourceLanguage;
     final settings = ref.read(settingsProvider);
@@ -489,8 +475,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
     final studyWords = _bookStudyWordsById[meta.id];
     if (studyWords == null) return false;
-    final rating =
-        AnalysisService.rateBookDifficulty(studyWords, _userVocab);
+    final rating = AnalysisService.rateBookDifficulty(studyWords, _userVocab);
     await _persistBookDifficulty(meta.id, studyWords, rating);
     return true;
   }
@@ -608,8 +593,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     if (bookId == null || book == null) {
       return const LearningItemSource.unknown();
     }
-    final currentChapter =
-        ref.read(currentBookNotifierProvider).currentChapter;
+    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
     final chapter = currentChapter < book.chapters.length
         ? book.chapters[currentChapter]
         : null;
@@ -632,5 +616,5 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
 final vocabularyNotifierProvider =
     NotifierProvider<VocabularyNotifier, VocabularyState>(
-  VocabularyNotifier.new,
-);
+      VocabularyNotifier.new,
+    );

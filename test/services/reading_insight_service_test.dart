@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/chapter.dart';
-import 'package:flow_read/models/reading_insight_profile.dart';
 import 'package:flow_read/services/learning_analytics_service.dart';
 import 'package:flow_read/services/reading_insight_service.dart';
 import 'package:flutter_test/flutter_test.dart';

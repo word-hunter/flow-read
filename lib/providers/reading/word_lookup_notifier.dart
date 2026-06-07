@@ -10,7 +10,6 @@ import '../../services/language/language_module.dart';
 import '../../services/language/language_registry.dart';
 import '../../services/reading_search_service.dart';
 import '../../services/word_context_service.dart';
-import '../../storage/hive_box_names.dart';
 import '../settings_provider.dart';
 import 'bookshelf_notifier.dart';
 import 'current_book_notifier.dart';
@@ -62,7 +61,9 @@ class WordLookupState {
     bool clearAIAnalysis = false,
   }) {
     return WordLookupState(
-      selectedWord: clearWordLookup ? null : (selectedWord ?? this.selectedWord),
+      selectedWord: clearWordLookup
+          ? null
+          : (selectedWord ?? this.selectedWord),
       selectedWordTranslation: clearWordLookup
           ? null
           : (selectedWordTranslation ?? this.selectedWordTranslation),
@@ -75,15 +76,17 @@ class WordLookupState {
       selectedWordContextEnd: clearWordLookup
           ? null
           : (selectedWordContextEnd ?? this.selectedWordContextEnd),
-      selectedWordEntry:
-          clearWordLookup ? null : (selectedWordEntry ?? this.selectedWordEntry),
+      selectedWordEntry: clearWordLookup
+          ? null
+          : (selectedWordEntry ?? this.selectedWordEntry),
       selectedWordLookupResult: clearWordLookup
           ? null
           : (selectedWordLookupResult ?? this.selectedWordLookupResult),
       wordLookupHistory: wordLookupHistory ?? this.wordLookupHistory,
       isLoadingWord: isLoadingWord ?? this.isLoadingWord,
-      aiWordAnalysis:
-          clearAIAnalysis ? null : (aiWordAnalysis ?? this.aiWordAnalysis),
+      aiWordAnalysis: clearAIAnalysis
+          ? null
+          : (aiWordAnalysis ?? this.aiWordAnalysis),
       isAnalyzingWord: isAnalyzingWord ?? this.isAnalyzingWord,
     );
   }
@@ -99,11 +102,11 @@ class WordLookupState {
 
   @override
   int get hashCode => Object.hash(
-        selectedWord,
-        selectedWordTranslation,
-        isLoadingWord,
-        isAnalyzingWord,
-      );
+    selectedWord,
+    selectedWordTranslation,
+    isLoadingWord,
+    isAnalyzingWord,
+  );
 }
 
 class WordLookupNotifier extends Notifier<WordLookupState> {
@@ -197,10 +200,9 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
     final book = ref.read(bookshelfNotifierProvider).book;
     if (trackReadingLookup && activeBookId != null && book != null) {
       final analytics = ref.read(learningAnalyticsServiceProvider);
-      await analytics?.recordLookup(
+      await analytics.recordLookup(
         bookId: activeBookId,
-        chapterIndex:
-            ref.read(currentBookNotifierProvider).currentChapter,
+        chapterIndex: ref.read(currentBookNotifierProvider).currentChapter,
         word: request.displayWord,
       );
     }
@@ -237,7 +239,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
 
   Future<void> speakWord(String word) async {
     final pronunciation = ref.read(pronunciationServiceProvider);
-    await pronunciation?.speakWord(word);
+    await pronunciation.speakWord(word);
   }
 
   void setAIWordAnalysis(WordAnalysis? analysis) {
@@ -252,10 +254,8 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
 
   LanguageModule get _activeLanguageModule {
     final settings = ref.read(settingsProvider);
-    final code =
-        settings.activeSourceLanguage ?? HiveBoxNames.defaultLanguageCode;
-    return LanguageRegistry.instance.get(code) ??
-        const EnglishLanguageModule();
+    final code = settings.activeSourceLanguage;
+    return LanguageRegistry.instance.get(code) ?? const EnglishLanguageModule();
   }
 
   void _applyWordLookupResult(DictionaryLookupResult result) {
@@ -297,13 +297,12 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
         final normalized = _activeLanguageModule.canonicalize(word);
         return _compoundMeaningHints.containsKey(word) ||
             _compoundMeaningHints.containsKey(normalized) ||
-            (wordLevelService?.hasWord(word) ?? false) ||
-            (wordLevelService?.hasWord(normalized) ?? false);
+            wordLevelService.hasWord(word) ||
+            wordLevelService.hasWord(normalized);
       },
       getMeaning: (word) {
         final normalized = _activeLanguageModule.canonicalize(word);
-        return _compoundMeaningHints[word] ??
-            _compoundMeaningHints[normalized];
+        return _compoundMeaningHints[word] ?? _compoundMeaningHints[normalized];
       },
     );
   }
@@ -360,7 +359,8 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
 
     final normalizedStart = contextWordStart - leadingWhitespace;
     final normalizedEnd = contextWordEnd - leadingWhitespace;
-    final hasValidRange = normalizedStart >= 0 &&
+    final hasValidRange =
+        normalizedStart >= 0 &&
         normalizedEnd > normalizedStart &&
         normalizedEnd <= trimmed.length;
 
@@ -374,5 +374,5 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
 
 final wordLookupNotifierProvider =
     NotifierProvider<WordLookupNotifier, WordLookupState>(
-  WordLookupNotifier.new,
-);
+      WordLookupNotifier.new,
+    );

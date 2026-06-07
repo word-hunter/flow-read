@@ -24,7 +24,7 @@ void main() {
 
       expect(theme.useMaterial3, isTrue);
       expect(theme.visualDensity, VisualDensity.standard);
-      expect(theme.appBarTheme?.toolbarHeight, 40);
+      expect(theme.appBarTheme.toolbarHeight, 40);
       expect(theme.scaffoldBackgroundColor, palette.lightColorScheme.surface);
     });
 
@@ -41,7 +41,7 @@ void main() {
       );
 
       expect(theme.brightness, Brightness.dark);
-      expect(theme.cardTheme?.elevation, 1);
+      expect(theme.cardTheme.elevation, 1);
     });
 
     test('windows-specific curves', () {
@@ -86,7 +86,7 @@ void main() {
         durations: defaultDurationPrimitives,
       );
 
-      expect(theme.dialogTheme?.elevation, 2);
+      expect(theme.dialogTheme.elevation, 2);
     });
 
     test('includes ReaderThemeTokens extension', () {

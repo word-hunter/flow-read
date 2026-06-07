@@ -24,7 +24,7 @@ void main() {
 
       expect(theme.useMaterial3, isTrue);
       expect(theme.visualDensity, VisualDensity.compact);
-      expect(theme.appBarTheme?.toolbarHeight, 40);
+      expect(theme.appBarTheme.toolbarHeight, 40);
       expect(theme.scaffoldBackgroundColor, palette.lightColorScheme.surface);
     });
 
@@ -56,8 +56,8 @@ void main() {
       );
 
       final semantic = palette.lightSemantic();
-      expect(theme.navigationBarTheme?.backgroundColor, semantic.glassTint);
-      expect(theme.navigationRailTheme?.backgroundColor, semantic.glassTint);
+      expect(theme.navigationBarTheme.backgroundColor, semantic.glassTint);
+      expect(theme.navigationRailTheme.backgroundColor, semantic.glassTint);
     });
 
     test('app bar uses glassTint background', () {
@@ -73,7 +73,7 @@ void main() {
       );
 
       final semantic = palette.lightSemantic();
-      expect(theme.appBarTheme?.backgroundColor, semantic.glassTint);
+      expect(theme.appBarTheme.backgroundColor, semantic.glassTint);
     });
 
     test('dialog stays opaque (not glass)', () {
@@ -90,7 +90,7 @@ void main() {
 
       // Dialog uses solid surface, not glassTint
       expect(
-        theme.dialogTheme?.backgroundColor,
+        theme.dialogTheme.backgroundColor,
         palette.lightColorScheme.surface,
       );
     });
