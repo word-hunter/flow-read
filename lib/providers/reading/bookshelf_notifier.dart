@@ -229,6 +229,8 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
       return false;
     }
 
+    ref.read(vocabularyNotifierProvider.notifier).tryUseCachedDifficulty(meta);
+
     state = state.copyWith(
       isLoading: true,
       clearError: true,

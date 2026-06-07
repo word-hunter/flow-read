@@ -207,7 +207,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
         continue;
       }
       hydratedFromCache =
-          await _tryUseCachedDifficulty(book) || hydratedFromCache;
+          await tryUseCachedDifficulty(book) || hydratedFromCache;
     }
     _scheduleDifficultyRefresh();
 
@@ -471,7 +471,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     }
   }
 
-  Future<bool> _tryUseCachedDifficulty(BookMetadata meta) async {
+  Future<bool> tryUseCachedDifficulty(BookMetadata meta) async {
     _usePersistedDifficulty(meta);
     if (_bookDifficultyById.containsKey(meta.id)) return true;
 
