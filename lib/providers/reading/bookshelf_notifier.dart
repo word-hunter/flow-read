@@ -244,11 +244,11 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
         book: book,
         activeBookId: bookId,
         importStage: '',
+        isLoading: false,
       );
 
       ref.read(currentBookNotifierProvider.notifier).goToChapter(currentChapter);
 
-      state = state.copyWith(isLoading: false);
       return true;
     } catch (e) {
       state = state.copyWith(

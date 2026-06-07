@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/analysis_result.dart';
@@ -145,7 +146,9 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
     ref.read(readingSearchNotifierProvider.notifier).clearSourceHighlight();
     ref.read(aiNotifierProvider.notifier).clearAIResults();
 
-    await _analyzeCurrentChapter();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _analyzeCurrentChapter();
+    });
   }
 
   void enterReader() {
