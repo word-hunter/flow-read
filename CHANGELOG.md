@@ -10,6 +10,56 @@ This project follows a simple semantic versioning flow:
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-06-07
+
+### Added
+
+- complete remaining tasks — BookGlossaryPromptRequest + browser AI migration
+- wire AIAssistantController into reader page (Task 8/9/11)
+- add AIAssistantPanel widget (Task 7)
+- add ReadingInsightService (Task 4)
+- add BookGlossaryService (Task 5) and CharacterRegistry (Task 6)
+- complete Riverpod migration Phase 3 — eliminate ReadingProvider
+- migrate 7 controllers from ChangeNotifier wrapper to Notifier
+- bump 命令自动排除 scope=2.0 的提交，避免 2.0 功能代码混入小版本 changelog
+- add AI assistant controllers
+- add AI assistant action registry
+- add AI assistant data models
+- add language controls to settings
+- filter vocabulary by language
+- store user vocabulary with language keys
+- filter dictionary sources by language
+- pass structured word lookup metadata
+- add structured reading tokens
+- add book language metadata fields
+- add benchmark suite with auto-scan, profile tool, and HTML report
+- add parser progress callbacks
+
+### Fixed
+
+- WordLevelService.init() never called after Riverpod migration
+- add service provider overrides for remaining migration tests
+- stabilize reader scrolling
+- 优化 EPUB 导入进度体验
+- adjust empty fallback hint
+- remove inactive font dropdown icon
+
+### Changed
+
+- detach ChangeNotifier listener from ReadingProvider
+- zero UI readingProvider refs, all via notifier delegation
+- reduce UI readingProvider refs to notifiers
+- cross-reference notifiers for book/activeBookId/currentChapter
+- bookshelf owns Book in state, current_book cross-references
+- migrate wordLookup and AI providers to Notifier, delete old controllers
+- migrate vocabulary, currentBook, bookshelf, learning to Notifier
+- improve benchmark stability — median scoring, more iterations, concurrency control
+- 增加 2.0 开关
+- 拆分阅读页并适配 Riverpod 3
+- 预 canonicalize + O(1) 上下文提取，减少重复计算
+- 优化大文件解析性能
+- upgrade Flutter SDK to 3.44.0
+
 ## [1.6.1] - 2026-06-04
 
 ### Fixed
