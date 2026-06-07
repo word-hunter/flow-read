@@ -4,12 +4,12 @@ set -eu
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
-echo "pre-push: running full Flutter test suite..."
+echo "pre-push: running Flutter test suite excluding benchmarks..."
 
 if command -v fvm >/dev/null 2>&1; then
-  fvm flutter test
+  fvm flutter test --exclude-tags benchmark
 elif command -v flutter >/dev/null 2>&1; then
-  flutter test
+  flutter test --exclude-tags benchmark
 else
   echo "pre-push: neither fvm nor flutter was found in PATH." >&2
   exit 1
