@@ -1,7 +1,5 @@
 import 'package:flow_read/pages/training_page.dart';
-import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
-import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/reading/current_book_notifier.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flutter/material.dart';
@@ -48,12 +46,12 @@ void main() {
   testWidgets('training entry reads book availability through Riverpod', (
     tester,
   ) async {
-    final provider = _FakeReadingProvider(hasBook: false, hasBeenOpened: false);
-
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
-          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          currentBookNotifierProvider.overrideWith(
+            () => _FakeCurrentBookNotifier(hasBook: false, hasBeenOpened: false),
+          ),
           settingsProvider.overrideWith(
             (ref) => _FakeSettingsService(reviewEnabled: false),
           ),
@@ -78,12 +76,19 @@ class _FakeSettingsService extends SettingsService {
   bool get reviewFeatureEnabled => reviewEnabled;
 }
 
-class _FakeReadingProvider extends ReadingProvider {
-  _FakeReadingProvider({required this.hasBook, required this.hasBeenOpened});
+class _FakeCurrentBookNotifier extends CurrentBookNotifier {
+  _FakeCurrentBookNotifier({required bool hasBook, required bool hasBeenOpened})
+    : _hasBook = hasBook,
+      _hasBeenOpened = hasBeenOpened;
+
+  final bool _hasBook;
+  final bool _hasBeenOpened;
 
   @override
-  final bool hasBook;
+  CurrentBookState build() => CurrentBookState(
+    hasBeenOpened: _hasBeenOpened,
+  );
 
   @override
-  final bool hasBeenOpened;
+  bool get hasBook => _hasBook;
 }

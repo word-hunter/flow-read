@@ -1,7 +1,5 @@
+import 'package:flow_read/providers/reading/vocabulary_notifier.dart';
 import 'package:flow_read/widgets/word_mastery_confetti.dart';
-import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
-import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
@@ -39,12 +37,12 @@ void main() {
   testWidgets(
     'confetti host rebuilds inside focused app without global key churn',
     (tester) async {
-      final provider = _ConfettiTestProvider();
+      final provider = _ConfettiTestNotifier();
 
       await tester.pumpWidget(
         riverpod.ProviderScope(
           overrides: [
-            riverpod_reading.readingProvider.overrideWith((ref) => provider),
+            vocabularyNotifierProvider.overrideWith(() => provider),
           ],
           child: const MaterialApp(
             home: Focus(
@@ -65,19 +63,22 @@ void main() {
   );
 }
 
-class _ConfettiTestProvider extends ReadingProvider {
+class _ConfettiTestNotifier extends VocabularyNotifier {
   int _tick = 0;
   Offset? _origin;
 
   @override
-  int get wordMasteredCelebrationTick => _tick;
-
-  @override
-  Offset? get wordMasteredCelebrationOrigin => _origin;
+  VocabularyState build() => VocabularyState(
+    wordMasteredCelebrationTick: _tick,
+    wordMasteredCelebrationOrigin: _origin,
+  );
 
   void celebrate(Offset origin) {
     _origin = origin;
     _tick += 1;
-    notifyListeners();
+    state = state.copyWith(
+      wordMasteredCelebrationTick: _tick,
+      wordMasteredCelebrationOrigin: _origin,
+    );
   }
 }

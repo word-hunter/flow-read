@@ -13,6 +13,7 @@ import '../../models/user_vocabulary.dart';
 import '../../models/word_context_example.dart';
 import '../../services/analysis_service.dart';
 import '../../services/epub_parse_worker.dart';
+import '../../services/language/english_language_module.dart';
 import '../../services/language/language_module.dart';
 import '../../services/language/language_registry.dart';
 import '../../services/user_vocabulary_service.dart';
@@ -22,8 +23,9 @@ import '../../storage/hive_box_names.dart';
 import '../settings_provider.dart';
 import 'bookshelf_notifier.dart';
 import 'current_book_notifier.dart';
-import 'reading_provider_riverpod.dart';
 import 'services_provider.dart';
+import 'text_selection_notifier.dart';
+import 'word_lookup_notifier.dart';
 
 @immutable
 class VocabularyState {
@@ -88,14 +90,19 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   Timer? _difficultyRefreshTimer;
   bool _isRefreshingBookDifficulties = false;
 
+  UserVocabularyService? get _userVocab =>
+      ref.read(userVocabularyServiceProvider);
   WordLevelService? get _wordLevelService =>
       ref.read(wordLevelServiceProvider);
   WordContextService? get _wordContextService =>
       ref.read(wordContextServiceProvider);
 
   LanguageModule get _activeLanguageModule {
-    final reader = ref.read(readingProvider);
-    return reader.activeLanguageModule;
+    final settings = ref.read(settingsProvider);
+    final code =
+        settings.activeSourceLanguage ?? HiveBoxNames.defaultLanguageCode;
+    return LanguageRegistry.instance.get(code) ??
+        const EnglishLanguageModule();
   }
 
   @override
@@ -115,39 +122,57 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
   int get totalVocabularyCount => _allVocab.length;
 
-  List<LearningItem> get learningItems {
-    final reader = ref.read(readingProvider);
-    return reader.learningItems;
-  }
+  List<LearningItem> get learningItems =>
+      ref.read(learningItemServiceProvider)?.allItems ?? const [];
 
-  int get knownWordCount {
-    final reader = ref.read(readingProvider);
-    return reader.userVocabulary?.knownWords.length ?? 0;
-  }
+  int get knownWordCount => _userVocab?.knownWords.length ?? 0;
 
-  int get learningWordCount {
-    final reader = ref.read(readingProvider);
-    return reader.userVocabulary?.learningWords.length ?? 0;
-  }
+  int get learningWordCount => _userVocab?.learningWords.length ?? 0;
 
-  int get todayReviewDueCount {
-    final reader = ref.read(readingProvider);
-    return reader.todayReviewDueCount;
-  }
+  int get todayReviewDueCount =>
+      ref.read(reviewScheduleServiceProvider)?.dueCount() ?? 0;
 
-  int get learningItemCount {
-    final reader = ref.read(readingProvider);
-    return reader.learningItemCount;
-  }
+  int get learningItemCount =>
+      ref.read(learningItemServiceProvider)?.count ?? 0;
 
   ChapterLearningReport? get currentChapterLearningReport {
-    final reader = ref.read(readingProvider);
-    return reader.currentChapterLearningReport;
+    final analytics = ref.read(learningAnalyticsServiceProvider);
+    final book = ref.read(bookshelfNotifierProvider).book;
+    final bookId = ref.read(bookshelfNotifierProvider).activeBookId;
+    final readingTime = ref.read(readingTimeServiceProvider);
+    if (book == null ||
+        book.chapters.isEmpty ||
+        bookId == null ||
+        analytics == null) {
+      return null;
+    }
+    final currentChapter =
+        ref.read(currentBookNotifierProvider).currentChapter;
+    return analytics.buildChapterReport(
+      bookId: bookId,
+      book: book,
+      chapterIndex: currentChapter,
+      chapterProgress:
+          ref.read(currentBookNotifierProvider).readingProgress,
+      analysis: ref.read(currentBookNotifierProvider).result,
+      readingTime: readingTime,
+      userVocabulary: _userVocab,
+      learningItems: learningItems,
+      dueReviewCount: todayReviewDueCount,
+    );
   }
 
   WeeklyLearningSummary? get weeklyLearningSummary {
-    final reader = ref.read(readingProvider);
-    return reader.weeklyLearningSummary;
+    final analytics = ref.read(learningAnalyticsServiceProvider);
+    if (analytics == null) return null;
+    final readingTime = ref.read(readingTimeServiceProvider);
+    final settings = ref.read(settingsProvider);
+    return analytics.buildWeeklySummary(
+      readingTime: readingTime,
+      dailyGoalSeconds: settings.dailyReadingGoalSeconds,
+      learningItems: learningItems,
+      dueReviewCount: todayReviewDueCount,
+    );
   }
 
   List<AggregatedVocabulary> getAllVocabulary({bool alphabetical = false}) {
@@ -165,9 +190,8 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   }
 
   BookDifficultyRating? difficultyForBook(String bookId) {
-    final reader = ref.read(readingProvider);
     final activeBookId =
-        ref.read(bookshelfNotifierProvider).activeBookId ?? reader.activeBookId;
+        ref.read(bookshelfNotifierProvider).activeBookId;
     if (bookId == activeBookId) return state.currentBookDifficulty;
     return _bookDifficultyById[bookId];
   }
@@ -180,7 +204,6 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   int get loadingBookDifficultyCount => _loadingBookDifficultyIds.length;
 
   Future<void> ensureBookDifficulties(Iterable<BookMetadata> books) async {
-    final reader = ref.read(readingProvider);
     var hydratedFromCache = false;
     for (final book in books) {
       if (_bookDifficultyById.containsKey(book.id) ||
@@ -210,10 +233,11 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
     for (final meta in pending) {
       try {
-        final shelf = ref.read(bookshelfNotifierProvider);
-        final shelfBook = shelf.book ?? reader.book;
-        final activeBookId = shelf.activeBookId ?? reader.activeBookId;
-        final book = meta.id == activeBookId && shelfBook != null
+        final shelfBook =
+            ref.read(bookshelfNotifierProvider).book;
+        final book = meta.id ==
+                    ref.read(bookshelfNotifierProvider).activeBookId &&
+                shelfBook != null
             ? shelfBook
             : await EpubParseWorker.parseInIsolate(meta.sourcePath);
         final studyWords = AnalysisService.collectBookStudyWords(
@@ -221,10 +245,8 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
           _wordLevelService,
           _activeLanguageModule,
         );
-        final rating = AnalysisService.rateBookDifficulty(
-          studyWords,
-          reader.userVocabulary,
-        );
+        final rating =
+            AnalysisService.rateBookDifficulty(studyWords, _userVocab);
         await _persistBookDifficulty(meta.id, studyWords, rating);
         _bookDifficultyFailureKeys.remove(meta.id);
       } catch (_) {
@@ -238,26 +260,21 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   }
 
   UserWordStatus? getWordStatus(String word) {
-    final reader = ref.read(readingProvider);
-    return reader.userVocabulary?.getStatus(_canonicalWord(word));
+    return _userVocab?.getStatus(_canonicalWord(word));
   }
 
   bool isWordKnown(String word) {
-    final reader = ref.read(readingProvider);
-    return reader.userVocabulary?.isKnown(_canonicalWord(word)) ?? false;
+    return _userVocab?.isKnown(_canonicalWord(word)) ?? false;
   }
 
   bool isWordLearning(String word) {
-    final reader = ref.read(readingProvider);
-    return reader.userVocabulary?.isLearning(_canonicalWord(word)) ?? false;
+    return _userVocab?.isLearning(_canonicalWord(word)) ?? false;
   }
 
   Future<void> markWordKnown(String word, {Offset? celebrationOrigin}) async {
-    final reader = ref.read(readingProvider);
-    final vocab = reader.userVocabulary;
     final canonical = _canonicalWord(word);
-    final previousStatus = vocab?.getStatus(canonical);
-    await vocab?.setKnown(canonical);
+    final previousStatus = _userVocab?.getStatus(canonical);
+    await _userVocab?.setKnown(canonical);
     _recordWordMasteredCelebration(
       canonical,
       previousStatus,
@@ -272,11 +289,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   }
 
   Future<void> markWordLearning(String word) async {
-    final reader = ref.read(readingProvider);
-    final vocab = reader.userVocabulary;
     final canonical = _canonicalWord(word);
-    final previousStatus = vocab?.getStatus(canonical);
-    await vocab?.setLearning(canonical);
+    final previousStatus = _userVocab?.getStatus(canonical);
+    await _userVocab?.setLearning(canonical);
     _queueDifficultyRefreshForVocabularyChange(
       canonical,
       previousStatus,
@@ -286,44 +301,66 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   }
 
   Future<void> markWordUnknown(String word) async {
-    final reader = ref.read(readingProvider);
-    final vocab = reader.userVocabulary;
     final canonical = _canonicalWord(word);
-    final previousStatus = vocab?.getStatus(canonical);
-    await vocab?.setUnknown(canonical);
+    final previousStatus = _userVocab?.getStatus(canonical);
+    await _userVocab?.setUnknown(canonical);
     _queueDifficultyRefreshForVocabularyChange(canonical, previousStatus, null);
     await _analyzeCurrentChapter();
   }
 
   Future<void> deleteLearningItem(String id) async {
-    final reader = ref.read(readingProvider);
-    await reader.deleteLearningItem(id);
+    await ref.read(learningItemServiceProvider)?.delete(id);
   }
 
-  bool get canCreateLearningItems {
-    final reader = ref.read(readingProvider);
-    return reader.canCreateLearningItems;
+  bool get canCreateLearningItems =>
+      ref.read(learningItemServiceProvider) != null;
+
+  Future<LearningItemSaveResult?> addSelectedWordLearningItem() async {
+    final service = ref.read(learningItemServiceProvider);
+    final lookupState = ref.read(wordLookupNotifierProvider);
+    final word = lookupState.selectedWord?.trim();
+    if (service == null || word == null || word.isEmpty) return null;
+
+    final definition = lookupState.selectedWordTranslation?.trim() ?? '';
+    final draft = LearningItemDraft.word(
+      word: word,
+      definition: definition,
+      context: lookupState.selectedWordContext ?? '',
+      source: _currentLearningItemSource(),
+      metadata: {
+        if (lookupState.selectedWordEntry?.sourceName != null)
+          'dictionarySource': lookupState.selectedWordEntry!.sourceName!,
+        if (lookupState.selectedWordEntry?.phonetic?.trim().isNotEmpty ??
+            false)
+          'phonetic': lookupState.selectedWordEntry!.phonetic!.trim(),
+      },
+    );
+    return service.saveDraft(draft);
   }
 
-  Future<LearningItemSaveResult?> addSelectedWordLearningItem() {
-    final reader = ref.read(readingProvider);
-    return reader.addSelectedWordLearningItem();
+  Future<LearningItemSaveResult?> addSelectedTextLearningItem() async {
+    final service = ref.read(learningItemServiceProvider);
+    final textState = ref.read(textSelectionNotifierProvider);
+    final selectedText = textState.selectedText?.trim();
+    final analysis = textState.aiTextAnalysis;
+    if (service == null ||
+        selectedText == null ||
+        selectedText.isEmpty ||
+        analysis == null) {
+      return null;
+    }
+    return service.saveDraft(
+      LearningItemDraft.selectedText(
+        selectedText: selectedText,
+        analysis: analysis,
+        source: _currentLearningItemSource(),
+      ),
+    );
   }
 
-  Future<LearningItemSaveResult?> addSelectedTextLearningItem() {
-    final reader = ref.read(readingProvider);
-    return reader.addSelectedTextLearningItem();
-  }
+  LanguageModule get activeLanguageModule => _activeLanguageModule;
 
-  LanguageModule get activeLanguageModule {
-    final reader = ref.read(readingProvider);
-    return reader.activeLanguageModule;
-  }
-
-  UserVocabularyService? get userVocabulary {
-    final reader = ref.read(readingProvider);
-    return reader.userVocabulary;
-  }
+  UserVocabularyService? get userVocabulary => _userVocab;
 
   List<WordContextExample> importedExamplesFor(String word) {
     return _wordContextService?.examplesFor(word) ?? const [];
@@ -332,21 +369,19 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   // ---- Chapter re-analysis ----
 
   Future<void> _analyzeCurrentChapter() async {
-    final reader = ref.read(readingProvider);
-    final shelfBook =
-        ref.read(bookshelfNotifierProvider).book ?? reader.book;
+    final shelfBook = ref.read(bookshelfNotifierProvider).book;
     if (shelfBook == null) return;
     _updateAllVocab();
   }
 
   void _updateAllVocab() {
-    final reader = ref.read(readingProvider);
-    final vocab = reader.userVocabulary;
-    final result = reader.result;
+    final vocab = _userVocab;
+    final result = ref.read(currentBookNotifierProvider).result;
     if (result == null) return;
-    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
+    final currentChapter =
+        ref.read(currentBookNotifierProvider).currentChapter;
     _allVocab.removeWhere(
-      (_, aggVocab) => reader.userVocabulary?.isKnown(aggVocab.word) ?? false,
+      (_, aggVocab) => vocab?.isKnown(aggVocab.word) ?? false,
     );
     final languageId = _activeVocabularyLanguageId;
     for (final v in result.vocabulary) {
@@ -356,8 +391,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
       if (_allVocab.containsKey(vocabularyKey)) {
         final existing = _allVocab[vocabularyKey]!;
         _allVocab[vocabularyKey] = existing.copyWith(
-          chapterIndices:
-              existing.updatedChapters(currentChapter),
+          chapterIndices: existing.updatedChapters(currentChapter),
           level: v.level,
           languageId: languageId,
         );
@@ -376,8 +410,14 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   }
 
   String get _activeVocabularyLanguageId {
-    final reader = ref.read(readingProvider);
-    final sourceLanguage = reader.activeBookMetadata?.effectiveSourceLanguage;
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
+    BookMetadata? activeBookMetadata;
+    if (activeBookId != null) {
+      final bookService = ref.read(bookServiceProvider);
+      activeBookMetadata =
+          bookService.books.where((b) => b.id == activeBookId).firstOrNull;
+    }
+    final sourceLanguage = activeBookMetadata?.effectiveSourceLanguage;
     final settings = ref.read(settingsProvider);
     return LanguageRegistry.normalizeLanguageCode(sourceLanguage) ??
         LanguageRegistry.normalizeLanguageCode(
@@ -397,8 +437,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     UserWordStatus? previousStatus, {
     Offset? origin,
   }) {
-    final reader = ref.read(readingProvider);
-    if (reader.userVocabulary == null || previousStatus == UserWordStatus.known) return;
+    if (_userVocab == null || previousStatus == UserWordStatus.known) return;
     state = state.copyWith(
       wordMasteredCelebrationWord: word,
       wordMasteredCelebrationOrigin: origin,
@@ -434,9 +473,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
       _bookDifficultyById[meta.id] = rating;
       _bookDifficultyFailureKeys.remove(meta.id);
     }
-    final reader = ref.read(readingProvider);
-    final activeBookId =
-        ref.read(bookshelfNotifierProvider).activeBookId ?? reader.activeBookId;
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
     if (meta.id == activeBookId) {
       state = state.copyWith(currentBookDifficulty: rating);
     }
@@ -451,9 +488,8 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
     final studyWords = _bookStudyWordsById[meta.id];
     if (studyWords == null) return false;
-    final reader = ref.read(readingProvider);
     final rating =
-        AnalysisService.rateBookDifficulty(studyWords, reader.userVocabulary);
+        AnalysisService.rateBookDifficulty(studyWords, _userVocab);
     await _persistBookDifficulty(meta.id, studyWords, rating);
     return true;
   }
@@ -471,12 +507,10 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     Set<String> studyWords,
     BookDifficultyRating rating,
   ) async {
-    final reader = ref.read(readingProvider);
     final bookService = ref.read(bookServiceProvider);
     _bookStudyWordsById[bookId] = studyWords;
     _bookDifficultyById[bookId] = rating;
-    final activeBookId =
-        ref.read(bookshelfNotifierProvider).activeBookId ?? reader.activeBookId;
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
     if (bookId == activeBookId) {
       state = state.copyWith(currentBookDifficulty: rating);
     }
@@ -536,10 +570,9 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
         for (final bookId in batch) {
           final studyWords = _bookStudyWordsById[bookId];
           if (studyWords == null) continue;
-          final reader = ref.read(readingProvider);
           final rating = AnalysisService.rateBookDifficulty(
             studyWords,
-            reader.userVocabulary,
+            _userVocab,
           );
           await _persistBookDifficulty(bookId, studyWords, rating);
         }
@@ -564,9 +597,27 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   }
 
   String get _vocabularySignature {
-    final reader = ref.read(readingProvider);
-    return reader.userVocabulary?.revisionSignature ??
+    return _userVocab?.revisionSignature ??
         UserVocabularyService.emptyRevisionSignature;
+  }
+
+  LearningItemSource _currentLearningItemSource() {
+    final bookId = ref.read(bookshelfNotifierProvider).activeBookId;
+    final book = ref.read(bookshelfNotifierProvider).book;
+    if (bookId == null || book == null) {
+      return const LearningItemSource.unknown();
+    }
+    final currentChapter =
+        ref.read(currentBookNotifierProvider).currentChapter;
+    final chapter = currentChapter < book.chapters.length
+        ? book.chapters[currentChapter]
+        : null;
+    return LearningItemSource(
+      bookId: bookId,
+      bookTitle: book.title,
+      chapterIndex: currentChapter,
+      chapterTitle: chapter?.title ?? '',
+    );
   }
 
   // ---- Word canonicalization ----
@@ -576,7 +627,6 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     if (key.isEmpty) return key;
     return _wordLevelService?.canonicalForm(key) ?? key;
   }
-
 }
 
 final vocabularyNotifierProvider =

@@ -1,7 +1,4 @@
 import 'package:flow_read/models/rss_models.dart';
-import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
-import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/rss/rss_article_list.dart';
@@ -143,9 +140,6 @@ void main() {
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
-          riverpod_reading.readingProvider.overrideWith(
-            (ref) => ReadingProvider(),
-          ),
           settingsProvider.overrideWith((ref) => SettingsService()),
         ],
         child: MaterialApp(

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flow_read/providers/backup_provider.dart';
-import 'package:flow_read/providers/reading/reading_provider_riverpod.dart';
-import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/screens/settings_screen.dart';
 import 'package:flow_read/services/app_links.dart';
@@ -32,7 +30,6 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           backupProvider.overrideWith((ref) => backup),
-          readingProvider.overrideWith((ref) => ReadingProvider()),
           settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(home: SettingsScreen()),

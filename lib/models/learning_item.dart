@@ -230,14 +230,22 @@ class LearningItem {
 
 class LearningItemSource {
   final String bookId;
+  final String? bookTitle;
   final int chapterIndex;
   final String chapterTitle;
 
   const LearningItemSource({
     required this.bookId,
+    this.bookTitle,
     required this.chapterIndex,
     required this.chapterTitle,
   });
+
+  const LearningItemSource.unknown()
+      : bookId = '',
+        bookTitle = null,
+        chapterIndex = -1,
+        chapterTitle = '';
 }
 
 class LearningItemSaveResult {

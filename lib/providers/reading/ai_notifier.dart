@@ -7,20 +7,24 @@ import '../../models/ai_chapter_preview.dart';
 import '../../models/ai_practice_questions.dart';
 import '../../models/ai_summary.dart';
 import '../../models/ai_text_analysis.dart';
+import '../../models/book_metadata.dart';
 import '../../models/chapter_ai_coverage.dart';
 import '../../models/chapter_ai_status.dart';
 import '../../models/learning_item.dart';
 import '../../models/word_analysis.dart';
 import '../../services/ai_cache_service.dart';
+import '../../services/settings_service.dart';
 import '../../services/ai_service.dart';
 import '../../services/app_logger.dart';
 import '../../services/chapter_ai_job.dart';
+import '../../services/learning_item_service.dart';
 import '../../services/passage_request_builder.dart';
 import '../../services/prompt_builder.dart';
-import '../reading_provider.dart';
 import '../settings_provider.dart';
-import 'reading_provider_riverpod.dart';
+import 'bookshelf_notifier.dart';
+import 'current_book_notifier.dart';
 import 'services_provider.dart';
+import 'text_selection_notifier.dart';
 
 @immutable
 class AIState {
@@ -142,68 +146,110 @@ class AINotifier extends Notifier<AIState> {
 
   AIService? get _aiService => ref.read(aiServiceProvider);
   AICacheService? get _aiCache => ref.read(aiCacheServiceProvider);
+  SettingsService get _settings => ref.read(settingsProvider);
+  LearningItemService? get _learningItemService =>
+      ref.read(learningItemServiceProvider);
+
+  String? get _activeBookId => ref.read(bookshelfNotifierProvider).activeBookId;
+  int get _currentChapter =>
+      ref.read(currentBookNotifierProvider).currentChapter;
 
   @override
   AIState build() {
-    final reader = ref.watch(readingProvider);
-    return AIState(
-      aiTextAnalysis: reader.aiTextAnalysis,
-      isAnalyzingText: reader.isAnalyzingText,
-      aiTranslation: reader.aiTranslation,
-      isTranslatingText: reader.isTranslatingText,
-      aiSummary: reader.aiSummary,
-      isGeneratingSummary: reader.isGeneratingSummary,
-      aiChapterPreview: reader.aiChapterPreview,
-      isGeneratingChapterPreview: reader.isGeneratingChapterPreview,
-      chapterAIStatus: reader.chapterAIStatus,
-      chapterAISummaryCoverage: reader.chapterAISummaryCoverage,
-      isLoadingChapterAISummaryCoverage:
-          reader.isLoadingChapterAISummaryCoverage,
-      summaryLanguage: reader.summaryLanguage,
-      aiPractice: reader.aiPractice,
-      isGeneratingPractice: reader.isGeneratingPractice,
-      aiWordAnalysis: reader.aiWordAnalysis,
-      isAnalyzingWord: reader.isAnalyzingWord,
-    );
+    return const AIState();
   }
 
-  bool get aiFeaturesEnabled {
-    final reader = ref.read(readingProvider);
-    return reader.aiFeaturesEnabled;
-  }
+  bool get aiFeaturesEnabled =>
+      _aiService != null && (_settings.aiFeaturesEnabled);
 
-  String get aiFeatureDisabledReason {
-    final reader = ref.read(readingProvider);
-    return reader.aiFeatureDisabledReason;
+  String get aiFeatureDisabledReason =>
+      _settings.aiFeatureDisabledReason;
+
+  String get effectiveTargetExplanationLanguage {
+    final activeBookId = _activeBookId;
+    BookMetadata? activeBookMetadata;
+    if (activeBookId != null) {
+      final bookService = ref.read(bookServiceProvider);
+      activeBookMetadata =
+          bookService.books.where((b) => b.id == activeBookId).firstOrNull;
+    }
+    final globalLanguage = _settings.targetExplanationLanguage;
+    return activeBookMetadata?.effectiveTargetExplanationLanguage(
+          globalLanguage,
+        ) ??
+        globalLanguage;
   }
 
   Future<LearningItemSaveResult?> addAIGrammarLearningItem(
     GrammarPoint point,
-  ) {
-    final reader = ref.read(readingProvider);
-    return reader.addAIGrammarLearningItem(point);
+  ) async {
+    final service = _learningItemService;
+    final selectedText =
+        ref.read(textSelectionNotifierProvider).selectedText?.trim();
+    if (service == null ||
+        selectedText == null ||
+        selectedText.isEmpty) {
+      return null;
+    }
+    final result = await service.saveDraft(
+      LearningItemDraft.grammarPoint(
+        point: point,
+        selectedText: selectedText,
+        source: _currentLearningItemSource(),
+      ),
+    );
+    return result;
   }
 
   Future<LearningItemSaveResult?> addAIVocabularyLearningItem(
     VocabularyNote note,
-  ) {
-    final reader = ref.read(readingProvider);
-    return reader.addAIVocabularyLearningItem(note);
+  ) async {
+    final service = _learningItemService;
+    final selectedText =
+        ref.read(textSelectionNotifierProvider).selectedText?.trim();
+    if (service == null ||
+        selectedText == null ||
+        selectedText.isEmpty) {
+      return null;
+    }
+    final result = await service.saveDraft(
+      LearningItemDraft.vocabularyNote(
+        note: note,
+        selectedText: selectedText,
+        source: _currentLearningItemSource(),
+      ),
+    );
+    return result;
   }
 
   Future<LearningItemSaveResult?> addAIExpressionLearningItem(
     ExpressionNote note,
-  ) {
-    final reader = ref.read(readingProvider);
-    return reader.addAIExpressionLearningItem(note);
+  ) async {
+    final service = _learningItemService;
+    final selectedText =
+        ref.read(textSelectionNotifierProvider).selectedText?.trim();
+    if (service == null ||
+        selectedText == null ||
+        selectedText.isEmpty) {
+      return null;
+    }
+    final result = await service.saveDraft(
+      LearningItemDraft.expressionNote(
+        note: note,
+        selectedText: selectedText,
+        source: _currentLearningItemSource(),
+      ),
+    );
+    return result;
   }
 
   Future<void> analyzeSelectedTextAI(String text, {String? sourceText}) async {
-    final reader = ref.read(readingProvider);
-    if (!_ensureAIReady(reader)) return;
+    if (!_ensureAIReady()) return;
+    final currentResult =
+        ref.read(currentBookNotifierProvider).result;
     final request = _passageRequestBuilder.buildSelectedTextAnalysis(
       selectedText: text,
-      sourceText: sourceText ?? reader.result?.passageText ?? text,
+      sourceText: sourceText ?? currentResult?.passageText ?? text,
     );
 
     state = state.copyWith(
@@ -217,10 +263,11 @@ class AINotifier extends Notifier<AIState> {
         selectedText: request.selectedText,
         currentPassage: request.currentPassage,
         sourceLanguage: request.sourceLanguage,
-        outputLanguage: OutputLanguage.fromCode(reader.effectiveTargetExplanationLanguage),
+        outputLanguage:
+            OutputLanguage.fromCode(effectiveTargetExplanationLanguage),
         spoilerBoundary: request.spoilerBoundary,
       );
-      ref.read(settingsProvider).incrementAIUsage(textAnalysis: true);
+      _settings.incrementAIUsage(textAnalysis: true);
       if (state.isAnalyzingText) {
         state = state.copyWith(
           aiTextAnalysis: analysis,
@@ -236,8 +283,7 @@ class AINotifier extends Notifier<AIState> {
   }
 
   Future<void> translateSelectedTextAI(String text) async {
-    final reader = ref.read(readingProvider);
-    if (!_ensureAIReady(reader)) return;
+    if (!_ensureAIReady()) return;
     state = state.copyWith(
       isTranslatingText: true,
       aiTranslation: null,
@@ -247,7 +293,8 @@ class AINotifier extends Notifier<AIState> {
       final translation = await _aiService!.translateText(
         text,
         sourceLanguage: SourceLanguage.inferFromText(text),
-        outputLanguage: OutputLanguage.fromCode(reader.effectiveTargetExplanationLanguage),
+        outputLanguage:
+            OutputLanguage.fromCode(effectiveTargetExplanationLanguage),
         spoilerBoundary: SpoilerBoundary.currentPassage(),
       );
       if (state.isTranslatingText) {
@@ -265,9 +312,10 @@ class AINotifier extends Notifier<AIState> {
   }
 
   Future<void> generateSummary() async {
-    final reader = ref.read(readingProvider);
-    if (reader.result == null || !_ensureAIReady(reader)) return;
-    final bookId = reader.activeBookId;
+    final currentResult =
+        ref.read(currentBookNotifierProvider).result;
+    if (currentResult == null || !_ensureAIReady()) return;
+    final bookId = _activeBookId;
     if (bookId == null) return;
 
     state = state.copyWith(
@@ -276,12 +324,13 @@ class AINotifier extends Notifier<AIState> {
       chapterAIStatus: null,
     );
     try {
-      final result = await _createChapterAIJob(reader).generateSummary(
+      final result = await _createChapterAIJob().generateSummary(
         ChapterSummaryJobRequest(
           bookId: bookId,
-          chapterIndex: reader.currentChapter,
-          chapterText: reader.result!.passageText,
-          vocabulary: reader.result!.vocabulary.map((v) => v.word).toList(),
+          chapterIndex: _currentChapter,
+          chapterText: currentResult.passageText,
+          vocabulary:
+              currentResult.vocabulary.map((v) => v.word).toList(),
           outputLanguage: OutputLanguage.fromCode(state.summaryLanguage),
         ),
       );
@@ -290,7 +339,7 @@ class AINotifier extends Notifier<AIState> {
         chapterAIStatus: result.status,
         isGeneratingSummary: false,
       );
-      await _refreshChapterAISummaryCoverage(reader);
+      await _refreshChapterAISummaryCoverage();
     } catch (e) {
       state = state.copyWith(
         errorMessage: '生成总结失败: $e',
@@ -304,9 +353,11 @@ class AINotifier extends Notifier<AIState> {
   }
 
   Future<void> generateChapterPreview() async {
-    final reader = ref.read(readingProvider);
-    if (reader.result == null || reader.book == null || !_ensureAIReady(reader)) return;
-    final bookId = reader.activeBookId;
+    final currentResult =
+        ref.read(currentBookNotifierProvider).result;
+    final book = ref.read(bookshelfNotifierProvider).book;
+    if (currentResult == null || book == null || !_ensureAIReady()) return;
+    final bookId = _activeBookId;
     if (bookId == null) return;
 
     state = state.copyWith(
@@ -315,12 +366,14 @@ class AINotifier extends Notifier<AIState> {
       chapterAIStatus: null,
     );
     try {
-      final chapter = reader.book!.chapters[reader.currentChapter];
-      final chapterText = reader.result!.passageText;
+      final chapter = book.chapters[_currentChapter];
+      final chapterText = currentResult.passageText;
       final openingText = _chapterPreviewOpening(chapterText);
       final sourceLanguage = SourceLanguage.inferFromText(openingText);
-      final outputLanguage = OutputLanguage.fromCode(reader.effectiveTargetExplanationLanguage);
-      final vocabulary = reader.result!.vocabulary.map((v) => v.word).toList();
+      final outputLanguage =
+          OutputLanguage.fromCode(effectiveTargetExplanationLanguage);
+      final vocabulary =
+          currentResult.vocabulary.map((v) => v.word).toList();
       final contentHash = AICacheService.contentHashFor(
         jsonEncode({
           'title': chapter.title,
@@ -332,7 +385,7 @@ class AINotifier extends Notifier<AIState> {
       if (_aiCache != null && _aiService != null) {
         final cacheJson = await _aiCache!.loadChapterPreview(
           bookId,
-          reader.currentChapter,
+          _currentChapter,
           contentHash: contentHash,
           promptVersion: _aiService!.promptVersion,
           sourceLanguage: sourceLanguage.code,
@@ -361,7 +414,7 @@ class AINotifier extends Notifier<AIState> {
         outputLanguage: outputLanguage,
         spoilerBoundary: SpoilerBoundary.chapter(
           bookId: bookId,
-          chapterIndex: reader.currentChapter,
+          chapterIndex: _currentChapter,
         ),
       );
       state = state.copyWith(
@@ -372,7 +425,7 @@ class AINotifier extends Notifier<AIState> {
       if (_aiCache != null && _aiService != null) {
         await _aiCache!.saveChapterPreview(
           bookId,
-          reader.currentChapter,
+          _currentChapter,
           jsonEncode(preview.toJson()),
           contentHash: contentHash,
           promptVersion: _aiService!.promptVersion,
@@ -401,9 +454,10 @@ class AINotifier extends Notifier<AIState> {
   }
 
   Future<void> generatePractice() async {
-    final reader = ref.read(readingProvider);
-    if (reader.result == null || !_ensureAIReady(reader)) return;
-    final bookId = reader.activeBookId;
+    final currentResult =
+        ref.read(currentBookNotifierProvider).result;
+    if (currentResult == null || !_ensureAIReady()) return;
+    final bookId = _activeBookId;
     if (bookId == null) return;
 
     state = state.copyWith(
@@ -412,12 +466,13 @@ class AINotifier extends Notifier<AIState> {
       chapterAIStatus: null,
     );
     try {
-      final result = await _createChapterAIJob(reader).generatePractice(
+      final result = await _createChapterAIJob().generatePractice(
         ChapterPracticeJobRequest(
           bookId: bookId,
-          chapterIndex: reader.currentChapter,
-          chapterText: reader.result!.passageText,
-          vocabulary: reader.result!.vocabulary.map((v) => v.word).toList(),
+          chapterIndex: _currentChapter,
+          chapterText: currentResult.passageText,
+          vocabulary:
+              currentResult.vocabulary.map((v) => v.word).toList(),
           events: state.aiSummary?.events ?? const [],
         ),
       );
@@ -439,13 +494,14 @@ class AINotifier extends Notifier<AIState> {
   }
 
   Future<void> analyzeWordAI(String word, String sentence) async {
-    final reader = ref.read(readingProvider);
-    final currentResult = reader.result;
-    if (currentResult == null || !_ensureAIReady(reader)) return;
+    final currentResult =
+        ref.read(currentBookNotifierProvider).result;
+    if (currentResult == null || !_ensureAIReady()) return;
     final chapterText = currentResult.passageText;
-    final sourceLanguage = SourceLanguage.inferFromText('$sentence $chapterText');
+    final sourceLanguage =
+        SourceLanguage.inferFromText('$sentence $chapterText');
     final outputLanguage =
-        OutputLanguage.fromCode(reader.effectiveTargetExplanationLanguage);
+        OutputLanguage.fromCode(effectiveTargetExplanationLanguage);
     final contentHash = AICacheService.contentHashFor(
       jsonEncode({
         'word': word.trim().toLowerCase(),
@@ -453,8 +509,8 @@ class AINotifier extends Notifier<AIState> {
         'chapterText': chapterText,
       }),
     );
-    final cacheBookId = reader.activeBookId ?? 'word-analysis';
-    final cacheChapterIndex = reader.currentChapter;
+    final cacheBookId = _activeBookId ?? 'word-analysis';
+    final cacheChapterIndex = _currentChapter;
 
     if (_aiCache != null && _aiService != null) {
       try {
@@ -488,7 +544,7 @@ class AINotifier extends Notifier<AIState> {
         outputLanguage: outputLanguage,
         spoilerBoundary: SpoilerBoundary.currentPassage(),
       );
-      ref.read(settingsProvider).incrementAIUsage(wordAnalysis: true);
+      _settings.incrementAIUsage(wordAnalysis: true);
       state = state.copyWith(
         aiWordAnalysis: analysis,
         isAnalyzingWord: false,
@@ -517,9 +573,9 @@ class AINotifier extends Notifier<AIState> {
   }
 
   Future<void> clearAICache() async {
-    final reader = ref.read(readingProvider);
     await _aiCache?.clearAllCache();
-    final totalChapters = reader.book?.chapters.length;
+    final totalChapters =
+        ref.read(bookshelfNotifierProvider).book?.chapters.length;
     state = state.copyWith(
       chapterAISummaryCoverage: totalChapters == null
           ? null
@@ -530,28 +586,29 @@ class AINotifier extends Notifier<AIState> {
     );
   }
 
-  Future<void> refreshChapterAISummaryCoverage() {
-    final reader = ref.read(readingProvider);
-    return _refreshChapterAISummaryCoverage(reader, notify: true);
+  Future<void> refreshChapterAISummaryCoverage() async {
+    await _refreshChapterAISummaryCoverage(notify: true);
   }
 
-  bool _ensureAIReady(ReadingProvider reader) {
+  // ---- Internal ----
+
+  bool _ensureAIReady() {
     if (_aiService == null) {
       state = state.copyWith(errorMessage: 'AI 服务未初始化');
       return false;
     }
-    if (!reader.aiFeaturesEnabled) {
-      state = state.copyWith(errorMessage: reader.aiFeatureDisabledReason);
+    if (!aiFeaturesEnabled) {
+      state = state.copyWith(errorMessage: aiFeatureDisabledReason);
       return false;
     }
     return true;
   }
 
-  ChapterAIJob _createChapterAIJob(ReadingProvider reader) {
+  ChapterAIJob _createChapterAIJob() {
     return ChapterAIJob.fromServices(
       aiService: _aiService!,
       cache: _aiCache,
-      settings: ref.read(settingsProvider),
+      settings: _settings,
     );
   }
 
@@ -561,13 +618,30 @@ class AINotifier extends Notifier<AIState> {
     return trimmed.substring(0, _chapterPreviewMaxLength).trim();
   }
 
-  Future<void> _refreshChapterAISummaryCoverage(
-    ReadingProvider reader, {
+  LearningItemSource _currentLearningItemSource() {
+    final bookId = _activeBookId;
+    final book = ref.read(bookshelfNotifierProvider).book;
+    if (bookId == null || book == null) {
+      return const LearningItemSource.unknown();
+    }
+    final chapter = _currentChapter < book.chapters.length
+        ? book.chapters[_currentChapter]
+        : null;
+    return LearningItemSource(
+      bookId: bookId,
+      bookTitle: book.title,
+      chapterIndex: _currentChapter,
+      chapterTitle: chapter?.title ?? '',
+    );
+  }
+
+  Future<void> _refreshChapterAISummaryCoverage({
     bool notify = true,
   }) async {
     final aiCache = _aiCache;
-    final bookId = reader.activeBookId;
-    final totalChapters = reader.book?.chapters.length;
+    final bookId = _activeBookId;
+    final totalChapters =
+        ref.read(bookshelfNotifierProvider).book?.chapters.length;
     if (aiCache == null || bookId == null || totalChapters == null) {
       state = state.copyWith(
         chapterAISummaryCoverage: null,
@@ -585,8 +659,9 @@ class AINotifier extends Notifier<AIState> {
         bookId,
         totalChapters: totalChapters,
       );
-      if (reader.activeBookId == bookId &&
-          reader.book?.chapters.length == totalChapters) {
+      if (_activeBookId == bookId &&
+          ref.read(bookshelfNotifierProvider).book?.chapters.length ==
+              totalChapters) {
         state = state.copyWith(
           chapterAISummaryCoverage: coverage,
           isLoadingChapterAISummaryCoverage: false,

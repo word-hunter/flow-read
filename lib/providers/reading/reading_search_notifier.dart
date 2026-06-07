@@ -5,7 +5,6 @@ import 'bookshelf_notifier.dart';
 import 'current_book_notifier.dart';
 import '../../controllers/reading_search_controller.dart';
 import '../../models/reading_search_result.dart';
-import 'reading_provider_riverpod.dart';
 
 @immutable
 class ReadingSearchState {
@@ -93,18 +92,15 @@ class ReadingSearchNotifier extends Notifier<ReadingSearchState> {
   }
 
   Future<void> searchInBook(String query, {bool includeAll = false}) async {
-    final reader = ref.read(readingProvider);
-    return _searchController.search(ref.read(bookshelfNotifierProvider).book ?? reader.book, query, includeAll: includeAll);
+    return _searchController.search(ref.read(bookshelfNotifierProvider).book, query, includeAll: includeAll);
   }
 
   Future<void> searchAllInBook() {
-    final reader = ref.read(readingProvider);
-    return _searchController.searchAll(ref.read(bookshelfNotifierProvider).book ?? reader.book);
+    return _searchController.searchAll(ref.read(bookshelfNotifierProvider).book);
   }
 
   Future<void> goToSearchResult(ReadingSearchResult result) async {
-    final reader = ref.read(readingProvider);
-    final book = ref.read(bookshelfNotifierProvider).book ?? reader.book;
+    final book = ref.read(bookshelfNotifierProvider).book;
     if (book == null) return;
     if (result.chapterIndex < 0 ||
         result.chapterIndex >= book.chapters.length) {
@@ -113,7 +109,7 @@ class ReadingSearchNotifier extends Notifier<ReadingSearchState> {
 
     _searchController.activateResult(result);
     if (result.chapterIndex != ref.read(currentBookNotifierProvider).currentChapter) {
-      await reader.goToChapter(result.chapterIndex);
+      await ref.read(currentBookNotifierProvider.notifier).goToChapter(result.chapterIndex);
     }
   }
 

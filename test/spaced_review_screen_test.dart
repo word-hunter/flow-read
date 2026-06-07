@@ -1,8 +1,5 @@
 import 'package:flow_read/models/learning_item.dart';
-import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
 import 'package:flow_read/providers/reading/services_provider.dart';
-import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/screens/spaced_review_screen.dart';
 import 'package:flow_read/services/learning_item_service.dart';
 import 'package:flow_read/services/review_schedule_service.dart';
@@ -115,7 +112,7 @@ void main() {
       createdAt: DateTime.utc(2026, 5, 21),
       updatedAt: DateTime.utc(2026, 5, 21),
     );
-    final provider = _FakeReadingProvider([
+    final cards = [
       LearningReviewCard(
         item: item,
         type: LearningReviewCardType.fillBlank,
@@ -125,19 +122,18 @@ void main() {
         explanation: '介词短语作地点状语。',
         sourceText: sourceText,
       ),
-    ]);
+    ];
 
     final learningItemService = LearningItemService(
       repository: _InMemoryLearningItemRepository(),
     );
     final reviewService =
         _StubReviewScheduleService(learningItemService);
-    reviewService.setCards(provider.todayReviewCards);
+    reviewService.setCards(cards);
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
-          riverpod_reading.readingProvider.overrideWith((ref) => provider),
           learningItemServiceProvider.overrideWith((ref) => learningItemService),
           reviewScheduleServiceProvider.overrideWith((ref) => reviewService),
         ],
@@ -170,19 +166,18 @@ void main() {
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     try {
-      final provider = _FakeReadingProvider([_reviewCard()]);
+      final cards = [_reviewCard()];
 
       final learningItemService = LearningItemService(
         repository: _InMemoryLearningItemRepository(),
       );
       final reviewService =
           _StubReviewScheduleService(learningItemService);
-      reviewService.setCards(provider.todayReviewCards);
+      reviewService.setCards(cards);
 
       await tester.pumpWidget(
         riverpod.ProviderScope(
           overrides: [
-            riverpod_reading.readingProvider.overrideWith((ref) => provider),
             learningItemServiceProvider
                 .overrideWith((ref) => learningItemService),
             reviewScheduleServiceProvider
@@ -227,19 +222,4 @@ LearningReviewCard _reviewCard() {
     explanation: '介词短语作地点状语。',
     sourceText: sourceText,
   );
-}
-
-class _FakeReadingProvider extends ReadingProvider {
-  _FakeReadingProvider(this._cards);
-
-  final List<LearningReviewCard> _cards;
-
-  @override
-  List<LearningReviewCard> get todayReviewCards => _cards;
-
-  @override
-  Future<void> recordLearningReview(
-    String itemId,
-    LearningReviewResult result,
-  ) async {}
 }

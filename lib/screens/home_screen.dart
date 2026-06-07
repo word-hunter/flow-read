@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/reading_time_notifier.dart';
-import '../providers/reading_provider.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/home/home_sidebar.dart';

@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:epub_reader_core/epub_reader_core.dart' as core;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,8 +9,62 @@ import '../../models/book.dart';
 import '../../models/book_difficulty.dart';
 import '../../models/book_metadata.dart';
 import '../../services/epub_import_source.dart';
-import '../reading_provider.dart';
-import 'reading_provider_riverpod.dart';
+import '../../services/epub_parse_worker.dart';
+import '../../services/language/language_registry.dart';
+import 'current_book_notifier.dart';
+import 'services_provider.dart';
+import 'vocabulary_notifier.dart';
+
+class _ImportCancelledException implements Exception {
+  const _ImportCancelledException();
+}
+
+enum BookImportResult { imported, cancelled, failed, ignored }
+
+class ImportProgressState {
+  const ImportProgressState({
+    this.isImportingBook = false,
+    this.isCancellingImport = false,
+    this.canCancelImport = false,
+    this.progress,
+    this.fileName,
+    this.stage = '',
+  });
+
+  static const idle = ImportProgressState();
+
+  final bool isImportingBook;
+  final bool isCancellingImport;
+  final bool canCancelImport;
+  final double? progress;
+  final String? fileName;
+  final String stage;
+
+  @override
+  bool operator ==(Object other) {
+    return other is ImportProgressState &&
+        other.isImportingBook == isImportingBook &&
+        other.isCancellingImport == isCancellingImport &&
+        other.canCancelImport == canCancelImport &&
+        other.progress == progress &&
+        other.fileName == fileName &&
+        other.stage == stage;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        isImportingBook,
+        isCancellingImport,
+        canCancelImport,
+        progress,
+        fileName,
+        stage,
+      );
+}
+
+class ImportProgressNotifier extends ValueNotifier<ImportProgressState> {
+  ImportProgressNotifier() : super(ImportProgressState.idle);
+}
 
 @immutable
 class BookshelfState {
@@ -107,206 +165,512 @@ class BookshelfState {
 }
 
 class BookshelfNotifier extends Notifier<BookshelfState> {
+  static const _importCancelDelay = Duration(seconds: 3);
+  static const _importParseProgressStart = 0.18;
+  static const _importParseProgressEnd = 0.72;
+
+  final ImportProgressNotifier _importProgressNotifier =
+      ImportProgressNotifier();
+
+  // Import internals
+  bool _showImportCancel = false;
+  bool _importCancellationRequested = false;
+  Timer? _importCancelTimer;
+  EpubParseTask? _activeImportParseTask;
+
   @override
   BookshelfState build() {
-    final reader = ref.watch(readingProvider);
-    try {
-      return BookshelfState(
-        books: reader.allBooks,
-        activeBookId: reader.activeBookId,
-        book: reader.book,
-        isLoading: reader.isLoading,
-        errorMessage: reader.errorMessage,
-        importStage: reader.importStage,
-        isImportingBook: reader.isImportingBook,
-        isCancellingImport: reader.isCancellingImport,
-        canCancelImport: reader.canCancelImport,
-        importProgress: reader.importProgress,
-        importFileName: reader.importFileName,
-        lastImportResult: reader.lastImportResult,
-      );
-    } catch (_) {
-      return BookshelfState(
-        book: reader.book,
-        activeBookId: reader.activeBookId,
-        isLoading: reader.isLoading,
-      );
-    }
+    final bookService = ref.read(bookServiceProvider);
+    return BookshelfState(
+      books: bookService.books,
+    );
   }
 
   // ---- Book Management ----
 
-  List<BookMetadata> get allBooks {
-    try {
-      final reader = ref.read(readingProvider);
-      return reader.allBooks;
-    } catch (_) {
-      return state.books;
-    }
-  }
+  List<BookMetadata> get allBooks =>
+      ref.read(bookServiceProvider).books;
 
   int get bookCount => allBooks.length;
 
-  Uint8List? getCoverBytes(String bookId) {
-    final reader = ref.read(readingProvider);
-    return reader.getCoverBytes(bookId);
-  }
+  Uint8List? getCoverBytes(String bookId) =>
+      ref.read(bookServiceProvider).loadCover(bookId);
 
-  BookDifficultyRating? difficultyForBook(String bookId) {
-    final reader = ref.read(readingProvider);
-    return reader.difficultyForBook(bookId);
-  }
+  BookDifficultyRating? difficultyForBook(String bookId) =>
+      ref.read(vocabularyNotifierProvider.notifier).difficultyForBook(bookId);
 
-  bool isBookDifficultyLoading(String bookId) {
-    final reader = ref.read(readingProvider);
-    return reader.isBookDifficultyLoading(bookId);
-  }
+  bool isBookDifficultyLoading(String bookId) =>
+      ref.read(vocabularyNotifierProvider.notifier).isBookDifficultyLoading(bookId);
 
-  bool get isLoadingBookDifficulties {
-    final reader = ref.read(readingProvider);
-    return reader.isLoadingBookDifficulties;
-  }
+  bool get isLoadingBookDifficulties =>
+      ref.read(vocabularyNotifierProvider.notifier).isLoadingBookDifficulties;
 
-  int get loadingBookDifficultyCount {
-    final reader = ref.read(readingProvider);
-    return reader.loadingBookDifficultyCount;
-  }
+  int get loadingBookDifficultyCount =>
+      ref.read(vocabularyNotifierProvider.notifier).loadingBookDifficultyCount;
 
-  int get learningItemCount {
-    final reader = ref.read(readingProvider);
-    return reader.learningItemCount;
-  }
+  int get learningItemCount =>
+      ref.read(learningItemServiceProvider).count;
 
-  int get todayReviewDueCount {
-    final reader = ref.read(readingProvider);
-    return reader.todayReviewDueCount;
-  }
+  int get todayReviewDueCount =>
+      ref.read(reviewScheduleServiceProvider).dueCount();
 
-  Future<void> ensureBookDifficulties(Iterable<BookMetadata> books) {
-    final reader = ref.read(readingProvider);
-    return reader.ensureBookDifficulties(books);
-  }
+  Future<void> ensureBookDifficulties(Iterable<BookMetadata> books) =>
+      ref.read(vocabularyNotifierProvider.notifier).ensureBookDifficulties(books);
 
   Future<bool> switchToBook(String bookId) async {
-    final reader = ref.read(readingProvider);
-    state = state.copyWith(isLoading: true, errorMessage: null);
-    final result = await reader.switchToBook(bookId);
+    if (bookId == state.activeBookId && state.book != null) return true;
+
+    final bookService = ref.read(bookServiceProvider);
+    _saveCurrentProgress();
+
+    final meta = bookService.books.where((b) => b.id == bookId).firstOrNull;
+    if (meta == null) {
+      state = state.copyWith(errorMessage: '打开书籍失败：书架中找不到这本书。');
+      return false;
+    }
+
     state = state.copyWith(
-      isLoading: false,
-      activeBookId: reader.activeBookId,
-      book: reader.book,
-      errorMessage: reader.errorMessage,
+      isLoading: true,
+      clearError: true,
+      importStage: '正在解析 EPUB...',
     );
-    return result;
+
+    try {
+      final book = await EpubParseWorker.parseInIsolate(meta.sourcePath);
+      final currentChapter =
+          meta.currentChapter.clamp(0, book.chapters.length - 1);
+
+      state = state.copyWith(
+        book: book,
+        activeBookId: bookId,
+        importStage: '',
+      );
+
+      ref.read(currentBookNotifierProvider.notifier).goToChapter(currentChapter);
+
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        errorMessage: '打开书籍失败：无法读取书籍文件。',
+        isLoading: false,
+        importStage: '',
+      );
+      return false;
+    }
   }
 
   void enterReader() {
-    final reader = ref.read(readingProvider);
-    reader.enterReader();
+    ref.read(currentBookNotifierProvider.notifier).enterReader();
   }
 
   Future<void> removeBook(String bookId) async {
-    final reader = ref.read(readingProvider);
-    await reader.removeBook(bookId);
-    state = state.copyWith(
-      activeBookId: reader.activeBookId,
-      clearBook: true,
-    );
+    final bookService = ref.read(bookServiceProvider);
+    final bookmarkService = ref.read(bookmarkServiceProvider);
+    final learningItemService = ref.read(learningItemServiceProvider);
+    final aiCache = ref.read(aiCacheServiceProvider);
+
+    await bookService.removeBook(bookId);
+    await bookmarkService.deleteWordBookmarks(bookId);
+    await bookmarkService.deleteReadingBookmarks(bookId);
+    await learningItemService.deleteForBook(bookId);
+    await aiCache.clearBookCache(bookId);
+
+    if (state.activeBookId == bookId) {
+      state = state.copyWith(
+        activeBookId: null,
+        clearBook: true,
+      );
+    }
+    state = state.copyWith(books: bookService.books);
   }
 
   Future<void> renameBook(String bookId, String title) async {
-    final reader = ref.read(readingProvider);
-    await reader.renameBook(bookId, title);
-    state = state.copyWith(books: reader.allBooks);
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) return;
+    await ref.read(bookServiceProvider).renameBook(bookId, trimmed);
+    state = state.copyWith(books: ref.read(bookServiceProvider).books);
   }
 
   // ---- Import ----
 
   Future<BookImportResult> importBook(String filePath) {
-    final reader = ref.read(readingProvider);
-    return _importWrapper(() => reader.importBook(filePath));
+    return importBookFromSource(EpubImportSource.path(filePath));
   }
 
-  Future<BookImportResult> importBookFromSource(EpubImportSource source) {
-    final reader = ref.read(readingProvider);
-    return _importWrapper(() => reader.importBookFromSource(source));
+  Future<BookImportResult> importBookFromSource(EpubImportSource source) async {
+    if (state.isImportingBook) return BookImportResult.ignored;
+    _beginImport(source.fileName);
+
+    String? copiedPath;
+    var shouldDeleteCopiedSource = true;
+
+    try {
+      final bookId = _generateBookId(source.fileName);
+      var effectiveBookId = bookId;
+      final bookService = ref.read(bookServiceProvider);
+      copiedPath = await bookService.saveSource(bookId, source);
+      _throwIfImportCancelled();
+
+      _updateImportProgress('正在解析 EPUB...', 0.18);
+      final parseTask = await EpubParseWorker.startParseInIsolate(
+        copiedPath,
+        onProgress: _handleImportParseProgress,
+      );
+      _activeImportParseTask = parseTask;
+      if (_importCancellationRequested) {
+        parseTask.cancel();
+      }
+      final book = await parseTask.future;
+      _activeImportParseTask = null;
+      _throwIfImportCancelled();
+
+      _updateImportProgress('正在整理书籍信息...', 0.72);
+      final restoredMeta = await _findMissingSourceRepairCandidate(book);
+      if (restoredMeta != null) {
+        effectiveBookId = restoredMeta.id;
+        shouldDeleteCopiedSource = false;
+        copiedPath = await bookService.replaceSourceFile(
+          effectiveBookId,
+          copiedPath,
+        );
+      }
+      _throwIfImportCancelled();
+
+      String? coverPath;
+      if (book.coverBytes != null) {
+        _updateImportProgress('正在保存封面...', 0.78);
+        coverPath = await bookService.saveCover(
+          effectiveBookId,
+          book.coverBytes!,
+        );
+      }
+
+      final sourceLanguage =
+          LanguageRegistry.normalizeLanguageCode(book.language);
+      final languageConfidence = sourceLanguage == null ? null : 0.9;
+
+      final metadata = restoredMeta == null
+          ? BookMetadata(
+              id: effectiveBookId,
+              title: book.title,
+              author: book.author,
+              sourcePath: copiedPath,
+              coverPath: coverPath,
+              totalChapters: book.chapters.length,
+              lastReadAt: DateTime.now(),
+              sourceLanguage: sourceLanguage,
+              languageConfidence: languageConfidence,
+            )
+          : restoredMeta.copyWith(
+              title: book.title,
+              author: book.author,
+              sourcePath: copiedPath,
+              coverPath: coverPath ?? restoredMeta.coverPath,
+              totalChapters: book.chapters.length,
+              sourceLanguage: sourceLanguage ?? restoredMeta.sourceLanguage,
+              languageConfidence:
+                  languageConfidence ?? restoredMeta.languageConfidence,
+              currentChapter: _clampChapterIndex(
+                restoredMeta.currentChapter,
+                book.chapters.length,
+              ),
+            );
+
+      _throwIfImportCancelled();
+      _updateImportProgress('正在写入书架...', 0.84, canCancel: false);
+      await bookService.addBook(metadata);
+      shouldDeleteCopiedSource = false;
+
+      _updateImportProgress('正在统计生词、分析句式...', 0.9, canCancel: false);
+      state = state.copyWith(
+        book: book,
+        activeBookId: effectiveBookId,
+        books: bookService.books,
+      );
+
+      _updateImportProgress('导入完成', 1, canCancel: false);
+      state = state.copyWith(lastImportResult: BookImportResult.imported);
+      return BookImportResult.imported;
+    } on EpubParseCancelledException {
+      await _cleanupCancelledImport(
+        copiedPath,
+        deleteCopiedSource: shouldDeleteCopiedSource,
+      );
+      state = state.copyWith(
+        lastImportResult: BookImportResult.cancelled,
+      );
+      return BookImportResult.cancelled;
+    } on _ImportCancelledException {
+      await _cleanupCancelledImport(
+        copiedPath,
+        deleteCopiedSource: shouldDeleteCopiedSource,
+      );
+      state = state.copyWith(
+        lastImportResult: BookImportResult.cancelled,
+      );
+      return BookImportResult.cancelled;
+    } catch (e) {
+      state = state.copyWith(
+        errorMessage: 'Failed to import book: $e',
+        lastImportResult: BookImportResult.failed,
+      );
+      return BookImportResult.failed;
+    } finally {
+      _finishImport();
+    }
   }
 
   void cancelImport() {
-    final reader = ref.read(readingProvider);
-    reader.cancelImport();
-    _syncImportState();
-  }
-
-  Future<BookImportResult> _importWrapper(
-    Future<BookImportResult> Function() importFn,
-  ) async {
-    _syncImportState();
-    final result = await importFn();
-    _syncImportState();
-    final reader = ref.read(readingProvider);
+    if (!state.isImportingBook || state.isCancellingImport) return;
+    _importCancellationRequested = true;
     state = state.copyWith(
-      activeBookId: reader.activeBookId,
-      book: reader.book,
-      lastImportResult: result,
+      isCancellingImport: true,
+      importStage: '正在取消导入...',
     );
-    return result;
-  }
-
-  void _syncImportState() {
-    final reader = ref.read(readingProvider);
-    state = state.copyWith(
-      isLoading: reader.isLoading,
-      errorMessage: reader.errorMessage,
-      importStage: reader.importStage,
-      isImportingBook: reader.isImportingBook,
-      isCancellingImport: reader.isCancellingImport,
-      canCancelImport: reader.canCancelImport,
-      importProgress: reader.importProgress,
-      importFileName: reader.importFileName,
-      lastImportResult: reader.lastImportResult,
-    );
+    _activeImportParseTask?.cancel();
+    _emitImportProgress();
   }
 
   // ---- Global ----
 
-  Future<void> reloadAfterBackupRestore() {
-    final reader = ref.read(readingProvider);
-    return reader.reloadAfterBackupRestore();
+  Future<void> reloadAfterBackupRestore() async {
+    final bookService = ref.read(bookServiceProvider);
+    await bookService.init();
+    final readingTime = ref.read(readingTimeServiceProvider);
+    await readingTime.init();
+    state = state.copyWith(
+      books: bookService.books,
+      clearBook: true,
+      activeBookId: null,
+    );
   }
 
-  Future<void> reloadAfterWordHunterImport() {
-    final reader = ref.read(readingProvider);
-    return reader.init();
+  Future<void> reloadAfterWordHunterImport() async {
+    final bookService = ref.read(bookServiceProvider);
+    await bookService.init();
+    state = state.copyWith(books: bookService.books);
   }
 
   void clearError() {
-    final reader = ref.read(readingProvider);
-    reader.clearError();
     state = state.copyWith(clearError: true);
   }
 
-  ImportProgressNotifier get importProgressNotifier {
-    final reader = ref.read(readingProvider);
-    return reader.importProgressNotifier;
-  }
+  ImportProgressNotifier get importProgressNotifier => _importProgressNotifier;
 
   BookMetadata? get activeBookMetadata {
-    final reader = ref.read(readingProvider);
-    return reader.activeBookMetadata;
+    final bookId = state.activeBookId;
+    if (bookId == null) return null;
+    final bookService = ref.read(bookServiceProvider);
+    return bookService.books.where((b) => b.id == bookId).firstOrNull;
   }
 
   Future<void> setBookSourceLanguageOverride(
     String bookId,
     String code,
-  ) {
-    final reader = ref.read(readingProvider);
-    return reader.setBookSourceLanguageOverride(bookId, code);
+  ) async {
+    final normalized = LanguageRegistry.normalizeLanguageCode(code);
+    if (normalized == null) return;
+    final metadata = _metadataForBook(bookId);
+    if (metadata == null) return;
+    await _persistBookMetadataUpdate(
+      metadata.copyWith(
+        sourceLanguageOverride: normalized,
+        languageConfidence: 1.0,
+      ),
+    );
   }
 
-  Future<void> clearBookSourceLanguageOverride(String bookId) {
-    final reader = ref.read(readingProvider);
-    return reader.clearBookSourceLanguageOverride(bookId);
+  Future<void> clearBookSourceLanguageOverride(String bookId) async {
+    final metadata = _metadataForBook(bookId);
+    if (metadata == null) return;
+    final hasDetectedLanguage = metadata.sourceLanguage != null;
+    final restoredConfidence = hasDetectedLanguage
+        ? metadata.languageConfidence == 1.0
+              ? 0.9
+              : metadata.languageConfidence
+        : null;
+    await _persistBookMetadataUpdate(
+      metadata.copyWith(
+        clearSourceLanguageOverride: true,
+        languageConfidence: restoredConfidence,
+        clearLanguageConfidence: !hasDetectedLanguage,
+      ),
+    );
+  }
+
+  // ---- Internal: Book management ----
+
+  void _saveCurrentProgress() {
+    final bookId = state.activeBookId;
+    if (bookId == null || state.book == null) return;
+    final currentChapter =
+        ref.read(currentBookNotifierProvider).currentChapter;
+    final readingProgress =
+        ref.read(currentBookNotifierProvider).readingProgress;
+    ref.read(bookServiceProvider).updateProgress(
+          bookId,
+          currentChapter,
+          readingProgress,
+        );
+  }
+
+  int _clampChapterIndex(int index, int chapterCount) {
+    if (chapterCount <= 0) return 0;
+    return index.clamp(0, chapterCount - 1);
+  }
+
+  BookMetadata? _metadataForBook(String bookId) {
+    final bookService = ref.read(bookServiceProvider);
+    return bookService.books.where((b) => b.id == bookId).firstOrNull;
+  }
+
+  Future<void> _persistBookMetadataUpdate(BookMetadata metadata) async {
+    final bookService = ref.read(bookServiceProvider);
+    await bookService.addBook(metadata);
+    state = state.copyWith(books: bookService.books);
+  }
+
+  // ---- Internal: Import helpers ----
+
+  String _generateBookId(String fileName) {
+    final stripped = fileName.split('/').last.split('\\').last;
+    final base = stripped.replaceAll(RegExp(r'\s+'), '_');
+    final normalized = base.replaceAll(RegExp(r'[^\w\-_.]'), '');
+    final name = normalized.isNotEmpty ? normalized : 'imported_book';
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return '${name}_$timestamp';
+  }
+
+  void _beginImport(String fileName) {
+    _importCancelTimer?.cancel();
+    _activeImportParseTask = null;
+    _importCancellationRequested = false;
+    _showImportCancel = false;
+    state = state.copyWith(
+      isLoading: true,
+      isImportingBook: true,
+      isCancellingImport: false,
+      errorMessage: null,
+      lastImportResult: BookImportResult.ignored,
+      importFileName: fileName,
+      importProgress: 0.06,
+      importStage: '正在读取 EPUB 文件...',
+    );
+    _importCancelTimer = Timer(_importCancelDelay, () {
+      if (!state.isImportingBook || state.isCancellingImport) return;
+      _showImportCancel = true;
+      _emitImportProgress();
+    });
+    _emitImportProgress();
+  }
+
+  void _handleImportParseProgress(core.EpubParseEvent event) {
+    if (!state.isImportingBook || state.isCancellingImport) return;
+    final currentProgress = state.importProgress ?? 0;
+    final nextProgress = _mapImportParseProgress(event);
+    _updateImportProgress(
+      _importParseStage(event),
+      nextProgress < currentProgress ? currentProgress : nextProgress,
+    );
+  }
+
+  double _mapImportParseProgress(core.EpubParseEvent event) {
+    return switch (event.phase) {
+      core.EpubParsePhase.extractingMetadata => 0.1,
+      core.EpubParsePhase.complete => _importParseProgressEnd,
+      _ =>
+        _importParseProgressStart +
+            event.progress.clamp(0.0, 1.0).toDouble() *
+                (_importParseProgressEnd - _importParseProgressStart),
+    };
+  }
+
+  String _importParseStage(core.EpubParseEvent event) {
+    return switch (event.phase) {
+      core.EpubParsePhase.extractingMetadata => '正在读取书籍信息...',
+      core.EpubParsePhase.parsingChapter ||
+      core.EpubParsePhase.buildingBlocks ||
+      core.EpubParsePhase.loadingImage => '正在解析 EPUB 内容...',
+      core.EpubParsePhase.complete => '解析完成',
+    };
+  }
+
+  void _updateImportProgress(
+    String stage,
+    double progress, {
+    bool canCancel = true,
+  }) {
+    state = state.copyWith(
+      importStage: stage,
+      importProgress: progress.clamp(0.0, 1.0).toDouble(),
+    );
+    if (!canCancel) {
+      _showImportCancel = false;
+      _importCancelTimer?.cancel();
+      _importCancelTimer = null;
+    }
+    _emitImportProgress();
+  }
+
+  void _emitImportProgress() {
+    _importProgressNotifier.value = ImportProgressState(
+      isImportingBook: state.isImportingBook,
+      isCancellingImport: state.isCancellingImport,
+      canCancelImport: _showImportCancel && !state.isCancellingImport,
+      progress: state.importProgress,
+      fileName: state.importFileName,
+      stage: state.importStage,
+    );
+  }
+
+  void _throwIfImportCancelled() {
+    if (_importCancellationRequested) {
+      throw const _ImportCancelledException();
+    }
+  }
+
+  Future<void> _cleanupCancelledImport(
+    String? copiedPath, {
+    required bool deleteCopiedSource,
+  }) async {
+    if (!deleteCopiedSource || copiedPath == null) return;
+    final file = File(copiedPath);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  void _finishImport() {
+    _importCancelTimer?.cancel();
+    _importCancelTimer = null;
+    _activeImportParseTask = null;
+    _importCancellationRequested = false;
+    _showImportCancel = false;
+    state = state.copyWith(
+      isLoading: false,
+      isImportingBook: false,
+      isCancellingImport: false,
+      importStage: '',
+      importProgress: null,
+      importFileName: null,
+    );
+    _emitImportProgress();
+  }
+
+  Future<BookMetadata?> _findMissingSourceRepairCandidate(Book book) async {
+    final bookService = ref.read(bookServiceProvider);
+    final existing = bookService.books;
+    return existing.cast<BookMetadata?>().firstWhere(
+      (meta) => meta != null && _normalizeBookIdentity(meta.title) ==
+          _normalizeBookIdentity(book.title) &&
+          meta.author == book.author,
+      orElse: () => null,
+    );
+  }
+
+  String _normalizeBookIdentity(String title) {
+    return title.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
   }
 }
 

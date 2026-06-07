@@ -3,9 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/word_analysis.dart';
 import '../../models/word_context_example.dart';
+import '../../services/compound_word_analyzer.dart';
 import '../../services/dictionary/word_repository.dart';
+import '../../services/language/english_language_module.dart';
+import '../../services/language/language_module.dart';
+import '../../services/language/language_registry.dart';
+import '../../services/reading_search_service.dart';
 import '../../services/word_context_service.dart';
-import 'reading_provider_riverpod.dart';
+import '../../storage/hive_box_names.dart';
+import '../settings_provider.dart';
+import 'bookshelf_notifier.dart';
+import 'current_book_notifier.dart';
 import 'services_provider.dart';
 
 @immutable
@@ -99,24 +107,25 @@ class WordLookupState {
 }
 
 class WordLookupNotifier extends Notifier<WordLookupState> {
+  static const _compoundMeaningHints = <String, String>{
+    'god': '神',
+    'gods': '众神',
+    'wood': '树林',
+    'dragon': '龙',
+    'glass': '玻璃',
+    'king': '国王',
+    'road': '道路',
+  };
+
+  int _wordLookupRequestVersion = 0;
+
+  WordRepository get _wordRepo => ref.read(wordRepositoryProvider);
   WordContextService get _wordContextService =>
       ref.read(wordContextServiceProvider);
 
   @override
   WordLookupState build() {
-    final reader = ref.watch(readingProvider);
-    return WordLookupState(
-      selectedWord: reader.selectedWord,
-      selectedWordTranslation: reader.selectedWordTranslation,
-      selectedWordContext: reader.selectedWordContext,
-      selectedWordContextStart: reader.selectedWordContextStart,
-      selectedWordContextEnd: reader.selectedWordContextEnd,
-      selectedWordEntry: reader.selectedWordEntry,
-      selectedWordLookupResult: reader.selectedWordLookupResult,
-      isLoadingWord: reader.isLoadingWord,
-      aiWordAnalysis: reader.aiWordAnalysis,
-      isAnalyzingWord: reader.isAnalyzingWord,
-    );
+    return const WordLookupState();
   }
 
   Future<void> lookupWord(
@@ -129,8 +138,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
     int? contextWordEnd,
     bool trackReadingLookup = false,
   }) async {
-    final reader = ref.read(readingProvider);
-    final activeModule = reader.activeLanguageModule;
+    final activeModule = _activeLanguageModule;
     final normalizedContext = _normalizeLookupContext(
       contextText,
       contextWordStart: contextWordStart,
@@ -155,106 +163,81 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
   }
 
   Future<void> lookupRelatedWord(String word) async {
-    final reader = ref.read(readingProvider);
     final current = state.selectedWordLookupResult;
     final history = current != null
         ? [...state.wordLookupHistory, current]
         : state.wordLookupHistory;
-    await reader.lookupRelatedWord(word);
-    state = state.copyWith(
-      selectedWord: reader.selectedWord,
-      selectedWordTranslation: reader.selectedWordTranslation,
-      selectedWordContext: reader.selectedWordContext,
-      selectedWordContextStart: reader.selectedWordContextStart,
-      selectedWordContextEnd: reader.selectedWordContextEnd,
-      selectedWordEntry: reader.selectedWordEntry,
-      selectedWordLookupResult: reader.selectedWordLookupResult,
-      isLoadingWord: reader.isLoadingWord,
-      wordLookupHistory: history,
+    await _lookupWord(
+      DictionaryLookupRequest(
+        word: word,
+        languageCode: _activeLanguageModule.languageCode,
+        canonicalForm: _activeLanguageModule.canonicalize(word),
+      ),
     );
+    state = state.copyWith(wordLookupHistory: history);
   }
 
   Future<void> _lookupWord(
     DictionaryLookupRequest request, {
     bool trackReadingLookup = false,
   }) async {
-    final reader = ref.read(readingProvider);
-    await reader.lookupWord(
-      request.word,
-      canonicalForm: request.canonicalForm,
-      languageCode: request.languageCode,
-      reading: request.reading,
-      contextText: request.contextText,
-      contextWordStart: request.contextWordStart,
-      contextWordEnd: request.contextWordEnd,
-      trackReadingLookup: trackReadingLookup,
-    );
+    final requestVersion = ++_wordLookupRequestVersion;
     state = state.copyWith(
-      selectedWord: reader.selectedWord,
-      selectedWordTranslation: reader.selectedWordTranslation,
-      selectedWordContext: reader.selectedWordContext,
-      selectedWordContextStart: reader.selectedWordContextStart,
-      selectedWordContextEnd: reader.selectedWordContextEnd,
-      selectedWordEntry: reader.selectedWordEntry,
-      selectedWordLookupResult: reader.selectedWordLookupResult,
-      isLoadingWord: reader.isLoadingWord,
+      selectedWord: request.displayWord,
+      selectedWordTranslation: null,
+      selectedWordContext: request.contextText,
+      selectedWordContextStart: request.contextWordStart,
+      selectedWordContextEnd: request.contextWordEnd,
+      selectedWordEntry: null,
+      selectedWordLookupResult: null,
+      isLoadingWord: true,
     );
+
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
+    final book = ref.read(bookshelfNotifierProvider).book;
+    if (trackReadingLookup && activeBookId != null && book != null) {
+      final analytics = ref.read(learningAnalyticsServiceProvider);
+      await analytics?.recordLookup(
+        bookId: activeBookId,
+        chapterIndex:
+            ref.read(currentBookNotifierProvider).currentChapter,
+        word: request.displayWord,
+      );
+    }
+    if (requestVersion != _wordLookupRequestVersion) return;
+
+    var result = await _wordRepo.lookupRequest(request);
+    if (requestVersion != _wordLookupRequestVersion) return;
+    result = await _withDictionaryFallbacks(result);
+    if (requestVersion != _wordLookupRequestVersion) return;
+    _applyWordLookupResult(result);
+    state = state.copyWith(isLoadingWord: false);
   }
 
   void goBackWordLookup() {
     if (state.wordLookupHistory.isEmpty) return;
-    final history = List<DictionaryLookupResult>.from(state.wordLookupHistory);
-    history.removeLast();
-    final reader = ref.read(readingProvider);
-    reader.goBackWordLookup();
+    final history = List<DictionaryLookupResult>.from(state.wordLookupHistory)
+      ..removeLast();
+    final previous = state.wordLookupHistory.last;
+    _applyWordLookupResult(previous);
     state = state.copyWith(
-      selectedWord: reader.selectedWord,
-      selectedWordTranslation: reader.selectedWordTranslation,
-      selectedWordContext: reader.selectedWordContext,
-      selectedWordContextStart: reader.selectedWordContextStart,
-      selectedWordContextEnd: reader.selectedWordContextEnd,
-      selectedWordEntry: reader.selectedWordEntry,
-      selectedWordLookupResult: reader.selectedWordLookupResult,
-      isLoadingWord: reader.isLoadingWord,
+      isLoadingWord: false,
       wordLookupHistory: history,
     );
   }
 
   void clearWordLookup() {
-    final reader = ref.read(readingProvider);
-    reader.clearWordLookup();
-    state = state.copyWith(
-      selectedWord: reader.selectedWord,
-      selectedWordTranslation: reader.selectedWordTranslation,
-      selectedWordContext: reader.selectedWordContext,
-      selectedWordContextStart: reader.selectedWordContextStart,
-      selectedWordContextEnd: reader.selectedWordContextEnd,
-      selectedWordEntry: reader.selectedWordEntry,
-      selectedWordLookupResult: reader.selectedWordLookupResult,
-      isLoadingWord: reader.isLoadingWord,
-    );
+    _wordLookupRequestVersion += 1;
+    state = state.copyWith(clearWordLookup: true, isLoadingWord: false);
   }
 
   List<WordContextExample> importedExamplesFor(String word) {
-    final reader = ref.read(readingProvider);
-    try {
-      return reader.wordContextService?.examplesFor(word) ?? const [];
-    } catch (_) {
-      try {
-        return _wordContextService.examplesFor(word);
-      } catch (_) {
-        return const [];
-      }
-    }
+    return _wordContextService.examplesFor(word);
   }
 
   Future<void> speakWord(String word) async {
-    final reader = ref.read(readingProvider);
-    try {
-      await reader.speakWord(word);
-    } catch (_) {
-      // fallback if readingProvider not set up
-    }
+    final pronunciation = ref.read(pronunciationServiceProvider);
+    await pronunciation?.speakWord(word);
   }
 
   void setAIWordAnalysis(WordAnalysis? analysis) {
@@ -263,6 +246,92 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
 
   void setAnalyzingWord(bool value) {
     state = state.copyWith(isAnalyzingWord: value);
+  }
+
+  // ---- Internal helpers ----
+
+  LanguageModule get _activeLanguageModule {
+    final settings = ref.read(settingsProvider);
+    final code =
+        settings.activeSourceLanguage ?? HiveBoxNames.defaultLanguageCode;
+    return LanguageRegistry.instance.get(code) ??
+        const EnglishLanguageModule();
+  }
+
+  void _applyWordLookupResult(DictionaryLookupResult result) {
+    state = state.copyWith(
+      selectedWordLookupResult: result,
+      selectedWord: result.request.displayWord,
+      selectedWordContext: result.request.contextText,
+      selectedWordContextStart: result.request.contextWordStart,
+      selectedWordContextEnd: result.request.contextWordEnd,
+      selectedWordEntry: result.entry,
+      selectedWordTranslation: result.primaryDefinition,
+    );
+  }
+
+  Future<DictionaryLookupResult> _withDictionaryFallbacks(
+    DictionaryLookupResult result,
+  ) async {
+    if (result.hasDictionaryContent || result.hasDictionaryError) {
+      return result;
+    }
+
+    final request = result.request;
+    final compoundAnalysis = request.languageCode == 'en'
+        ? _compoundAnalyzer().analyze(request.query)
+        : null;
+    final bookContexts = await _bookContextSnippets(request);
+
+    if (compoundAnalysis == null && bookContexts.isEmpty) return result;
+    return result.copyWith(
+      compoundAnalysis: compoundAnalysis,
+      bookContexts: bookContexts,
+    );
+  }
+
+  CompoundWordAnalyzer _compoundAnalyzer() {
+    final wordLevelService = ref.read(wordLevelServiceProvider);
+    return CompoundWordAnalyzer(
+      isKnownWord: (word) {
+        final normalized = _activeLanguageModule.canonicalize(word);
+        return _compoundMeaningHints.containsKey(word) ||
+            _compoundMeaningHints.containsKey(normalized) ||
+            (wordLevelService?.hasWord(word) ?? false) ||
+            (wordLevelService?.hasWord(normalized) ?? false);
+      },
+      getMeaning: (word) {
+        final normalized = _activeLanguageModule.canonicalize(word);
+        return _compoundMeaningHints[word] ??
+            _compoundMeaningHints[normalized];
+      },
+    );
+  }
+
+  Future<List<BookContextSnippet>> _bookContextSnippets(
+    DictionaryLookupRequest request,
+  ) async {
+    final book = ref.read(bookshelfNotifierProvider).book;
+    final query = request.query;
+    if (book == null || query.isEmpty) return const [];
+
+    final snippets = <BookContextSnippet>[];
+    await for (final progress in ReadingSearchService.search(
+      book,
+      query,
+      limit: 5,
+    )) {
+      final searchResult = progress.result;
+      if (searchResult == null) continue;
+      snippets.add(
+        BookContextSnippet(
+          text: searchResult.snippet,
+          chapterIndex: searchResult.chapterIndex,
+          chapterTitle: searchResult.chapterTitle,
+        ),
+      );
+    }
+    return snippets;
   }
 
   String? _nonEmptyOrNull(String? value) {

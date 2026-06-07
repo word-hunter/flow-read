@@ -3,9 +3,8 @@ import 'package:flow_read/models/ai_practice_questions.dart';
 import 'package:flow_read/models/ai_summary.dart';
 import 'package:flow_read/models/chapter_ai_coverage.dart';
 import 'package:flow_read/models/chapter_ai_status.dart';
-import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
-import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/reading/ai_notifier.dart';
+import 'package:flow_read/providers/reading/current_book_notifier.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/ai_summary_view.dart';
@@ -63,20 +62,22 @@ void main() {
   testWidgets('AISummaryView shows the unified chapter AI status', (
     tester,
   ) async {
-    final provider = _StatusReadingProvider(
+    final provider = _StatusAINotifier(
       const ChapterAIStatus.cacheHit(ChapterAIFeature.summary, '已读取缓存的章节总结。'),
       coverage: ChapterAISummaryCoverage(
         totalChapters: 4,
         generatedChapterIndexes: const [0, 2],
       ),
-      currentChapter: 1,
     );
     final settings = _StatusSettingsService();
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
-          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          aiNotifierProvider.overrideWith(() => provider),
+          currentBookNotifierProvider.overrideWith(
+            () => _StatusCurrentBookNotifier(1),
+          ),
           settingsProvider.overrideWith((ref) => settings),
         ],
         child: const MaterialApp(
@@ -93,59 +94,36 @@ void main() {
   });
 }
 
-class _StatusReadingProvider extends ReadingProvider {
-  _StatusReadingProvider(
+class _StatusAINotifier extends AINotifier {
+  _StatusAINotifier(
     this._status, {
     ChapterAISummaryCoverage? coverage,
-    int currentChapter = 0,
-  }) : _coverage = coverage,
-       _currentChapter = currentChapter;
+  }) : _coverage = coverage;
 
   final ChapterAIStatus? _status;
   final ChapterAISummaryCoverage? _coverage;
-  final int _currentChapter;
 
   @override
-  ChapterAIStatus? get chapterAIStatus => _status;
-
-  @override
-  ChapterAISummaryCoverage? get chapterAISummaryCoverage => _coverage;
-
-  @override
-  bool get isLoadingChapterAISummaryCoverage => false;
-
-  @override
-  int get currentChapter => _currentChapter;
-
-  @override
-  String get summaryLanguage => 'zh';
+  AIState build() => AIState(
+    chapterAIStatus: _status,
+    chapterAISummaryCoverage: _coverage,
+    isLoadingChapterAISummaryCoverage: false,
+    summaryLanguage: 'zh',
+    isGeneratingSummary: false,
+    isGeneratingChapterPreview: false,
+    aiSummary: null,
+    aiChapterPreview: null,
+  );
 
   @override
   bool get aiFeaturesEnabled => true;
+}
 
+class _StatusCurrentBookNotifier extends CurrentBookNotifier {
+  _StatusCurrentBookNotifier(this._currentChapter);
+  final int _currentChapter;
   @override
-  bool get isGeneratingSummary => false;
-
-  @override
-  bool get isGeneratingChapterPreview => false;
-
-  @override
-  AISummary? get aiSummary => null;
-
-  @override
-  AIChapterPreview? get aiChapterPreview => null;
-
-  @override
-  Future<void> generateChapterPreview() async {}
-
-  @override
-  Future<void> generateSummary() async {}
-
-  @override
-  Future<void> refreshChapterAISummaryCoverage() async {}
-
-  @override
-  void toggleSummaryLanguage() {}
+  CurrentBookState build() => CurrentBookState(currentChapter: _currentChapter);
 }
 
 class _StatusSettingsService extends SettingsService {

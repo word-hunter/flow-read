@@ -1,7 +1,5 @@
 import 'package:flow_read/models/book_metadata.dart';
-import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
-import 'package:flow_read/providers/reading_provider.dart';
+import 'package:flow_read/providers/reading/bookshelf_notifier.dart';
 import 'package:flow_read/widgets/epub_drop_importer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
@@ -12,12 +10,12 @@ void main() {
   testWidgets('imports dropped EPUB paths through the reading provider', (
     tester,
   ) async {
-    final provider = _FakeReadingProvider();
+    final provider = _FakeBookshelfNotifier();
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
-          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          bookshelfNotifierProvider.overrideWith(() => provider),
         ],
         child: const MaterialApp(
           home: EpubDropImporter(child: Scaffold(body: SizedBox.expand())),
@@ -42,14 +40,14 @@ void main() {
   testWidgets('shows cancelled message for a cancelled dropped import', (
     tester,
   ) async {
-    final provider = _FakeReadingProvider(
+    final provider = _FakeBookshelfNotifier(
       importResult: BookImportResult.cancelled,
     );
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
-          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          bookshelfNotifierProvider.overrideWith(() => provider),
         ],
         child: const MaterialApp(
           home: EpubDropImporter(child: Scaffold(body: SizedBox.expand())),
@@ -77,24 +75,23 @@ Future<void> _sendDropMethod(WidgetTester tester, MethodCall call) {
   );
 }
 
-class _FakeReadingProvider extends ReadingProvider {
-  _FakeReadingProvider({this.importResult = BookImportResult.imported});
+class _FakeBookshelfNotifier extends BookshelfNotifier {
+  _FakeBookshelfNotifier({this.importResult = BookImportResult.imported});
 
   final BookImportResult importResult;
   final List<String> importedPaths = [];
 
   @override
-  bool get isLoading => false;
-
-  @override
-  String? get errorMessage => null;
-
-  @override
-  List<BookMetadata> get allBooks => const [];
+  BookshelfState build() => const BookshelfState(
+    isLoading: false,
+    errorMessage: null,
+    books: [],
+  );
 
   @override
   Future<BookImportResult> importBook(String filePath) async {
     importedPaths.add(filePath);
+    state = state.copyWith(lastImportResult: importResult);
     return importResult;
   }
 }

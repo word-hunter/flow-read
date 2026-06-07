@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter/services.dart';
 
 import '../providers/reading/bookshelf_notifier.dart';
-import '../providers/reading_provider.dart';
 
 class EpubDropImporter extends riverpod.ConsumerStatefulWidget {
   const EpubDropImporter({super.key, required this.child});

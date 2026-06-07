@@ -1,6 +1,3 @@
-import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
-import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/screens/dashboard_screen.dart';
 import 'package:flow_read/screens/practice_screen.dart';
 import 'package:flow_read/screens/syntax_screen.dart';
@@ -12,13 +9,9 @@ void main() {
   testWidgets('current book screens read missing result through Riverpod', (
     tester,
   ) async {
-    final provider = ReadingProvider();
-
     await tester.pumpWidget(
       riverpod.ProviderScope(
-        overrides: [
-          riverpod_reading.readingProvider.overrideWith((ref) => provider),
-        ],
+        overrides: [],
         child: const MaterialApp(
           home: Column(
             children: [

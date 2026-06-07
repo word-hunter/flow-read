@@ -1,10 +1,9 @@
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/bookmarked_word.dart';
 import 'package:flow_read/models/reading_bookmark.dart';
-import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
+import 'package:flow_read/providers/reading/bookmark_notifier.dart';
+import 'package:flow_read/providers/reading/bookshelf_notifier.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
-import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/screens/profile_screen.dart';
 import 'package:flow_read/services/bookmark_service.dart';
@@ -19,7 +18,22 @@ void main() {
   testWidgets('profile screen reads reading time through Riverpod', (
     tester,
   ) async {
-    final provider = _ProfileReadingProvider();
+    final bookmarks = [
+      BookmarkedWord(
+        word: 'flow',
+        translation: 'movement',
+        context: '',
+        addedAt: DateTime(2026),
+        bookId: 'book-1',
+      ),
+      BookmarkedWord(
+        word: 'read',
+        translation: 'look at words',
+        context: '',
+        addedAt: DateTime(2026),
+        bookId: 'book-1',
+      ),
+    ];
     final settings = SettingsService();
     final timeService = _ProfileReadingTimeService();
     final bookmarkService = _ProfileBookmarkService();
@@ -27,7 +41,12 @@ void main() {
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
-          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          bookshelfNotifierProvider.overrideWith(
+            () => _TestProfileBookshelfNotifier(),
+          ),
+          bookmarkNotifierProvider.overrideWith(
+            () => _TestProfileBookmarkNotifier(bookmarks),
+          ),
           settingsProvider.overrideWith((ref) => settings),
           readingTimeServiceProvider.overrideWith((ref) => timeService),
           bookmarkServiceProvider.overrideWith((ref) => bookmarkService),
@@ -45,37 +64,25 @@ void main() {
   });
 }
 
-class _ProfileReadingProvider extends ReadingProvider {
+class _TestProfileBookshelfNotifier extends BookshelfNotifier {
   @override
-  List<BookMetadata> get allBooks => const [
-    BookMetadata(
-      id: 'book-1',
-      title: 'Test Book',
-      author: 'Tester',
-      sourcePath: '/tmp/test.epub',
-    ),
-  ];
+  BookshelfState build() => const BookshelfState(
+    books: [
+      BookMetadata(
+        id: 'book-1',
+        title: 'Test Book',
+        author: 'Tester',
+        sourcePath: '/tmp/test.epub',
+      ),
+    ],
+  );
+}
 
+class _TestProfileBookmarkNotifier extends BookmarkNotifier {
+  _TestProfileBookmarkNotifier(this._bookmarks);
+  final List<BookmarkedWord> _bookmarks;
   @override
-  List<BookmarkedWord> get bookmarkedWords => [
-    BookmarkedWord(
-      word: 'flow',
-      translation: 'movement',
-      context: '',
-      addedAt: DateTime(2026),
-      bookId: 'book-1',
-    ),
-    BookmarkedWord(
-      word: 'read',
-      translation: 'look at words',
-      context: '',
-      addedAt: DateTime(2026),
-      bookId: 'book-1',
-    ),
-  ];
-
-  @override
-  List<ReadingBookmark> get readingBookmarks => const [];
+  BookmarkState build() => BookmarkState(bookmarkedWords: _bookmarks);
 }
 
 class _ProfileBookmarkService extends BookmarkService {

@@ -5,7 +5,10 @@ import '../../models/ai_text_analysis.dart';
 import '../../models/analysis_result.dart';
 import '../../models/sentence_breakdown.dart';
 import '../../services/analysis_service.dart';
-import 'reading_provider_riverpod.dart';
+import '../../services/language/english_language_module.dart';
+import '../../services/language/language_registry.dart';
+import '../../storage/hive_box_names.dart';
+import '../settings_provider.dart';
 import 'services_provider.dart';
 
 @immutable
@@ -74,11 +77,14 @@ class TextSelectionNotifier extends Notifier<TextSelectionState> {
   }
 
   void analyzeSelectedText(String text) {
-    final reader = ref.read(readingProvider);
     final userVocab = ref.read(userVocabularyServiceProvider);
     final wordLevelService = ref.read(wordLevelServiceProvider);
     final sentenceAnalyzer = ref.read(sentenceAnalyzerProvider);
-    final languageModule = reader.activeLanguageModule;
+    final settings = ref.read(settingsProvider);
+    final code = settings.activeSourceLanguage ?? HiveBoxNames.defaultLanguageCode;
+    final languageModule = LanguageRegistry.instance.get(code) ??
+        LanguageRegistry.instance.defaultModule ??
+        const EnglishLanguageModule();
 
     final analysis = AnalysisService.analyzeChapter(
       'Selected Text',

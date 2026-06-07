@@ -1,10 +1,8 @@
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flow_read/models/ai_text_analysis.dart';
-import 'package:flow_read/providers/reading/reading_provider_riverpod.dart'
-    as riverpod_reading;
+import 'package:flow_read/providers/reading/ai_notifier.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
-import 'package:flow_read/providers/reading_provider.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
 import 'package:flow_read/storage/repositories/reading_config_repository.dart';
@@ -18,7 +16,7 @@ void main() {
   testWidgets('analysis sheet shows selected text and AI result', (
     tester,
   ) async {
-    final provider = _SelectedTextReadingProvider(
+    final provider = _SelectedTextAINotifier(
       aiTextAnalysis: const AITextAnalysis(
         translation: '敏捷的狐狸跳过了懒狗。',
         structureNotes: [
@@ -62,7 +60,7 @@ void main() {
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
-          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          aiNotifierProvider.overrideWith(() => provider),
           readingConfigServiceProvider.overrideWith(
             (ref) => _FakeReadingConfigService(),
           ),
@@ -144,7 +142,7 @@ void main() {
         'and he could jump aside and kick at her, '
         'and for a few heavenly moments there would be a real '
         'down-on-the-floor scuffle.';
-    final provider = _SelectedTextReadingProvider(
+    final provider = _SelectedTextAINotifier(
       aiTextAnalysis: const AITextAnalysis(
         translation: '她会扔下书跳起来打他。',
         structureNotes: [
@@ -175,7 +173,7 @@ void main() {
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
-          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          aiNotifierProvider.overrideWith(() => provider),
           readingConfigServiceProvider.overrideWith(
             (ref) => _FakeReadingConfigService(),
           ),
@@ -233,7 +231,7 @@ void main() {
   });
 
   testWidgets('embedded title aligns with collapse button', (tester) async {
-    final provider = _SelectedTextReadingProvider(
+    final provider = _SelectedTextAINotifier(
       aiTextAnalysis: const AITextAnalysis(
         translation: '',
         grammarPoints: [],
@@ -245,7 +243,7 @@ void main() {
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
-          riverpod_reading.readingProvider.overrideWith((ref) => provider),
+          aiNotifierProvider.overrideWith(() => provider),
           readingConfigServiceProvider.overrideWith(
             (ref) => _FakeReadingConfigService(),
           ),
@@ -296,23 +294,19 @@ TextSpan? _findSpanContaining(InlineSpan span, String source) {
   return null;
 }
 
-class _SelectedTextReadingProvider extends ReadingProvider {
-  _SelectedTextReadingProvider({this.aiTextAnalysis});
+class _SelectedTextAINotifier extends AINotifier {
+  _SelectedTextAINotifier({this.aiTextAnalysis});
 
-  @override
   final AITextAnalysis? aiTextAnalysis;
 
   @override
-  bool get isAnalyzingText => false;
-
-  @override
-  String? get aiTranslation => null;
-
-  @override
-  bool get isTranslatingText => false;
-
-  @override
-  String? get errorMessage => null;
+  AIState build() => AIState(
+    aiTextAnalysis: aiTextAnalysis,
+    isAnalyzingText: false,
+    aiTranslation: null,
+    isTranslatingText: false,
+    errorMessage: null,
+  );
 }
 
 class _FakeReadingConfigService extends ReadingConfigService {
