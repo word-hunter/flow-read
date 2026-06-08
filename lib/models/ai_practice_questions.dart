@@ -1,3 +1,5 @@
+import 'json_helpers.dart';
+
 class AIPracticeSet {
   final List<PracticeQuestion> questions;
 
@@ -5,12 +7,12 @@ class AIPracticeSet {
 
   factory AIPracticeSet.fromJson(Map<String, dynamic> json) {
     return AIPracticeSet(
-      questions:
-          (json['questions'] as List<dynamic>?)
-              ?.map((e) => PracticeQuestion.fromJson(e as Map<String, dynamic>))
-              .take(5)
-              .toList() ??
-          [],
+      questions: json
+          .list('questions')
+          .whereType<Map>()
+          .map((e) => PracticeQuestion.fromJson(Map<String, dynamic>.from(e)))
+          .take(5)
+          .toList(),
     );
   }
 
@@ -70,21 +72,20 @@ class ReadingPracticeItem {
   }
 
   factory ReadingPracticeItem.fromJson(Map<String, dynamic> json) {
+    final sourceExcerpt = json.str('source_excerpt');
     return ReadingPracticeItem(
-      type: json['type'] as String? ?? 'detail',
-      question: json['question'] as String? ?? '',
+      type: json.str('type', def: 'detail'),
+      question: json.str('question'),
       sourceExcerpt:
-          (json['source_excerpt'] as String?) ??
-          (json['source'] as String?) ??
-          '',
-      answer: json['answer'] as String? ?? '',
-      answerExplanation: json['answer_explanation'] as String? ?? '',
-      distractors:
-          (json['distractors'] as List<dynamic>?)
-              ?.map((e) => Distractor.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      difficulty: json['difficulty'] as String? ?? 'medium',
+          sourceExcerpt.isNotEmpty ? sourceExcerpt : json.str('source'),
+      answer: json.str('answer'),
+      answerExplanation: json.str('answer_explanation'),
+      distractors: json
+          .list('distractors')
+          .whereType<Map>()
+          .map((e) => Distractor.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      difficulty: json.str('difficulty', def: 'medium'),
     );
   }
 
@@ -149,8 +150,8 @@ class Distractor {
 
   factory Distractor.fromJson(Map<String, dynamic> json) {
     return Distractor(
-      text: json['text'] as String? ?? '',
-      whyWrong: json['why_wrong'] as String? ?? '',
+      text: json.str('text'),
+      whyWrong: json.str('why_wrong'),
     );
   }
 

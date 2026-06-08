@@ -1,3 +1,5 @@
+import 'json_helpers.dart';
+
 class AISummary {
   final List<SummaryEvent> events;
   final List<CharacterDevelopment> characterDevelopments;
@@ -13,24 +15,23 @@ class AISummary {
 
   factory AISummary.fromJson(Map<String, dynamic> json) {
     return AISummary(
-      events:
-          (json['events'] as List<dynamic>?)
-              ?.map((e) => SummaryEvent.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      characterDevelopments:
-          (json['character_developments'] as List<dynamic>?)
-              ?.map(
-                (e) => CharacterDevelopment.fromJson(e as Map<String, dynamic>),
-              )
-              .toList() ??
-          [],
-      keyVocabulary:
-          (json['key_vocabulary'] as List<dynamic>?)
-              ?.map((e) => KeyVocabulary.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      readingGuidance: json['reading_guidance'] as String? ?? '',
+      events: json
+          .list('events')
+          .whereType<Map>()
+          .map((e) => SummaryEvent.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      characterDevelopments: json
+          .list('character_developments')
+          .whereType<Map>()
+          .map((e) =>
+              CharacterDevelopment.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      keyVocabulary: json
+          .list('key_vocabulary')
+          .whereType<Map>()
+          .map((e) => KeyVocabulary.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      readingGuidance: json.str('reading_guidance'),
     );
   }
 
@@ -79,10 +80,10 @@ class SummaryEvent {
 
   factory SummaryEvent.fromJson(Map<String, dynamic> json) {
     return SummaryEvent(
-      description: json['description'] as String? ?? '',
-      source: json['source'] as String? ?? '',
-      significance: json['significance'] as String? ?? '',
-      confidence: json['confidence'] as String? ?? 'medium',
+      description: json.str('description'),
+      source: json.str('source'),
+      significance: json.str('significance'),
+      confidence: json.str('confidence', def: 'medium'),
     );
   }
 
@@ -109,10 +110,10 @@ class CharacterDevelopment {
 
   factory CharacterDevelopment.fromJson(Map<String, dynamic> json) {
     return CharacterDevelopment(
-      character: json['character'] as String? ?? '',
-      change: json['change'] as String? ?? '',
-      source: json['source'] as String? ?? '',
-      confidence: json['confidence'] as String? ?? 'medium',
+      character: json.str('character'),
+      change: json.str('change'),
+      source: json.str('source'),
+      confidence: json.str('confidence', def: 'medium'),
     );
   }
 
@@ -139,10 +140,10 @@ class KeyVocabulary {
 
   factory KeyVocabulary.fromJson(Map<String, dynamic> json) {
     return KeyVocabulary(
-      word: json['word'] as String? ?? '',
-      sentence: json['sentence'] as String? ?? '',
-      meaningInContext: json['meaning_in_context'] as String? ?? '',
-      whyImportant: json['why_important'] as String? ?? '',
+      word: json.str('word'),
+      sentence: json.str('sentence'),
+      meaningInContext: json.str('meaning_in_context'),
+      whyImportant: json.str('why_important'),
     );
   }
 

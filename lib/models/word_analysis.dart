@@ -1,3 +1,5 @@
+import 'json_helpers.dart';
+
 class WordAnalysis {
   final String pronunciation;
   final List<ContextualMeaning> meanings;
@@ -13,20 +15,14 @@ class WordAnalysis {
 
   factory WordAnalysis.fromJson(Map<String, dynamic> json) {
     return WordAnalysis(
-      pronunciation: json['pronunciation'] as String? ?? '',
-      meanings:
-          (json['meanings'] as List<dynamic>?)
-              ?.map(
-                (e) => ContextualMeaning.fromJson(e as Map<String, dynamic>),
-              )
-              .toList() ??
-          [],
-      usageTips:
-          (json['usage_tips'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
-      memoryTip: json['memory_tip'] as String? ?? '',
+      pronunciation: json.str('pronunciation'),
+      meanings: json
+          .list('meanings')
+          .whereType<Map>()
+          .map((e) => ContextualMeaning.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      usageTips: json.list('usage_tips').map((e) => e.toString()).toList(),
+      memoryTip: json.str('memory_tip'),
     );
   }
 
@@ -59,8 +55,8 @@ class ContextualMeaning {
 
   factory ContextualMeaning.fromJson(Map<String, dynamic> json) {
     return ContextualMeaning(
-      meaning: json['meaning'] as String? ?? '',
-      explanation: json['explanation'] as String? ?? '',
+      meaning: json.str('meaning'),
+      explanation: json.str('explanation'),
     );
   }
 

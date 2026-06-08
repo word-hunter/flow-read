@@ -1,3 +1,5 @@
+import 'json_helpers.dart';
+
 class Vocabulary {
   final String word;
   final String meaning;
@@ -15,11 +17,11 @@ class Vocabulary {
 
   factory Vocabulary.fromJson(Map<String, dynamic> json) {
     return Vocabulary(
-      word: json['word'] as String,
-      meaning: json['meaning'] as String,
-      context: json['context'] as String,
-      familiarity: (json['familiarity'] as num).toDouble(),
-      level: json['level'] as String?,
+      word: json.str('word'),
+      meaning: json.str('meaning'),
+      context: json.str('context'),
+      familiarity: json.floating('familiarity'),
+      level: json.strOrNull('level'),
     );
   }
 
@@ -47,10 +49,10 @@ class SyntaxPattern {
 
   factory SyntaxPattern.fromJson(Map<String, dynamic> json) {
     return SyntaxPattern(
-      type: json['type'] as String,
-      originalSentence: json['original_sentence'] as String,
-      simplifiedSentence: json['simplified_sentence'] as String,
-      explanation: json['explanation'] as String,
+      type: json.str('type'),
+      originalSentence: json.str('original_sentence'),
+      simplifiedSentence: json.str('simplified_sentence'),
+      explanation: json.str('explanation'),
     );
   }
 
@@ -75,9 +77,9 @@ class Comprehension {
 
   factory Comprehension.fromJson(Map<String, dynamic> json) {
     return Comprehension(
-      whatHappened: json['what_happened'] as String,
-      whyHappened: json['why_happened'] as String,
-      implicitMeaning: json['implicit_meaning'] as String,
+      whatHappened: json.str('what_happened'),
+      whyHappened: json.str('why_happened'),
+      implicitMeaning: json.str('implicit_meaning'),
     );
   }
 
@@ -101,9 +103,9 @@ class Practice {
 
   factory Practice.fromJson(Map<String, dynamic> json) {
     return Practice(
-      type: json['type'] as String,
-      question: json['question'] as String,
-      expectedReasoning: json['expected_reasoning'] as String,
+      type: json.str('type'),
+      question: json.str('question'),
+      expectedReasoning: json.str('expected_reasoning'),
     );
   }
 
@@ -129,10 +131,10 @@ class Difficulty {
 
   factory Difficulty.fromJson(Map<String, dynamic> json) {
     return Difficulty(
-      vocab: (json['vocab'] as num).toInt(),
-      syntax: (json['syntax'] as num).toInt(),
-      inference: (json['inference'] as num).toInt(),
-      explanation: json['explanation'] as String,
+      vocab: json.integer('vocab'),
+      syntax: json.integer('syntax'),
+      inference: json.integer('inference'),
+      explanation: json.str('explanation'),
     );
   }
 
@@ -169,33 +171,31 @@ class AnalysisResult {
 
   factory AnalysisResult.fromJson(Map<String, dynamic> json) {
     return AnalysisResult(
-      passageText: json['passage_text'] as String,
-      title: json['title'] as String,
-      vocabulary: (json['vocabulary'] as List)
-          .map((e) => Vocabulary.fromJson(e as Map<String, dynamic>))
+      passageText: json.str('passage_text'),
+      title: json.str('title'),
+      vocabulary: json
+          .list('vocabulary')
+          .whereType<Map>()
+          .map((e) => Vocabulary.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
-      knownWords:
-          (json['known_words'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toSet() ??
-          const {},
-      learningWords:
-          (json['learning_words'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toSet() ??
-          const {},
-      syntaxPatterns: (json['syntax_patterns'] as List)
-          .map((e) => SyntaxPattern.fromJson(e as Map<String, dynamic>))
+      knownWords: (json['known_words'] is List)
+          ? json.list('known_words').map((e) => e.toString()).toSet()
+          : const {},
+      learningWords: (json['learning_words'] is List)
+          ? json.list('learning_words').map((e) => e.toString()).toSet()
+          : const {},
+      syntaxPatterns: json
+          .list('syntax_patterns')
+          .whereType<Map>()
+          .map((e) => SyntaxPattern.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
-      comprehension: Comprehension.fromJson(
-        json['comprehension'] as Map<String, dynamic>,
-      ),
-      practice: (json['practice'] as List)
-          .map((e) => Practice.fromJson(e as Map<String, dynamic>))
+      comprehension: Comprehension.fromJson(json.nested('comprehension')),
+      practice: json
+          .list('practice')
+          .whereType<Map>()
+          .map((e) => Practice.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
-      difficulty: Difficulty.fromJson(
-        json['difficulty'] as Map<String, dynamic>,
-      ),
+      difficulty: Difficulty.fromJson(json.nested('difficulty')),
     );
   }
 

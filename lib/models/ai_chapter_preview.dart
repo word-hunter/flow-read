@@ -1,3 +1,5 @@
+import 'json_helpers.dart';
+
 class AIChapterPreview {
   final String setup;
   final List<String> focusPoints;
@@ -13,22 +15,20 @@ class AIChapterPreview {
 
   factory AIChapterPreview.fromJson(Map<String, dynamic> json) {
     return AIChapterPreview(
-      setup: json['setup'] as String? ?? '',
-      focusPoints:
-          (json['focus_points'] as List<dynamic>?)
-              ?.map((value) => value.toString())
-              .where((value) => value.trim().isNotEmpty)
-              .take(5)
-              .toList(growable: false) ??
-          const [],
-      vocabularyHints:
-          (json['vocabulary_hints'] as List<dynamic>?)
-              ?.map((value) => value.toString())
-              .where((value) => value.trim().isNotEmpty)
-              .take(5)
-              .toList(growable: false) ??
-          const [],
-      spoilerBoundaryNote: json['spoiler_boundary_note'] as String? ?? '',
+      setup: json.str('setup'),
+      focusPoints: json
+          .list('focus_points')
+          .map((value) => value.toString())
+          .where((value) => value.trim().isNotEmpty)
+          .take(5)
+          .toList(growable: false),
+      vocabularyHints: json
+          .list('vocabulary_hints')
+          .map((value) => value.toString())
+          .where((value) => value.trim().isNotEmpty)
+          .take(5)
+          .toList(growable: false),
+      spoilerBoundaryNote: json.str('spoiler_boundary_note'),
     );
   }
 

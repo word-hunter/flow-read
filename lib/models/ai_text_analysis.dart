@@ -1,3 +1,5 @@
+import 'json_helpers.dart';
+
 class AITextAnalysis {
   final String translation;
   final List<StructureNote> structureNotes;
@@ -17,22 +19,22 @@ class AITextAnalysis {
 
   factory AITextAnalysis.fromJson(Map<String, dynamic> json) {
     return AITextAnalysis(
-      translation: json['translation'] as String? ?? '',
+      translation: json.str('translation'),
       structureNotes: _readList(
         json['structure_notes'] ??
             json['structure'] ??
             json['sentence_structure'],
       ).map(StructureNote.fromJson).toList(),
-      grammarPoints: _readList(
-        json['grammar_points'],
-      ).map(GrammarPoint.fromJson).toList(),
-      vocabularyNotes: _readList(
-        json['vocabulary_notes'],
-      ).map(VocabularyNote.fromJson).toList(),
+      grammarPoints: _readList(json['grammar_points'])
+          .map(GrammarPoint.fromJson)
+          .toList(),
+      vocabularyNotes: _readList(json['vocabulary_notes'])
+          .map(VocabularyNote.fromJson)
+          .toList(),
       expressionNotes: _readList(
         json['expression_notes'] ?? json['expressions'],
       ).map(ExpressionNote.fromJson).toList(),
-      readingTip: json['reading_tip'] as String? ?? '',
+      readingTip: json.str('reading_tip'),
     );
   }
 
@@ -77,9 +79,9 @@ class StructureNote {
 
   factory StructureNote.fromJson(Map<String, dynamic> json) {
     return StructureNote(
-      source: json['source'] as String? ?? '',
-      role: json['role'] as String? ?? json['label'] as String? ?? '',
-      explanation: json['explanation'] as String? ?? '',
+      source: json.str('source'),
+      role: json.strOrNull('role') ?? json.str('label'),
+      explanation: json.str('explanation'),
     );
   }
 }
@@ -97,9 +99,9 @@ class GrammarPoint {
 
   factory GrammarPoint.fromJson(Map<String, dynamic> json) {
     return GrammarPoint(
-      source: json['source'] as String? ?? '',
-      explanation: json['explanation'] as String? ?? '',
-      difficulty: json['difficulty'] as String? ?? 'medium',
+      source: json.str('source'),
+      explanation: json.str('explanation'),
+      difficulty: json.str('difficulty', def: 'medium'),
     );
   }
 }
@@ -117,9 +119,9 @@ class VocabularyNote {
 
   factory VocabularyNote.fromJson(Map<String, dynamic> json) {
     return VocabularyNote(
-      word: json['word'] as String? ?? '',
-      contextMeaning: json['context_meaning'] as String? ?? '',
-      pos: json['pos'] as String? ?? '',
+      word: json.str('word'),
+      contextMeaning: json.str('context_meaning'),
+      pos: json.str('pos'),
     );
   }
 }
@@ -137,9 +139,9 @@ class ExpressionNote {
 
   factory ExpressionNote.fromJson(Map<String, dynamic> json) {
     return ExpressionNote(
-      source: json['source'] as String? ?? json['expression'] as String? ?? '',
-      meaning: json['meaning'] as String? ?? '',
-      usage: json['usage'] as String? ?? json['explanation'] as String? ?? '',
+      source: json.strOrNull('source') ?? json.str('expression'),
+      meaning: json.str('meaning'),
+      usage: json.strOrNull('usage') ?? json.str('explanation'),
     );
   }
 }
