@@ -54,6 +54,26 @@ void main() {
   });
 
   test(
+    'force default book cover is disabled by default and persists',
+    () async {
+      final settings = SettingsService();
+      await settings.init();
+
+      expect(settings.forceDefaultBookCover, isFalse);
+
+      await settings.setForceDefaultBookCover(true);
+      expect(settings.forceDefaultBookCover, isTrue);
+
+      final reloaded = SettingsService();
+      await reloaded.init();
+      expect(reloaded.forceDefaultBookCover, isTrue);
+
+      await reloaded.setForceDefaultBookCover(false);
+      expect(reloaded.forceDefaultBookCover, isFalse);
+    },
+  );
+
+  test(
     'AI features are enabled only for the selected provider with a key',
     () async {
       final settings = SettingsService();

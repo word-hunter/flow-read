@@ -88,6 +88,7 @@ class SettingsService extends ChangeNotifier {
   };
   static const _dailyReadingGoalMinutesKey = 'dailyReadingGoalMinutes';
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
+  static const _forceDefaultBookCoverKey = 'forceDefaultBookCover';
   static const _dictionarySourcesKey = 'dictionarySources';
   static const _activeSourceLanguageKey = HiveBoxNames.activeSourceLanguageKey;
   static const _targetExplanationLanguageKey = 'target_explanation_language';
@@ -119,6 +120,7 @@ class SettingsService extends ChangeNotifier {
   String _activeSourceLanguage = 'en';
   String _targetExplanationLanguage = 'zh';
   Set<String> _enabledExperimentalFeatures = {};
+  bool _forceDefaultBookCover = false;
   List<DictionarySourceConfig> _dictionarySources =
       DictionarySourceConfig.defaults;
 
@@ -179,6 +181,7 @@ class SettingsService extends ChangeNotifier {
       isExperimentalFeatureEnabled(experimentalFeatureReview);
   bool get v2FeatureEnabled =>
       isExperimentalFeatureEnabled(experimentalFeatureV2);
+  bool get forceDefaultBookCover => _forceDefaultBookCover;
 
   Future<void> init() async {
     _box = Hive.box(HiveBoxNames.settings);
@@ -269,6 +272,8 @@ class SettingsService extends ChangeNotifier {
     _enabledExperimentalFeatures = _readStringSet(
       _enabledExperimentalFeaturesKey,
     );
+    _forceDefaultBookCover =
+        _box.get(_forceDefaultBookCoverKey, defaultValue: false) as bool;
     _dictionarySources = _readDictionarySources();
   }
 
@@ -559,6 +564,13 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setV2FeatureEnabled(bool enabled) {
     return setExperimentalFeatureEnabled(experimentalFeatureV2, enabled);
+  }
+
+  Future<void> setForceDefaultBookCover(bool enabled) async {
+    if (_forceDefaultBookCover == enabled) return;
+    _forceDefaultBookCover = enabled;
+    await _box.put(_forceDefaultBookCoverKey, enabled);
+    notifyListeners();
   }
 
   Future<void> setDictionarySourceEnabled(

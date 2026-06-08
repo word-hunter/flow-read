@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:file_picker/file_picker.dart';
+import '../app/flow_read_feature_flags.dart';
 import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
 import '../providers/reading/bookshelf_notifier.dart';
@@ -12,6 +13,7 @@ import '../services/epub_import_source.dart';
 import '../services/external_url_launcher.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
+import '../widgets/home/book_cover_view.dart';
 import '../widgets/home/today_review_card.dart';
 
 const _logoAsset = 'assets/brand/flow_read_logo.png';
@@ -184,6 +186,7 @@ Widget _buildBookListWithDifficultyStatus(
           context,
           books,
           notifier,
+          settings,
           theme,
           isNarrow: isNarrow,
           isGrid: isGrid,
@@ -240,6 +243,7 @@ Widget _buildBookList(
   BuildContext context,
   List<BookMetadata> books,
   BookshelfNotifier notifier,
+  SettingsService settings,
   ThemeData theme, {
   required bool isNarrow,
   bool isGrid = false,
@@ -256,6 +260,7 @@ Widget _buildBookList(
           theme,
           _BookCardSize.compact,
           notifier,
+          settings,
         ),
       ),
     );
@@ -278,6 +283,7 @@ Widget _buildBookList(
           theme,
           _BookCardSize.medium,
           notifier,
+          settings,
         ),
       ),
     );
@@ -294,6 +300,7 @@ Widget _buildBookList(
         theme,
         _BookCardSize.large,
         notifier,
+        settings,
       ),
     ),
   );
@@ -307,6 +314,7 @@ Widget _buildBookCard(
   ThemeData theme,
   _BookCardSize size,
   BookshelfNotifier notifier,
+  SettingsService settings,
 ) {
   final isCompact = size == _BookCardSize.compact;
   final isMedium = size == _BookCardSize.medium;
@@ -321,6 +329,7 @@ Widget _buildBookCard(
     coverWidth,
     coverHeight,
     isCompact,
+    settings,
   );
   final bookDetails = _buildBookDetails(
     context,
@@ -385,8 +394,21 @@ Widget _buildCover(
   double width,
   double height,
   bool isCompact,
+  SettingsService settings,
 ) {
   final coverBytes = notifier.getCoverBytes(meta.id);
+
+  if (FlowReadFeatureFlags.v2Enabled) {
+    return BookCoverView(
+      coverBytes: coverBytes,
+      progressPercent: (meta.globalProgress * 100).toInt(),
+      title: meta.title,
+      author: meta.author,
+      width: width,
+      height: height,
+      forceDefaultCover: settings.forceDefaultBookCover,
+    );
+  }
 
   return SizedBox(
     width: width,

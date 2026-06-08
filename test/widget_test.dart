@@ -98,14 +98,19 @@ void main() {
     expect(find.text('RSS 入口'), findsOneWidget);
     expect(find.text('浏览器入口'), findsNothing);
     expect(find.text('轻量复习'), findsOneWidget);
+    expect(find.text('强制默认封面'), findsOneWidget);
     expect(settings.rssFeatureEnabled, isFalse);
     expect(settings.reviewFeatureEnabled, isFalse);
+    expect(settings.forceDefaultBookCover, isFalse);
 
     await tester.tap(find.widgetWithText(SwitchListTile, 'RSS 入口'));
     await tester.tap(find.widgetWithText(SwitchListTile, '轻量复习'));
+    await tester.tap(find.widgetWithText(SwitchListTile, '强制默认封面'));
     await tester.runAsync(() async {
       for (var i = 0; i < 10; i++) {
-        if (settings.rssFeatureEnabled && settings.reviewFeatureEnabled) {
+        if (settings.rssFeatureEnabled &&
+            settings.reviewFeatureEnabled &&
+            settings.forceDefaultBookCover) {
           return;
         }
         await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -114,6 +119,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(settings.rssFeatureEnabled, isTrue);
     expect(settings.reviewFeatureEnabled, isTrue);
+    expect(settings.forceDefaultBookCover, isTrue);
 
     await tester.tap(find.text('关于').first);
     await tester.pump(const Duration(milliseconds: 300));

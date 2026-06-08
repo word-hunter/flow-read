@@ -17,10 +17,12 @@ Flow Read is a Flutter app pinned by `.fvmrc`. Prefer FVM:
 
 ```bash
 fvm flutter pub get
-fvm flutter run
+make run
 ```
 
 If FVM is unavailable, use a local Flutter SDK that matches `.fvmrc`.
+The `make run` target reads local `.env` only for `FLOW_V2` and injects it via
+`--dart-define`; `.env` stays ignored and must not be added as a Flutter asset.
 
 ## Checks
 

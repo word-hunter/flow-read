@@ -2,7 +2,7 @@
 
 > @source lib/storage/hive_box_names.dart lib/storage/hive_type_ids.dart lib/storage/storage_migrations.dart
 
-Last updated: 2026-06-06
+Last updated: 2026-06-08
 
 ## Schema 版本
 
@@ -76,6 +76,7 @@ bootstrapStorage() {
 | `active_source_language` | String | `'en'` |
 | `target_explanation_language` | String | `'zh'` |
 | `enabledExperimentalFeatures` | JSON array | `[]` |
+| `forceDefaultBookCover` | bool | `false` |
 | `dictionarySources` | JSON array | Collins/WordNet/dictAPI/Longman objects with `type`, `enabled`, `priority`, optional `supportedLanguages` |
 | `aiChapterSummaryCount` | int | `0` |
 | `aiTextAnalysisCount` | int | `0` |

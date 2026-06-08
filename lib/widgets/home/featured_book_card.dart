@@ -22,6 +22,7 @@ class FeaturedBookCard extends StatelessWidget {
   final int readingTimeSeconds;
   final BookDifficultyRating? difficulty;
   final bool isDifficultyLoading;
+  final bool forceDefaultCover;
   final DateTime? lastReadAt;
   final VoidCallback onContinueReading;
   final VoidCallback? onRename;
@@ -38,6 +39,7 @@ class FeaturedBookCard extends StatelessWidget {
     required this.readingTimeSeconds,
     this.difficulty,
     this.isDifficultyLoading = false,
+    this.forceDefaultCover = false,
     this.lastReadAt,
     required this.onContinueReading,
     this.onRename,
@@ -95,9 +97,12 @@ class FeaturedBookCard extends StatelessWidget {
           BookCoverView(
             coverBytes: coverBytes,
             progressPercent: progressPercent,
+            title: title,
+            author: author,
             width: BookCoverView.featuredSize.width,
             height: BookCoverView.featuredSize.height,
             showProgressBadge: false,
+            forceDefaultCover: forceDefaultCover,
           ),
           if (showDifficulty)
             Positioned(

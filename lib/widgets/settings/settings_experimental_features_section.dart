@@ -36,6 +36,14 @@ class SettingsExperimentalFeaturesSection extends StatelessWidget {
                 value: settings.reviewFeatureEnabled,
                 onChanged: settings.setReviewFeatureEnabled,
               ),
+              const Divider(height: 1),
+              _ExperimentalFeatureTile(
+                icon: Icons.auto_stories_outlined,
+                title: '强制默认封面',
+                subtitle: '在 V2 书架中忽略 EPUB 封面，统一使用 Flow Read 默认封面',
+                value: settings.forceDefaultBookCover,
+                onChanged: settings.setForceDefaultBookCover,
+              ),
             ],
           ),
         ),
@@ -43,6 +51,7 @@ class SettingsExperimentalFeaturesSection extends StatelessWidget {
     );
   }
 }
+
 class _ExperimentalFeatureTile extends StatelessWidget {
   const _ExperimentalFeatureTile({
     required this.icon,

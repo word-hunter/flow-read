@@ -2,6 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../app/flow_read_feature_flags.dart';
+import 'default_book_cover.dart';
+
 class BookCoverView extends StatelessWidget {
   static const double borderRadius = 8;
   static const double shelfWidth = 128;
@@ -16,19 +19,31 @@ class BookCoverView extends StatelessWidget {
   final double width;
   final double height;
   final bool showProgressBadge;
+  final String title;
+  final String author;
+  final bool? useV2DefaultCover;
+  final bool forceDefaultCover;
 
   const BookCoverView({
     super.key,
     required this.coverBytes,
     required this.progressPercent,
+    this.title = '',
+    this.author = '',
     this.width = shelfWidth,
     this.height = shelfHeight,
     this.showProgressBadge = true,
+    this.useV2DefaultCover,
+    this.forceDefaultCover = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final useNewDefaultCover =
+        useV2DefaultCover ?? FlowReadFeatureFlags.v2Enabled;
+    final forceGeneratedCover = useNewDefaultCover && forceDefaultCover;
+    final showDefaultProgressBadge =
+        showProgressBadge && (coverBytes == null || forceGeneratedCover);
 
     return SizedBox(
       width: width,
@@ -50,16 +65,24 @@ class BookCoverView extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(borderRadius),
-              child: coverBytes != null
-                  ? Image.memory(
+              child: forceGeneratedCover || coverBytes == null
+                  ? _buildPlaceholder(
+                      context,
+                      useNewDefaultCover,
+                      showDefaultProgressBadge: showDefaultProgressBadge,
+                    )
+                  : Image.memory(
                       coverBytes!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _buildPlaceholder(theme),
-                    )
-                  : _buildPlaceholder(theme),
+                      errorBuilder: (_, _, _) => _buildPlaceholder(
+                        context,
+                        useNewDefaultCover,
+                        showDefaultProgressBadge: false,
+                      ),
+                    ),
             ),
           ),
-          if (showProgressBadge)
+          if (showProgressBadge && coverBytes != null && !forceGeneratedCover)
             Positioned(
               left: 8,
               bottom: 8,
@@ -70,16 +93,30 @@ class BookCoverView extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholder(ThemeData theme) {
-    return Container(
-      color: theme.colorScheme.primaryContainer,
-      child: Center(
-        child: Icon(
-          Icons.menu_book,
-          size: width >= 140 ? 42 : 34,
-          color: theme.colorScheme.primary.withValues(alpha: 0.62),
+  Widget _buildPlaceholder(
+    BuildContext context,
+    bool useNewDefaultCover, {
+    required bool showDefaultProgressBadge,
+  }) {
+    if (!useNewDefaultCover) {
+      final theme = Theme.of(context);
+      return Container(
+        color: theme.colorScheme.primaryContainer,
+        child: Center(
+          child: Icon(
+            Icons.menu_book,
+            size: width >= 140 ? 42 : 34,
+            color: theme.colorScheme.primary.withValues(alpha: 0.62),
+          ),
         ),
-      ),
+      );
+    }
+
+    return DefaultBookCover(
+      title: title,
+      author: author,
+      progressPercent: progressPercent,
+      showProgressBadge: showDefaultProgressBadge,
     );
   }
 }

@@ -118,6 +118,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
               isDifficultyLoading: bookshelfNotifier.isBookDifficultyLoading(
                 featuredBook.id,
               ),
+              forceDefaultCover: settings.forceDefaultBookCover,
               lastReadAt: featuredBook.lastReadAt,
               onContinueReading: () =>
                   _openBook(bookshelfState, bookshelfNotifier, featuredBook.id),
@@ -145,6 +146,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
                     difficulty: bookshelfNotifier.difficultyForBook(b.id),
                     isDifficultyLoading: bookshelfNotifier
                         .isBookDifficultyLoading(b.id),
+                    forceDefaultCover: settings.forceDefaultBookCover,
                     onTap: () =>
                         _openBook(bookshelfState, bookshelfNotifier, b.id),
                     onRename: () => _renameBook(bookshelfNotifier, b),

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
+import 'app/flow_read_env.dart';
+import 'app/flow_read_feature_flags.dart';
 import 'providers/settings_provider.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/home_screen.dart';
@@ -26,26 +28,26 @@ import 'package:flow_design_system/flow_design_system.dart';
 
 const _v2CompileTime = bool.fromEnvironment('FLOW_V2', defaultValue: false);
 bool _v2Enabled = false;
+FlowReadV2Config _v2Config = const FlowReadV2Config(
+  enabled: false,
+  source: 'not-loaded',
+);
 
 Future<void> _loadEnvConfig() async {
-  if (_v2CompileTime) {
-    _v2Enabled = true;
-    return;
-  }
   try {
-    final content = await rootBundle.loadString('.env');
-    for (final line in content.split('\n')) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
-      final eq = trimmed.indexOf('=');
-      if (eq < 0) continue;
-      if (trimmed.substring(0, eq).trim() == 'FLOW_V2') {
-        _v2Enabled = trimmed.substring(eq + 1).trim().toLowerCase() == 'true';
-        return;
-      }
-    }
+    _v2Config = await FlowReadEnv.loadV2Config(
+      compileTimeEnabled: _v2CompileTime,
+    );
+    _v2Enabled = _v2Config.enabled;
+    debugPrint(
+      '[FlowRead] V2 config | enabled=${_v2Config.enabled}'
+      ' | source=${_v2Config.source}'
+      ' | searched=${_v2Config.searchedPaths.take(8).join(', ')}',
+    );
   } catch (_) {
-    debugPrint('[FlowRead] Failed to load .env file, V2 flag defaults to disabled');
+    debugPrint(
+      '[FlowRead] Failed to load V2 config, V2 flag defaults to disabled',
+    );
   }
 }
 
@@ -54,6 +56,7 @@ void main() {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
       await _loadEnvConfig();
+      FlowReadFeatureFlags.setV2Enabled(_v2Enabled);
       _registerBundledFontLicenses();
       await _initializeLogging();
       _installGlobalErrorLogging();
@@ -85,7 +88,9 @@ Future<void> _initializeLogging() async {
     await AppLogger.instance.init();
     AppLogger.instance.event('app.start', source: 'main');
   } catch (_) {
-    debugPrint('[FlowRead] Logger initialization failed, continuing without logging');
+    debugPrint(
+      '[FlowRead] Logger initialization failed, continuing without logging',
+    );
     // Logging must never prevent the app from opening.
   }
 }
@@ -417,7 +422,7 @@ class _FlowReadAppState extends State<FlowReadApp> {
       builder: (context, ref, _) {
         final settings = ref.watch(settingsProvider);
         final themeId = settings.appThemeId;
-        final v2 = _v2Enabled;
+        final v2 = FlowReadFeatureFlags.v2Enabled;
 
         if (v2) {
           // ignore: avoid_print

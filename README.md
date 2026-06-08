@@ -39,10 +39,13 @@ Flow Read 是一款面向英语阅读和词汇积累的 Flutter 应用，把书�
 
 ```bash
 fvm flutter pub get
-fvm flutter run
+make run
 ```
 
 如果不使用 FVM，请确认本地 `flutter --version` 与 `.fvmrc` 中的版本一致。
+
+`make run` 会读取本地 `.env` 中的 `FLOW_V2`，并只把这一项转换成
+`--dart-define`。不要把 `.env` 加入 Flutter assets 或 Git。
 
 ## 常用检查
 

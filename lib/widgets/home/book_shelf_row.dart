@@ -52,6 +52,7 @@ class BookShelfRow extends StatelessWidget {
       progressPercent: book.progressPercent,
       difficulty: book.difficulty,
       isDifficultyLoading: book.isDifficultyLoading,
+      forceDefaultCover: book.forceDefaultCover,
       onTap: book.onTap,
       onRename: book.onRename,
       onRemove: book.onRemove,
@@ -66,6 +67,7 @@ class BookShelfData {
   final int progressPercent;
   final BookDifficultyRating? difficulty;
   final bool isDifficultyLoading;
+  final bool forceDefaultCover;
   final VoidCallback? onTap;
   final VoidCallback? onRename;
   final VoidCallback? onRemove;
@@ -77,6 +79,7 @@ class BookShelfData {
     required this.progressPercent,
     this.difficulty,
     this.isDifficultyLoading = false,
+    this.forceDefaultCover = false,
     this.onTap,
     this.onRename,
     this.onRemove,

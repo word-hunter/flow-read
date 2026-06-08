@@ -17,6 +17,7 @@ class BookShelfItem extends StatefulWidget {
   final int progressPercent;
   final BookDifficultyRating? difficulty;
   final bool isDifficultyLoading;
+  final bool forceDefaultCover;
   final VoidCallback? onTap;
   final VoidCallback? onRename;
   final VoidCallback? onRemove;
@@ -29,6 +30,7 @@ class BookShelfItem extends StatefulWidget {
     required this.progressPercent,
     this.difficulty,
     this.isDifficultyLoading = false,
+    this.forceDefaultCover = false,
     this.onTap,
     this.onRename,
     this.onRemove,
@@ -90,6 +92,9 @@ class _BookShelfItemState extends State<BookShelfItem> {
                     child: BookCoverView(
                       coverBytes: widget.coverBytes,
                       progressPercent: widget.progressPercent,
+                      title: widget.title,
+                      author: widget.author,
+                      forceDefaultCover: widget.forceDefaultCover,
                     ),
                   ),
                   Positioned(

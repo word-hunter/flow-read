@@ -1,4 +1,7 @@
-.PHONY: bench bench-open bench-all bench-lock bench-reset bench-trend
+.PHONY: run bench bench-open bench-all bench-lock bench-reset bench-trend
+
+run:
+	@fvm dart run tool/run_app.dart $(ARGS)
 
 bench:
 	@dart run tool/benchmark.dart run
