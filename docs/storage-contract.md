@@ -1,15 +1,37 @@
 # Flow Read Storage Contract
 
-> @source lib/storage/hive_box_names.dart lib/storage/hive_type_ids.dart lib/storage/storage_migrations.dart
+> @source lib/storage/hive_box_names.dart lib/storage/hive_type_ids.dart lib/storage/storage_migrations.dart lib/storage/database/app_database.dart lib/storage/database/tables.dart
 
-Last updated: 2026-06-08
+Last updated: 2026-06-09
 
 ## Schema 版本
 
-**当前版本：2**
+**当前 Hive 版本：2** | **Drift 版本：1（新增）**
 
-- v1 → v2：旧裸名 box → 语言后缀 box（`books` → `books_en`），`activeSourceLanguage = 'en'`
-- 迁移逻辑：`storage_migrations.dart:runStorageMigrations()`，在 `bootstrapStorage()` 中调用
+Drift 数据库文件：`flow_read.db`，位于应用文档目录。WAL 模式，外键约束已启用。
+
+## Drift 数据库（新增）
+
+| 表 | DAO | 描述 |
+|----|-----|------|
+| `books` | BookDao | 书籍元数据 |
+| `user_vocabulary` | UserVocabularyDao | 用户词汇状态 |
+| `word_bookmarks` | WordBookmarksDao | 单词书签 |
+| `reading_bookmarks` | ReadingBookmarksDao | 阅读书签 |
+| `reading_config` | ReadingConfigDao | 阅读配置 |
+| `reading_time` | ReadingTimeDao | 阅读时长 |
+| `dictionary_cache` | DictionaryCacheDao | 词典缓存 |
+| `word_contexts` | WordContextDao | 单词例句 |
+| `learning_items` | LearningItemDao | 学习条目 |
+| `learning_analytics` | LearningAnalyticsDao | 学习分析 |
+| `word_levels` | WordLevelDao | 单词等级 |
+| `rss_subscriptions` | RssDao | RSS 订阅 |
+| `rss_articles` | RssDao | RSS 文章 |
+| `book_glossary` | BookGlossaryDao | 书籍生词表 |
+| `character_registry` | CharacterRegistryDao | 字符注册 |
+| `settings` | SettingsDao | 应用设置 |
+
+启动时通过 `HiveToDriftMigration` 自动从 Hive 迁移数据。
 
 ## Hive Box 清单
 
@@ -77,6 +99,14 @@ bootstrapStorage() {
 | `target_explanation_language` | String | `'zh'` |
 | `enabledExperimentalFeatures` | JSON array | `[]` |
 | `forceDefaultBookCover` | bool | `false` |
+| `city_atmosphere.enabled` | bool | `false` |
+| `city_atmosphere.theme_mode` | String enum | `systemTime` |
+| `city_atmosphere.manual_theme_id` | String | `cityDawn` |
+| `city_atmosphere.blend_mode` | String enum | `followTheme` |
+| `city_atmosphere.manual_scene` | String enum | `none` |
+| `city_atmosphere.intensity` | double | `0.30` |
+| `city_atmosphere.reduce_motion` | bool | `false` |
+| `city_atmosphere.performance_mode` | String enum | `auto` |
 | `dictionarySources` | JSON array | Collins/WordNet/dictAPI/Longman objects with `type`, `enabled`, `priority`, optional `supportedLanguages` |
 | `aiChapterSummaryCount` | int | `0` |
 | `aiTextAnalysisCount` | int | `0` |

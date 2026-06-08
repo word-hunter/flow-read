@@ -1,6 +1,6 @@
 # Flow Read Provider Map
 
-> @source lib/providers/reading_provider.dart lib/providers/rss_provider.dart lib/services/settings_service.dart lib/services/ai_assistant_action_registry.dart lib/services/ai_assistant_controller.dart
+> @source lib/providers/reading/services_provider.dart lib/providers/settings_provider.dart lib/providers/reading/ai_notifier.dart lib/services/ai_assistant_action_registry.dart lib/services/ai_assistant_controller.dart
 
 Last updated: 2026-06-06
 
@@ -86,6 +86,7 @@ String get _activeLanguageCode =>
 | AI | provider, apiKeys, baseUrls, models, usageStats | `aiProviderId`, `aiApiKeys`, `aiBaseUrls`, `aiModels` |
 | 主题 | themeMode, appThemeId, colors | `themeMode`, `appThemeId`, `*Color` |
 | 阅读 | dailyReadingGoalMinutes, readingConfig defaults | `dailyReadingGoalMinutes` |
+| City 阅读氛围 | cityAtmosphereSettings (theme mode/manual theme/blend mode/scene/intensity/reduceMotion/performance) | `city_atmosphere.*` |
 | 词典 | dictionarySources (order + enabled/disabled + supportedLanguages) | `dictionarySources` |
 | 备份 | enabled, folderPath, bookmark, interval, secrets | `backup*` |
 | 实验 | rss, review | `enabledExperimentalFeatures` |

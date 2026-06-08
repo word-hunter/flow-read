@@ -13,13 +13,13 @@ import '../../models/chapter_ai_status.dart';
 import '../../models/learning_item.dart';
 import '../../models/word_analysis.dart';
 import '../../services/ai_cache_service.dart';
-import '../../services/settings_service.dart';
 import '../../services/ai_service.dart';
 import '../../services/app_logger.dart';
 import '../../services/chapter_ai_job.dart';
 import '../../services/learning_item_service.dart';
 import '../../services/passage_request_builder.dart';
 import '../../services/prompt_builder.dart';
+import '../../services/settings_service.dart';
 import '../settings_provider.dart';
 import 'bookshelf_notifier.dart';
 import 'current_book_notifier.dart';
@@ -100,49 +100,27 @@ class AIState {
       aiSummary: aiSummary ?? this.aiSummary,
       isGeneratingSummary: isGeneratingSummary ?? this.isGeneratingSummary,
       aiChapterPreview: aiChapterPreview ?? this.aiChapterPreview,
-      isGeneratingChapterPreview: isGeneratingChapterPreview ?? this.isGeneratingChapterPreview,
+      isGeneratingChapterPreview:
+          isGeneratingChapterPreview ?? this.isGeneratingChapterPreview,
       chapterAIStatus: chapterAIStatus ?? this.chapterAIStatus,
-      chapterAISummaryCoverage: chapterAISummaryCoverage ?? this.chapterAISummaryCoverage,
-      isLoadingChapterAISummaryCoverage: isLoadingChapterAISummaryCoverage ?? this.isLoadingChapterAISummaryCoverage,
+      chapterAISummaryCoverage:
+          chapterAISummaryCoverage ?? this.chapterAISummaryCoverage,
+      isLoadingChapterAISummaryCoverage:
+          isLoadingChapterAISummaryCoverage ??
+              this.isLoadingChapterAISummaryCoverage,
       summaryLanguage: summaryLanguage ?? this.summaryLanguage,
       aiPractice: aiPractice ?? this.aiPractice,
-      isGeneratingPractice: isGeneratingPractice ?? this.isGeneratingPractice,
+      isGeneratingPractice:
+          isGeneratingPractice ?? this.isGeneratingPractice,
       aiWordAnalysis: aiWordAnalysis ?? this.aiWordAnalysis,
       isAnalyzingWord: isAnalyzingWord ?? this.isAnalyzingWord,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
-
-  @override
-  bool operator ==(Object other) {
-    return other is AIState &&
-        other.isAnalyzingText == isAnalyzingText &&
-        other.isGeneratingSummary == isGeneratingSummary &&
-        other.isGeneratingChapterPreview == isGeneratingChapterPreview &&
-        other.isGeneratingPractice == isGeneratingPractice &&
-        other.isAnalyzingWord == isAnalyzingWord &&
-        other.isLoadingChapterAISummaryCoverage == isLoadingChapterAISummaryCoverage &&
-        other.summaryLanguage == summaryLanguage &&
-        other.errorMessage == errorMessage;
-  }
-
-  @override
-  int get hashCode => Object.hash(
-        isAnalyzingText,
-        isGeneratingSummary,
-        isGeneratingChapterPreview,
-        isGeneratingPractice,
-        isAnalyzingWord,
-        isLoadingChapterAISummaryCoverage,
-        summaryLanguage,
-        errorMessage,
-      );
 }
 
 class AINotifier extends Notifier<AIState> {
   static const _chapterPreviewMaxLength = 1400;
-  final PassageRequestBuilder _passageRequestBuilder =
-      const PassageRequestBuilder();
 
   AIService? get _aiService => ref.read(aiServiceProvider);
   AICacheService? get _aiCache => ref.read(aiCacheServiceProvider);
@@ -155,101 +133,70 @@ class AINotifier extends Notifier<AIState> {
       ref.read(currentBookNotifierProvider).currentChapter;
 
   @override
-  AIState build() {
-    return const AIState();
-  }
+  AIState build() => const AIState();
 
   bool get aiFeaturesEnabled =>
-      _aiService != null && (_settings.aiFeaturesEnabled);
+      _aiService != null && _settings.aiFeaturesEnabled;
 
-  String get aiFeatureDisabledReason =>
-      _settings.aiFeatureDisabledReason;
+  String get aiFeatureDisabledReason => _settings.aiFeatureDisabledReason;
 
   String get effectiveTargetExplanationLanguage {
     final activeBookId = _activeBookId;
-    BookMetadata? activeBookMetadata;
+    var globalLanguage = _settings.targetExplanationLanguage;
     if (activeBookId != null) {
       final bookService = ref.read(bookServiceProvider);
-      activeBookMetadata =
-          bookService.books.where((b) => b.id == activeBookId).firstOrNull;
+      final active = bookService.books
+          .where((b) => b.id == activeBookId)
+          .firstOrNull;
+      final lang = active?.effectiveTargetExplanationLanguage(globalLanguage);
+      if (lang != null) return lang;
     }
-    final globalLanguage = _settings.targetExplanationLanguage;
-    return activeBookMetadata?.effectiveTargetExplanationLanguage(
-          globalLanguage,
-        ) ??
-        globalLanguage;
+    return globalLanguage;
   }
 
-  Future<LearningItemSaveResult?> addAIGrammarLearningItem(
-    GrammarPoint point,
-  ) async {
-    final service = _learningItemService;
-    final selectedText =
-        ref.read(textSelectionNotifierProvider).selectedText?.trim();
-    if (service == null ||
-        selectedText == null ||
-        selectedText.isEmpty) {
-      return null;
+  bool _ensureAIReady() {
+    if (_aiService == null) {
+      state = state.copyWith(errorMessage: 'AI 服务未初始化');
+      return false;
     }
-    final result = await service.saveDraft(
-      LearningItemDraft.grammarPoint(
-        point: point,
-        selectedText: selectedText,
-        source: _currentLearningItemSource(),
-      ),
-    );
-    return result;
+    if (!aiFeaturesEnabled) {
+      state = state.copyWith(errorMessage: aiFeatureDisabledReason);
+      return false;
+    }
+    return true;
   }
 
-  Future<LearningItemSaveResult?> addAIVocabularyLearningItem(
-    VocabularyNote note,
-  ) async {
-    final service = _learningItemService;
-    final selectedText =
-        ref.read(textSelectionNotifierProvider).selectedText?.trim();
-    if (service == null ||
-        selectedText == null ||
-        selectedText.isEmpty) {
-      return null;
-    }
-    final result = await service.saveDraft(
-      LearningItemDraft.vocabularyNote(
-        note: note,
-        selectedText: selectedText,
-        source: _currentLearningItemSource(),
-      ),
+  // ---- Delegation helpers ----
+
+  void _syncTextAnalysis(AITextAnalysis? analysis, {bool analyzing = false}) {
+    state = state.copyWith(
+      aiTextAnalysis: analysis,
+      isAnalyzingText: analyzing,
     );
-    return result;
   }
 
-  Future<LearningItemSaveResult?> addAIExpressionLearningItem(
-    ExpressionNote note,
-  ) async {
-    final service = _learningItemService;
-    final selectedText =
-        ref.read(textSelectionNotifierProvider).selectedText?.trim();
-    if (service == null ||
-        selectedText == null ||
-        selectedText.isEmpty) {
-      return null;
-    }
-    final result = await service.saveDraft(
-      LearningItemDraft.expressionNote(
-        note: note,
-        selectedText: selectedText,
-        source: _currentLearningItemSource(),
-      ),
+  void _syncTranslation(String? translation, {bool translating = false}) {
+    state = state.copyWith(
+      aiTranslation: translation,
+      isTranslatingText: translating,
     );
-    return result;
   }
+
+  void _syncWordAnalysis(WordAnalysis? analysis, {bool analyzing = false}) {
+    state = state.copyWith(
+      aiWordAnalysis: analysis,
+      isAnalyzingWord: analyzing,
+    );
+  }
+
+  // ---- Text Analysis & Translation ----
 
   Future<void> analyzeSelectedTextAI(String text, {String? sourceText}) async {
     if (!_ensureAIReady()) return;
     final ai = _aiService;
     if (ai == null) return;
-    final currentResult =
-        ref.read(currentBookNotifierProvider).result;
-    final request = _passageRequestBuilder.buildSelectedTextAnalysis(
+    final currentResult = ref.read(currentBookNotifierProvider).result;
+    final request = PassageRequestBuilder().buildSelectedTextAnalysis(
       selectedText: text,
       sourceText: sourceText ?? currentResult?.passageText ?? text,
     );
@@ -317,9 +264,189 @@ class AINotifier extends Notifier<AIState> {
     }
   }
 
+  Future<LearningItemSaveResult?> addAIGrammarLearningItem(
+    GrammarPoint point,
+  ) async {
+    final service = _learningItemService;
+    final selectedText =
+        ref.read(textSelectionNotifierProvider).selectedText?.trim();
+    if (service == null || selectedText == null || selectedText.isEmpty) {
+      return null;
+    }
+    return service.saveDraft(
+      LearningItemDraft.grammarPoint(
+        point: point,
+        selectedText: selectedText,
+        source: _currentLearningItemSource(),
+      ),
+    );
+  }
+
+  Future<LearningItemSaveResult?> addAIVocabularyLearningItem(
+    VocabularyNote note,
+  ) async {
+    final service = _learningItemService;
+    final selectedText =
+        ref.read(textSelectionNotifierProvider).selectedText?.trim();
+    if (service == null || selectedText == null || selectedText.isEmpty) {
+      return null;
+    }
+    return service.saveDraft(
+      LearningItemDraft.vocabularyNote(
+        note: note,
+        selectedText: selectedText,
+        source: _currentLearningItemSource(),
+      ),
+    );
+  }
+
+  Future<LearningItemSaveResult?> addAIExpressionLearningItem(
+    ExpressionNote note,
+  ) async {
+    final service = _learningItemService;
+    final selectedText =
+        ref.read(textSelectionNotifierProvider).selectedText?.trim();
+    if (service == null || selectedText == null || selectedText.isEmpty) {
+      return null;
+    }
+    return service.saveDraft(
+      LearningItemDraft.expressionNote(
+        note: note,
+        selectedText: selectedText,
+        source: _currentLearningItemSource(),
+      ),
+    );
+  }
+
+  // ---- Practice ----
+
+  Future<void> generatePractice() async {
+    final currentResult = ref.read(currentBookNotifierProvider).result;
+    if (currentResult == null || !_ensureAIReady()) return;
+    final bookId = _activeBookId;
+    if (bookId == null) return;
+
+    state = state.copyWith(
+      isGeneratingPractice: true,
+      aiPractice: null,
+      chapterAIStatus: null,
+    );
+    try {
+      final result = await _createChapterAIJob().generatePractice(
+        ChapterPracticeJobRequest(
+          bookId: bookId,
+          chapterIndex: _currentChapter,
+          chapterText: currentResult.passageText,
+          vocabulary:
+              currentResult.vocabulary.map((v) => v.word).toList(),
+          events: state.aiSummary?.events ?? const [],
+        ),
+      );
+      state = state.copyWith(
+        aiPractice: result.practice,
+        chapterAIStatus: result.status,
+        isGeneratingPractice: false,
+      );
+    } catch (e) {
+      debugPrint('[AI] generatePractice failed: $e');
+      state = state.copyWith(
+        errorMessage: '生成练习题失败: $e',
+        chapterAIStatus: ChapterAIStatus.failed(
+          ChapterAIFeature.practice,
+          '练习题生成失败：$e',
+        ),
+        isGeneratingPractice: false,
+      );
+    }
+  }
+
+  // ---- Word Analysis ----
+
+  Future<void> analyzeWordAI(String word, String sentence) async {
+    final currentResult = ref.read(currentBookNotifierProvider).result;
+    if (currentResult == null || !_ensureAIReady()) return;
+    final chapterText = currentResult.passageText;
+    final sourceLanguage =
+        SourceLanguage.inferFromText('$sentence $chapterText');
+    final outputLanguage =
+        OutputLanguage.fromCode(effectiveTargetExplanationLanguage);
+    final contentHash = AICacheService.contentHashFor(
+      jsonEncode({
+        'word': word.trim().toLowerCase(),
+        'sentence': sentence.trim(),
+        'chapterText': chapterText,
+      }),
+    );
+    const cacheBookId = 'word-analysis';
+    final cacheChapterIndex = _currentChapter;
+
+    final aiForCache = _aiService;
+    final cacheForLookup = _aiCache;
+    if (aiForCache != null && cacheForLookup != null) {
+      try {
+        final cacheJson = await cacheForLookup.loadWordAnalysis(
+          cacheBookId,
+          cacheChapterIndex,
+          contentHash: contentHash,
+          promptVersion: aiForCache.promptVersion,
+          sourceLanguage: sourceLanguage.code,
+          outputLanguage: outputLanguage.code,
+        );
+        if (cacheJson != null) {
+          state = state.copyWith(
+            aiWordAnalysis: WordAnalysis.fromJson(
+              jsonDecode(cacheJson) as Map<String, dynamic>,
+            ),
+            isAnalyzingWord: false,
+          );
+          return;
+        }
+      } catch (_) {
+        debugPrint('[AI] word analysis cache lookup failed');
+      }
+    }
+
+    final ai = _aiService;
+    if (ai == null) return;
+    state = state.copyWith(isAnalyzingWord: true, aiWordAnalysis: null);
+    try {
+      final analysis = await ai.analyzeWord(
+        word: word,
+        sentence: sentence,
+        chapterContext: chapterText,
+        sourceLanguage: sourceLanguage,
+        outputLanguage: outputLanguage,
+        spoilerBoundary: SpoilerBoundary.currentPassage(),
+      );
+      _settings.incrementAIUsage(wordAnalysis: true);
+      state = state.copyWith(
+        aiWordAnalysis: analysis,
+        isAnalyzingWord: false,
+      );
+      if (cacheForLookup != null) {
+        await cacheForLookup.saveWordAnalysis(
+          cacheBookId,
+          cacheChapterIndex,
+          jsonEncode(analysis.toJson()),
+          contentHash: contentHash,
+          promptVersion: ai.promptVersion,
+          sourceLanguage: sourceLanguage.code,
+          outputLanguage: outputLanguage.code,
+        );
+      }
+    } catch (e) {
+      debugPrint('[AI] analyzeWord failed: $e');
+      state = state.copyWith(
+        errorMessage: 'AI 单词解析失败: $e',
+        isAnalyzingWord: false,
+      );
+    }
+  }
+
+  // ---- Chapter AI ----
+
   Future<void> generateSummary() async {
-    final currentResult =
-        ref.read(currentBookNotifierProvider).result;
+    final currentResult = ref.read(currentBookNotifierProvider).result;
     if (currentResult == null || !_ensureAIReady()) return;
     final bookId = _activeBookId;
     if (bookId == null) return;
@@ -360,8 +487,7 @@ class AINotifier extends Notifier<AIState> {
   }
 
   Future<void> generateChapterPreview() async {
-    final currentResult =
-        ref.read(currentBookNotifierProvider).result;
+    final currentResult = ref.read(currentBookNotifierProvider).result;
     final book = ref.read(bookshelfNotifierProvider).book;
     if (currentResult == null || book == null || !_ensureAIReady()) return;
     final bookId = _activeBookId;
@@ -464,129 +590,6 @@ class AINotifier extends Notifier<AIState> {
     );
   }
 
-  Future<void> generatePractice() async {
-    final currentResult =
-        ref.read(currentBookNotifierProvider).result;
-    if (currentResult == null || !_ensureAIReady()) return;
-    final bookId = _activeBookId;
-    if (bookId == null) return;
-
-    state = state.copyWith(
-      isGeneratingPractice: true,
-      aiPractice: null,
-      chapterAIStatus: null,
-    );
-    try {
-      final result = await _createChapterAIJob().generatePractice(
-        ChapterPracticeJobRequest(
-          bookId: bookId,
-          chapterIndex: _currentChapter,
-          chapterText: currentResult.passageText,
-          vocabulary:
-              currentResult.vocabulary.map((v) => v.word).toList(),
-          events: state.aiSummary?.events ?? const [],
-        ),
-      );
-      state = state.copyWith(
-        aiPractice: result.practice,
-        chapterAIStatus: result.status,
-        isGeneratingPractice: false,
-      );
-    } catch (e) {
-      debugPrint('[AI] generatePractice failed: $e');
-      state = state.copyWith(
-        errorMessage: '生成练习题失败: $e',
-        chapterAIStatus: ChapterAIStatus.failed(
-          ChapterAIFeature.practice,
-          '练习题生成失败：$e',
-        ),
-        isGeneratingPractice: false,
-      );
-    }
-  }
-
-  Future<void> analyzeWordAI(String word, String sentence) async {
-    final currentResult =
-        ref.read(currentBookNotifierProvider).result;
-    if (currentResult == null || !_ensureAIReady()) return;
-    final chapterText = currentResult.passageText;
-    final sourceLanguage =
-        SourceLanguage.inferFromText('$sentence $chapterText');
-    final outputLanguage =
-        OutputLanguage.fromCode(effectiveTargetExplanationLanguage);
-    final contentHash = AICacheService.contentHashFor(
-      jsonEncode({
-        'word': word.trim().toLowerCase(),
-        'sentence': sentence.trim(),
-        'chapterText': chapterText,
-      }),
-    );
-    final cacheBookId = _activeBookId ?? 'word-analysis';
-    final cacheChapterIndex = _currentChapter;
-
-    final aiForCache = _aiService;
-    final cacheForLookup = _aiCache;
-    if (aiForCache != null && cacheForLookup != null) {
-      try {
-        final cacheJson = await cacheForLookup.loadWordAnalysis(
-          cacheBookId,
-          cacheChapterIndex,
-          contentHash: contentHash,
-          promptVersion: aiForCache.promptVersion,
-          sourceLanguage: sourceLanguage.code,
-          outputLanguage: outputLanguage.code,
-        );
-        if (cacheJson != null) {
-          state = state.copyWith(
-            aiWordAnalysis: WordAnalysis.fromJson(
-              jsonDecode(cacheJson) as Map<String, dynamic>,
-            ),
-            isAnalyzingWord: false,
-          );
-          return;
-        }
-      } catch (_) {
-        debugPrint('[AI] word analysis cache lookup failed, falling back to API');
-      }
-    }
-
-    final ai = _aiService;
-    if (ai == null) return;
-    state = state.copyWith(isAnalyzingWord: true, aiWordAnalysis: null);
-    try {
-      final analysis = await ai.analyzeWord(
-        word: word,
-        sentence: sentence,
-        chapterContext: chapterText,
-        sourceLanguage: sourceLanguage,
-        outputLanguage: outputLanguage,
-        spoilerBoundary: SpoilerBoundary.currentPassage(),
-      );
-      _settings.incrementAIUsage(wordAnalysis: true);
-      state = state.copyWith(
-        aiWordAnalysis: analysis,
-        isAnalyzingWord: false,
-      );
-      if (cacheForLookup != null) {
-        await cacheForLookup.saveWordAnalysis(
-          cacheBookId,
-          cacheChapterIndex,
-          jsonEncode(analysis.toJson()),
-          contentHash: contentHash,
-          promptVersion: ai.promptVersion,
-          sourceLanguage: sourceLanguage.code,
-          outputLanguage: outputLanguage.code,
-        );
-      }
-    } catch (e) {
-      debugPrint('[AI] analyzeWord failed: $e');
-      state = state.copyWith(
-        errorMessage: 'AI 单词解析失败: $e',
-        isAnalyzingWord: false,
-      );
-    }
-  }
-
   void clearAIResults() {
     state = state.copyWith(clearAIResults: true);
   }
@@ -610,18 +613,6 @@ class AINotifier extends Notifier<AIState> {
   }
 
   // ---- Internal ----
-
-  bool _ensureAIReady() {
-    if (_aiService == null) {
-      state = state.copyWith(errorMessage: 'AI 服务未初始化');
-      return false;
-    }
-    if (!aiFeaturesEnabled) {
-      state = state.copyWith(errorMessage: aiFeatureDisabledReason);
-      return false;
-    }
-    return true;
-  }
 
   ChapterAIJob _createChapterAIJob() {
     final ai = _aiService;
