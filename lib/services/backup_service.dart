@@ -11,13 +11,13 @@ import '../models/book_glossary_entry.dart';
 import '../models/book_metadata.dart';
 import '../models/learning_item.dart';
 import '../models/rss_models.dart';
-import '../models/word_context_example.dart';
 import '../storage/hive_box_names.dart';
 import '../storage/storage_migrations.dart';
 import 'backup_archive.dart' as archive;
 import 'backup_folder_access.dart';
 import 'package:flow_language/flow_language.dart';
 import 'settings_service.dart';
+import 'wordhunter_import_service.dart';
 
 class BackupException implements Exception {
   final String message;
@@ -26,18 +26,6 @@ class BackupException implements Exception {
 
   @override
   String toString() => message;
-}
-
-class WordHunterImportResult {
-  final int knownCount;
-  final int learningCount;
-  final int exampleCount;
-
-  const WordHunterImportResult({
-    required this.knownCount,
-    required this.learningCount,
-    required this.exampleCount,
-  });
 }
 
 class BackupService extends ChangeNotifier {
@@ -536,95 +524,33 @@ class BackupService extends ChangeNotifier {
   Future<WordHunterImportResult> importWordHunterBackupFile(
     String filePath,
   ) async {
-    final file = File(filePath);
-    if (!await file.exists()) {
-      throw const BackupException('Word Hunter 备份文件不存在');
-    }
-    late Map<String, dynamic> parsed;
+    _isSyncing = true;
+    _lastError = null;
+    notifyListeners();
     try {
-      parsed = await compute(
-        _parseWordHunterBackupSource,
-        await file.readAsString(),
-      );
+      final service = WordHunterImportService();
+      return await service.importFile(filePath);
     } catch (e) {
-      debugPrint('[BackupService] Word Hunter parse failed: $e');
-      throw BackupException('Word Hunter 备份格式无效：$e');
+      debugPrint('[BackupService] Word Hunter import failed: $e');
+      _lastError = e.toString();
+      rethrow;
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
     }
-    return importWordHunterPayload(parsed);
   }
 
   Future<WordHunterImportResult> importWordHunterPayload(
     Map<String, dynamic> payload,
   ) async {
-    final parsed = _normalizeWordHunterPayload(payload);
-    final knownWords = (parsed['knownWords'] as List<dynamic>).cast<String>();
-    final learningWords = (parsed['learningWords'] as List<dynamic>)
-        .cast<String>();
-    final contexts = (parsed['contexts'] as Map<String, dynamic>).map(
-      (word, value) => MapEntry(
-        word,
-        (value as List<dynamic>)
-            .whereType<Map>()
-            .map((item) => WordContextExample.fromJson(_asStringKeyMap(item)))
-            .where((example) => example.text.isNotEmpty)
-            .toList(),
-      ),
-    );
-
-    if (knownWords.isEmpty && learningWords.isEmpty && contexts.isEmpty) {
-      throw const BackupException('Word Hunter 备份中没有可导入的单词');
-    }
-
     _isSyncing = true;
     _lastError = null;
     notifyListeners();
-
     try {
-      final vocabBox = Hive.box<String>(
-        HiveBoxNames.userVocabularyFor(_defaultLang),
-      );
-      final currentKnown = <String>{
-        for (final key in vocabBox.keys)
-          if (vocabBox.get(key) == 'known') key.toString(),
-      };
-
-      await vocabBox.putAll({for (final word in knownWords) word: 'known'});
-      currentKnown.addAll(knownWords);
-
-      final learningUpdates = <String, String>{};
-      for (final word in learningWords) {
-        if (!currentKnown.contains(word)) {
-          learningUpdates[word] = 'learning';
-        }
-      }
-      if (learningUpdates.isNotEmpty) {
-        await vocabBox.putAll(learningUpdates);
-      }
-
-      final contextBox = Hive.box<String>(
-        HiveBoxNames.wordContextsFor(_defaultLang),
-      );
-      var exampleCount = 0;
-      for (final entry in contexts.entries) {
-        final merged = _mergeContextExamples(
-          _decodeContextExamples(contextBox.get(entry.key)),
-          entry.value,
-        );
-        if (merged.isEmpty) continue;
-        exampleCount += entry.value.length;
-        await contextBox.put(
-          entry.key,
-          jsonEncode(merged.map((example) => example.toJson()).toList()),
-        );
-      }
-
-      return WordHunterImportResult(
-        knownCount: knownWords.length,
-        learningCount: learningUpdates.length,
-        exampleCount: exampleCount,
-      );
+      final service = WordHunterImportService();
+      return await service.importPayload(payload);
     } catch (e) {
-      debugPrint('[BackupService] Word Hunter merge failed: $e');
+      debugPrint('[BackupService] Word Hunter import failed: $e');
       _lastError = e.toString();
       rethrow;
     } finally {
@@ -1082,36 +1008,6 @@ class BackupService extends ChangeNotifier {
     return value.toString();
   }
 
-  List<WordContextExample> _decodeContextExamples(String? source) {
-    if (source == null || source.isEmpty) return const [];
-    try {
-      final decoded = jsonDecode(source) as List<dynamic>;
-      return decoded
-          .whereType<Map>()
-          .map((item) => WordContextExample.fromJson(_asStringKeyMap(item)))
-          .where((example) => example.text.isNotEmpty)
-          .toList();
-    } catch (_) {
-      debugPrint('[BackupService] context examples decode failed, returning empty list');
-      return const [];
-    }
-  }
-
-  List<WordContextExample> _mergeContextExamples(
-    List<WordContextExample> existing,
-    List<WordContextExample> incoming,
-  ) {
-    final result = <WordContextExample>[];
-    final seen = <String>{};
-    for (final example in [...existing, ...incoming]) {
-      final key = '${example.text.trim()}|${example.url.trim()}';
-      if (seen.add(key)) {
-        result.add(example);
-      }
-    }
-    return result;
-  }
-
   void _configureTimer() {
     _timer?.cancel();
     _timer = null;
@@ -1247,129 +1143,4 @@ class _BookFilesCollection {
   final Map<String, bool> hasCover;
 
   const _BookFilesCollection({required this.books, required this.hasCover});
-}
-
-Map<String, dynamic> _parseWordHunterBackupSource(String source) {
-  final decoded = jsonDecode(source);
-  if (decoded is! Map) {
-    throw const FormatException('根节点不是对象');
-  }
-  return _asStringKeyMapStatic(decoded);
-}
-
-Map<String, dynamic> _normalizeWordHunterPayload(Map<String, dynamic> payload) {
-  final knownWords = _extractWordSet(payload['known']);
-  final contexts = _parseWordHunterContexts(payload['context']);
-  final learningWordSet = {
-    ..._extractWordSet(payload['learning']),
-    ..._extractWordSet(payload['learningWords']),
-    ...contexts.keys,
-  };
-  final learningWords = learningWordSet
-      .where((word) => !knownWords.contains(word))
-      .toList();
-
-  return {
-    'knownWords': knownWords.toList()..sort(),
-    'learningWords': learningWords..sort(),
-    'contexts': contexts.map(
-      (word, examples) =>
-          MapEntry(word, examples.map((example) => example.toJson()).toList()),
-    ),
-  };
-}
-
-Set<String> _extractWordSet(dynamic value) {
-  final words = <String>{};
-  if (value is Map) {
-    for (final key in value.keys) {
-      final word = _normalizeWord(key.toString());
-      if (word.isNotEmpty) words.add(word);
-    }
-  } else if (value is List) {
-    for (final item in value) {
-      if (item is String) {
-        final word = _normalizeWord(item);
-        if (word.isNotEmpty) words.add(word);
-      } else if (item is Map) {
-        final word = _normalizeWord(
-          (item['word'] ?? item['text'] ?? '').toString(),
-        );
-        if (word.isNotEmpty) words.add(word);
-      }
-    }
-  }
-  return words;
-}
-
-Map<String, List<WordContextExample>> _parseWordHunterContexts(dynamic value) {
-  final result = <String, List<WordContextExample>>{};
-  if (value is! Map) return result;
-
-  for (final entry in value.entries) {
-    final fallbackWord = _normalizeWord(entry.key.toString());
-    if (fallbackWord.isEmpty) continue;
-
-    final rawExamples = entry.value is List
-        ? entry.value as List<dynamic>
-        : <dynamic>[entry.value];
-    for (final rawExample in rawExamples) {
-      final example = _parseWordHunterExample(rawExample, fallbackWord);
-      if (example == null) continue;
-      result.putIfAbsent(example.word, () => []).add(example);
-    }
-  }
-  return result;
-}
-
-WordContextExample? _parseWordHunterExample(
-  dynamic value,
-  String fallbackWord,
-) {
-  if (value is String) {
-    final text = _normalizeText(value);
-    if (text.isEmpty) return null;
-    return WordContextExample(word: fallbackWord, text: text);
-  }
-  if (value is! Map) return null;
-
-  final map = _asStringKeyMapStatic(value);
-  final word = _normalizeWord((map['word'] ?? fallbackWord).toString());
-  final text = _normalizeText(
-    (map['text'] ?? map['sentence'] ?? map['context'] ?? '').toString(),
-  );
-  if (word.isEmpty || text.isEmpty) return null;
-
-  return WordContextExample(
-    word: word,
-    text: text,
-    title: _normalizeText((map['title'] ?? '').toString()),
-    url: (map['url'] ?? '').toString().trim(),
-    favicon: (map['favicon'] ?? '').toString().trim(),
-    createdAt: _parseWordHunterTimestamp(map['timestamp']),
-  );
-}
-
-DateTime? _parseWordHunterTimestamp(dynamic value) {
-  if (value is num) {
-    return DateTime.fromMillisecondsSinceEpoch(value.toInt());
-  }
-  if (value is String) {
-    final parsed = int.tryParse(value);
-    if (parsed != null) {
-      return DateTime.fromMillisecondsSinceEpoch(parsed);
-    }
-    return DateTime.tryParse(value);
-  }
-  return null;
-}
-
-Map<String, dynamic> _asStringKeyMapStatic(Map value) {
-  return value.map((k, v) => MapEntry(k.toString(), v));
-}
-
-String _normalizeWord(String word) => word.toLowerCase().trim();
-
-String _normalizeText(String text) {
-  return text.replaceAll(String.fromCharCode(0x00a0), ' ').trim();
 }
