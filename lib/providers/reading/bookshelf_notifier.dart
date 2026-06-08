@@ -250,6 +250,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
       );
 
       ref.read(currentBookNotifierProvider.notifier).goToChapter(currentChapter);
+      ref.read(aiAssistantControllerProvider).clear();
 
       return true;
     } catch (e) {

@@ -87,6 +87,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
 
   @override
   void dispose() {
+    ref.read(aiAssistantControllerProvider).clear();
     _disposeDailyGoalWatcher();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();

@@ -65,6 +65,13 @@ class AIAssistantController extends ChangeNotifier {
     actionController.clearResult();
     notifyListeners();
   }
+
+  @override
+  void dispose() {
+    actionController.cancel();
+    clear();
+    super.dispose();
+  }
 }
 
 class AIActionController extends ChangeNotifier {

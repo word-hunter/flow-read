@@ -124,24 +124,29 @@ final readingInsightServiceProvider = Provider<ReadingInsightService>((ref) {
 });
 
 final aiAssistantControllerProvider = Provider<AIAssistantController>((ref) {
-  final settings = ref.read(settingsProvider);
-  final aiService = AIService(LLMClient(settings));
-  final actionController = AIActionController(
-    aiService: aiService,
-    cacheService: ref.read(aiCacheServiceProvider),
-  );
-  final registry = AIAssistantActionRegistry(
-    promptBuilder: const PromptBuilder(),
-  );
   final assistant = AIAssistantController(
-    registry: registry,
-    automationSettings: const AIAutomationSettings(),
+    registry: ref.watch(aiActionRegistryProvider),
+    automationSettings: ref.watch(aiAutomationSettingsProvider),
     insightProfile: const ReadingInsightProfile(),
-    actionController: actionController,
+    actionController: ref.watch(aiActionControllerProvider),
   );
-  ref.onDispose(() {
-    actionController.dispose();
-    assistant.dispose();
-  });
+  ref.onDispose(() => assistant.dispose());
   return assistant;
+});
+
+final aiAutomationSettingsProvider = Provider<AIAutomationSettings>((ref) {
+  return const AIAutomationSettings(mode: AIAutomationMode.saving);
+});
+
+final aiActionRegistryProvider = Provider<AIAssistantActionRegistry>((ref) {
+  return const AIAssistantActionRegistry(promptBuilder: PromptBuilder());
+});
+
+final aiActionControllerProvider = Provider<AIActionController>((ref) {
+  final controller = AIActionController(
+    aiService: ref.watch(aiServiceProvider),
+    cacheService: ref.watch(aiCacheServiceProvider),
+  );
+  ref.onDispose(() => controller.dispose());
+  return controller;
 });

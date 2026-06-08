@@ -60,6 +60,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
 
   @override
   void dispose() {
+    ref.read(aiAssistantControllerProvider).clear();
     _webContentService.close();
     _addressController.dispose();
     _scrollController.dispose();
