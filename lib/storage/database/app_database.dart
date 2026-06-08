@@ -4,6 +4,20 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'dao/book_dao.dart';
+import 'dao/book_glossary_dao.dart';
+import 'dao/bookmark_dao.dart';
+import 'dao/character_registry_dao.dart';
+import 'dao/dictionary_cache_dao.dart';
+import 'dao/learning_analytics_dao.dart';
+import 'dao/learning_item_dao.dart';
+import 'dao/reading_config_dao.dart';
+import 'dao/reading_time_dao.dart';
+import 'dao/rss_dao.dart';
+import 'dao/settings_dao.dart';
+import 'dao/user_vocabulary_dao.dart';
+import 'dao/word_context_dao.dart';
+import 'dao/word_level_dao.dart';
 import 'tables.dart';
 
 part 'app_database.g.dart';
@@ -30,6 +44,22 @@ const _schemaVersion = 1;
     BookGlossary,
     CharacterRegistry,
     Settings,
+  ],
+  daos: [
+    BookDao,
+    BookGlossaryDao,
+    BookmarkDao,
+    CharacterRegistryDao,
+    DictionaryCacheDao,
+    LearningAnalyticsDao,
+    LearningItemDao,
+    ReadingConfigDao,
+    ReadingTimeDao,
+    RssDao,
+    SettingsDao,
+    UserVocabularyDao,
+    WordContextDao,
+    WordLevelDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {

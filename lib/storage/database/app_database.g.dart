@@ -7936,6 +7936,38 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_glossary_word',
     'CREATE INDEX idx_glossary_word ON book_glossary (word)',
   );
+  late final BookDao bookDao = BookDao(this as AppDatabase);
+  late final BookGlossaryDao bookGlossaryDao = BookGlossaryDao(
+    this as AppDatabase,
+  );
+  late final BookmarkDao bookmarkDao = BookmarkDao(this as AppDatabase);
+  late final CharacterRegistryDao characterRegistryDao = CharacterRegistryDao(
+    this as AppDatabase,
+  );
+  late final DictionaryCacheDao dictionaryCacheDao = DictionaryCacheDao(
+    this as AppDatabase,
+  );
+  late final LearningAnalyticsDao learningAnalyticsDao = LearningAnalyticsDao(
+    this as AppDatabase,
+  );
+  late final LearningItemDao learningItemDao = LearningItemDao(
+    this as AppDatabase,
+  );
+  late final ReadingConfigDao readingConfigDao = ReadingConfigDao(
+    this as AppDatabase,
+  );
+  late final ReadingTimeDao readingTimeDao = ReadingTimeDao(
+    this as AppDatabase,
+  );
+  late final RssDao rssDao = RssDao(this as AppDatabase);
+  late final SettingsDao settingsDao = SettingsDao(this as AppDatabase);
+  late final UserVocabularyDao userVocabularyDao = UserVocabularyDao(
+    this as AppDatabase,
+  );
+  late final WordContextDao wordContextDao = WordContextDao(
+    this as AppDatabase,
+  );
+  late final WordLevelDao wordLevelDao = WordLevelDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
