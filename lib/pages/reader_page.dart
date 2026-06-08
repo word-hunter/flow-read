@@ -87,7 +87,6 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
 
   @override
   void dispose() {
-    ref.read(aiAssistantControllerProvider).clear();
     _disposeDailyGoalWatcher();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
@@ -290,10 +289,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     if (_searchSheetOpen) return;
 
     _hideReadingReminder();
-    final search = riverpod.ProviderScope.containerOf(
-      context,
-      listen: false,
-    ).read(readingSearchNotifierProvider.notifier);
+    final search = ref.read(readingSearchNotifierProvider.notifier);
     search.clearSearch();
     setState(() {
       _searchSheetOpen = true;
@@ -319,27 +315,18 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   }
 
   void _onSearchChanged(String value) {
-    final search = riverpod.ProviderScope.containerOf(
-      context,
-      listen: false,
-    ).read(readingSearchNotifierProvider.notifier);
+    final search = ref.read(readingSearchNotifierProvider.notifier);
     unawaited(search.searchInBook(value, includeAll: _searchShowingAll));
   }
 
   void _showAllSearchResults() {
     setState(() => _searchShowingAll = true);
-    final search = riverpod.ProviderScope.containerOf(
-      context,
-      listen: false,
-    ).read(readingSearchNotifierProvider.notifier);
+    final search = ref.read(readingSearchNotifierProvider.notifier);
     unawaited(search.searchAllInBook());
   }
 
   Future<void> _onSearchResultTap(ReadingSearchResult result) async {
-    final search = riverpod.ProviderScope.containerOf(
-      context,
-      listen: false,
-    ).read(readingSearchNotifierProvider.notifier);
+    final search = ref.read(readingSearchNotifierProvider.notifier);
     await search.goToSearchResult(result);
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -390,10 +377,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   }
 
   void _onBookmarkTap() {
-    final bookmarks = riverpod.ProviderScope.containerOf(
-      context,
-      listen: false,
-    ).read(bookmarkNotifierProvider.notifier);
+    final bookmarks = ref.read(bookmarkNotifierProvider.notifier);
     if (bookmarks.isCurrentPositionBookmarked()) {
       _hideReadingReminder();
       showModalBottomSheet(

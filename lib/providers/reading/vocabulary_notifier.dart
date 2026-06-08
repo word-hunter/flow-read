@@ -81,6 +81,8 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   static const _difficultyRefreshBatchPause = Duration(milliseconds: 16);
 
   final Map<String, AggregatedVocabulary> _allVocab = {};
+  List<AggregatedVocabulary>? _cachedSortedVocab;
+  List<AggregatedVocabulary>? _cachedSortedVocabAlpha;
   final Map<String, Set<String>> _bookStudyWordsById = {};
   final Map<String, BookDifficultyRating> _bookDifficultyById = {};
   final Map<String, String> _bookDifficultyFailureKeys = {};
@@ -168,8 +170,17 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
   }
 
   List<AggregatedVocabulary> getAllVocabulary({bool alphabetical = false}) {
-    final vocab = _allVocab.values.toList();
     if (alphabetical) {
+      _cachedSortedVocabAlpha ??= _buildSortedVocab(alpha: true);
+      return _cachedSortedVocabAlpha!;
+    }
+    _cachedSortedVocab ??= _buildSortedVocab(alpha: false);
+    return _cachedSortedVocab!;
+  }
+
+  List<AggregatedVocabulary> _buildSortedVocab({required bool alpha}) {
+    final vocab = _allVocab.values.toList();
+    if (alpha) {
       vocab.sort((a, b) => a.word.compareTo(b.word));
     } else {
       vocab.sort((a, b) {
@@ -179,6 +190,11 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
       });
     }
     return vocab;
+  }
+
+  void _invalidateVocabCache() {
+    _cachedSortedVocab = null;
+    _cachedSortedVocabAlpha = null;
   }
 
   BookDifficultyRating? difficultyForBook(String bookId) {
@@ -394,6 +410,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
         );
       }
     }
+    _invalidateVocabCache();
   }
 
   String get _activeVocabularyLanguageId {

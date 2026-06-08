@@ -96,6 +96,8 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
   BookService get _bookService => ref.read(bookServiceProvider);
   ReadingTimeService? get _readingTime => ref.read(readingTimeServiceProvider);
 
+  final Map<int, AnalysisResult> _chapterAnalysisCache = {};
+
   @override
   CurrentBookState build() {
     return const CurrentBookState();
@@ -134,11 +136,13 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
       }
     }
 
+    final cached = _chapterAnalysisCache[index];
+
     state = state.copyWith(
       currentChapter: index,
       readingProgress: 0.0,
       readingScrollOffset: 0.0,
-      clearResult: true,
+      result: cached,
       clearDifficulty: true,
     );
     _saveCurrentProgress();
@@ -146,9 +150,11 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
     ref.read(readingSearchNotifierProvider.notifier).clearSourceHighlight();
     ref.read(aiNotifierProvider.notifier).clearAIResults();
 
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _analyzeCurrentChapter();
-    });
+    if (cached == null) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _analyzeCurrentChapter();
+      });
+    }
   }
 
   void enterReader() {
@@ -210,7 +216,12 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
       wordLevelService,
       languageModule,
     );
+    _chapterAnalysisCache[state.currentChapter] = analysis;
     state = state.copyWith(result: analysis);
+  }
+
+  void invalidateChapterAnalysisCache() {
+    _chapterAnalysisCache.clear();
   }
 }
 

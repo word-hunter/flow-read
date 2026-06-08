@@ -60,7 +60,7 @@ class TrainingPage extends riverpod.ConsumerWidget {
         child: Column(
           children: [
             _buildHeader(theme),
-            Expanded(child: _buildTrainingGrid(context, theme, settings)),
+            Expanded(child: _buildTrainingGrid(ref, context, theme, settings)),
           ],
         ),
       ),
@@ -97,6 +97,7 @@ class TrainingPage extends riverpod.ConsumerWidget {
   }
 
   Widget _buildTrainingGrid(
+    riverpod.WidgetRef ref,
     BuildContext context,
     ThemeData theme,
     SettingsService settings,
@@ -115,19 +116,20 @@ class TrainingPage extends riverpod.ConsumerWidget {
         crossAxisSpacing: 12,
         childAspectRatio: 1.1,
         children: visibleTypes
-            .map((type) => _buildTrainingCard(context, type, theme))
+            .map((type) => _buildTrainingCard(ref, context, type, theme))
             .toList(),
       ),
     );
   }
 
   Widget _buildTrainingCard(
+    riverpod.WidgetRef ref,
     BuildContext context,
     _TrainingType type,
     ThemeData theme,
   ) {
     return GestureDetector(
-      onTap: () => _navigateToTraining(context, type),
+      onTap: () => _navigateToTraining(ref, context, type),
       child: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
@@ -180,17 +182,16 @@ class TrainingPage extends riverpod.ConsumerWidget {
     );
   }
 
-  void _navigateToTraining(BuildContext context, _TrainingType type) {
-    final container = riverpod.ProviderScope.containerOf(context);
-    final currentBookNotifier = container.read(currentBookNotifierProvider.notifier);
-    final settings = container.read(settingsProvider);
+  void _navigateToTraining(riverpod.WidgetRef ref, BuildContext context, _TrainingType type) {
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
+    final settings = ref.read(settingsProvider);
     if (type.requiresReviewFeature && !settings.reviewFeatureEnabled) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('请先在设置中开启轻量复习测试功能')));
       return;
     }
-    if (!currentBookNotifier.hasBook && !container.read(currentBookNotifierProvider).hasBeenOpened) {
+    if (!currentBookNotifier.hasBook && !ref.read(currentBookNotifierProvider).hasBeenOpened) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Please load a book first')));

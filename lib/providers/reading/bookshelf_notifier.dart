@@ -249,6 +249,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
         isLoading: false,
       );
 
+      ref.read(currentBookNotifierProvider.notifier).invalidateChapterAnalysisCache();
       ref.read(currentBookNotifierProvider.notifier).goToChapter(currentChapter);
       ref.read(aiAssistantControllerProvider).clear();
 
@@ -392,8 +393,15 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
         books: bookService.books,
       );
 
-      _updateImportProgress('导入完成', 1, canCancel: false);
-      state = state.copyWith(lastImportResult: BookImportResult.imported);
+      _showImportCancel = false;
+      _importCancelTimer?.cancel();
+      _importCancelTimer = null;
+      state = state.copyWith(
+        importStage: '导入完成',
+        importProgress: 1,
+        lastImportResult: BookImportResult.imported,
+      );
+      _emitImportProgress();
       return BookImportResult.imported;
     } on EpubParseCancelledException {
       await _cleanupCancelledImport(
