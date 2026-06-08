@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/dao/settings_dao.dart';
 import 'package:flow_read/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,7 +22,8 @@ void main() {
   });
 
   test('app theme family and brightness mode persist', () async {
-    final settings = SettingsService();
+    final db = await AppDatabase.createInMemory();
+    final settings = SettingsService(SettingsDao(db));
     await settings.init();
 
     expect(settings.appThemeId, AppThemeId.classic);
@@ -29,7 +32,7 @@ void main() {
     await settings.setAppThemeId(AppThemeId.ocean);
     await settings.setThemeMode(ThemeMode.dark);
 
-    final reloaded = SettingsService();
+    final reloaded = SettingsService(SettingsDao(db));
     await reloaded.init();
 
     expect(reloaded.appThemeId, AppThemeId.ocean);
@@ -37,8 +40,7 @@ void main() {
   });
 
   test('theme mode toggle cycles through system, light, and dark', () async {
-    final settings = SettingsService();
-    await settings.init();
+    final settings = await createTestSettingsService();
 
     expect(settings.themeMode, ThemeMode.system);
     expect(settings.nextThemeMode, ThemeMode.light);
@@ -58,8 +60,7 @@ void main() {
   test('unknown stored theme family falls back to classic', () async {
     await settingsBox().put('appThemeId', 'legacy_theme');
 
-    final settings = SettingsService();
-    await settings.init();
+    final settings = await createTestSettingsService();
 
     expect(settings.appThemeId, AppThemeId.classic);
   });

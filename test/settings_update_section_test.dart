@@ -4,24 +4,26 @@ import 'package:flow_read/services/dictionary/dictionary_source_config.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_registry.dart';
 import 'package:flow_read/services/dictionary/dictionary_source_test_service.dart';
 import 'package:flow_read/services/mac_permission_diagnostics.dart';
-import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/settings/settings_sections.dart';
 import 'package:flow_read/widgets/settings/update_check_result_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/hive_test_storage.dart';
 
 void main() {
   testWidgets('reading section shows current book language override', (
     tester,
   ) async {
     String? clearedBookId;
+    final settings = await createTestSettingsService();
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: SingleChildScrollView(
             child: SettingsReadingSection(
-              settings: SettingsService(),
+              settings: settings,
               activeBookMetadata: const BookMetadata(
                 id: 'book-1',
                 title: 'Fixture',
@@ -53,12 +55,13 @@ void main() {
   });
 
   testWidgets('dictionary section shows all source controls', (tester) async {
+    final settings = await createTestSettingsService();
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: SingleChildScrollView(
             child: SettingsDictionarySection(
-              settings: SettingsService(),
+              settings: settings,
               testWordController: TextEditingController(text: 'flow'),
               testingSources: false,
               testResults: const {

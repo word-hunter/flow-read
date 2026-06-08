@@ -7,6 +7,8 @@ import 'package:flow_read/providers/reading/ai_notifier.dart';
 import 'package:flow_read/providers/reading/current_book_notifier.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/dao/settings_dao.dart';
 import 'package:flow_read/widgets/ai_summary_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
@@ -69,7 +71,10 @@ void main() {
         generatedChapterIndexes: const [0, 2],
       ),
     );
-    final settings = _StatusSettingsService();
+    final settings = _StatusSettingsService(
+      SettingsDao(await AppDatabase.createInMemory()),
+    );
+    await settings.init();
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
@@ -127,6 +132,8 @@ class _StatusCurrentBookNotifier extends CurrentBookNotifier {
 }
 
 class _StatusSettingsService extends SettingsService {
+  _StatusSettingsService(super.dao);
+
   @override
   bool get aiFeaturesEnabled => true;
 

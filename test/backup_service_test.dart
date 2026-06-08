@@ -31,8 +31,12 @@ void main() {
     await openFlowReadTestBoxes();
     documentsDir = await Directory('${tempDir.path}/documents').create();
 
-    settings = SettingsService();
-    await settings.init();
+    settings = await createTestSettingsService();
+    settingsBox()
+      ..put('aiProviderId', settings.aiProviderId)
+      ..put('aiApiKeys', '{}')
+      ..put('backupFolderPath', '')
+      ..put('backupFolderBookmark', '');
     backup = BackupService(
       settings,
       documentsDirectoryProvider: () async => documentsDir,

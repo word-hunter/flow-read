@@ -16,8 +16,7 @@ void main() {
   setUp(() async {
     tempDir = await initHiveTestStorage('flow_read_llm_test_');
     await openFlowReadTestBoxes();
-    settings = SettingsService();
-    await settings.init();
+    settings = await createTestSettingsService();
   });
 
   tearDown(() async {

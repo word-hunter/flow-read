@@ -7,11 +7,12 @@ import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/screens/profile_screen.dart';
 import 'package:flow_read/services/bookmark_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
-import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/storage/repositories/reading_time_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/hive_test_storage.dart';
 
 void main() {
   testWidgets('profile screen reads reading time through Riverpod', (
@@ -33,7 +34,7 @@ void main() {
         bookId: 'book-1',
       ),
     ];
-    final settings = SettingsService();
+    final settings = await createTestSettingsService();
     final timeService = _ProfileReadingTimeService();
     final bookmarkService = _ProfileBookmarkService();
 

@@ -4,9 +4,19 @@ import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/models/rss_models.dart';
 import 'package:flow_read/models/word_level.dart';
+import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/dao/settings_dao.dart';
 import 'package:flow_read/storage/hive_box_names.dart';
 import 'package:flow_read/storage/hive_storage.dart';
 import 'package:hive/hive.dart';
+
+Future<SettingsService> createTestSettingsService() async {
+  final db = await AppDatabase.createInMemory();
+  final service = SettingsService(SettingsDao(db));
+  await service.init();
+  return service;
+}
 
 Future<Directory> initHiveTestStorage(
   String prefix, {

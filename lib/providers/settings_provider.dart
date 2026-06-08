@@ -3,9 +3,13 @@ import 'dart:async';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../services/settings_service.dart';
+import '../storage/database/dao/settings_dao.dart';
+import '../storage/hive_storage.dart';
 
 final settingsProvider = ChangeNotifierProvider<SettingsService>((ref) {
-  final service = SettingsService();
+  final db = appDatabase;
+  if (db == null) throw StateError('Database not initialized');
+  final service = SettingsService(SettingsDao(db));
   unawaited(service.init());
   return service;
 });

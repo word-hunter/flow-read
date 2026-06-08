@@ -18,8 +18,7 @@ void main() {
   setUp(() async {
     await initHiveTestStorage('flow_read_widget_test_');
     await openFlowReadTestBoxes();
-    settings = SettingsService();
-    await settings.init();
+    settings = await createTestSettingsService();
     backup = BackupService(settings);
   });
 

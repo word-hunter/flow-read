@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/dao/settings_dao.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
@@ -18,7 +20,8 @@ void main() {
   });
 
   test('experimental features are disabled by default and persist', () async {
-    final settings = SettingsService();
+    final db = await AppDatabase.createInMemory();
+    final settings = SettingsService(SettingsDao(db));
     await settings.init();
 
     expect(settings.rssFeatureEnabled, isFalse);
@@ -29,7 +32,7 @@ void main() {
     expect(settings.rssFeatureEnabled, isTrue);
     expect(settings.reviewFeatureEnabled, isTrue);
 
-    final reloaded = SettingsService();
+    final reloaded = SettingsService(SettingsDao(db));
     await reloaded.init();
     expect(reloaded.rssFeatureEnabled, isTrue);
     expect(reloaded.reviewFeatureEnabled, isTrue);
@@ -44,9 +47,11 @@ void main() {
   });
 
   test('legacy browser feature flag is ignored', () async {
-    await settingsBox().put('enabledExperimentalFeatures', '["browser","rss"]');
+    final db = await AppDatabase.createInMemory();
+    final dao = SettingsDao(db);
+    await dao.putValue('enabledExperimentalFeatures', '["browser","rss"]');
 
-    final settings = SettingsService();
+    final settings = SettingsService(dao);
     await settings.init();
 
     expect(settings.rssFeatureEnabled, isTrue);
@@ -56,7 +61,8 @@ void main() {
   test(
     'force default book cover is disabled by default and persists',
     () async {
-      final settings = SettingsService();
+      final db = await AppDatabase.createInMemory();
+      final settings = SettingsService(SettingsDao(db));
       await settings.init();
 
       expect(settings.forceDefaultBookCover, isFalse);
@@ -64,7 +70,7 @@ void main() {
       await settings.setForceDefaultBookCover(true);
       expect(settings.forceDefaultBookCover, isTrue);
 
-      final reloaded = SettingsService();
+      final reloaded = SettingsService(SettingsDao(db));
       await reloaded.init();
       expect(reloaded.forceDefaultBookCover, isTrue);
 
@@ -76,8 +82,7 @@ void main() {
   test(
     'AI features are enabled only for the selected provider with a key',
     () async {
-      final settings = SettingsService();
-      await settings.init();
+      final settings = await createTestSettingsService();
 
       expect(settings.aiFeaturesEnabled, isFalse);
 
@@ -102,7 +107,8 @@ void main() {
   test(
     'active source language and target explanation language persist',
     () async {
-      final settings = SettingsService();
+      final db = await AppDatabase.createInMemory();
+      final settings = SettingsService(SettingsDao(db));
       await settings.init();
 
       expect(settings.activeSourceLanguage, 'en');
@@ -111,7 +117,7 @@ void main() {
       await settings.setActiveSourceLanguage('ja');
       await settings.setTargetExplanationLanguage('en');
 
-      final reloaded = SettingsService();
+      final reloaded = SettingsService(SettingsDao(db));
       await reloaded.init();
 
       expect(reloaded.activeSourceLanguage, 'ja');

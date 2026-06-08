@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 
+import '../storage/database/dao/settings_dao.dart';
 import '../storage/hive_box_names.dart';
 import '../theme/app_theme.dart';
 import 'ai_provider_config.dart';
@@ -92,13 +93,24 @@ class SettingsService extends ChangeNotifier {
   static const _dictionarySourcesKey = 'dictionarySources';
   static const _activeSourceLanguageKey = HiveBoxNames.activeSourceLanguageKey;
   static const _targetExplanationLanguageKey = 'target_explanation_language';
+  static const _cityAtmosphereEnabledKey = 'city_atmosphere.enabled';
+  static const _cityAtmosphereThemeModeKey = 'city_atmosphere.theme_mode';
+  static const _cityAtmosphereManualThemeIdKey =
+      'city_atmosphere.manual_theme_id';
+  static const _cityAtmosphereBlendModeKey = 'city_atmosphere.blend_mode';
+  static const _cityAtmosphereManualSceneKey = 'city_atmosphere.manual_scene';
+  static const _cityAtmosphereIntensityKey = 'city_atmosphere.intensity';
+  static const _cityAtmosphereReduceMotionKey = 'city_atmosphere.reduce_motion';
+  static const _cityAtmospherePerformanceModeKey =
+      'city_atmosphere.performance_mode';
   static const _themeModeCycle = <ThemeMode>[
     ThemeMode.system,
     ThemeMode.light,
     ThemeMode.dark,
   ];
 
-  late Box _box;
+  final SettingsDao _dao;
+  Map<String, String> _cache = {};
 
   VocabularyColorSettings _colors = VocabularyColorSettings();
   String _aiProviderId = AIProviders.deepSeek.id;
@@ -121,8 +133,12 @@ class SettingsService extends ChangeNotifier {
   String _targetExplanationLanguage = 'zh';
   Set<String> _enabledExperimentalFeatures = {};
   bool _forceDefaultBookCover = false;
+  CityAtmosphereSettings _cityAtmosphereSettings =
+      const CityAtmosphereSettings();
   List<DictionarySourceConfig> _dictionarySources =
       DictionarySourceConfig.defaults;
+
+  SettingsService(this._dao);
 
   VocabularyColorSettings get colors => _colors;
   String get aiProviderId => _aiProviderId;
@@ -182,36 +198,52 @@ class SettingsService extends ChangeNotifier {
   bool get v2FeatureEnabled =>
       isExperimentalFeatureEnabled(experimentalFeatureV2);
   bool get forceDefaultBookCover => _forceDefaultBookCover;
+  CityAtmosphereSettings get cityAtmosphereSettings => _cityAtmosphereSettings;
 
   Future<void> init() async {
-    _box = Hive.box(HiveBoxNames.settings);
+    _cache = await _dao.allEntries();
     _load();
     await _writeDictionarySources(_dictionarySources);
   }
 
   Future<void> reloadFromStorage() async {
+    _cache = await _dao.allEntries();
     _load();
     notifyListeners();
   }
 
+  String? _get(String key, {String? defaultValue}) {
+    return _cache[key] ?? defaultValue;
+  }
+
+  void _put(String key, String value) {
+    _cache[key] = value;
+    unawaited(_dao.putValue(key, value));
+  }
+
+  void _remove(String key) {
+    _cache.remove(key);
+    unawaited(_dao.removeValue(key));
+  }
+
+  Future<void> _putAndWait(String key, String value) {
+    _cache[key] = value;
+    return _dao.putValue(key, value);
+  }
+
   void _load() {
     _colors = VocabularyColorSettings(
-      unknownColor: Color(
-        _box.get('unknownColor', defaultValue: 0xFFE74C3C) as int,
-      ),
-      learningColor: Color(
-        _box.get('learningColor', defaultValue: 0xFF8E44AD) as int,
-      ),
-      knownColor: Color(
-        _box.get('knownColor', defaultValue: 0xFF999999) as int,
-      ),
+      unknownColor: Color(_readInt('unknownColor', 0xFFE74C3C)),
+      learningColor: Color(_readInt('learningColor', 0xFF8E44AD)),
+      knownColor: Color(_readInt('knownColor', 0xFF999999)),
     );
-    _aiProviderId =
-        _box.get('aiProviderId', defaultValue: AIProviders.deepSeek.id)
-            as String;
+    _aiProviderId = _get(
+      'aiProviderId',
+      defaultValue: AIProviders.deepSeek.id,
+    )!;
     _aiProviderId = AIProviders.byId(_aiProviderId).id;
     _aiApiKeys = _readStringMap('aiApiKeys');
-    final legacyApiKey = _box.get('apiKey', defaultValue: '') as String;
+    final legacyApiKey = _get('apiKey') ?? '';
     if (legacyApiKey.isNotEmpty &&
         (_aiApiKeys[AIProviders.deepSeek.id]?.isEmpty ?? true)) {
       _aiApiKeys[AIProviders.deepSeek.id] = legacyApiKey;
@@ -219,48 +251,42 @@ class SettingsService extends ChangeNotifier {
     _aiBaseUrls = _readStringMap('aiBaseUrls');
     _aiModels = _readStringMap('aiModels');
     _aiUsage = AIUsageStats(
-      chapterSummaryCount:
-          _box.get('aiChapterSummaryCount', defaultValue: 0) as int,
-      textAnalysisCount:
-          _box.get('aiTextAnalysisCount', defaultValue: 0) as int,
-      practiceCount: _box.get('aiPracticeCount', defaultValue: 0) as int,
-      wordAnalysisCount:
-          _box.get('aiWordAnalysisCount', defaultValue: 0) as int,
+      chapterSummaryCount: _readInt('aiChapterSummaryCount', 0),
+      textAnalysisCount: _readInt('aiTextAnalysisCount', 0),
+      practiceCount: _readInt('aiPracticeCount', 0),
+      wordAnalysisCount: _readInt('aiWordAnalysisCount', 0),
     );
-    final themeModeIndex = _box.get('themeMode', defaultValue: 0) as int;
+    final themeModeIndex = _readInt('themeMode', 0);
     _themeMode =
         ThemeMode.values[themeModeIndex.clamp(0, ThemeMode.values.length - 1)];
-    final appThemeIdValue = _box.get(
+    final appThemeIdValue = _get(
       'appThemeId',
       defaultValue: AppThemeId.classic.name,
-    );
-    _appThemeId = AppTheme.themeIdFromName(appThemeIdValue.toString());
+    )!;
+    _appThemeId = AppTheme.themeIdFromName(appThemeIdValue);
     _dailyReadingGoalMinutes = _normalizeDailyReadingGoalMinutes(
-      _box.get(
+      _get(
         _dailyReadingGoalMinutesKey,
-        defaultValue: defaultDailyReadingGoalMinutes,
+        defaultValue: '$defaultDailyReadingGoalMinutes',
       ),
     );
-    _backupEnabled = _box.get('backupEnabled', defaultValue: false) as bool;
-    _includeSecretsInBackup =
-        _box.get('includeSecretsInBackup', defaultValue: false) as bool;
-    _backupFolderPath =
-        _box.get('backupFolderPath', defaultValue: '') as String;
-    _backupFolderBookmark =
-        _box.get('backupFolderBookmark', defaultValue: '') as String;
-    _backupIntervalMinutes =
-        _box.get(
-              'backupIntervalMinutes',
-              defaultValue: defaultBackupIntervalMinutes,
-            )
-            as int;
-    final lastBackupAtValue = _box.get('lastBackupAt') as String?;
-    _lastBackupAt = lastBackupAtValue == null
-        ? null
-        : DateTime.tryParse(lastBackupAtValue);
-    _lastBackupPath = _box.get('lastBackupPath') as String?;
-    _lastSeenReleaseNotesVersion =
-        _box.get('lastSeenReleaseNotesVersion', defaultValue: '') as String;
+    _backupEnabled = _readBool('backupEnabled', false);
+    _includeSecretsInBackup = _readBool('includeSecretsInBackup', false);
+    _backupFolderPath = _get('backupFolderPath', defaultValue: '')!;
+    _backupFolderBookmark = _get('backupFolderBookmark', defaultValue: '')!;
+    _backupIntervalMinutes = _readInt(
+      'backupIntervalMinutes',
+      defaultBackupIntervalMinutes,
+    );
+    final lastBackupAtValue = _get('lastBackupAt');
+    _lastBackupAt = lastBackupAtValue != null
+        ? DateTime.tryParse(lastBackupAtValue)
+        : null;
+    _lastBackupPath = _get('lastBackupPath');
+    _lastSeenReleaseNotesVersion = _get(
+      'lastSeenReleaseNotesVersion',
+      defaultValue: '',
+    )!;
     _activeSourceLanguage = _readLanguageCode(
       _activeSourceLanguageKey,
       defaultValue: 'en',
@@ -272,111 +298,211 @@ class SettingsService extends ChangeNotifier {
     _enabledExperimentalFeatures = _readStringSet(
       _enabledExperimentalFeaturesKey,
     );
-    _forceDefaultBookCover =
-        _box.get(_forceDefaultBookCoverKey, defaultValue: false) as bool;
+    _forceDefaultBookCover = _readBool(_forceDefaultBookCoverKey, false);
+    _cityAtmosphereSettings = _readCityAtmosphereSettings();
     _dictionarySources = _readDictionarySources();
   }
 
+  int _readInt(String key, int defaultValue) {
+    final val = _cache[key];
+    if (val == null) return defaultValue;
+    return int.tryParse(val) ?? defaultValue;
+  }
+
+  bool _readBool(String key, bool defaultValue) {
+    final val = _cache[key];
+    if (val == null) return defaultValue;
+    return val == 'true';
+  }
+
+  CityAtmosphereSettings _readCityAtmosphereSettings() {
+    final defaults = const CityAtmosphereSettings();
+    final manualThemeId = _get(
+      _cityAtmosphereManualThemeIdKey,
+      defaultValue: defaults.manualThemeId,
+    )!;
+
+    return CityAtmosphereSettings(
+      enabled: _readBool(_cityAtmosphereEnabledKey, false),
+      themeMode: _readEnumByName(
+        _cityAtmosphereThemeModeKey,
+        CityThemeMode.values,
+        CityThemeMode.systemTime,
+      ),
+      manualThemeId: CityThemePresets.containsId(manualThemeId)
+          ? manualThemeId
+          : defaults.manualThemeId,
+      blendMode: _readEnumByName(
+        _cityAtmosphereBlendModeKey,
+        AtmosphereBlendMode.values,
+        AtmosphereBlendMode.followTheme,
+      ),
+      manualScene: _readEnumByName(
+        _cityAtmosphereManualSceneKey,
+        AtmosphereScene.values,
+        AtmosphereScene.none,
+      ),
+      atmosphereIntensity: _readDouble(
+        _cityAtmosphereIntensityKey,
+        defaultValue: defaults.atmosphereIntensity,
+        min: 0,
+        max: 1,
+      ),
+      reduceMotion: _readBool(_cityAtmosphereReduceMotionKey, false),
+      performanceMode: _readEnumByName(
+        _cityAtmospherePerformanceModeKey,
+        AtmospherePerformanceMode.values,
+        AtmospherePerformanceMode.auto,
+      ),
+    );
+  }
+
   Map<String, String> _readStringMap(String key) {
-    final raw = _box.get(key);
-    if (raw is String && raw.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(raw) as Map<String, dynamic>;
-        return decoded.map((k, v) => MapEntry(k, v?.toString() ?? ''));
-      } catch (_) {
-        return {};
-      }
+    final raw = _cache[key];
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+    } catch (_) {
+      return {};
     }
-    if (raw is Map) {
-      return raw.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
-    }
-    return {};
   }
 
   Set<String> _readStringSet(String key) {
-    final raw = _box.get(key);
-    Object? decoded = raw;
-    if (raw is String && raw.isNotEmpty) {
-      try {
-        decoded = jsonDecode(raw);
-      } catch (_) {
-        return {};
+    final raw = _cache[key];
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Iterable) {
+        return decoded
+            .map((value) => value.toString())
+            .where(supportedExperimentalFeatureIds.contains)
+            .toSet();
       }
-    }
-    if (decoded is Iterable) {
-      return decoded
-          .map((value) => value.toString())
-          .where(supportedExperimentalFeatureIds.contains)
-          .toSet();
-    }
-    if (decoded is Map) {
-      return decoded.entries
-          .where((entry) => entry.value == true)
-          .map((entry) => entry.key.toString())
-          .where(supportedExperimentalFeatureIds.contains)
-          .toSet();
-    }
+      if (decoded is Map) {
+        return decoded.entries
+            .where((entry) => entry.value == true)
+            .map((entry) => entry.key.toString())
+            .where(supportedExperimentalFeatureIds.contains)
+            .toSet();
+      }
+    } catch (_) {}
     return {};
   }
 
+  T _readEnumByName<T extends Enum>(
+    String key,
+    List<T> values,
+    T fallback,
+  ) {
+    final raw = _get(key, defaultValue: fallback.name) ?? fallback.name;
+    for (final value in values) {
+      if (value.name == raw) return value;
+    }
+    return fallback;
+  }
+
+  double _readDouble(
+    String key, {
+    required double defaultValue,
+    required double min,
+    required double max,
+  }) {
+    final raw = _cache[key];
+    if (raw == null) return defaultValue;
+    final value = double.tryParse(raw) ?? defaultValue;
+    return value.clamp(min, max).toDouble();
+  }
+
   List<DictionarySourceConfig> _readDictionarySources() {
-    final raw = _box.get(_dictionarySourcesKey);
-    Object? decoded = raw;
-    if (raw is String && raw.isNotEmpty) {
-      try {
-        decoded = jsonDecode(raw);
-      } catch (_) {
-        return DictionarySourceConfig.defaults;
+    final raw = _cache[_dictionarySourcesKey];
+    if (raw == null || raw.isEmpty) return DictionarySourceConfig.defaults;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Iterable) {
+        final configs = decoded
+            .whereType<Map>()
+            .map(
+              (item) => DictionarySourceConfig.fromJson(
+                item.map((key, value) => MapEntry(key.toString(), value)),
+              ),
+            )
+            .toList();
+        return DictionarySourceConfig.migrateLegacyOrder(configs);
       }
-    }
-    if (decoded is Iterable) {
-      final configs = decoded
-          .whereType<Map>()
-          .map(
-            (item) => DictionarySourceConfig.fromJson(
-              item.map((key, value) => MapEntry(key.toString(), value)),
-            ),
-          )
-          .toList();
-      return DictionarySourceConfig.migrateLegacyOrder(configs);
-    }
+    } catch (_) {}
     return DictionarySourceConfig.defaults;
   }
 
   String _readLanguageCode(String key, {required String defaultValue}) {
-    final value = _box.get(key, defaultValue: defaultValue).toString().trim();
+    final value = _get(key, defaultValue: defaultValue) ?? defaultValue;
     return value.isEmpty ? defaultValue : value.toLowerCase();
   }
 
-  Future<void> _writeStringMap(String key, Map<String, String> value) async {
-    await _box.put(key, jsonEncode(value));
+  void _writeStringMap(String key, Map<String, String> value) {
+    _put(key, jsonEncode(value));
   }
 
-  Future<void> _writeStringSet(String key, Set<String> value) async {
+  void _writeStringSet(String key, Set<String> value) {
     final sorted = value.toList()..sort();
-    await _box.put(key, jsonEncode(sorted));
+    _put(key, jsonEncode(sorted));
   }
 
   Future<void> _writeDictionarySources(
     List<DictionarySourceConfig> value,
   ) async {
-    await _box.put(
+    _put(
       _dictionarySourcesKey,
-      jsonEncode(value.map((config) => config.toJson()).toList()),
+      jsonEncode(value.map((c) => c.toJson()).toList()),
     );
+  }
+
+  Future<void> _writeCityAtmosphereSettings(
+    CityAtmosphereSettings value,
+  ) async {
+    await Future.wait<void>([
+      _putAndWait(_cityAtmosphereEnabledKey, value.enabled.toString()),
+      _putAndWait(_cityAtmosphereThemeModeKey, value.themeMode.name),
+      _putAndWait(_cityAtmosphereManualThemeIdKey, value.manualThemeId),
+      _putAndWait(_cityAtmosphereBlendModeKey, value.blendMode.name),
+      _putAndWait(_cityAtmosphereManualSceneKey, value.manualScene.name),
+      _putAndWait(
+        _cityAtmosphereIntensityKey,
+        value.normalizedIntensity.toString(),
+      ),
+      _putAndWait(
+        _cityAtmosphereReduceMotionKey,
+        value.reduceMotion.toString(),
+      ),
+      _putAndWait(
+        _cityAtmospherePerformanceModeKey,
+        value.performanceMode.name,
+      ),
+    ]);
+  }
+
+  Future<void> _setCityAtmosphereSettings(CityAtmosphereSettings value) async {
+    final normalized = value.copyWith(
+      manualThemeId: CityThemePresets.byId(value.manualThemeId).id,
+      atmosphereIntensity: value.normalizedIntensity,
+    );
+    if (_cityAtmosphereSettings == normalized) return;
+    _cityAtmosphereSettings = normalized;
+    await _writeCityAtmosphereSettings(normalized);
+    notifyListeners();
   }
 
   Future<void> setAppThemeId(AppThemeId themeId) async {
     if (_appThemeId == themeId) return;
     _appThemeId = themeId;
-    await _box.put('appThemeId', themeId.name);
+    _put('appThemeId', themeId.name);
     notifyListeners();
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     if (_themeMode == mode) return;
     _themeMode = mode;
-    await _box.put('themeMode', mode.index);
+    _put('themeMode', mode.index.toString());
     notifyListeners();
   }
 
@@ -388,40 +514,40 @@ class SettingsService extends ChangeNotifier {
     final normalized = _normalizeDailyReadingGoalMinutes(minutes);
     if (_dailyReadingGoalMinutes == normalized) return;
     _dailyReadingGoalMinutes = normalized;
-    await _box.put(_dailyReadingGoalMinutesKey, normalized);
+    _put(_dailyReadingGoalMinutesKey, normalized.toString());
     notifyListeners();
   }
 
   Future<void> setUnknownColor(Color color) async {
     _colors.unknownColor = color;
-    await _box.put('unknownColor', color.toARGB32());
+    _put('unknownColor', color.toARGB32().toString());
     notifyListeners();
   }
 
   Future<void> setLearningColor(Color color) async {
     _colors.learningColor = color;
-    await _box.put('learningColor', color.toARGB32());
+    _put('learningColor', color.toARGB32().toString());
     notifyListeners();
   }
 
   Future<void> setKnownColor(Color color) async {
     _colors.knownColor = color;
-    await _box.put('knownColor', color.toARGB32());
+    _put('knownColor', color.toARGB32().toString());
     notifyListeners();
   }
 
   Future<void> setAIProvider(String providerId) async {
     _aiProviderId = AIProviders.byId(providerId).id;
-    await _box.put('aiProviderId', _aiProviderId);
+    _put('aiProviderId', _aiProviderId);
     notifyListeners();
   }
 
   Future<void> setApiKey(String key, {String? providerId}) async {
     final id = AIProviders.byId(providerId ?? _aiProviderId).id;
     _aiApiKeys = {..._aiApiKeys, id: key};
-    await _writeStringMap('aiApiKeys', _aiApiKeys);
+    _writeStringMap('aiApiKeys', _aiApiKeys);
     if (id == AIProviders.deepSeek.id) {
-      await _box.put('apiKey', key);
+      _put('apiKey', key);
     }
     notifyListeners();
   }
@@ -429,52 +555,52 @@ class SettingsService extends ChangeNotifier {
   Future<void> setAIBaseUrl(String baseUrl, {String? providerId}) async {
     final id = AIProviders.byId(providerId ?? _aiProviderId).id;
     _aiBaseUrls = {..._aiBaseUrls, id: baseUrl};
-    await _writeStringMap('aiBaseUrls', _aiBaseUrls);
+    _writeStringMap('aiBaseUrls', _aiBaseUrls);
     notifyListeners();
   }
 
   Future<void> setAIModel(String model, {String? providerId}) async {
     final id = AIProviders.byId(providerId ?? _aiProviderId).id;
     _aiModels = {..._aiModels, id: model};
-    await _writeStringMap('aiModels', _aiModels);
+    _writeStringMap('aiModels', _aiModels);
     notifyListeners();
   }
 
   Future<void> setBackupEnabled(bool enabled) async {
     _backupEnabled = enabled;
-    await _box.put('backupEnabled', enabled);
+    _put('backupEnabled', enabled.toString());
     notifyListeners();
   }
 
   Future<void> setIncludeSecretsInBackup(bool enabled) async {
     _includeSecretsInBackup = enabled;
-    await _box.put('includeSecretsInBackup', enabled);
+    _put('includeSecretsInBackup', enabled.toString());
     notifyListeners();
   }
 
   Future<void> setBackupFolderPath(String path, {String? bookmark}) async {
     _backupFolderPath = path;
     _backupFolderBookmark = bookmark ?? '';
-    await _box.put('backupFolderPath', path);
+    _put('backupFolderPath', path);
     if (_backupFolderBookmark.isEmpty) {
-      await _box.delete('backupFolderBookmark');
+      _remove('backupFolderBookmark');
     } else {
-      await _box.put('backupFolderBookmark', _backupFolderBookmark);
+      _put('backupFolderBookmark', _backupFolderBookmark);
     }
     notifyListeners();
   }
 
   Future<void> setBackupIntervalMinutes(int minutes) async {
     _backupIntervalMinutes = minutes.clamp(15, 60 * 24 * 7).toInt();
-    await _box.put('backupIntervalMinutes', _backupIntervalMinutes);
+    _put('backupIntervalMinutes', _backupIntervalMinutes.toString());
     notifyListeners();
   }
 
   Future<void> setLastBackup(DateTime at, String path) async {
     _lastBackupAt = at;
     _lastBackupPath = path;
-    await _box.put('lastBackupAt', at.toIso8601String());
-    await _box.put('lastBackupPath', path);
+    _put('lastBackupAt', at.toIso8601String());
+    _put('lastBackupPath', path);
     notifyListeners();
   }
 
@@ -484,7 +610,7 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> markReleaseNotesSeen(String version) async {
     _lastSeenReleaseNotesVersion = version;
-    await _box.put('lastSeenReleaseNotesVersion', version);
+    _put('lastSeenReleaseNotesVersion', version);
     notifyListeners();
   }
 
@@ -492,7 +618,7 @@ class SettingsService extends ChangeNotifier {
     final normalized = _normalizeLanguageSetting(code, fallback: 'en');
     if (_activeSourceLanguage == normalized) return;
     _activeSourceLanguage = normalized;
-    await _box.put(_activeSourceLanguageKey, normalized);
+    _put(_activeSourceLanguageKey, normalized);
     notifyListeners();
   }
 
@@ -500,7 +626,7 @@ class SettingsService extends ChangeNotifier {
     final normalized = _normalizeLanguageSetting(code, fallback: 'en');
     if (_activeSourceLanguage == normalized) return;
     _activeSourceLanguage = normalized;
-    unawaited(_box.put(_activeSourceLanguageKey, normalized));
+    _put(_activeSourceLanguageKey, normalized);
     notifyListeners();
   }
 
@@ -508,7 +634,7 @@ class SettingsService extends ChangeNotifier {
     final normalized = _normalizeLanguageSetting(code, fallback: 'zh');
     if (_targetExplanationLanguage == normalized) return;
     _targetExplanationLanguage = normalized;
-    await _box.put(_targetExplanationLanguageKey, normalized);
+    _put(_targetExplanationLanguageKey, normalized);
     notifyListeners();
   }
 
@@ -516,7 +642,7 @@ class SettingsService extends ChangeNotifier {
     final normalized = _normalizeLanguageSetting(code, fallback: 'zh');
     if (_targetExplanationLanguage == normalized) return;
     _targetExplanationLanguage = normalized;
-    unawaited(_box.put(_targetExplanationLanguageKey, normalized));
+    _put(_targetExplanationLanguageKey, normalized);
     notifyListeners();
   }
 
@@ -547,7 +673,7 @@ class SettingsService extends ChangeNotifier {
       next.remove(featureId);
     }
     _enabledExperimentalFeatures = next;
-    await _writeStringSet(
+    _writeStringSet(
       _enabledExperimentalFeaturesKey,
       _enabledExperimentalFeatures,
     );
@@ -569,8 +695,58 @@ class SettingsService extends ChangeNotifier {
   Future<void> setForceDefaultBookCover(bool enabled) async {
     if (_forceDefaultBookCover == enabled) return;
     _forceDefaultBookCover = enabled;
-    await _box.put(_forceDefaultBookCoverKey, enabled);
+    _put(_forceDefaultBookCoverKey, enabled.toString());
     notifyListeners();
+  }
+
+  Future<void> setCityAtmosphereEnabled(bool enabled) {
+    return _setCityAtmosphereSettings(
+      _cityAtmosphereSettings.copyWith(enabled: enabled),
+    );
+  }
+
+  Future<void> setCityThemeMode(CityThemeMode value) {
+    return _setCityAtmosphereSettings(
+      _cityAtmosphereSettings.copyWith(themeMode: value),
+    );
+  }
+
+  Future<void> setManualCityTheme(String themeId) {
+    return _setCityAtmosphereSettings(
+      _cityAtmosphereSettings.copyWith(
+        manualThemeId: CityThemePresets.byId(themeId).id,
+      ),
+    );
+  }
+
+  Future<void> setAtmosphereBlendMode(AtmosphereBlendMode value) {
+    return _setCityAtmosphereSettings(
+      _cityAtmosphereSettings.copyWith(blendMode: value),
+    );
+  }
+
+  Future<void> setManualAtmosphereScene(AtmosphereScene value) {
+    return _setCityAtmosphereSettings(
+      _cityAtmosphereSettings.copyWith(manualScene: value),
+    );
+  }
+
+  Future<void> setAtmosphereIntensity(double value) {
+    return _setCityAtmosphereSettings(
+      _cityAtmosphereSettings.copyWith(atmosphereIntensity: value),
+    );
+  }
+
+  Future<void> setReduceAtmosphereMotion(bool value) {
+    return _setCityAtmosphereSettings(
+      _cityAtmosphereSettings.copyWith(reduceMotion: value),
+    );
+  }
+
+  Future<void> setAtmospherePerformanceMode(AtmospherePerformanceMode value) {
+    return _setCityAtmosphereSettings(
+      _cityAtmosphereSettings.copyWith(performanceMode: value),
+    );
   }
 
   Future<void> setDictionarySourceEnabled(
@@ -625,35 +801,33 @@ class SettingsService extends ChangeNotifier {
   }) async {
     if (chapterSummary) {
       _aiUsage.chapterSummaryCount++;
-      await _box.put('aiChapterSummaryCount', _aiUsage.chapterSummaryCount);
+      _put('aiChapterSummaryCount', _aiUsage.chapterSummaryCount.toString());
     }
     if (textAnalysis) {
       _aiUsage.textAnalysisCount++;
-      await _box.put('aiTextAnalysisCount', _aiUsage.textAnalysisCount);
+      _put('aiTextAnalysisCount', _aiUsage.textAnalysisCount.toString());
     }
     if (practice) {
       _aiUsage.practiceCount++;
-      await _box.put('aiPracticeCount', _aiUsage.practiceCount);
+      _put('aiPracticeCount', _aiUsage.practiceCount.toString());
     }
     if (wordAnalysis) {
       _aiUsage.wordAnalysisCount++;
-      await _box.put('aiWordAnalysisCount', _aiUsage.wordAnalysisCount);
+      _put('aiWordAnalysisCount', _aiUsage.wordAnalysisCount.toString());
     }
     notifyListeners();
   }
 
   Future<void> clearAIUsage() async {
     _aiUsage = AIUsageStats();
-    await _box.put('aiChapterSummaryCount', 0);
-    await _box.put('aiTextAnalysisCount', 0);
-    await _box.put('aiPracticeCount', 0);
-    await _box.put('aiWordAnalysisCount', 0);
+    _put('aiChapterSummaryCount', '0');
+    _put('aiTextAnalysisCount', '0');
+    _put('aiPracticeCount', '0');
+    _put('aiWordAnalysisCount', '0');
     notifyListeners();
   }
 
-  Future<void> close() async {
-    await _box.close();
-  }
+  Future<void> close() async {}
 
   int _normalizeDailyReadingGoalMinutes(Object? raw) {
     int minutes;

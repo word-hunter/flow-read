@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/dao/settings_dao.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
@@ -20,7 +22,8 @@ void main() {
   test(
     'daily reading goal persists and normalizes to supported steps',
     () async {
-      final settings = SettingsService();
+      final db = await AppDatabase.createInMemory();
+      final settings = SettingsService(SettingsDao(db));
       await settings.init();
 
       expect(
@@ -32,7 +35,7 @@ void main() {
       await settings.setDailyReadingGoalMinutes(95);
       expect(settings.dailyReadingGoalMinutes, 90);
 
-      final reloaded = SettingsService();
+      final reloaded = SettingsService(SettingsDao(db));
       await reloaded.init();
       expect(reloaded.dailyReadingGoalMinutes, 90);
 
@@ -51,7 +54,8 @@ void main() {
   );
 
   test('backup interval defaults to one day and persists changes', () async {
-    final settings = SettingsService();
+    final db = await AppDatabase.createInMemory();
+    final settings = SettingsService(SettingsDao(db));
     await settings.init();
 
     expect(
@@ -62,7 +66,7 @@ void main() {
     await settings.setBackupIntervalMinutes(360);
     expect(settings.backupIntervalMinutes, 360);
 
-    final reloaded = SettingsService();
+    final reloaded = SettingsService(SettingsDao(db));
     await reloaded.init();
     expect(reloaded.backupIntervalMinutes, 360);
   });
