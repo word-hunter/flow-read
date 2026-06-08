@@ -1,18 +1,25 @@
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/book_metadata.dart';
-import '../models/book_glossary_entry.dart';
+import '../models/book_glossary_entry.dart' as hive_models;
 import '../models/bookmarked_word.dart';
 import '../models/learning_item.dart';
 import '../models/reading_bookmark.dart';
 import '../models/reading_config.dart';
 import '../models/rss_models.dart';
 import '../models/word_level.dart';
+import '../services/app_logger.dart';
 import 'package:flow_language/english/english.dart';
 import 'package:flow_language/flow_language.dart';
+import 'database/app_database.dart';
+import 'database/migration.dart';
 import 'hive_box_names.dart';
 import 'hive_type_ids.dart';
 import 'storage_migrations.dart';
+
+AppDatabase? _appDatabase;
+
+AppDatabase? get appDatabase => _appDatabase;
 
 Future<void> bootstrapStorage() async {
   await Hive.initFlutter();
@@ -20,6 +27,31 @@ Future<void> bootstrapStorage() async {
   registerFlowReadLanguageModules();
   await openFlowReadHiveBoxes();
   await runStorageMigrations();
+  await _bootstrapDatabase();
+}
+
+Future<void> _bootstrapDatabase() async {
+  try {
+    final db = await AppDatabase.create();
+    _appDatabase = db;
+
+    final activeLang = _activeSourceLanguageCode();
+    final migration = HiveToDriftMigration(db);
+    await migration.migrateAll(activeLang);
+
+    AppLogger.instance.event(
+      'database.migration_succeeded',
+      source: 'storage',
+    );
+  } catch (error, stackTrace) {
+    AppLogger.instance.event(
+      'database.migration_failed',
+      level: AppLogLevel.warning,
+      source: 'storage',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
 }
 
 void registerFlowReadHiveAdapters() {
@@ -35,7 +67,7 @@ void registerFlowReadHiveAdapters() {
   _registerHiveAdapter(HiveTypeIds.learningItem, LearningItemAdapter());
   _registerHiveAdapter(
     HiveTypeIds.bookGlossaryEntry,
-    BookGlossaryEntryAdapter(),
+    hive_models.BookGlossaryEntryAdapter(),
   );
 }
 
@@ -65,7 +97,7 @@ Future<void> openFlowReadHiveBoxes() async {
     Hive.openBox<WordLevelInfo>(HiveBoxNames.wordLevels),
     Hive.openBox<String>(HiveBoxNames.dictionaryCacheFor(languageCode)),
     Hive.openBox<RssFeedSubscription>(HiveBoxNames.rssSubscriptions),
-    Hive.openBox<BookGlossaryEntry>(HiveBoxNames.bookGlossary),
+    Hive.openBox<hive_models.BookGlossaryEntry>(HiveBoxNames.bookGlossary),
     Hive.openBox<String>(HiveBoxNames.characterRegistry),
     Hive.openBox<String>(HiveBoxNames.wordContextsFor(languageCode)),
     Hive.openBox<LearningItem>(HiveBoxNames.learningItemsFor(languageCode)),

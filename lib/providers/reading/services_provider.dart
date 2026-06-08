@@ -31,6 +31,7 @@ import '../../services/word_context_service.dart';
 import '../../services/word_level_service.dart';
 import '../../storage/database/app_database.dart';
 import '../../storage/database/dao/book_glossary_dao.dart';
+import '../../storage/hive_storage.dart';
 import '../settings_provider.dart';
 
 final bookCacheProvider = Provider<BookCache>((ref) => BookCache());
@@ -153,8 +154,9 @@ final aiActionControllerProvider = Provider<AIActionController>((ref) {
   return controller;
 });
 
-final appDatabaseProvider = FutureProvider<AppDatabase>((ref) {
-  return AppDatabase.create();
+final appDatabaseProvider = FutureProvider<AppDatabase>((ref) async {
+  final existing = appDatabase;
+  return existing ?? AppDatabase.create();
 });
 
 final bookGlossaryDaoProvider = Provider<BookGlossaryDao>((ref) {
