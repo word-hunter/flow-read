@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 
 import '../models/ai_action_result.dart';
 import '../models/ai_assistant_action.dart';
@@ -6,7 +7,7 @@ import '../models/ai_context_snapshot.dart';
 import '../models/ai_summary.dart';
 import '../models/word_analysis.dart';
 import '../services/ai_assistant_controller.dart';
-class AIAssistantPanel extends StatelessWidget {
+class AIAssistantPanel extends HookWidget {
   const AIAssistantPanel({
     super.key,
     required this.controller,
@@ -20,20 +21,16 @@ class AIAssistantPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final snapshot = controller.currentContext;
-        if (snapshot == null) {
-          return _EmptyPanel(embedded: embedded, onClose: onClose);
-        }
-        return _ActivePanel(
-          controller: controller,
-          snapshot: snapshot,
-          embedded: embedded,
-          onClose: onClose,
-        );
-      },
+    useListenable(controller);
+    final snapshot = controller.currentContext;
+    if (snapshot == null) {
+      return _EmptyPanel(embedded: embedded, onClose: onClose);
+    }
+    return _ActivePanel(
+      controller: controller,
+      snapshot: snapshot,
+      embedded: embedded,
+      onClose: onClose,
     );
   }
 }
@@ -374,7 +371,7 @@ class _ActionStrip extends StatelessWidget {
   }
 }
 
-class _ResultArea extends StatelessWidget {
+class _ResultArea extends HookWidget {
   const _ResultArea({
     required this.actionController,
     this.onRetry,
@@ -385,21 +382,68 @@ class _ResultArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: actionController,
-      builder: (context, _) {
-        if (actionController.isBusy) {
-          return _buildLoading(context);
-        }
-        final result = actionController.lastResult;
-        if (result == null) {
-          return _buildIdle(context);
-        }
-        if (result is AIErrorResult) {
-          return _buildError(context, result);
-        }
-        return _buildResult(context, result);
-      },
+    useListenable(actionController);
+
+    if (actionController.isBusy) {
+      final stream = actionController.stream;
+      if (stream != null) {
+        return _buildStreaming(context, stream);
+      }
+      return _buildLoading(context);
+    }
+    final result = actionController.lastResult;
+    if (result == null) {
+      return _buildIdle(context);
+    }
+    if (result is AIErrorResult) {
+      return _buildError(context, result);
+    }
+    return _buildResult(context, result);
+  }
+
+  Widget _buildStreaming(BuildContext context, Stream<String> stream) {
+    final chunks = useState(<String>[]);
+
+    useEffect(() {
+      final subscription = stream.listen((chunk) {
+        chunks.value = [...chunks.value, chunk];
+      });
+      return subscription.cancel;
+    }, [stream]);
+
+    final theme = Theme.of(context);
+    final text = chunks.value.join();
+    if (text.isEmpty) {
+      return _buildLoading(context);
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _actionLabel(actionController.currentAction),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(text, style: theme.textTheme.bodySmall),
+        ],
+      ),
     );
   }
 
@@ -472,6 +516,9 @@ class _ResultArea extends StatelessWidget {
   }
 
   Widget _buildResult(BuildContext context, AIActionResult result) {
+    if (result is AIStreamingProgress) {
+      return _BuildStreamingResult(chunk: result.chunk, progress: result.progress);
+    }
     if (result is AISummaryResult) {
       return _SummaryView(summary: result.summary);
     }
@@ -780,54 +827,44 @@ class _ArticleQAView extends StatelessWidget {
   }
 }
 
-class _FollowUpInput extends StatefulWidget {
+class _FollowUpInput extends HookWidget {
   const _FollowUpInput({required this.busy, this.onSubmit});
 
   final bool busy;
   final ValueChanged<String>? onSubmit;
 
   @override
-  State<_FollowUpInput> createState() => _FollowUpInputState();
-}
-
-class _FollowUpInputState extends State<_FollowUpInput> {
-  final _controller = TextEditingController();
-  bool _hasText = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.addListener(() {
-      final hasText = _controller.text.trim().isNotEmpty;
-      if (hasText != _hasText) {
-        setState(() => _hasText = hasText);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final text = _controller.text.trim();
-    if (text.isEmpty || widget.busy) return;
-    widget.onSubmit?.call(text);
-    _controller.clear();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final controller = useTextEditingController();
+    final hasText = useState(false);
+
+    useEffect(() {
+      void listener() {
+        final next = controller.text.trim().isNotEmpty;
+        if (next != hasText.value) {
+          hasText.value = next;
+        }
+      }
+
+      controller.addListener(listener);
+      return () => controller.removeListener(listener);
+    }, [controller]);
+
+    void submit() {
+      final text = controller.text.trim();
+      if (text.isEmpty || busy) return;
+      onSubmit?.call(text);
+      controller.clear();
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
           Expanded(
             child: TextField(
-              controller: _controller,
-              enabled: !widget.busy,
+              controller: controller,
+              enabled: !busy,
               decoration: const InputDecoration(
                 hintText: '追问...',
                 border: InputBorder.none,
@@ -836,12 +873,12 @@ class _FollowUpInputState extends State<_FollowUpInput> {
               ),
               style: Theme.of(context).textTheme.bodySmall,
               textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _submit(),
+              onSubmitted: (_) => submit(),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.send, size: 20),
-            onPressed: widget.busy || !_hasText ? null : _submit,
+            onPressed: busy || !hasText.value ? null : submit,
             visualDensity: VisualDensity.compact,
           ),
         ],
@@ -872,6 +909,29 @@ class _ScopeIndicator extends StatelessWidget {
               color: theme.colorScheme.outline,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BuildStreamingResult extends StatelessWidget {
+  const _BuildStreamingResult({required this.chunk, required this.progress});
+
+  final String chunk;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LinearProgressIndicator(value: progress.clamp(0.0, 1.0)),
+          const SizedBox(height: 8),
+          Text(chunk, style: theme.textTheme.bodySmall),
         ],
       ),
     );

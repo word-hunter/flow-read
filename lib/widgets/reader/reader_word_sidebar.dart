@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
+import '../../models/ai_context_snapshot.dart';
 import '../../models/user_vocabulary.dart';
 import '../../providers/reading/ai_notifier.dart';
 import '../../providers/reading/bookmark_notifier.dart';
@@ -10,15 +11,15 @@ import '../../providers/settings_provider.dart';
 import '../../services/settings_service.dart';
 import '../../theme/app_colors.dart';
 import '../dictionary_detail_view.dart';
-import '../pronunciation_button.dart';
 import '../word_mastery_confetti.dart';
 
 enum _WordAction { known, learning }
 
 class ReaderWordSidebar extends riverpod.ConsumerStatefulWidget {
   final VoidCallback? onClose;
+  final VoidCallback? onOpenAssistant;
 
-  const ReaderWordSidebar({super.key, this.onClose});
+  const ReaderWordSidebar({super.key, this.onClose, this.onOpenAssistant});
 
   @override
   riverpod.ConsumerState<ReaderWordSidebar> createState() =>
@@ -27,7 +28,6 @@ class ReaderWordSidebar extends riverpod.ConsumerStatefulWidget {
 
 class _ReaderWordSidebarState
     extends riverpod.ConsumerState<ReaderWordSidebar> {
-  bool _showAIAnalysis = false;
   String? _previousWord;
 
   @override
@@ -44,7 +44,6 @@ class _ReaderWordSidebarState
 
     if (word != _previousWord) {
       _previousWord = word;
-      _showAIAnalysis = false;
     }
 
     return Container(
@@ -254,66 +253,42 @@ class _ReaderWordSidebarState
           contextText: lookupState.selectedWordContext,
           contextWordStart: lookupState.selectedWordContextStart,
           contextWordEnd: lookupState.selectedWordContextEnd,
-          trailing: _buildAIContextAction(lookupState, lookupNotifier, settings, theme, word),
+          trailing: _buildAIContextAction(lookupState, settings, theme, word),
         ),
-        if (_showAIAnalysis) ...[
-          const SizedBox(height: 10),
-          _buildAIAnalysisContent(lookupState, lookupNotifier, theme, word),
-        ],
       ],
     );
   }
 
   Widget _buildAIContextAction(
     WordLookupState lookupState,
-    WordLookupNotifier lookupNotifier,
     SettingsService settings,
     ThemeData theme,
     String word,
   ) {
     final aiNotifier = ref.read(aiNotifierProvider.notifier);
     final canToggleAIAnalysis =
-        _showAIAnalysis ||
-        (settings.aiFeaturesEnabled && aiNotifier.aiFeaturesEnabled);
+        settings.aiFeaturesEnabled && aiNotifier.aiFeaturesEnabled;
     final disabledReason = settings.aiFeaturesEnabled
         ? aiNotifier.aiFeatureDisabledReason
         : settings.aiFeatureDisabledReason;
     return IconButton(
-      tooltip: _showAIAnalysis
-          ? '收起 AI 详解'
-          : canToggleAIAnalysis
-          ? 'AI 详解语境'
-          : disabledReason,
-      onPressed: lookupState.isAnalyzingWord && !_showAIAnalysis
-          ? null
-          : canToggleAIAnalysis
+      tooltip: canToggleAIAnalysis ? 'AI 详解语境' : disabledReason,
+      onPressed: canToggleAIAnalysis
           ? () {
-              setState(() => _showAIAnalysis = !_showAIAnalysis);
-              if (_showAIAnalysis) {
-                lookupNotifier.setAnalyzingWord(true);
-                ref.read(aiNotifierProvider.notifier).analyzeWordAI(word, _analysisContext(lookupState, word))
-                    .whenComplete(() {
-                      if (mounted) {
-                        lookupNotifier.setAIWordAnalysis(ref.read(aiNotifierProvider).aiWordAnalysis);
-                        lookupNotifier.setAnalyzingWord(false);
-                      }
-                    });
-              }
+              final assistant = ref.read(aiAssistantControllerProvider);
+              assistant.setContext(
+                AIContextSnapshot(
+                  source: AIContextSource.readerWord,
+                  word: word,
+                  wordSentence: _analysisContext(lookupState, word),
+                ),
+              );
+              widget.onOpenAssistant?.call();
             }
           : null,
-      icon: Icon(
-        _showAIAnalysis ? Icons.auto_awesome : Icons.auto_awesome_outlined,
-        size: 20,
-      ),
-      color: _showAIAnalysis
-          ? AppColors.vocabLearning
-          : theme.colorScheme.onSurfaceVariant,
-      selectedIcon: const Icon(Icons.auto_awesome, size: 20),
-      isSelected: _showAIAnalysis,
+      icon: const Icon(Icons.auto_awesome_outlined, size: 20),
+      color: theme.colorScheme.onSurfaceVariant,
       style: IconButton.styleFrom(
-        backgroundColor: _showAIAnalysis
-            ? AppColors.vocabLearning.withValues(alpha: 0.10)
-            : null,
         hoverColor: AppColors.vocabLearning.withValues(alpha: 0.10),
         disabledForegroundColor: theme.colorScheme.onSurfaceVariant.withValues(
           alpha: 0.35,
@@ -468,165 +443,4 @@ class _ReaderWordSidebarState
     return lookupState.selectedWordTranslation ?? word;
   }
 
-  Widget _buildAIAnalysisContent(
-    WordLookupState lookupState,
-    WordLookupNotifier lookupNotifier,
-    ThemeData theme,
-    String word,
-  ) {
-    if (lookupState.isAnalyzingWord) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(12),
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    }
-
-    final analysis = lookupState.aiWordAnalysis;
-    if (analysis == null || analysis.isEmpty) {
-      return Text(
-        '尚未生成 AI 详解',
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.vocabLearning.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.vocabLearning.withValues(alpha: 0.15),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (analysis.pronunciation.isNotEmpty) ...[
-            Row(
-              children: [
-                if (true)
-                  PronunciationButton(
-                    word: word,
-                    onSpeakWord: lookupNotifier.speakWord,
-                    buttonSize: 28,
-                    iconSize: 16,
-                  ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: DictionaryPhoneticText(
-                    text: analysis.pronunciation,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-          ],
-          ...analysis.meanings.map(
-            (m) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    m.meaning,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  if (m.explanation.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      m.explanation,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          if (analysis.usageTips.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              '用法提示',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.vocabLearning,
-              ),
-            ),
-            const SizedBox(height: 4),
-            ...analysis.usageTips.map(
-              (tip) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '• ',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppColors.vocabLearning,
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        tip,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          if (analysis.memoryTip.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.tertiaryContainer.withValues(
-                  alpha: 0.3,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.lightbulb,
-                    size: 16,
-                    color: theme.colorScheme.tertiary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      analysis.memoryTip,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onTertiaryContainer,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }

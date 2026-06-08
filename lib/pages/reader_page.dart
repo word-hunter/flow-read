@@ -19,6 +19,7 @@ import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
+import '../services/ai_assistant_controller.dart';
 import '../theme/app_constants.dart';
 import '../widgets/ai_assistant_panel.dart';
 import '../widgets/bookmark_sheet.dart';
@@ -126,7 +127,13 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (_) => WordBottomSheet(word: surface),
-      ).whenComplete(lookupNotifier.clearWordLookup);
+      ).whenComplete(() {
+        lookupNotifier.clearWordLookup();
+        final assistant = ref.read(aiAssistantControllerProvider);
+        if (!assistant.isEmpty) {
+          _openAssistantPanel(assistant);
+        }
+      });
     }
   }
 
@@ -164,6 +171,30 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       return;
     }
 
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollController) => AIAssistantPanel(
+          controller: assistant,
+        ),
+      ),
+    );
+  }
+
+  void _openAssistantPanel(AIAssistantController assistant) {
+    if (_isWideScreen) {
+      setState(() {
+        _sidebarMode = _ReaderSidebarMode.assistant;
+        _sidebarOpen = true;
+      });
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -615,6 +646,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         onClose: () {
           ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
           setState(() => _sidebarOpen = false);
+        },
+        onOpenAssistant: () {
+          setState(() => _sidebarMode = _ReaderSidebarMode.assistant);
         },
       ),
       _ReaderSidebarMode.textAnalysis => SelectedTextSheet(
