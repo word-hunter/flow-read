@@ -1,11 +1,11 @@
 import 'package:drift/drift.dart';
 
-const _emptyStr = '';
-const _defaultLang = 'en';
-const _zeroInt = 0;
-const _zeroReal = 0.0;
+const kEmptyStr = '';
+const kDefaultLang = 'en';
+const kZeroInt = 0;
+const kZeroReal = 0.0;
 
-String _nowIso() => DateTime.now().toUtc().toIso8601String();
+String nowIso() => DateTime.now().toUtc().toIso8601String();
 
 // ---------------------------------------------------------------------------
 // Table 1: books
@@ -20,27 +20,27 @@ String _nowIso() => DateTime.now().toUtc().toIso8601String();
 class BookEntries extends Table {
   TextColumn get id => text()();
 
-  TextColumn get language => text().withDefault(const Constant(_defaultLang))();
+  TextColumn get language => text().withDefault(const Constant(kDefaultLang))();
 
   TextColumn get title => text()();
 
-  TextColumn get author => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get author => text().withDefault(const Constant(kEmptyStr))();
 
   TextColumn get sourcePath => text().named('source_path')();
 
   TextColumn get coverPath => text().named('cover_path').nullable()();
 
   IntColumn get totalChapters =>
-      integer().named('total_chapters').withDefault(const Constant(_zeroInt))();
+      integer().named('total_chapters').withDefault(const Constant(kZeroInt))();
 
   RealColumn get globalProgress =>
-      real().named('global_progress').withDefault(const Constant(_zeroReal))();
+      real().named('global_progress').withDefault(const Constant(kZeroReal))();
 
   IntColumn get currentChapter =>
-      integer().named('current_chapter').withDefault(const Constant(_zeroInt))();
+      integer().named('current_chapter').withDefault(const Constant(kZeroInt))();
 
   RealColumn get chapterProgress =>
-      real().named('chapter_progress').withDefault(const Constant(_zeroReal))();
+      real().named('chapter_progress').withDefault(const Constant(kZeroReal))();
 
   TextColumn get lastReadAt => text().named('last_read_at').nullable()();
 
@@ -50,7 +50,7 @@ class BookEntries extends Table {
   TextColumn get sourceLanguage =>
       text()
           .named('source_language')
-          .withDefault(const Constant(_defaultLang))();
+          .withDefault(const Constant(kDefaultLang))();
 
   TextColumn get sourceLanguageOverride =>
       text().named('source_language_override').nullable()();
@@ -74,10 +74,10 @@ class BookEntries extends Table {
       text().named('difficulty_computed_at').nullable()();
 
   TextColumn get createdAt =>
-      text().named('created_at').clientDefault(_nowIso)();
+      text().named('created_at').clientDefault(nowIso)();
 
   TextColumn get updatedAt =>
-      text().named('updated_at').clientDefault(_nowIso)();
+      text().named('updated_at').clientDefault(nowIso)();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -96,17 +96,17 @@ class BookEntries extends Table {
 class UserVocabularies extends Table {
   TextColumn get id => text()();
 
-  TextColumn get language => text().withDefault(const Constant(_defaultLang))();
+  TextColumn get language => text().withDefault(const Constant(kDefaultLang))();
 
   TextColumn get canonical => text()();
 
   TextColumn get status => text()();
 
   TextColumn get createdAt =>
-      text().named('created_at').clientDefault(_nowIso)();
+      text().named('created_at').clientDefault(nowIso)();
 
   TextColumn get lastModifiedAt =>
-      text().named('last_modified_at').clientDefault(_nowIso)();
+      text().named('last_modified_at').clientDefault(nowIso)();
 
   TextColumn get sourceBookId => text().named('source_book_id').nullable()();
 
@@ -136,18 +136,18 @@ class UserVocabularies extends Table {
 class WordBookmarks extends Table {
   TextColumn get id => text()();
 
-  TextColumn get language => text().withDefault(const Constant(_defaultLang))();
+  TextColumn get language => text().withDefault(const Constant(kDefaultLang))();
 
   TextColumn get bookId => text().named('book_id')();
 
   TextColumn get word => text()();
 
-  TextColumn get translation => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get translation => text().withDefault(const Constant(kEmptyStr))();
 
-  TextColumn get context => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get context => text().withDefault(const Constant(kEmptyStr))();
 
   TextColumn get addedAt =>
-      text().named('added_at').clientDefault(_nowIso)();
+      text().named('added_at').clientDefault(nowIso)();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -167,7 +167,7 @@ class WordBookmarks extends Table {
 class ReadingBookmarks extends Table {
   TextColumn get id => text()();
 
-  TextColumn get language => text().withDefault(const Constant(_defaultLang))();
+  TextColumn get language => text().withDefault(const Constant(kDefaultLang))();
 
   TextColumn get bookId => text().named('book_id')();
 
@@ -176,12 +176,12 @@ class ReadingBookmarks extends Table {
   RealColumn get progress => real()();
 
   TextColumn get chapterTitle =>
-      text().named('chapter_title').withDefault(const Constant(_emptyStr))();
+      text().named('chapter_title').withDefault(const Constant(kEmptyStr))();
 
-  TextColumn get excerpt => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get excerpt => text().withDefault(const Constant(kEmptyStr))();
 
   TextColumn get createdAt =>
-      text().named('created_at').clientDefault(_nowIso)();
+      text().named('created_at').clientDefault(nowIso)();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -200,9 +200,9 @@ class ReadingBookmarks extends Table {
 class ReadingConfig extends Table {
   TextColumn get key => text()();
 
-  TextColumn get language => text().withDefault(const Constant(_defaultLang))();
+  TextColumn get language => text().withDefault(const Constant(kDefaultLang))();
 
-  TextColumn get value => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get value => text().withDefault(const Constant(kEmptyStr))();
 
   @override
   Set<Column> get primaryKey => {key, language};
@@ -216,9 +216,9 @@ class ReadingConfig extends Table {
 class ReadingTime extends Table {
   TextColumn get key => text()();
 
-  TextColumn get language => text().withDefault(const Constant(_defaultLang))();
+  TextColumn get language => text().withDefault(const Constant(kDefaultLang))();
 
-  IntColumn get seconds => integer().withDefault(const Constant(_zeroInt))();
+  IntColumn get seconds => integer().withDefault(const Constant(kZeroInt))();
 
   @override
   Set<Column> get primaryKey => {key, language};
@@ -232,12 +232,12 @@ class ReadingTime extends Table {
 class DictionaryCache extends Table {
   TextColumn get key => text()();
 
-  TextColumn get language => text().withDefault(const Constant(_defaultLang))();
+  TextColumn get language => text().withDefault(const Constant(kDefaultLang))();
 
   TextColumn get value => text()();
 
   TextColumn get createdAt =>
-      text().named('created_at').clientDefault(_nowIso)();
+      text().named('created_at').clientDefault(nowIso)();
 
   @override
   Set<Column> get primaryKey => {key, language};
@@ -251,12 +251,12 @@ class DictionaryCache extends Table {
 class WordContexts extends Table {
   TextColumn get word => text()();
 
-  TextColumn get language => text().withDefault(const Constant(_defaultLang))();
+  TextColumn get language => text().withDefault(const Constant(kDefaultLang))();
 
   TextColumn get data => text()();
 
   TextColumn get createdAt =>
-      text().named('created_at').clientDefault(_nowIso)();
+      text().named('created_at').clientDefault(nowIso)();
 
   @override
   Set<Column> get primaryKey => {word, language};
@@ -274,32 +274,32 @@ class WordContexts extends Table {
 class LearningItems extends Table {
   TextColumn get id => text()();
 
-  TextColumn get language => text().withDefault(const Constant(_defaultLang))();
+  TextColumn get language => text().withDefault(const Constant(kDefaultLang))();
 
   TextColumn get type => text()();
 
   TextColumn get canonicalKey =>
-      text().named('canonical_key').withDefault(const Constant(_emptyStr))();
+      text().named('canonical_key').withDefault(const Constant(kEmptyStr))();
 
-  TextColumn get title => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get title => text().withDefault(const Constant(kEmptyStr))();
 
-  TextColumn get content => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get content => text().withDefault(const Constant(kEmptyStr))();
 
-  TextColumn get answer => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get answer => text().withDefault(const Constant(kEmptyStr))();
 
-  TextColumn get note => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get note => text().withDefault(const Constant(kEmptyStr))();
 
   TextColumn get sourceText =>
-      text().named('source_text').withDefault(const Constant(_emptyStr))();
+      text().named('source_text').withDefault(const Constant(kEmptyStr))();
 
   TextColumn get bookId =>
-      text().named('book_id').withDefault(const Constant(_emptyStr))();
+      text().named('book_id').withDefault(const Constant(kEmptyStr))();
 
   IntColumn get chapterIndex =>
-      integer().named('chapter_index').withDefault(const Constant(_zeroInt))();
+      integer().named('chapter_index').withDefault(const Constant(kZeroInt))();
 
   TextColumn get chapterTitle =>
-      text().named('chapter_title').withDefault(const Constant(_emptyStr))();
+      text().named('chapter_title').withDefault(const Constant(kEmptyStr))();
 
   TextColumn get tags => text().withDefault(const Constant('[]'))();
 
@@ -308,7 +308,7 @@ class LearningItems extends Table {
   TextColumn get nextReviewAt => text().named('next_review_at')();
 
   IntColumn get reviewCount =>
-      integer().named('review_count').withDefault(const Constant(_zeroInt))();
+      integer().named('review_count').withDefault(const Constant(kZeroInt))();
 
   TextColumn get lastResult =>
       text()
@@ -316,10 +316,10 @@ class LearningItems extends Table {
           .withDefault(const Constant('newItem'))();
 
   TextColumn get createdAt =>
-      text().named('created_at').clientDefault(_nowIso)();
+      text().named('created_at').clientDefault(nowIso)();
 
   TextColumn get updatedAt =>
-      text().named('updated_at').clientDefault(_nowIso)();
+      text().named('updated_at').clientDefault(nowIso)();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -341,9 +341,9 @@ class LearningItems extends Table {
 class LearningAnalytics extends Table {
   TextColumn get key => text()();
 
-  TextColumn get language => text().withDefault(const Constant(_defaultLang))();
+  TextColumn get language => text().withDefault(const Constant(kDefaultLang))();
 
-  IntColumn get value => integer().withDefault(const Constant(_zeroInt))();
+  IntColumn get value => integer().withDefault(const Constant(kZeroInt))();
 
   @override
   Set<Column> get primaryKey => {key, language};
@@ -359,7 +359,7 @@ class WordLevels extends Table {
   TextColumn get word => text()();
 
   TextColumn get originForm =>
-      text().named('origin_form').withDefault(const Constant(_emptyStr))();
+      text().named('origin_form').withDefault(const Constant(kEmptyStr))();
 
   IntColumn get levelIndex => integer().named('level_index')();
 
@@ -383,7 +383,7 @@ class RssSubscriptions extends Table {
 
   TextColumn get url => text()();
 
-  TextColumn get title => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get title => text().withDefault(const Constant(kEmptyStr))();
 
   TextColumn get description => text().nullable()();
 
@@ -392,7 +392,7 @@ class RssSubscriptions extends Table {
   TextColumn get lastFetchedAt => text().named('last_fetched_at').nullable()();
 
   TextColumn get createdAt =>
-      text().named('created_at').clientDefault(_nowIso)();
+      text().named('created_at').clientDefault(nowIso)();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -415,7 +415,7 @@ class RssArticles extends Table {
   TextColumn get feedUrl => text().named('feed_url')();
 
   TextColumn get feedTitle =>
-      text().named('feed_title').withDefault(const Constant(_emptyStr))();
+      text().named('feed_title').withDefault(const Constant(kEmptyStr))();
 
   TextColumn get title => text()();
 
@@ -441,7 +441,7 @@ class RssArticles extends Table {
   BoolColumn get isReadLater => boolean().named('is_read_later')();
 
   TextColumn get createdAt =>
-      text().named('created_at').clientDefault(_nowIso)();
+      text().named('created_at').clientDefault(nowIso)();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -469,13 +469,13 @@ class BookGlossary extends Table {
 
   TextColumn get canonicalForm => text().named('canonical_form').nullable()();
 
-  TextColumn get explanation => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get explanation => text().withDefault(const Constant(kEmptyStr))();
 
   TextColumn get sourceContext =>
       text().named('source_context').nullable()();
 
   TextColumn get createdAt =>
-      text().named('created_at').clientDefault(_nowIso)();
+      text().named('created_at').clientDefault(nowIso)();
 
   TextColumn get lastAccessedAt =>
       text().named('last_accessed_at').nullable()();
@@ -497,7 +497,7 @@ class BookGlossary extends Table {
 class CharacterRegistry extends Table {
   TextColumn get key => text()();
 
-  TextColumn get value => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get value => text().withDefault(const Constant(kEmptyStr))();
 
   @override
   Set<Column> get primaryKey => {key};
@@ -511,7 +511,7 @@ class CharacterRegistry extends Table {
 class Settings extends Table {
   TextColumn get key => text()();
 
-  TextColumn get value => text().withDefault(const Constant(_emptyStr))();
+  TextColumn get value => text().withDefault(const Constant(kEmptyStr))();
 
   @override
   Set<Column> get primaryKey => {key};

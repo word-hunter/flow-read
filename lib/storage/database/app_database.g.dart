@@ -28,7 +28,7 @@ class $BookEntriesTable extends BookEntries
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_defaultLang),
+    defaultValue: const Constant(kDefaultLang),
   );
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
@@ -47,7 +47,7 @@ class $BookEntriesTable extends BookEntries
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _sourcePathMeta = const VerificationMeta(
     'sourcePath',
@@ -81,7 +81,7 @@ class $BookEntriesTable extends BookEntries
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_zeroInt),
+    defaultValue: const Constant(kZeroInt),
   );
   static const VerificationMeta _globalProgressMeta = const VerificationMeta(
     'globalProgress',
@@ -93,7 +93,7 @@ class $BookEntriesTable extends BookEntries
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_zeroReal),
+    defaultValue: const Constant(kZeroReal),
   );
   static const VerificationMeta _currentChapterMeta = const VerificationMeta(
     'currentChapter',
@@ -105,7 +105,7 @@ class $BookEntriesTable extends BookEntries
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_zeroInt),
+    defaultValue: const Constant(kZeroInt),
   );
   static const VerificationMeta _chapterProgressMeta = const VerificationMeta(
     'chapterProgress',
@@ -117,7 +117,7 @@ class $BookEntriesTable extends BookEntries
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_zeroReal),
+    defaultValue: const Constant(kZeroReal),
   );
   static const VerificationMeta _lastReadAtMeta = const VerificationMeta(
     'lastReadAt',
@@ -151,7 +151,7 @@ class $BookEntriesTable extends BookEntries
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_defaultLang),
+    defaultValue: const Constant(kDefaultLang),
   );
   static const VerificationMeta _sourceLanguageOverrideMeta =
       const VerificationMeta('sourceLanguageOverride');
@@ -240,7 +240,7 @@ class $BookEntriesTable extends BookEntries
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
@@ -252,7 +252,7 @@ class $BookEntriesTable extends BookEntries
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -1347,7 +1347,7 @@ class $UserVocabulariesTable extends UserVocabularies
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_defaultLang),
+    defaultValue: const Constant(kDefaultLang),
   );
   static const VerificationMeta _canonicalMeta = const VerificationMeta(
     'canonical',
@@ -1379,7 +1379,7 @@ class $UserVocabulariesTable extends UserVocabularies
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   static const VerificationMeta _lastModifiedAtMeta = const VerificationMeta(
     'lastModifiedAt',
@@ -1391,7 +1391,7 @@ class $UserVocabulariesTable extends UserVocabularies
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   static const VerificationMeta _sourceBookIdMeta = const VerificationMeta(
     'sourceBookId',
@@ -1870,7 +1870,7 @@ class $WordBookmarksTable extends WordBookmarks
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_defaultLang),
+    defaultValue: const Constant(kDefaultLang),
   );
   static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
   @override
@@ -1900,7 +1900,7 @@ class $WordBookmarksTable extends WordBookmarks
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _contextMeta = const VerificationMeta(
     'context',
@@ -1912,7 +1912,7 @@ class $WordBookmarksTable extends WordBookmarks
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _addedAtMeta = const VerificationMeta(
     'addedAt',
@@ -1924,7 +1924,7 @@ class $WordBookmarksTable extends WordBookmarks
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -2320,7 +2320,7 @@ class $ReadingBookmarksTable extends ReadingBookmarks
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_defaultLang),
+    defaultValue: const Constant(kDefaultLang),
   );
   static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
   @override
@@ -2363,7 +2363,7 @@ class $ReadingBookmarksTable extends ReadingBookmarks
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _excerptMeta = const VerificationMeta(
     'excerpt',
@@ -2375,7 +2375,7 @@ class $ReadingBookmarksTable extends ReadingBookmarks
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -2387,7 +2387,7 @@ class $ReadingBookmarksTable extends ReadingBookmarks
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -2833,7 +2833,7 @@ class $ReadingConfigTable extends ReadingConfig
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_defaultLang),
+    defaultValue: const Constant(kDefaultLang),
   );
   static const VerificationMeta _valueMeta = const VerificationMeta('value');
   @override
@@ -2843,7 +2843,7 @@ class $ReadingConfigTable extends ReadingConfig
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   @override
   List<GeneratedColumn> get $columns => [key, language, value];
@@ -3092,7 +3092,7 @@ class $ReadingTimeTable extends ReadingTime
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_defaultLang),
+    defaultValue: const Constant(kDefaultLang),
   );
   static const VerificationMeta _secondsMeta = const VerificationMeta(
     'seconds',
@@ -3104,7 +3104,7 @@ class $ReadingTimeTable extends ReadingTime
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_zeroInt),
+    defaultValue: const Constant(kZeroInt),
   );
   @override
   List<GeneratedColumn> get $columns => [key, language, seconds];
@@ -3353,7 +3353,7 @@ class $DictionaryCacheTable extends DictionaryCache
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_defaultLang),
+    defaultValue: const Constant(kDefaultLang),
   );
   static const VerificationMeta _valueMeta = const VerificationMeta('value');
   @override
@@ -3374,7 +3374,7 @@ class $DictionaryCacheTable extends DictionaryCache
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   @override
   List<GeneratedColumn> get $columns => [key, language, value, createdAt];
@@ -3661,7 +3661,7 @@ class $WordContextsTable extends WordContexts
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_defaultLang),
+    defaultValue: const Constant(kDefaultLang),
   );
   static const VerificationMeta _dataMeta = const VerificationMeta('data');
   @override
@@ -3682,7 +3682,7 @@ class $WordContextsTable extends WordContexts
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   @override
   List<GeneratedColumn> get $columns => [word, language, data, createdAt];
@@ -3969,7 +3969,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_defaultLang),
+    defaultValue: const Constant(kDefaultLang),
   );
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
@@ -3990,7 +3990,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
@@ -4000,7 +4000,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _contentMeta = const VerificationMeta(
     'content',
@@ -4012,7 +4012,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _answerMeta = const VerificationMeta('answer');
   @override
@@ -4022,7 +4022,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
@@ -4032,7 +4032,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _sourceTextMeta = const VerificationMeta(
     'sourceText',
@@ -4044,7 +4044,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
   @override
@@ -4054,7 +4054,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _chapterIndexMeta = const VerificationMeta(
     'chapterIndex',
@@ -4066,7 +4066,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_zeroInt),
+    defaultValue: const Constant(kZeroInt),
   );
   static const VerificationMeta _chapterTitleMeta = const VerificationMeta(
     'chapterTitle',
@@ -4078,7 +4078,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
   @override
@@ -4123,7 +4123,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_zeroInt),
+    defaultValue: const Constant(kZeroInt),
   );
   static const VerificationMeta _lastResultMeta = const VerificationMeta(
     'lastResult',
@@ -4147,7 +4147,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
@@ -4159,7 +4159,7 @@ class $LearningItemsTable extends LearningItems
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -4995,7 +4995,7 @@ class $LearningAnalyticsTable extends LearningAnalytics
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_defaultLang),
+    defaultValue: const Constant(kDefaultLang),
   );
   static const VerificationMeta _valueMeta = const VerificationMeta('value');
   @override
@@ -5005,7 +5005,7 @@ class $LearningAnalyticsTable extends LearningAnalytics
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_zeroInt),
+    defaultValue: const Constant(kZeroInt),
   );
   @override
   List<GeneratedColumn> get $columns => [key, language, value];
@@ -5258,7 +5258,7 @@ class $WordLevelsTable extends WordLevels
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _levelIndexMeta = const VerificationMeta(
     'levelIndex',
@@ -5534,7 +5534,7 @@ class $RssSubscriptionsTable extends RssSubscriptions
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _descriptionMeta = const VerificationMeta(
     'description',
@@ -5579,7 +5579,7 @@ class $RssSubscriptionsTable extends RssSubscriptions
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -6021,7 +6021,7 @@ class $RssArticlesTable extends RssArticles
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
@@ -6155,7 +6155,7 @@ class $RssArticlesTable extends RssArticles
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -6937,7 +6937,7 @@ class $BookGlossaryTable extends BookGlossary
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   static const VerificationMeta _sourceContextMeta = const VerificationMeta(
     'sourceContext',
@@ -6960,7 +6960,7 @@ class $BookGlossaryTable extends BookGlossary
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    clientDefault: _nowIso,
+    clientDefault: nowIso,
   );
   static const VerificationMeta _lastAccessedAtMeta = const VerificationMeta(
     'lastAccessedAt',
@@ -7440,7 +7440,7 @@ class $CharacterRegistryTable extends CharacterRegistry
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   @override
   List<GeneratedColumn> get $columns => [key, value];
@@ -7648,7 +7648,7 @@ class $SettingsTable extends Settings
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant(_emptyStr),
+    defaultValue: const Constant(kEmptyStr),
   );
   @override
   List<GeneratedColumn> get $columns => [key, value];

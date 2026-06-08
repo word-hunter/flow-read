@@ -29,6 +29,8 @@ import '../../services/sentence_analyzer.dart';
 import '../../services/user_vocabulary_service.dart';
 import '../../services/word_context_service.dart';
 import '../../services/word_level_service.dart';
+import '../../storage/database/app_database.dart';
+import '../../storage/database/dao/book_glossary_dao.dart';
 import '../settings_provider.dart';
 
 final bookCacheProvider = Provider<BookCache>((ref) => BookCache());
@@ -110,7 +112,7 @@ final sentenceAnalyzerProvider = Provider<SentenceAnalyzer>((ref) {
 });
 
 final bookGlossaryServiceProvider = Provider<BookGlossaryService>((ref) {
-  return BookGlossaryService();
+  return BookGlossaryService(ref.watch(bookGlossaryDaoProvider));
 });
 
 final characterRegistryProvider = Provider<CharacterRegistry>((ref) {
@@ -149,4 +151,13 @@ final aiActionControllerProvider = Provider<AIActionController>((ref) {
   );
   ref.onDispose(() => controller.dispose());
   return controller;
+});
+
+final appDatabaseProvider = FutureProvider<AppDatabase>((ref) {
+  return AppDatabase.create();
+});
+
+final bookGlossaryDaoProvider = Provider<BookGlossaryDao>((ref) {
+  final db = ref.watch(appDatabaseProvider).requireValue;
+  return BookGlossaryDao(db);
 });

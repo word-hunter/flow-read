@@ -1,30 +1,26 @@
-import 'dart:io';
-
 import 'package:flow_read/models/book_glossary_entry.dart';
 import 'package:flow_read/services/book_glossary_service.dart';
+import 'package:flow_read/storage/database/app_database.dart'
+    hide BookGlossaryEntry;
+import 'package:flow_read/storage/database/dao/book_glossary_dao.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/hive_test_storage.dart';
-
 void main() {
-  late Directory tempDir;
+  late AppDatabase db;
   late BookGlossaryService service;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_glossary_service_test_');
-    await openFlowReadTestBoxes();
-    service = BookGlossaryService();
+    db = await AppDatabase.createInMemory();
+    service = BookGlossaryService(BookGlossaryDao(db));
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await db.close();
   });
 
-  test('getEntry returns null when no entry exists', () {
-    expect(
-      service.getEntry(bookId: 'book-1', word: 'godswood'),
-      isNull,
-    );
+  test('getEntry returns null when no entry exists', () async {
+    final result = await service.getEntry(bookId: 'book-1', word: 'godswood');
+    expect(result, isNull);
   });
 
   test('saveEntry persists and getEntry retrieves', () async {
@@ -38,14 +34,17 @@ void main() {
 
     await service.saveEntry(entry);
 
-    final retrieved = service.getEntry(bookId: 'book-1', word: 'godswood');
+    final retrieved = await service.getEntry(
+      bookId: 'book-1',
+      word: 'godswood',
+    );
     expect(retrieved, isNotNull);
     expect(retrieved!.explanation, 'A sacred grove.');
     expect(retrieved.sourceContext, 'The godswood was silent.');
     expect(retrieved.lastAccessedAt, isNotNull);
   });
 
-  test('getEntry with canonicalForm matches correctly', () {
+  test('getEntry with canonicalForm matches correctly', () async {
     final entry = BookGlossaryEntry.create(
       bookId: 'book-2',
       word: 'Dumbledore',
@@ -54,9 +53,9 @@ void main() {
       createdAt: DateTime.utc(2026, 6, 1),
     );
 
-    service.saveEntry(entry);
+    await service.saveEntry(entry);
 
-    final retrieved = service.getEntry(
+    final retrieved = await service.getEntry(
       bookId: 'book-2',
       word: 'Dumbledore',
       canonicalForm: 'dumbledore',
@@ -75,10 +74,8 @@ void main() {
       ),
     );
 
-    expect(
-      service.getEntry(bookId: 'book-b', word: 'flow'),
-      isNull,
-    );
+    final result = await service.getEntry(bookId: 'book-b', word: 'flow');
+    expect(result, isNull);
   });
 
   test('saveAll persists multiple entries', () async {
@@ -99,8 +96,14 @@ void main() {
 
     await service.saveAll(entries);
 
-    expect(service.getEntry(bookId: 'book-3', word: 'godswood'), isNotNull);
-    expect(service.getEntry(bookId: 'book-3', word: 'weirwood'), isNotNull);
+    expect(
+      await service.getEntry(bookId: 'book-3', word: 'godswood'),
+      isNotNull,
+    );
+    expect(
+      await service.getEntry(bookId: 'book-3', word: 'weirwood'),
+      isNotNull,
+    );
   });
 
   test('getBookGlossary returns all entries for a book', () async {
@@ -129,7 +132,7 @@ void main() {
       ),
     );
 
-    final glossary = service.getBookGlossary('book-gl');
+    final glossary = await service.getBookGlossary('book-gl');
     expect(glossary, hasLength(2));
   });
 
@@ -153,11 +156,17 @@ void main() {
 
     await service.clearBookGlossary('book-clr');
 
-    expect(service.getEntry(bookId: 'book-clr', word: 'word-a'), isNull);
-    expect(service.getEntry(bookId: 'book-keep', word: 'word-b'), isNotNull);
+    expect(
+      await service.getEntry(bookId: 'book-clr', word: 'word-a'),
+      isNull,
+    );
+    expect(
+      await service.getEntry(bookId: 'book-keep', word: 'word-b'),
+      isNotNull,
+    );
   });
 
-  test('getEntry matches regardless of word casing', () {
+  test('getEntry matches regardless of word casing', () async {
     final entry = BookGlossaryEntry.create(
       bookId: 'book-case',
       word: 'Godswood',
@@ -165,18 +174,18 @@ void main() {
       createdAt: DateTime.utc(2026, 6, 1),
     );
 
-    service.saveEntry(entry);
+    await service.saveEntry(entry);
 
     expect(
-      service.getEntry(bookId: 'book-case', word: 'godswood'),
+      await service.getEntry(bookId: 'book-case', word: 'godswood'),
       isNotNull,
     );
     expect(
-      service.getEntry(bookId: 'book-case', word: 'GODSWOOD'),
+      await service.getEntry(bookId: 'book-case', word: 'GODSWOOD'),
       isNotNull,
     );
     expect(
-      service.getEntry(bookId: 'book-case', word: 'Godswood'),
+      await service.getEntry(bookId: 'book-case', word: 'Godswood'),
       isNotNull,
     );
   });
