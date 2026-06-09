@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flow_ai/flow_ai.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
+import '../models/reading_position.dart';
 import '../models/reading_search_result.dart';
 import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/bookshelf_notifier.dart';
@@ -20,6 +21,7 @@ import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
+import '../services/reader_layout_engine.dart';
 import '../theme/app_constants.dart';
 import '../widgets/ai_assistant_panel.dart';
 import '../widgets/bookmark_sheet.dart';
@@ -450,6 +452,41 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final config = ref.watch(readingConfigNotifierProvider);
     final readingTime = ref.watch(readingTimeNotifierProvider);
     final settings = ref.watch(settingsProvider);
+
+    final layoutConfig = PageLayoutConfig(
+      fontSize: config.fontSize,
+      fontFamily: config.fontFamily,
+      lineHeight: config.lineHeight,
+      viewportWidth: _layoutWidth > 0 ? _layoutWidth : MediaQuery.sizeOf(context).width,
+      viewportHeight: MediaQuery.sizeOf(context).height,
+    );
+    final didReflow = _needsReflow(layoutConfig);
+    if (didReflow && _scrollController.hasClients) {
+      final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
+      final book = ref.read(bookshelfNotifierProvider).book;
+      if (book != null && activeBookId != null) {
+        _captureAnchorForReflow(
+          chapterIndex: currentBookState.currentChapter,
+          blocks: book.chapters[currentBookState.currentChapter].blocks,
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_scrollController.hasClients) return;
+          final currentChapters = ref.read(bookshelfNotifierProvider).book?.chapters;
+          if (currentChapters == null) return;
+          final chapter = currentBookState.currentChapter;
+          if (chapter >= currentChapters.length) return;
+          _applyReflowAnchor(
+            chapterIndex: chapter,
+            blocks: currentChapters[chapter].blocks,
+          );
+          if (_pendingScrollOffset != null) {
+            _isRestoringViewport = true;
+            _scheduleViewportSyncPass();
+          }
+        });
+      }
+    }
+
     if (_lastReaderLocationKey == null) {
       _primeReaderState(currentBookState, currentBookNotifier, readingTime);
     }

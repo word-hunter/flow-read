@@ -17,6 +17,7 @@ import '../../services/reading_insight_service.dart';
 import '../../services/reading_time_service.dart';
 import '../../services/review_schedule_service.dart';
 import '../../services/sentence_analyzer.dart';
+import '../../services/reader_layout_engine.dart';
 import '../../services/user_vocabulary_service.dart';
 import '../../services/word_context_service.dart';
 import '../../services/word_level_service.dart';
@@ -115,6 +116,10 @@ final readingInsightServiceProvider = Provider<ReadingInsightService>((ref) {
   return ReadingInsightService(
     analytics: ref.read(learningAnalyticsServiceProvider),
   );
+});
+
+final readerLayoutEngineProvider = Provider<ReaderLayoutEngine>((ref) {
+  return const ReaderLayoutEngine();
 });
 
 final aiAssistantControllerProvider = Provider<AIAssistantController>((ref) {

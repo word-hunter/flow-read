@@ -8,6 +8,8 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
   ValueNotifier<double> get _displayProgressNotifier;
   Map<int, GlobalKey> get _contentKeys;
 
+  final ReaderLayoutEngine _layoutEngine = const ReaderLayoutEngine();
+
   void _syncDailyGoalWatcher(
     CurrentBookState currentBookState,
     ReadingTimeState readingTime,
@@ -27,6 +29,47 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
   double? _pendingScrollOffset;
   int _viewportRestorePass = 0;
   int _visibleContentCount = 0;
+  PageLayoutConfig? _lastPageLayoutConfig;
+  ReadingPositionAnchor? _pendingReflowAnchor;
+
+  void _captureAnchorForReflow({
+    required int chapterIndex,
+    List<ContentBlock> blocks = const [],
+  }) {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.maxScrollExtent <= 0) return;
+    _pendingReflowAnchor = _layoutEngine.anchorFor(
+      blocks,
+      position.pixels,
+      position.maxScrollExtent,
+      chapterIndex: chapterIndex,
+    );
+  }
+
+  bool _needsReflow(PageLayoutConfig currentConfig) {
+    final changed = _lastPageLayoutConfig != currentConfig;
+    if (changed) {
+      _lastPageLayoutConfig = currentConfig;
+    }
+    return changed;
+  }
+
+  void _applyReflowAnchor({
+    required int chapterIndex,
+    List<ContentBlock> blocks = const [],
+  }) {
+    final anchor = _pendingReflowAnchor;
+    if (anchor == null || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final estimatedOffset = _layoutEngine.estimatedScrollOffset(
+      blocks,
+      position.maxScrollExtent,
+      anchor,
+    );
+    _pendingScrollOffset = estimatedOffset;
+    _pendingReflowAnchor = null;
+  }
 
   void _primeReaderState(
     CurrentBookState currentBookState,
