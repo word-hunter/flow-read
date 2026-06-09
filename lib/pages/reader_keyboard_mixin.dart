@@ -7,6 +7,8 @@ mixin ReaderKeyboardMixin on riverpod.ConsumerState<ReaderPage> {
   FocusNode get _readerFocusNode;
   bool get _searchSheetOpen;
   void _goToChapter(int index);
+  ReaderWorkspaceController get _workspaceController;
+  bool get _isWorkspaceEnabled;
 
   Widget _buildKeyboardScope(Widget child) {
     return Focus(
@@ -31,6 +33,37 @@ mixin ReaderKeyboardMixin on riverpod.ConsumerState<ReaderPage> {
     }
 
     final key = event.logicalKey;
+    final isMetaPressed = HardwareKeyboard.instance.isMetaPressed;
+    final isAltPressed = HardwareKeyboard.instance.isAltPressed;
+    final isMetaAlt = isMetaPressed && isAltPressed;
+
+    if (isMetaAlt && _isWorkspaceEnabled) {
+      if (key == LogicalKeyboardKey.keyL) {
+        _workspaceController.toggleLeftPanel();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyT) {
+        _workspaceController.openToc();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyR) {
+        _workspaceController.toggleRightPanel();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyD) {
+        _workspaceController.openRightPanel(ReaderRightPanelTab.dictionary);
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyA) {
+        _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyI) {
+        _workspaceController.enterImmersive();
+        return KeyEventResult.handled;
+      }
+    }
+
     if (key == LogicalKeyboardKey.arrowUp) {
       _scrollReaderBy(-_keyboardLineScrollDelta);
       return KeyEventResult.handled;

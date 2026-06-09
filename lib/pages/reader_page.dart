@@ -78,6 +78,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     0.0,
   );
 
+  @override
   late final ReaderWorkspaceController _workspaceController =
       ReaderWorkspaceController();
 
@@ -93,6 +94,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   double _layoutWidth = 0;
 
   bool get _isWideScreen => _layoutWidth >= AppConstants.wideBreakpoint;
+  @override
   bool get _isWorkspaceEnabled {
     final settings = ref.read(settingsProvider);
     return settings.desktopReaderWorkspaceEnabled;
