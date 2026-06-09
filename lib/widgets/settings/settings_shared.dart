@@ -106,6 +106,7 @@ class SettingsSidebarItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
+          mouseCursor: SystemMouseCursors.click,
           onTap: onTap,
           child: SizedBox(
             height: 48,

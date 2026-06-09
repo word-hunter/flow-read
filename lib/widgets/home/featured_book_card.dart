@@ -199,6 +199,9 @@ class FeaturedBookCard extends StatelessWidget {
               onPressed: onContinueReading,
               icon: const Icon(Icons.menu_book, size: 18),
               label: const Text('继续阅读'),
+              style: FilledButton.styleFrom(
+                enabledMouseCursor: SystemMouseCursors.click,
+              ),
             ),
             if (onRename != null || onRemove != null)
               PopupMenuButton<FeaturedBookAction>(

@@ -251,6 +251,7 @@ class _HomeSidebarState extends State<HomeSidebar> {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
+          mouseCursor: SystemMouseCursors.click,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

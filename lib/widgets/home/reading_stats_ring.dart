@@ -36,6 +36,7 @@ class ReadingStatsRing extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           child: InkWell(
             onTap: onTap,
+            mouseCursor: SystemMouseCursors.click,
             borderRadius: BorderRadius.circular(14),
             child: DecoratedBox(
               decoration: BoxDecoration(

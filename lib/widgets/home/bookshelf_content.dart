@@ -1,16 +1,18 @@
 import 'dart:async';
 import 'dart:math' as math;
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:file_picker/file_picker.dart';
+
 import '../../models/book_metadata.dart';
 import '../../providers/reading/bookshelf_notifier.dart';
 import '../../providers/reading/reading_time_notifier.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/epub_import_source.dart';
-import 'featured_book_card.dart';
 import 'book_shelf_row.dart';
+import 'featured_book_card.dart';
 import 'home_hover_surface.dart';
 import 'today_review_card.dart';
 
@@ -239,6 +241,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
             style: FilledButton.styleFrom(
               minimumSize: const Size(0, 40),
               padding: const EdgeInsets.symmetric(horizontal: 16),
+              enabledMouseCursor: SystemMouseCursors.click,
             ),
           );
 
