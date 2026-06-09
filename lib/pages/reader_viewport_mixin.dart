@@ -2,6 +2,9 @@ part of 'reader_page.dart';
 
 const int _maxViewportRestorePasses = 10;
 const double _viewportRestorePixelTolerance = 0.5;
+const Duration _scrollProgressCommitDelay = Duration(milliseconds: 180);
+const double _scrollProgressCommitTolerance = 0.0005;
+const double _scrollOffsetCommitTolerance = 0.5;
 
 mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
   ScrollController get _scrollController;
@@ -27,6 +30,10 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
   bool _isRestoringViewport = false;
   double _pendingScrollProgress = 0.0;
   double? _pendingScrollOffset;
+  Timer? _scrollProgressCommitTimer;
+  bool _hasPendingScrollProgressCommit = false;
+  double _pendingScrollProgressCommit = 0.0;
+  double? _pendingScrollOffsetCommit;
   int _viewportRestorePass = 0;
   int _visibleContentCount = 0;
   PageLayoutConfig? _lastPageLayoutConfig;
@@ -76,8 +83,14 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
     CurrentBookNotifier currentBookNotifier,
     ReadingTimeState readingTime,
   ) {
-    _lastReaderLocationKey = _readerLocationKey(currentBookState, currentBookNotifier);
-    _lastReaderViewportKey = _readerViewportKey(currentBookState, currentBookNotifier);
+    _lastReaderLocationKey = _readerLocationKey(
+      currentBookState,
+      currentBookNotifier,
+    );
+    _lastReaderViewportKey = _readerViewportKey(
+      currentBookState,
+      currentBookNotifier,
+    );
     _hadReaderResult = currentBookNotifier.result != null;
     _syncDailyGoalWatcher(currentBookState, readingTime);
     if (_hadReaderResult) {
@@ -89,7 +102,10 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
     }
   }
 
-  String _readerLocationKey(CurrentBookState currentBookState, CurrentBookNotifier currentBookNotifier) {
+  String _readerLocationKey(
+    CurrentBookState currentBookState,
+    CurrentBookNotifier currentBookNotifier,
+  ) {
     final book = currentBookNotifier.book;
     final bookKey =
         currentBookNotifier.activeBookId ??
@@ -99,7 +115,10 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
     return '$bookKey:${currentBookState.currentChapter}';
   }
 
-  String _readerViewportKey(CurrentBookState currentBookState, CurrentBookNotifier currentBookNotifier) {
+  String _readerViewportKey(
+    CurrentBookState currentBookState,
+    CurrentBookNotifier currentBookNotifier,
+  ) {
     final progress = currentBookState.readingProgress.clamp(0.0, 1.0);
     final scrollOffset = currentBookState.readingScrollOffset;
     final offsetKey = scrollOffset == null
@@ -119,8 +138,14 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
     final resultBecameReady = !_hadReaderResult && hasResult;
     _hadReaderResult = hasResult;
 
-    final nextLocationKey = _readerLocationKey(currentBookState, currentBookNotifier);
-    final nextViewportKey = _readerViewportKey(currentBookState, currentBookNotifier);
+    final nextLocationKey = _readerLocationKey(
+      currentBookState,
+      currentBookNotifier,
+    );
+    final nextViewportKey = _readerViewportKey(
+      currentBookState,
+      currentBookNotifier,
+    );
     if (_lastReaderLocationKey == null || _lastReaderViewportKey == null) {
       _lastReaderLocationKey = nextLocationKey;
       _lastReaderViewportKey = nextViewportKey;
@@ -153,6 +178,9 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
     required double? scrollOffset,
     required bool locationChanged,
   }) {
+    if (locationChanged) {
+      _cancelPendingScrollProgressCommit();
+    }
     _pendingScrollProgress = progress.clamp(0.0, 1.0);
     _pendingScrollOffset = scrollOffset;
     _setDisplayProgress(_pendingScrollProgress);
@@ -215,14 +243,102 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
     }
     final progress = (_scrollController.offset / maxScroll).clamp(0.0, 1.0);
     _setDisplayProgress(progress);
-    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
-    final currentBookState = ref.read(currentBookNotifierProvider);
-    currentBookNotifier.updateReadingProgress(
+    _queueScrollProgressCommit(
       progress,
       scrollOffset: _scrollController.offset,
     );
-    _lastReaderViewportKey = _readerViewportKey(currentBookState, currentBookNotifier);
     _checkDailyReadingGoal();
+  }
+
+  void _queueScrollProgressCommit(
+    double progress, {
+    required double scrollOffset,
+  }) {
+    _pendingScrollProgressCommit = progress.clamp(0.0, 1.0).toDouble();
+    _pendingScrollOffsetCommit = scrollOffset < 0 ? null : scrollOffset;
+    _hasPendingScrollProgressCommit = true;
+    _scheduleScrollProgressCommit();
+  }
+
+  void _scheduleScrollProgressCommit() {
+    _scrollProgressCommitTimer?.cancel();
+    _scrollProgressCommitTimer = Timer(_scrollProgressCommitDelay, () {
+      _scrollProgressCommitTimer = null;
+      _commitPendingScrollProgress(force: false);
+    });
+  }
+
+  void _flushPendingScrollProgress() {
+    _scrollProgressCommitTimer?.cancel();
+    _scrollProgressCommitTimer = null;
+    _commitPendingScrollProgress(force: true);
+  }
+
+  void _cancelPendingScrollProgressCommit() {
+    _scrollProgressCommitTimer?.cancel();
+    _scrollProgressCommitTimer = null;
+    _hasPendingScrollProgressCommit = false;
+  }
+
+  void _commitPendingScrollProgress({required bool force}) {
+    if (!_hasPendingScrollProgressCommit || !mounted) return;
+    if (!force && _isActivelyScrolling()) {
+      _scheduleScrollProgressCommit();
+      return;
+    }
+
+    final progress = _pendingScrollProgressCommit.clamp(0.0, 1.0).toDouble();
+    final scrollOffset = _pendingScrollOffsetCommit;
+    _hasPendingScrollProgressCommit = false;
+
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
+    final currentBookState = ref.read(currentBookNotifierProvider);
+    if (_matchesCommittedScrollPosition(
+      currentBookState,
+      progress: progress,
+      scrollOffset: scrollOffset,
+    )) {
+      return;
+    }
+
+    final expectedState = currentBookState.copyWith(
+      readingProgress: progress,
+      readingScrollOffset: scrollOffset,
+    );
+    _lastReaderViewportKey = _readerViewportKey(
+      expectedState,
+      currentBookNotifier,
+    );
+    currentBookNotifier.updateReadingProgress(
+      progress,
+      scrollOffset: scrollOffset,
+    );
+  }
+
+  bool _isActivelyScrolling() {
+    if (!_scrollController.hasClients) return false;
+    return _scrollController.position.isScrollingNotifier.value;
+  }
+
+  bool _matchesCommittedScrollPosition(
+    CurrentBookState state, {
+    required double progress,
+    required double? scrollOffset,
+  }) {
+    final sameProgress =
+        (state.readingProgress - progress).abs() <
+        _scrollProgressCommitTolerance;
+    final currentOffset = state.readingScrollOffset;
+    final sameOffset = currentOffset == null || scrollOffset == null
+        ? currentOffset == scrollOffset
+        : (currentOffset - scrollOffset).abs() < _scrollOffsetCommitTolerance;
+    return sameProgress && sameOffset;
+  }
+
+  void _disposeViewportTracking() {
+    _flushPendingScrollProgress();
+    _scrollProgressCommitTimer?.cancel();
+    _scrollProgressCommitTimer = null;
   }
 
   void _setDisplayProgress(double progress) {
@@ -236,7 +352,10 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
     CurrentBookState currentBookState,
     CurrentBookNotifier currentBookNotifier,
   ) {
-    final locationKey = _readerLocationKey(currentBookState, currentBookNotifier);
+    final locationKey = _readerLocationKey(
+      currentBookState,
+      currentBookNotifier,
+    );
     final sourceText = result.passageText;
     final cached = _cachedParagraphs;
     if (cached != null &&

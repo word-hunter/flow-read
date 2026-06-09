@@ -6,6 +6,7 @@ mixin ReaderKeyboardMixin on riverpod.ConsumerState<ReaderPage> {
   ScrollController get _scrollController;
   FocusNode get _readerFocusNode;
   bool get _searchSheetOpen;
+  void _goToChapter(int index);
 
   Widget _buildKeyboardScope(Widget child) {
     return Focus(
@@ -74,12 +75,16 @@ mixin ReaderKeyboardMixin on riverpod.ConsumerState<ReaderPage> {
     if (direction == 0) return;
 
     final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
-    if (!currentBookNotifier.hasBook || currentBookNotifier.chapterCount <= 1) return;
+    if (!currentBookNotifier.hasBook || currentBookNotifier.chapterCount <= 1) {
+      return;
+    }
 
     final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
     final nextChapter = currentChapter + direction;
-    if (nextChapter < 0 || nextChapter >= currentBookNotifier.chapterCount) return;
+    if (nextChapter < 0 || nextChapter >= currentBookNotifier.chapterCount) {
+      return;
+    }
 
-    unawaited(currentBookNotifier.goToChapter(nextChapter));
+    _goToChapter(nextChapter);
   }
 }

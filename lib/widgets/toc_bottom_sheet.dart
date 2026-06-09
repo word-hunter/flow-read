@@ -5,7 +5,9 @@ import '../models/content_block.dart';
 import '../providers/reading/current_book_notifier.dart';
 
 class TocBottomSheet extends riverpod.ConsumerWidget {
-  const TocBottomSheet({super.key});
+  final ValueChanged<int>? onGoToChapter;
+
+  const TocBottomSheet({super.key, this.onGoToChapter});
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
@@ -28,6 +30,7 @@ class TocBottomSheet extends riverpod.ConsumerWidget {
               scrollController: scrollController,
               showDragHandle: true,
               onClose: () => Navigator.pop(context),
+              onGoToChapter: onGoToChapter,
               onChapterSelected: (_) => Navigator.pop(context),
             ),
           ),
@@ -39,6 +42,7 @@ class TocBottomSheet extends riverpod.ConsumerWidget {
 
 class TocDropdownPanel extends riverpod.ConsumerWidget {
   final VoidCallback? onClose;
+  final ValueChanged<int>? onGoToChapter;
   final ValueChanged<int>? onChapterSelected;
   final double? width;
   final double maxHeight;
@@ -46,6 +50,7 @@ class TocDropdownPanel extends riverpod.ConsumerWidget {
   const TocDropdownPanel({
     super.key,
     this.onClose,
+    this.onGoToChapter,
     this.onChapterSelected,
     this.width,
     this.maxHeight = 430,
@@ -78,6 +83,7 @@ class TocDropdownPanel extends riverpod.ConsumerWidget {
         child: _TocPanelContent(
           showDragHandle: false,
           onClose: onClose,
+          onGoToChapter: onGoToChapter,
           onChapterSelected: onChapterSelected,
         ),
       ),
@@ -189,12 +195,14 @@ class _TocPanelContent extends riverpod.ConsumerStatefulWidget {
   final ScrollController? scrollController;
   final bool showDragHandle;
   final VoidCallback? onClose;
+  final ValueChanged<int>? onGoToChapter;
   final ValueChanged<int>? onChapterSelected;
 
   const _TocPanelContent({
     required this.showDragHandle,
     this.scrollController,
     this.onClose,
+    this.onGoToChapter,
     this.onChapterSelected,
   });
 
@@ -290,7 +298,12 @@ class _TocPanelContentState extends riverpod.ConsumerState<_TocPanelContent> {
                     label: _chapterLabel(book.chapters[index], index),
                     isSelected: isSelected,
                     onTap: () {
-                      currentBookNotifier.goToChapter(index);
+                      final onGoToChapter = widget.onGoToChapter;
+                      if (onGoToChapter == null) {
+                        currentBookNotifier.goToChapter(index);
+                      } else {
+                        onGoToChapter(index);
+                      }
                       widget.onChapterSelected?.call(index);
                     },
                   );

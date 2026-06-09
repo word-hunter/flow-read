@@ -89,6 +89,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
 
   @override
   void dispose() {
+    _disposeViewportTracking();
     _disposeDailyGoalWatcher();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
@@ -107,6 +108,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     int? contextWordStart,
     int? contextWordEnd,
   }) {
+    _flushPendingScrollProgress();
     _hideReadingReminder();
     final lookupNotifier = ref.read(wordLookupNotifierProvider.notifier);
     lookupNotifier.lookupWord(
@@ -213,6 +215,19 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     );
   }
 
+  void _exitReader() {
+    _flushPendingScrollProgress();
+    ref.read(currentBookNotifierProvider.notifier).exitReader();
+  }
+
+  @override
+  void _goToChapter(int index) {
+    _flushPendingScrollProgress();
+    unawaited(
+      ref.read(currentBookNotifierProvider.notifier).goToChapter(index),
+    );
+  }
+
   String _extractPassage(String selectedText) {
     final book = ref.read(bookshelfNotifierProvider).book;
     if (book == null) return selectedText;
@@ -239,7 +254,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const TocBottomSheet(),
+      builder: (_) => TocBottomSheet(onGoToChapter: _goToChapter),
     );
   }
 
@@ -328,6 +343,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   }
 
   Future<void> _onSearchResultTap(ReadingSearchResult result) async {
+    _flushPendingScrollProgress();
     final search = ref.read(readingSearchNotifierProvider.notifier);
     await search.goToSearchResult(result);
     if (!mounted) return;
@@ -379,6 +395,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   }
 
   void _onBookmarkTap() {
+    _flushPendingScrollProgress();
     final bookmarks = ref.read(bookmarkNotifierProvider.notifier);
     if (bookmarks.isCurrentPositionBookmarked()) {
       _hideReadingReminder();
@@ -581,6 +598,8 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
                   onShowFontSettingsSheet: _showFontSettingsSheet,
                   onFontSettingsMenuToggle: _toggleFontSettingsMenu,
                   onFontSettingsMenuOpenChanged: _setFontSettingsMenuOpen,
+                  onExitReader: _exitReader,
+                  onGoToChapter: _goToChapter,
                   onSearchTap: () => unawaited(_showSearchSheet()),
                   onBookmarkTap: _onBookmarkTap,
                   onBookmarkHistoryTap: _showBookmarkHistory,

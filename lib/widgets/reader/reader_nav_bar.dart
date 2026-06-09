@@ -1,5 +1,3 @@
-import 'dart:async' show unawaited;
-
 import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
@@ -36,6 +34,8 @@ class ReaderNavBar extends StatelessWidget {
   final VoidCallback onShowFontSettingsSheet;
   final ValueChanged<MenuController> onFontSettingsMenuToggle;
   final ValueChanged<bool> onFontSettingsMenuOpenChanged;
+  final VoidCallback onExitReader;
+  final ValueChanged<int> onGoToChapter;
   final VoidCallback onSearchTap;
   final VoidCallback onBookmarkTap;
   final VoidCallback onBookmarkHistoryTap;
@@ -61,6 +61,8 @@ class ReaderNavBar extends StatelessWidget {
     required this.onShowFontSettingsSheet,
     required this.onFontSettingsMenuToggle,
     required this.onFontSettingsMenuOpenChanged,
+    required this.onExitReader,
+    required this.onGoToChapter,
     required this.onSearchTap,
     required this.onBookmarkTap,
     required this.onBookmarkHistoryTap,
@@ -115,7 +117,7 @@ class ReaderNavBar extends StatelessWidget {
                 key: const ValueKey('reader-toolbar-back'),
                 icon: Icons.arrow_back,
                 tooltip: '返回',
-                onPressed: currentBook.exitReader,
+                onPressed: onExitReader,
               ),
               _buildTocButton(context, useDropdown: showSidebarToggle),
             ],
@@ -135,10 +137,8 @@ class ReaderNavBar extends StatelessWidget {
                         icon: Icons.chevron_left,
                         tooltip: '上一个目录项',
                         onPressed: canGoPreviousChapter
-                            ? () => unawaited(
-                                currentBook.goToChapter(
-                                  currentBookState.currentChapter - 1,
-                                ),
+                            ? () => onGoToChapter(
+                                currentBookState.currentChapter - 1,
                               )
                             : null,
                       ),
@@ -174,10 +174,8 @@ class ReaderNavBar extends StatelessWidget {
                         icon: Icons.chevron_right,
                         tooltip: '下一个目录项',
                         onPressed: canGoNextChapter
-                            ? () => unawaited(
-                                currentBook.goToChapter(
-                                  currentBookState.currentChapter + 1,
-                                ),
+                            ? () => onGoToChapter(
+                                currentBookState.currentChapter + 1,
                               )
                             : null,
                       ),
@@ -241,19 +239,15 @@ class ReaderNavBar extends StatelessWidget {
                       break;
                     case 'prevChapter':
                       if (canGoPreviousChapter) {
-                        unawaited(
-                          currentBook.goToChapter(
-                            currentBookState.currentChapter - 1,
-                          ),
+                        onGoToChapter(
+                          currentBookState.currentChapter - 1,
                         );
                       }
                       break;
                     case 'nextChapter':
                       if (canGoNextChapter) {
-                        unawaited(
-                          currentBook.goToChapter(
-                            currentBookState.currentChapter + 1,
-                          ),
+                        onGoToChapter(
+                          currentBookState.currentChapter + 1,
                         );
                       }
                       break;
@@ -335,6 +329,7 @@ class ReaderNavBar extends StatelessWidget {
       menuChildren: [
         TocDropdownPanel(
           onClose: tocMenuController.close,
+          onGoToChapter: onGoToChapter,
           onChapterSelected: (_) => tocMenuController.close(),
         ),
       ],

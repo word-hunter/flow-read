@@ -15,6 +15,9 @@ import 'bookshelf_notifier.dart';
 import 'reading_search_notifier.dart';
 import 'services_provider.dart';
 
+const double _readingProgressUpdateTolerance = 0.0005;
+const double _readingScrollOffsetUpdateTolerance = 0.5;
+
 @immutable
 class CurrentBookState {
   const CurrentBookState({
@@ -117,11 +120,23 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
       state.currentBookDifficulty;
 
   void updateReadingProgress(double progress, {double? scrollOffset}) {
+    final nextProgress = progress.clamp(0.0, 1.0).toDouble();
+    final nextScrollOffset = scrollOffset != null && scrollOffset >= 0
+        ? scrollOffset
+        : state.readingScrollOffset;
+    final sameProgress =
+        (state.readingProgress - nextProgress).abs() <
+        _readingProgressUpdateTolerance;
+    final currentOffset = state.readingScrollOffset;
+    final sameScrollOffset = currentOffset == null || nextScrollOffset == null
+        ? currentOffset == nextScrollOffset
+        : (currentOffset - nextScrollOffset).abs() <
+              _readingScrollOffsetUpdateTolerance;
+    if (sameProgress && sameScrollOffset) return;
+
     state = state.copyWith(
-      readingProgress: progress.clamp(0.0, 1.0),
-      readingScrollOffset: scrollOffset != null && scrollOffset >= 0
-          ? scrollOffset
-          : null,
+      readingProgress: nextProgress,
+      readingScrollOffset: nextScrollOffset,
     );
   }
 
