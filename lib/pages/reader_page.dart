@@ -26,10 +26,10 @@ import '../theme/app_constants.dart';
 import '../widgets/ai_assistant_panel.dart';
 import '../widgets/bookmark_sheet.dart';
 import '../widgets/font_settings_sheet.dart';
-import '../widgets/reader/reader_content_view.dart';
 import '../widgets/reader/reader_nav_bar.dart';
 import '../widgets/reader/reader_search_panel.dart';
 import '../widgets/reader/reader_word_sidebar.dart';
+import '../widgets/reader_shell/reader_core_view.dart';
 import '../widgets/reader_text_view.dart';
 import '../widgets/selected_text_action_toolbar.dart'
     show SelectedTextActionRegionState;
@@ -559,7 +559,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           final isWide = _isWideScreen;
 
           Widget buildContent() {
-            return ReaderContentView(
+            return ReaderCoreView(
               paragraphs: paragraphs,
               blocks: blocks,
               result: result,
@@ -580,6 +580,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               isWideScreen: isWide,
               sidebarOpen: _sidebarOpen,
               isSearchPanelVisible: _isSearchPanelVisible,
+              progressListenable: _displayProgressNotifier,
               contentKeyFor: _contentKeyFor,
               onVisibleContentCountChanged: _setVisibleContentCount,
               onWordTapped: _onWordTapped,
