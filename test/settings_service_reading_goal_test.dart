@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flow_read/services/settings_service.dart';
-import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/storage/database/dao/settings_dao.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -22,7 +21,7 @@ void main() {
   test(
     'daily reading goal persists and normalizes to supported steps',
     () async {
-      final db = await AppDatabase.createInMemory();
+      final db = await createTestAppDatabase();
       final settings = SettingsService(SettingsDao(db));
       await settings.init();
 
@@ -54,7 +53,7 @@ void main() {
   );
 
   test('backup interval defaults to one day and persists changes', () async {
-    final db = await AppDatabase.createInMemory();
+    final db = await createTestAppDatabase();
     final settings = SettingsService(SettingsDao(db));
     await settings.init();
 

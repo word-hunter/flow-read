@@ -11,8 +11,16 @@ import 'package:flow_read/storage/hive_box_names.dart';
 import 'package:flow_read/storage/hive_storage.dart';
 import 'package:hive/hive.dart';
 
-Future<SettingsService> createTestSettingsService() async {
+final List<AppDatabase> _openTestDatabases = [];
+
+Future<AppDatabase> createTestAppDatabase() async {
   final db = await AppDatabase.createInMemory();
+  _openTestDatabases.add(db);
+  return db;
+}
+
+Future<SettingsService> createTestSettingsService() async {
+  final db = await createTestAppDatabase();
   final service = SettingsService(SettingsDao(db));
   await service.init();
   return service;
@@ -34,6 +42,11 @@ Future<Directory> initHiveTestStorage(
 }
 
 Future<void> disposeHiveTestStorage(Directory tempDir) async {
+  final databases = _openTestDatabases.reversed.toList();
+  _openTestDatabases.clear();
+  for (final db in databases) {
+    await db.close();
+  }
   await Hive.close();
   if (await tempDir.exists()) {
     await tempDir.delete(recursive: true);

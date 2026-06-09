@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flow_read/services/settings_service.dart';
-import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/storage/database/dao/settings_dao.dart';
 import 'package:flow_read/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -22,7 +21,7 @@ void main() {
   });
 
   test('app theme family and brightness mode persist', () async {
-    final db = await AppDatabase.createInMemory();
+    final db = await createTestAppDatabase();
     final settings = SettingsService(SettingsDao(db));
     await settings.init();
 

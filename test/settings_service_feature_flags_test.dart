@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flow_read/services/settings_service.dart';
-import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/storage/database/dao/settings_dao.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -20,7 +19,7 @@ void main() {
   });
 
   test('experimental features are disabled by default and persist', () async {
-    final db = await AppDatabase.createInMemory();
+    final db = await createTestAppDatabase();
     final settings = SettingsService(SettingsDao(db));
     await settings.init();
 
@@ -47,7 +46,7 @@ void main() {
   });
 
   test('legacy browser feature flag is ignored', () async {
-    final db = await AppDatabase.createInMemory();
+    final db = await createTestAppDatabase();
     final dao = SettingsDao(db);
     await dao.putValue('enabledExperimentalFeatures', '["browser","rss"]');
 
@@ -61,7 +60,7 @@ void main() {
   test(
     'force default book cover is disabled by default and persists',
     () async {
-      final db = await AppDatabase.createInMemory();
+      final db = await createTestAppDatabase();
       final settings = SettingsService(SettingsDao(db));
       await settings.init();
 
@@ -107,7 +106,7 @@ void main() {
   test(
     'active source language and target explanation language persist',
     () async {
-      final db = await AppDatabase.createInMemory();
+      final db = await createTestAppDatabase();
       final settings = SettingsService(SettingsDao(db));
       await settings.init();
 
