@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import 'package:flow_rss/flow_rss.dart';
-import '../providers/rss_provider.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/font_settings_sheet.dart';
@@ -40,7 +39,7 @@ class _RssArticleDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-    final provider = ref.watch(rssProvider);
+    ref.watch(rssNotifierProvider);
     final theme = Theme.of(context);
     final currentIndex = _currentIndex;
     final article = currentIndex == -1 ? null : widget.articles[currentIndex];
@@ -67,7 +66,7 @@ class _RssArticleDetailScreenState
               children: [
                 _buildActionBar(
                   context,
-                  provider,
+                  ref,
                   article,
                   currentIndex,
                   theme,
@@ -97,11 +96,12 @@ class _RssArticleDetailScreenState
 
   Widget _buildActionBar(
     BuildContext context,
-    RssProvider provider,
+    riverpod.WidgetRef ref,
     RssArticle article,
     int currentIndex,
     ThemeData theme,
   ) {
+    final notifier = ref.read(rssNotifierProvider.notifier);
     final canGoPrevious = currentIndex > 0;
     final canGoNext = currentIndex < widget.articles.length - 1;
     return Container(
@@ -156,7 +156,7 @@ class _RssArticleDetailScreenState
                 ),
                 tooltip: article.isFavorite ? '取消收藏' : '收藏',
                 color: article.isFavorite ? theme.colorScheme.primary : null,
-                onPressed: () => provider.setArticleFavorite(
+                onPressed: () => notifier.setArticleFavorite(
                   article.id,
                   !article.isFavorite,
                 ),
@@ -169,7 +169,7 @@ class _RssArticleDetailScreenState
                 ),
                 tooltip: article.isReadLater ? '移出稍后读' : '稍后读',
                 color: article.isReadLater ? theme.colorScheme.primary : null,
-                onPressed: () => provider.setArticleReadLater(
+                onPressed: () => notifier.setArticleReadLater(
                   article.id,
                   !article.isReadLater,
                 ),
@@ -205,8 +205,8 @@ class _RssArticleDetailScreenState
   ) {
     final horizontalPadding =
         MediaQuery.sizeOf(context).width >= AppConstants.wideBreakpoint
-        ? 32.0
-        : 16.0;
+            ? 32.0
+            : 16.0;
 
     return ColoredBox(
       color: _isIntensiveReading
@@ -347,7 +347,9 @@ class _RssArticleDetailScreenState
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        article.link?.trim().isNotEmpty == true ? '暂无可阅读正文，可查看原文。' : '暂无可阅读正文。',
+        article.link?.trim().isNotEmpty == true
+            ? '暂无可阅读正文，可查看原文。'
+            : '暂无可阅读正文。',
         style: theme.textTheme.bodyMedium?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
@@ -380,22 +382,22 @@ class _RssArticleDetailScreenState
 
   void _markAsRead(RssArticle article) {
     if (article.isRead) return;
-    ref.read(rssProvider).markAsRead(article.id);
+    ref.read(rssNotifierProvider.notifier).markAsRead(article.id);
   }
 
   void _toggleRead(RssArticle article) {
-    final provider = ref.read(rssProvider);
+    final notifier = ref.read(rssNotifierProvider.notifier);
     if (article.isRead) {
-      provider.markAsUnread(article.id);
+      notifier.markAsUnread(article.id);
     } else {
-      provider.markAsRead(article.id);
+      notifier.markAsRead(article.id);
     }
   }
 
   void _openOriginalArticle(BuildContext context, RssArticle article) {
     final link = article.link?.trim();
     if (link == null || link.isEmpty) return;
-    ref.read(rssProvider).markAsRead(article.id);
+    ref.read(rssNotifierProvider.notifier).markAsRead(article.id);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) =>

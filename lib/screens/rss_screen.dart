@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import 'package:flow_rss/flow_rss.dart';
-import '../providers/rss_provider.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/rss/rss_article_list.dart';
@@ -17,69 +16,80 @@ class RssScreen extends riverpod.ConsumerWidget {
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
-    final provider = ref.watch(rssProvider);
+    final state = ref.watch(rssNotifierProvider);
     final theme = Theme.of(context);
 
-    if (provider.subscriptions.isEmpty) {
-      return _buildEmptyState(context, provider, theme);
+    if (state.subscriptionStatus == RssLoadStatus.idle &&
+        state.articlesStatus == RssLoadStatus.idle &&
+        state.subscriptions.isEmpty &&
+        state.articles.isEmpty) {
+      ref.read(rssNotifierProvider.notifier).init();
+    }
+
+    if (state.subscriptions.isEmpty) {
+      return _buildEmptyState(context, ref, state, theme);
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= AppConstants.wideBreakpoint) {
-          return _buildWideLayout(context, provider, theme);
+          return _buildWideLayout(context, ref, state, theme);
         }
-        return _buildNarrowLayout(context, provider, theme);
+        return _buildNarrowLayout(context, ref, state, theme);
       },
     );
   }
 
   Widget _buildWideLayout(
     BuildContext context,
-    RssProvider provider,
+    riverpod.WidgetRef ref,
+    RssState state,
     ThemeData theme,
   ) {
+    final notifier = ref.read(rssNotifierProvider.notifier);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
           width: 220,
           child: RssFeedSidebar(
-            subscriptions: provider.subscriptions,
-            selectedUrl: provider.selectedFeedUrl,
-            subscriptionStatus: provider.subscriptionStatus,
-            subscriptionError: provider.subscriptionError,
-            articleFilter: provider.articleFilter,
+            subscriptions: state.subscriptions,
+            selectedUrl: state.selectedFeedUrl,
+            subscriptionStatus: state.subscriptionStatus,
+            subscriptionError: state.subscriptionError,
+            articleFilter: state.articleFilter,
             filterCounts: {
               for (final filter in RssArticleFilter.values)
-                filter: provider.articleCountForFilter(filter),
+                filter: state.articleCountForFilter(filter),
             },
-            isLatestSelected: provider.isLatestSelected,
-            onSelectLatest: provider.selectLatest,
-            onSelectFeed: provider.selectFeed,
-            onSelectArticleFilter: provider.updateArticleFilter,
-            onAddFeed: () => _showAddFeedDialog(context, provider),
+            isLatestSelected: state.isLatestSelected,
+            onSelectLatest: notifier.selectLatest,
+            onSelectFeed: notifier.selectFeed,
+            onSelectArticleFilter: notifier.updateArticleFilter,
+            onAddFeed: () => _showAddFeedDialog(context, ref),
             onEditFeed: (subscription) =>
-                _showEditFeedDialog(context, provider, subscription),
-            onRemoveFeed: (url) => provider.removeFeed(url),
-            onRetry: () => provider.retry(),
+                _showEditFeedDialog(context, ref, subscription),
+            onRemoveFeed: (url) => notifier.removeFeed(url),
+            onRetry: () => notifier.retry(),
           ),
         ),
         VerticalDivider(
           width: 1,
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
-        Expanded(child: _buildArticlePanel(context, provider, theme)),
+        Expanded(child: _buildArticlePanel(context, ref, state, theme)),
       ],
     );
   }
 
   Widget _buildNarrowLayout(
     BuildContext context,
-    RssProvider provider,
+    riverpod.WidgetRef ref,
+    RssState state,
     ThemeData theme,
   ) {
-    final hasSelection = provider.subscriptions.isNotEmpty;
+    final hasSelection = state.subscriptions.isNotEmpty;
+    final notifier = ref.read(rssNotifierProvider.notifier);
 
     return Column(
       children: [
@@ -94,22 +104,22 @@ class RssScreen extends riverpod.ConsumerWidget {
           ),
           child: Row(
             children: [
-              Expanded(child: _buildFeedSelector(context, provider, theme)),
+              Expanded(child: _buildFeedSelector(context, ref, state, theme)),
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.add_circle_outline, size: 22),
                 tooltip: '添加订阅',
-                onPressed: () => _showAddFeedDialog(context, provider),
+                onPressed: () => _showAddFeedDialog(context, ref),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
-              if (provider.selectedFeedUrl != null)
+              if (state.selectedFeedUrl != null)
                 IconButton(
                   icon: const Icon(Icons.refresh, size: 20),
                   tooltip: '刷新',
-                  onPressed: provider.isFetchingArticles
+                  onPressed: state.isFetchingArticles
                       ? null
-                      : () => provider.refreshAll(),
+                      : () => notifier.refreshAll(),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
                     minWidth: 36,
@@ -120,7 +130,7 @@ class RssScreen extends riverpod.ConsumerWidget {
           ),
         ),
         if (hasSelection)
-          Expanded(child: _buildArticlePanel(context, provider, theme))
+          Expanded(child: _buildArticlePanel(context, ref, state, theme))
         else
           Expanded(
             child: Center(
@@ -140,11 +150,13 @@ class RssScreen extends riverpod.ConsumerWidget {
 
   Widget _buildFeedSelector(
     BuildContext context,
-    RssProvider provider,
+    riverpod.WidgetRef ref,
+    RssState state,
     ThemeData theme,
   ) {
+    final notifier = ref.read(rssNotifierProvider.notifier);
     return DropdownButton<String>(
-      value: provider.selectedFeedUrl ?? _latestFeedValue,
+      value: state.selectedFeedUrl ?? _latestFeedValue,
       isExpanded: true,
       underline: const SizedBox(),
       items: [
@@ -156,7 +168,7 @@ class RssScreen extends riverpod.ConsumerWidget {
             style: theme.textTheme.bodyMedium,
           ),
         ),
-        ...provider.subscriptions.map((sub) {
+        ...state.subscriptions.map((sub) {
           return DropdownMenuItem(
             value: sub.url,
             child: Text(
@@ -169,9 +181,9 @@ class RssScreen extends riverpod.ConsumerWidget {
       ],
       onChanged: (url) {
         if (url == _latestFeedValue) {
-          provider.selectLatest();
+          notifier.selectLatest();
         } else if (url != null) {
-          provider.selectFeed(url);
+          notifier.selectFeed(url);
         }
       },
     );
@@ -179,10 +191,12 @@ class RssScreen extends riverpod.ConsumerWidget {
 
   Widget _buildArticlePanel(
     BuildContext context,
-    RssProvider provider,
+    riverpod.WidgetRef ref,
+    RssState state,
     ThemeData theme,
   ) {
-    if (provider.subscriptions.isEmpty) {
+    final notifier = ref.read(rssNotifierProvider.notifier);
+    if (state.subscriptions.isEmpty) {
       return Center(
         child: Text(
           '暂无 RSS 订阅',
@@ -195,10 +209,10 @@ class RssScreen extends riverpod.ConsumerWidget {
 
     return Column(
       children: [
-        if (provider.errorMessage != null &&
-            (provider.subscriptionError != null ||
-                (provider.articlesError != null &&
-                    provider.articlesStatus != RssLoadStatus.error)))
+        if (state.errorMessage != null &&
+            (state.subscriptionError != null ||
+                (state.articlesError != null &&
+                    state.articlesStatus != RssLoadStatus.error)))
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -213,20 +227,23 @@ class RssScreen extends riverpod.ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    provider.errorMessage!,
+                    state.errorMessage!,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onErrorContainer,
                     ),
                   ),
                 ),
-                TextButton(onPressed: provider.retry, child: const Text('重试')),
+                TextButton(
+                  onPressed: notifier.retry,
+                  child: const Text('重试'),
+                ),
                 IconButton(
                   icon: Icon(
                     Icons.close,
                     size: 16,
                     color: theme.colorScheme.onErrorContainer,
                   ),
-                  onPressed: provider.clearError,
+                  onPressed: notifier.clearError,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
                     minWidth: 28,
@@ -238,31 +255,31 @@ class RssScreen extends riverpod.ConsumerWidget {
           ),
         Expanded(
           child: RssArticleList(
-            articles: provider.visibleArticles,
-            feedTitle: provider.currentTitle,
-            unreadCount: provider.unreadCount,
-            query: provider.articleQuery,
-            filter: provider.articleFilter,
+            articles: state.visibleArticles,
+            feedTitle: state.currentTitle,
+            unreadCount: state.unreadCount,
+            query: state.articleQuery,
+            filter: state.articleFilter,
             filterCounts: {
               for (final filter in RssArticleFilter.values)
-                filter: provider.articleCountForFilter(filter),
+                filter: state.articleCountForFilter(filter),
             },
-            articlesStatus: provider.articlesStatus,
-            articlesError: provider.articlesError,
-            hasCachedArticles: provider.articles.isNotEmpty,
-            showFeedName: provider.isLatestSelected,
-            onRefresh: provider.refreshAll,
-            onRetry: provider.retry,
-            onSearchChanged: provider.updateArticleQuery,
-            onFilterChanged: provider.updateArticleFilter,
-            onMarkRead: provider.markAsRead,
-            onMarkUnread: provider.markAsUnread,
-            onSetFavorite: provider.setArticleFavorite,
-            onSetReadLater: provider.setArticleReadLater,
+            articlesStatus: state.articlesStatus,
+            articlesError: state.articlesError,
+            hasCachedArticles: state.articles.isNotEmpty,
+            showFeedName: state.isLatestSelected,
+            onRefresh: notifier.refreshAll,
+            onRetry: notifier.retry,
+            onSearchChanged: notifier.updateArticleQuery,
+            onFilterChanged: notifier.updateArticleFilter,
+            onMarkRead: notifier.markAsRead,
+            onMarkUnread: notifier.markAsUnread,
+            onSetFavorite: notifier.setArticleFavorite,
+            onSetReadLater: notifier.setArticleReadLater,
             onOpenArticle: (article) =>
-                _openArticleDetail(context, provider, article),
+                _openArticleDetail(context, state, article),
             onOpenOriginal: (article) =>
-                _openOriginalArticle(context, provider, article),
+                _openOriginalArticle(context, ref, state, article),
           ),
         ),
       ],
@@ -271,12 +288,13 @@ class RssScreen extends riverpod.ConsumerWidget {
 
   void _openOriginalArticle(
     BuildContext context,
-    RssProvider provider,
+    riverpod.WidgetRef ref,
+    RssState state,
     RssArticle article,
   ) {
     final link = article.link?.trim();
     if (link == null || link.isEmpty) return;
-    provider.markAsRead(article.id);
+    ref.read(rssNotifierProvider.notifier).markAsRead(article.id);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) =>
@@ -287,15 +305,15 @@ class RssScreen extends riverpod.ConsumerWidget {
 
   void _openArticleDetail(
     BuildContext context,
-    RssProvider provider,
+    RssState state,
     RssArticle article,
   ) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => RssArticleDetailScreen(
-          articles: List<RssArticle>.of(provider.visibleArticles),
+          articles: List<RssArticle>.of(state.visibleArticles),
           initialArticleId: article.id,
-          showFeedName: provider.isLatestSelected,
+          showFeedName: state.isLatestSelected,
         ),
       ),
     );
@@ -303,14 +321,16 @@ class RssScreen extends riverpod.ConsumerWidget {
 
   Widget _buildEmptyState(
     BuildContext context,
-    RssProvider provider,
+    riverpod.WidgetRef ref,
+    RssState state,
     ThemeData theme,
   ) {
-    if (provider.subscriptionStatus == RssLoadStatus.loading) {
+    final notifier = ref.read(rssNotifierProvider.notifier);
+    if (state.subscriptionStatus == RssLoadStatus.loading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (provider.subscriptionStatus == RssLoadStatus.error) {
+    if (state.subscriptionStatus == RssLoadStatus.error) {
       return Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -326,7 +346,7 @@ class RssScreen extends riverpod.ConsumerWidget {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  provider.subscriptionError?.message ?? 'RSS 加载失败',
+                  state.subscriptionError?.message ?? 'RSS 加载失败',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.colorScheme.onSurface,
@@ -334,7 +354,7 @@ class RssScreen extends riverpod.ConsumerWidget {
                 ),
                 const SizedBox(height: 18),
                 OutlinedButton.icon(
-                  onPressed: provider.retry,
+                  onPressed: notifier.retry,
                   icon: const Icon(Icons.refresh),
                   label: const Text('重试'),
                 ),
@@ -369,7 +389,7 @@ class RssScreen extends riverpod.ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
-          if (provider.errorMessage != null) ...[
+          if (state.errorMessage != null) ...[
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 460),
               child: Container(
@@ -393,7 +413,7 @@ class RssScreen extends riverpod.ConsumerWidget {
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        provider.errorMessage!,
+                        state.errorMessage!,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onErrorContainer,
                         ),
@@ -406,7 +426,7 @@ class RssScreen extends riverpod.ConsumerWidget {
                         color: theme.colorScheme.onErrorContainer,
                       ),
                       tooltip: '关闭',
-                      onPressed: provider.clearError,
+                      onPressed: notifier.clearError,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(
                         minWidth: 28,
@@ -419,25 +439,29 @@ class RssScreen extends riverpod.ConsumerWidget {
             ),
           ],
           FilledButton.icon(
-            onPressed: provider.isLoading
+            onPressed: state.isLoading
                 ? null
-                : () => _showAddFeedDialog(context, provider),
-            icon: provider.isLoading
+                : () => _showAddFeedDialog(context, ref),
+            icon: state.isLoading
                 ? const SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.add),
-            label: Text(provider.isLoading ? '正在添加' : '添加订阅'),
+            label: Text(state.isLoading ? '正在添加' : '添加订阅'),
           ),
         ],
       ),
     );
   }
 
-  void _showAddFeedDialog(BuildContext context, RssProvider provider) {
+  void _showAddFeedDialog(
+    BuildContext context,
+    riverpod.WidgetRef ref,
+  ) {
     final controller = TextEditingController();
+    final notifier = ref.read(rssNotifierProvider.notifier);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -451,7 +475,7 @@ class RssScreen extends riverpod.ConsumerWidget {
           ),
           onSubmitted: (url) {
             if (url.trim().isNotEmpty) {
-              provider.addFeed(url.trim());
+              notifier.addFeed(url.trim());
               Navigator.pop(ctx);
             }
           },
@@ -465,7 +489,7 @@ class RssScreen extends riverpod.ConsumerWidget {
             onPressed: () {
               final url = controller.text.trim();
               if (url.isNotEmpty) {
-                provider.addFeed(url);
+                notifier.addFeed(url);
                 Navigator.pop(ctx);
               }
             },
@@ -478,7 +502,7 @@ class RssScreen extends riverpod.ConsumerWidget {
 
   void _showEditFeedDialog(
     BuildContext context,
-    RssProvider provider,
+    riverpod.WidgetRef ref,
     RssFeedSubscription subscription,
   ) {
     final titleController = TextEditingController(text: subscription.title);
@@ -529,7 +553,8 @@ class RssScreen extends riverpod.ConsumerWidget {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('重新获取源信息'),
                   value: refreshMetadata,
-                  onChanged: (value) => setState(() => refreshMetadata = value),
+                  onChanged: (value) =>
+                      setState(() => refreshMetadata = value),
                 ),
               ],
             ),
@@ -543,13 +568,13 @@ class RssScreen extends riverpod.ConsumerWidget {
               onPressed: () {
                 final url = urlController.text.trim();
                 if (url.isNotEmpty) {
-                  provider.updateFeed(
-                    originalUrl: subscription.url,
-                    url: url,
-                    title: titleController.text,
-                    description: descriptionController.text,
-                    refreshMetadata: refreshMetadata,
-                  );
+                  ref.read(rssNotifierProvider.notifier).updateFeed(
+                        originalUrl: subscription.url,
+                        url: url,
+                        title: titleController.text,
+                        description: descriptionController.text,
+                        refreshMetadata: refreshMetadata,
+                      );
                   Navigator.pop(ctx);
                 }
               },

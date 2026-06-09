@@ -2,45 +2,60 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flow_rss/flow_rss.dart';
 import '../services/app_logger.dart';
-import 'package:flow_rss/flow_rss.dart';
 
-class RssProvider extends ChangeNotifier {
-  RssProvider({RssFeedService? service}) : _service = service ?? RssService();
+final rssFeedServiceProvider = Provider<RssFeedService>((ref) => RssService());
 
-  final RssFeedService _service;
+@immutable
+class RssState {
+  const RssState({
+    this.subscriptions = const [],
+    this.selectedFeedUrl,
+    this.articles = const [],
+    this.subscriptionStatus = RssLoadStatus.idle,
+    this.articlesStatus = RssLoadStatus.idle,
+    this.subscriptionError,
+    this.articlesError,
+    this.articleQuery = '',
+    this.articleFilter = RssArticleFilter.all,
+  });
 
-  List<RssFeedSubscription> _subscriptions = [];
-  String? _selectedFeedUrl;
-  List<RssArticle> _articles = [];
-  RssLoadStatus _subscriptionStatus = RssLoadStatus.idle;
-  RssLoadStatus _articlesStatus = RssLoadStatus.idle;
-  RssError? _subscriptionError;
-  RssError? _articlesError;
-  String _articleQuery = '';
-  RssArticleFilter _articleFilter = RssArticleFilter.all;
+  final List<RssFeedSubscription> subscriptions;
+  final String? selectedFeedUrl;
+  final List<RssArticle> articles;
+  final RssLoadStatus subscriptionStatus;
+  final RssLoadStatus articlesStatus;
+  final RssError? subscriptionError;
+  final RssError? articlesError;
+  final String articleQuery;
+  final RssArticleFilter articleFilter;
 
-  // ---- getters ----
+  bool get isLatestSelected => selectedFeedUrl == null;
+  bool get isLoading =>
+      subscriptionStatus == RssLoadStatus.loading ||
+      articlesStatus == RssLoadStatus.loading;
+  bool get isFetchingArticles => articlesStatus == RssLoadStatus.loading;
+  String? get errorMessage =>
+      subscriptionError?.message ?? articlesError?.message;
 
-  List<RssFeedSubscription> get subscriptions => _subscriptions;
-  String? get selectedFeedUrl => _selectedFeedUrl;
-  bool get isLatestSelected => _selectedFeedUrl == null;
   RssFeedSubscription? get selectedFeed {
-    if (_selectedFeedUrl == null) return null;
-    return _subscriptions.where((s) => s.url == _selectedFeedUrl).firstOrNull;
+    if (selectedFeedUrl == null) return null;
+    return subscriptions.where((s) => s.url == selectedFeedUrl).firstOrNull;
   }
 
-  List<RssArticle> get articles => _articles;
-  List<RssArticle> get visibleArticles {
-    return _filteredArticles(_articleFilter);
-  }
+  String get currentTitle =>
+      isLatestSelected ? '最新内容' : (selectedFeed?.title ?? 'RSS');
+
+  List<RssArticle> get visibleArticles => _filteredArticles(articleFilter);
+
+  int get unreadCount => visibleArticles.where((a) => !a.isRead).length;
 
   List<RssArticle> _queryMatchedArticles() {
-    final query = _articleQuery.trim().toLowerCase();
-    if (query.isEmpty) return _articles;
-    return _articles.where((article) {
+    final query = articleQuery.trim().toLowerCase();
+    if (query.isEmpty) return articles;
+    return articles.where((article) {
       return article.title.toLowerCase().contains(query) ||
           (article.description?.toLowerCase().contains(query) ?? false) ||
           (article.content?.toLowerCase().contains(query) ?? false) ||
@@ -59,34 +74,86 @@ class RssProvider extends ChangeNotifier {
     }).toList();
   }
 
-  RssLoadStatus get subscriptionStatus => _subscriptionStatus;
-  RssLoadStatus get articlesStatus => _articlesStatus;
-  RssError? get subscriptionError => _subscriptionError;
-  RssError? get articlesError => _articlesError;
-  bool get isLoading =>
-      _subscriptionStatus == RssLoadStatus.loading ||
-      _articlesStatus == RssLoadStatus.loading;
-  bool get isFetchingArticles => _articlesStatus == RssLoadStatus.loading;
-  String? get errorMessage =>
-      _subscriptionError?.message ?? _articlesError?.message;
-  String get articleQuery => _articleQuery;
-  RssArticleFilter get articleFilter => _articleFilter;
-  int get unreadCount => visibleArticles.where((a) => !a.isRead).length;
   int articleCountForFilter(RssArticleFilter filter) {
     return _filteredArticles(filter).length;
   }
 
-  String get currentTitle =>
-      isLatestSelected ? '最新内容' : (selectedFeed?.title ?? 'RSS');
+  RssState copyWith({
+    List<RssFeedSubscription>? subscriptions,
+    String? selectedFeedUrl,
+    bool clearSelectedFeedUrl = false,
+    List<RssArticle>? articles,
+    RssLoadStatus? subscriptionStatus,
+    RssLoadStatus? articlesStatus,
+    RssError? subscriptionError,
+    bool clearSubscriptionError = false,
+    RssError? articlesError,
+    bool clearArticlesError = false,
+    String? articleQuery,
+    RssArticleFilter? articleFilter,
+  }) {
+    return RssState(
+      subscriptions: subscriptions ?? this.subscriptions,
+      selectedFeedUrl:
+          clearSelectedFeedUrl ? null : (selectedFeedUrl ?? this.selectedFeedUrl),
+      articles: articles ?? this.articles,
+      subscriptionStatus: subscriptionStatus ?? this.subscriptionStatus,
+      articlesStatus: articlesStatus ?? this.articlesStatus,
+      subscriptionError: clearSubscriptionError
+          ? null
+          : (subscriptionError ?? this.subscriptionError),
+      articlesError:
+          clearArticlesError ? null : (articlesError ?? this.articlesError),
+      articleQuery: articleQuery ?? this.articleQuery,
+      articleFilter: articleFilter ?? this.articleFilter,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is RssState &&
+        other.subscriptions == subscriptions &&
+        other.selectedFeedUrl == selectedFeedUrl &&
+        other.articles == articles &&
+        other.subscriptionStatus == subscriptionStatus &&
+        other.articlesStatus == articlesStatus &&
+        other.subscriptionError == subscriptionError &&
+        other.articlesError == articlesError &&
+        other.articleQuery == articleQuery &&
+        other.articleFilter == articleFilter;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    subscriptions,
+    selectedFeedUrl,
+    articles,
+    subscriptionStatus,
+    articlesStatus,
+    subscriptionError,
+    articlesError,
+    articleQuery,
+    articleFilter,
+  );
+}
+
+class RssNotifier extends Notifier<RssState> {
+  RssFeedService get _service => ref.read(rssFeedServiceProvider);
+
+  @override
+  RssState build() {
+    return const RssState();
+  }
 
   // ---- init ----
 
   Future<void> init() async {
-    _subscriptionStatus = RssLoadStatus.loading;
-    _articlesStatus = RssLoadStatus.idle;
-    _subscriptionError = null;
-    _articlesError = null;
-    notifyListeners();
+    state = state.copyWith(
+      subscriptionStatus: RssLoadStatus.loading,
+      articlesStatus: RssLoadStatus.idle,
+      clearSubscriptionError: true,
+      clearArticlesError: true,
+    );
     try {
       await _service.init();
     } catch (error, stackTrace) {
@@ -97,42 +164,48 @@ class RssProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      _subscriptionStatus = RssLoadStatus.error;
-      _subscriptionError = _classifyError(error, stackTrace);
-      notifyListeners();
+      state = state.copyWith(
+        subscriptionStatus: RssLoadStatus.error,
+        subscriptionError: _classifyError(error, stackTrace),
+      );
       return;
     }
 
-    _subscriptions = _service.subscriptions;
-    _subscriptionStatus = _statusForItems(_subscriptions);
-    _subscriptionError = null;
-    if (_subscriptions.isEmpty) {
-      _articles = [];
-      _articlesStatus = RssLoadStatus.empty;
-      notifyListeners();
+    final subs = _service.subscriptions;
+    state = state.copyWith(
+      subscriptions: subs,
+      subscriptionStatus: _statusForItems(subs),
+      clearSubscriptionError: true,
+    );
+    if (subs.isEmpty) {
+      state = state.copyWith(
+        articles: const [],
+        articlesStatus: RssLoadStatus.empty,
+      );
       return;
     }
-
-    notifyListeners();
     await _loadArticles();
   }
 
   // ---- actions ----
 
   Future<void> addFeed(String url) async {
-    _subscriptionError = null;
-    _articlesError = null;
-    _subscriptionStatus = RssLoadStatus.loading;
-    notifyListeners();
+    state = state.copyWith(
+      clearSubscriptionError: true,
+      clearArticlesError: true,
+      subscriptionStatus: RssLoadStatus.loading,
+    );
     try {
       final sub = await _service.addSubscription(url);
-      _subscriptions = _service.subscriptions;
-      _selectedFeedUrl = sub.url;
-      _articleQuery = '';
-      _articleFilter = RssArticleFilter.all;
-      _subscriptionStatus = RssLoadStatus.loaded;
-      _subscriptionError = null;
-      notifyListeners();
+      final subs = _service.subscriptions;
+      state = state.copyWith(
+        subscriptions: subs,
+        selectedFeedUrl: sub.url,
+        articleQuery: '',
+        articleFilter: RssArticleFilter.all,
+        subscriptionStatus: RssLoadStatus.loaded,
+        clearSubscriptionError: true,
+      );
       await fetchArticlesForSelectedFeed();
     } catch (error, stackTrace) {
       AppLogger.instance.event(
@@ -142,13 +215,14 @@ class RssProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      _subscriptionStatus = RssLoadStatus.error;
-      _subscriptionError = _classifyError(
-        error,
-        stackTrace,
-        fallbackMessage: '添加订阅失败',
+      state = state.copyWith(
+        subscriptionStatus: RssLoadStatus.error,
+        subscriptionError: _classifyError(
+          error,
+          stackTrace,
+          fallbackMessage: '添加订阅失败',
+        ),
       );
-      notifyListeners();
     }
   }
 
@@ -159,10 +233,11 @@ class RssProvider extends ChangeNotifier {
     String? description,
     bool refreshMetadata = false,
   }) async {
-    _subscriptionError = null;
-    _articlesError = null;
-    _subscriptionStatus = RssLoadStatus.loading;
-    notifyListeners();
+    state = state.copyWith(
+      clearSubscriptionError: true,
+      clearArticlesError: true,
+      subscriptionStatus: RssLoadStatus.loading,
+    );
     try {
       final updated = await _service.updateSubscription(
         originalUrl: originalUrl,
@@ -171,19 +246,25 @@ class RssProvider extends ChangeNotifier {
         description: description,
         refreshMetadata: refreshMetadata,
       );
-      _subscriptions = _service.subscriptions;
-      if (_selectedFeedUrl == originalUrl) {
-        _selectedFeedUrl = updated?.url;
-        _subscriptionStatus = _statusForItems(_subscriptions);
-        notifyListeners();
+      final subs = _service.subscriptions;
+      if (state.selectedFeedUrl == originalUrl) {
+        state = state.copyWith(
+          subscriptions: subs,
+          selectedFeedUrl: updated?.url,
+          subscriptionStatus: _statusForItems(subs),
+        );
         await fetchArticlesForSelectedFeed();
-      } else if (_selectedFeedUrl == null) {
-        _subscriptionStatus = _statusForItems(_subscriptions);
-        notifyListeners();
+      } else if (state.selectedFeedUrl == null) {
+        state = state.copyWith(
+          subscriptions: subs,
+          subscriptionStatus: _statusForItems(subs),
+        );
         await fetchArticlesForSelectedFeed();
       } else {
-        _subscriptionStatus = _statusForItems(_subscriptions);
-        notifyListeners();
+        state = state.copyWith(
+          subscriptions: subs,
+          subscriptionStatus: _statusForItems(subs),
+        );
       }
     } catch (error, stackTrace) {
       AppLogger.instance.event(
@@ -193,41 +274,50 @@ class RssProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      _subscriptionStatus = RssLoadStatus.error;
-      _subscriptionError = _classifyError(
-        error,
-        stackTrace,
-        fallbackMessage: '更新订阅失败',
+      state = state.copyWith(
+        subscriptionStatus: RssLoadStatus.error,
+        subscriptionError: _classifyError(
+          error,
+          stackTrace,
+          fallbackMessage: '更新订阅失败',
+        ),
       );
-      notifyListeners();
     }
   }
 
   Future<void> removeFeed(String url) async {
-    _subscriptionError = null;
-    _articlesError = null;
-    _subscriptionStatus = RssLoadStatus.loading;
-    notifyListeners();
+    state = state.copyWith(
+      clearSubscriptionError: true,
+      clearArticlesError: true,
+      subscriptionStatus: RssLoadStatus.loading,
+    );
     try {
       await _service.removeSubscription(url);
       _service.clearArticleCache(url);
-      _subscriptions = _service.subscriptions;
-      _subscriptionStatus = _statusForItems(_subscriptions);
-      if (_selectedFeedUrl == url) {
-        _selectedFeedUrl = null;
-        _articles = [];
-        _articlesStatus = _subscriptions.isEmpty
-            ? RssLoadStatus.empty
-            : RssLoadStatus.idle;
-        notifyListeners();
-        if (_subscriptions.isNotEmpty) {
+      final subs = _service.subscriptions;
+      if (state.selectedFeedUrl == url) {
+        state = state.copyWith(
+          subscriptions: subs,
+          clearSelectedFeedUrl: true,
+          articles: const [],
+          articlesStatus:
+              subs.isEmpty ? RssLoadStatus.empty : RssLoadStatus.idle,
+          subscriptionStatus: _statusForItems(subs),
+        );
+        if (subs.isNotEmpty) {
           await fetchArticlesForSelectedFeed();
         }
-      } else if (_selectedFeedUrl == null) {
-        notifyListeners();
+      } else if (state.selectedFeedUrl == null) {
+        state = state.copyWith(
+          subscriptions: subs,
+          subscriptionStatus: _statusForItems(subs),
+        );
         await fetchArticlesForSelectedFeed();
       } else {
-        notifyListeners();
+        state = state.copyWith(
+          subscriptions: subs,
+          subscriptionStatus: _statusForItems(subs),
+        );
       }
     } catch (error, stackTrace) {
       AppLogger.instance.event(
@@ -237,31 +327,34 @@ class RssProvider extends ChangeNotifier {
         error: error,
         stackTrace: stackTrace,
       );
-      _subscriptionStatus = RssLoadStatus.error;
-      _subscriptionError = _classifyError(
-        error,
-        stackTrace,
-        fallbackMessage: '移除订阅失败',
+      state = state.copyWith(
+        subscriptionStatus: RssLoadStatus.error,
+        subscriptionError: _classifyError(
+          error,
+          stackTrace,
+          fallbackMessage: '移除订阅失败',
+        ),
       );
-      notifyListeners();
     }
   }
 
   void selectLatest() {
-    if (_selectedFeedUrl == null) return;
-    _selectedFeedUrl = null;
-    _articles = [];
-    _articleFilter = RssArticleFilter.all;
-    notifyListeners();
+    if (state.selectedFeedUrl == null) return;
+    state = state.copyWith(
+      clearSelectedFeedUrl: true,
+      articles: const [],
+      articleFilter: RssArticleFilter.all,
+    );
     fetchArticlesForSelectedFeed();
   }
 
   void selectFeed(String url) {
-    if (url == _selectedFeedUrl) return;
-    _selectedFeedUrl = url;
-    _articles = [];
-    _articleFilter = RssArticleFilter.all;
-    notifyListeners();
+    if (url == state.selectedFeedUrl) return;
+    state = state.copyWith(
+      selectedFeedUrl: url,
+      articles: const [],
+      articleFilter: RssArticleFilter.all,
+    );
     fetchArticlesForSelectedFeed();
   }
 
@@ -270,106 +363,121 @@ class RssProvider extends ChangeNotifier {
   }
 
   Future<void> _loadArticles({bool forceRefresh = false}) async {
-    if (_subscriptions.isEmpty) {
-      _articles = [];
-      _articlesStatus = RssLoadStatus.empty;
-      _articlesError = null;
-      notifyListeners();
+    if (state.subscriptions.isEmpty) {
+      state = state.copyWith(
+        articles: const [],
+        articlesStatus: RssLoadStatus.empty,
+        clearArticlesError: true,
+      );
       return;
     }
-    _articlesStatus = RssLoadStatus.loading;
-    _articlesError = null;
-    notifyListeners();
+    state = state.copyWith(
+      articlesStatus: RssLoadStatus.loading,
+      clearArticlesError: true,
+    );
     try {
-      _articles = _selectedFeedUrl == null
+      final loadedArticles = state.selectedFeedUrl == null
           ? await _service.fetchLatestArticles(forceRefresh: forceRefresh)
           : await _service.fetchArticles(
-              _selectedFeedUrl!,
+              state.selectedFeedUrl!,
               forceRefresh: forceRefresh,
             );
-      _articlesStatus = _articles.isEmpty
-          ? RssLoadStatus.empty
-          : RssLoadStatus.loaded;
-      _articlesError = null;
+      state = state.copyWith(
+        articles: loadedArticles,
+        articlesStatus: loadedArticles.isEmpty
+            ? RssLoadStatus.empty
+            : RssLoadStatus.loaded,
+        clearArticlesError: true,
+      );
     } catch (error, stackTrace) {
       AppLogger.instance.event(
         'rss.fetch_articles_failed',
         level: AppLogLevel.warning,
         source: 'rss_provider',
-        metadata: {'mode': _selectedFeedUrl == null ? 'latest' : 'feed'},
+        metadata: {'mode': state.selectedFeedUrl == null ? 'latest' : 'feed'},
         error: error,
         stackTrace: stackTrace,
       );
-      _articlesStatus = RssLoadStatus.error;
-      _articlesError = _classifyError(
-        error,
-        stackTrace,
-        fallbackMessage: '获取文章失败',
+      state = state.copyWith(
+        articlesStatus: RssLoadStatus.error,
+        articlesError: _classifyError(
+          error,
+          stackTrace,
+          fallbackMessage: '获取文章失败',
+        ),
       );
     }
-    notifyListeners();
   }
 
   Future<void> refreshAll() async {
-    if (_selectedFeedUrl == null) {
+    if (state.selectedFeedUrl == null) {
       _service.clearArticleCache();
     } else {
-      _service.clearArticleCache(_selectedFeedUrl);
+      _service.clearArticleCache(state.selectedFeedUrl);
     }
     await _loadArticles(forceRefresh: true);
   }
 
   Future<void> retry() async {
-    if (_subscriptionStatus == RssLoadStatus.error) {
+    if (state.subscriptionStatus == RssLoadStatus.error) {
       await init();
       return;
     }
-    if (_articlesStatus == RssLoadStatus.error) {
+    if (state.articlesStatus == RssLoadStatus.error) {
       await fetchArticlesForSelectedFeed();
     }
   }
 
   Future<void> markAsRead(String articleId) async {
     await _service.markAsRead(articleId);
-    notifyListeners();
+    _refreshArticlesFromService();
   }
 
   Future<void> markAsUnread(String articleId) async {
     await _service.markAsUnread(articleId);
-    notifyListeners();
+    _refreshArticlesFromService();
   }
 
   Future<void> setArticleFavorite(String articleId, bool isFavorite) async {
     await _service.setArticleFavorite(articleId, isFavorite);
-    notifyListeners();
+    _refreshArticlesFromService();
   }
 
   Future<void> setArticleReadLater(String articleId, bool isReadLater) async {
     await _service.setArticleReadLater(articleId, isReadLater);
-    notifyListeners();
+    _refreshArticlesFromService();
   }
 
   void updateArticleQuery(String query) {
-    _articleQuery = query;
-    notifyListeners();
+    state = state.copyWith(articleQuery: query);
   }
 
   void updateArticleFilter(RssArticleFilter filter) {
-    if (_articleFilter == filter) return;
-    _articleFilter = filter;
-    notifyListeners();
+    if (state.articleFilter == filter) return;
+    state = state.copyWith(articleFilter: filter);
   }
 
   void clearError() {
-    _subscriptionError = null;
-    _articlesError = null;
-    if (_subscriptionStatus == RssLoadStatus.error) {
-      _subscriptionStatus = _statusForItems(_subscriptions);
-    }
-    if (_articlesStatus == RssLoadStatus.error) {
-      _articlesStatus = _statusForItems(_articles);
-    }
-    notifyListeners();
+    state = _clearErrorState(state);
+  }
+
+  RssState _clearErrorState(RssState s) {
+    return s.copyWith(
+      clearSubscriptionError: true,
+      clearArticlesError: true,
+      subscriptionStatus: s.subscriptionStatus == RssLoadStatus.error
+          ? _statusForItems(s.subscriptions)
+          : null,
+      articlesStatus: s.articlesStatus == RssLoadStatus.error
+          ? _statusForItems(s.articles)
+          : null,
+    );
+  }
+
+  void _refreshArticlesFromService() {
+    state = state.copyWith(
+      articles: List<RssArticle>.from(state.articles),
+    );
   }
 
   RssLoadStatus _statusForItems(List<Object?> items) {

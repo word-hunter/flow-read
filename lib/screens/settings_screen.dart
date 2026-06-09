@@ -665,7 +665,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
 
     final backup = ref.read(backupProvider);
     final bookshelf = ref.read(bookshelfNotifierProvider.notifier);
-    final rssNotifier = ref.read(rssProvider);
+    final rssNotifier = ref.read(rssNotifierProvider.notifier);
 
     try {
       await backup.importBackupFile(path);

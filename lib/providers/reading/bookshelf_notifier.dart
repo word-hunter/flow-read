@@ -231,6 +231,28 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
 
     ref.read(vocabularyNotifierProvider.notifier).tryUseCachedDifficulty(meta);
 
+    final cachedBook = ref.read(bookCacheProvider).get(bookId);
+    if (cachedBook != null) {
+      final currentChapter = meta.currentChapter.clamp(
+        0,
+        cachedBook.chapters.length - 1,
+      );
+      state = state.copyWith(
+        book: cachedBook,
+        activeBookId: bookId,
+        importStage: '',
+        isLoading: false,
+      );
+      ref
+          .read(currentBookNotifierProvider.notifier)
+          .invalidateChapterAnalysisCache();
+      ref
+          .read(currentBookNotifierProvider.notifier)
+          .goToChapter(currentChapter);
+      ref.read(aiAssistantControllerProvider).clear();
+      return true;
+    }
+
     state = state.copyWith(
       isLoading: true,
       clearError: true,
@@ -239,6 +261,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
 
     try {
       final book = await EpubParseWorker.parseInIsolate(meta.sourcePath);
+      ref.read(bookCacheProvider).put(bookId, book);
       final currentChapter = meta.currentChapter.clamp(
         0,
         book.chapters.length - 1,
@@ -285,6 +308,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     await bookmarkService.deleteReadingBookmarks(bookId);
     await learningItemService.deleteForBook(bookId);
     await aiCache.clearBookCache(bookId);
+    ref.read(bookCacheProvider).remove(bookId);
 
     if (state.activeBookId == bookId) {
       state = state.copyWith(
@@ -399,6 +423,8 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
         activeBookId: effectiveBookId,
         books: bookService.books,
       );
+
+      ref.read(bookCacheProvider).put(effectiveBookId, book);
 
       _showImportCancel = false;
       _importCancelTimer?.cancel();

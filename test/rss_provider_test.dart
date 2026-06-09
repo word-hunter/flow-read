@@ -1,43 +1,75 @@
 import 'package:flow_rss/flow_rss.dart';
-import 'package:flow_read/providers/rss_provider.dart';
-import 'package:flow_rss/flow_rss.dart';
+import 'package:flow_read/providers/rss_riverpod_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+Future<RssNotifier> _createNotifier(
+  ProviderContainer container, {
+  List<RssFeedSubscription>? subscriptions,
+  List<RssArticle>? articles,
+  Object? latestError,
+}) async {
+  final notifier = container.read(rssNotifierProvider.notifier);
+  await notifier.init();
+  return notifier;
+}
+
+ProviderContainer _createContainer(
+  List<RssFeedSubscription> subscriptions,
+  List<RssArticle> articles,
+  Object? latestError,
+) {
+  return ProviderContainer(
+    overrides: [
+      rssFeedServiceProvider.overrideWithValue(
+        _FakeRssFeedService(
+          subscriptions: subscriptions,
+          articles: articles,
+          latestError: latestError,
+        ),
+      ),
+    ],
+  );
+}
 
 void main() {
   test('provider surfaces fetch failures from an injected service', () async {
-    final provider = RssProvider(
-      service: _FakeRssFeedService(
-        subscriptions: [
-          RssFeedSubscription(
-            url: 'https://example.com/rss.xml',
-            title: 'Example',
-          ),
-        ],
-        latestError: StateError('network down'),
-      ),
+    final container = _createContainer(
+      [
+        RssFeedSubscription(
+          url: 'https://example.com/rss.xml',
+          title: 'Example',
+        ),
+      ],
+      [],
+      StateError('network down'),
     );
-    addTearDown(provider.dispose);
+    addTearDown(container.dispose);
 
-    await provider.init();
+    final notifier = container.read(rssNotifierProvider.notifier);
+    await notifier.init();
+    final state = container.read(rssNotifierProvider);
 
-    expect(provider.isLoading, isFalse);
-    expect(provider.subscriptionStatus, RssLoadStatus.loaded);
-    expect(provider.articlesStatus, RssLoadStatus.error);
-    expect(provider.articlesError?.type, RssErrorType.network);
-    expect(provider.articlesError?.detail, contains('network down'));
-    expect(provider.articles, isEmpty);
+    expect(state.isLoading, isFalse);
+    expect(state.subscriptionStatus, RssLoadStatus.loaded);
+    expect(state.articlesStatus, RssLoadStatus.error);
+    expect(state.articlesError?.type, RssErrorType.network);
+    expect(state.articlesError?.detail, contains('network down'));
+    expect(state.articles, isEmpty);
   });
 
   test('provider tracks empty subscription and article states', () async {
-    final provider = RssProvider(service: _FakeRssFeedService());
-    addTearDown(provider.dispose);
+    final container = _createContainer([], [], null);
+    addTearDown(container.dispose);
 
-    await provider.init();
+    final notifier = container.read(rssNotifierProvider.notifier);
+    await notifier.init();
+    final state = container.read(rssNotifierProvider);
 
-    expect(provider.subscriptionStatus, RssLoadStatus.empty);
-    expect(provider.articlesStatus, RssLoadStatus.empty);
-    expect(provider.subscriptions, isEmpty);
-    expect(provider.articles, isEmpty);
+    expect(state.subscriptionStatus, RssLoadStatus.empty);
+    expect(state.articlesStatus, RssLoadStatus.empty);
+    expect(state.subscriptions, isEmpty);
+    expect(state.articles, isEmpty);
   });
 
   test('retry refetches articles after an article error', () async {
@@ -57,29 +89,36 @@ void main() {
       ],
       latestError: StateError('network down'),
     );
-    final provider = RssProvider(service: service);
-    addTearDown(provider.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        rssFeedServiceProvider.overrideWithValue(service),
+      ],
+    );
+    addTearDown(container.dispose);
 
-    await provider.init();
-    expect(provider.articlesStatus, RssLoadStatus.error);
+    final notifier = container.read(rssNotifierProvider.notifier);
+    await notifier.init();
+    expect(container.read(rssNotifierProvider).articlesStatus,
+        RssLoadStatus.error);
 
     service.latestError = null;
-    await provider.retry();
+    await notifier.retry();
 
-    expect(provider.articlesStatus, RssLoadStatus.loaded);
-    expect(provider.articles.map((article) => article.id), ['recovered']);
-    expect(provider.articlesError, isNull);
+    final state = container.read(rssNotifierProvider);
+    expect(state.articlesStatus, RssLoadStatus.loaded);
+    expect(state.articles.map((article) => article.id), ['recovered']);
+    expect(state.articlesError, isNull);
   });
 
   test('provider filters searched articles by list state', () async {
-    final service = _FakeRssFeedService(
-      subscriptions: [
+    final container = _createContainer(
+      [
         RssFeedSubscription(
           url: 'https://example.com/rss.xml',
           title: 'Example',
         ),
       ],
-      articles: [
+      [
         RssArticle(
           feedUrl: 'https://example.com/rss.xml',
           title: 'Unread article',
@@ -100,30 +139,48 @@ void main() {
           id: 'later',
         ),
       ],
+      null,
     );
-    final provider = RssProvider(service: service);
-    addTearDown(provider.dispose);
+    addTearDown(container.dispose);
 
-    await provider.init();
+    final notifier = container.read(rssNotifierProvider.notifier);
+    await notifier.init();
 
-    expect(provider.visibleArticles.map((article) => article.id), [
-      'unread',
-      'favorite',
-      'later',
-    ]);
+    expect(
+      container.read(rssNotifierProvider).visibleArticles
+          .map((article) => article.id),
+      ['unread', 'favorite', 'later'],
+    );
 
-    provider.updateArticleFilter(RssArticleFilter.favorite);
-    expect(provider.visibleArticles.map((article) => article.id), ['favorite']);
+    notifier.updateArticleFilter(RssArticleFilter.favorite);
+    expect(
+      container.read(rssNotifierProvider).visibleArticles
+          .map((article) => article.id),
+      ['favorite'],
+    );
 
-    provider.updateArticleFilter(RssArticleFilter.readLater);
-    expect(provider.visibleArticles.map((article) => article.id), ['later']);
+    notifier.updateArticleFilter(RssArticleFilter.readLater);
+    expect(
+      container.read(rssNotifierProvider).visibleArticles
+          .map((article) => article.id),
+      ['later'],
+    );
 
-    provider.updateArticleFilter(RssArticleFilter.unread);
-    expect(provider.visibleArticles.map((article) => article.id), ['unread']);
+    notifier.updateArticleFilter(RssArticleFilter.unread);
+    expect(
+      container.read(rssNotifierProvider).visibleArticles
+          .map((article) => article.id),
+      ['unread'],
+    );
 
-    provider.updateArticleQuery('favorite');
-    expect(provider.visibleArticles, isEmpty);
-    expect(provider.articleCountForFilter(RssArticleFilter.favorite), 1);
+    notifier.updateArticleQuery('favorite');
+    expect(container.read(rssNotifierProvider).visibleArticles, isEmpty);
+    expect(
+      container.read(rssNotifierProvider).articleCountForFilter(
+            RssArticleFilter.favorite,
+          ),
+      1,
+    );
   });
 }
 

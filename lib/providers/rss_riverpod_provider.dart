@@ -1,11 +1,9 @@
-import 'dart:async';
-
-import 'package:flutter_riverpod/legacy.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'rss_provider.dart';
 
-final rssProvider = ChangeNotifierProvider<RssProvider>((ref) {
-  final provider = RssProvider();
-  unawaited(provider.init());
-  return provider;
-});
+export 'rss_provider.dart' show rssFeedServiceProvider, RssNotifier, RssState;
+
+final rssNotifierProvider = NotifierProvider<RssNotifier, RssState>(
+  RssNotifier.new,
+);

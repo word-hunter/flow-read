@@ -243,11 +243,13 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     for (final meta in pending) {
       try {
         final shelfBook = ref.read(bookshelfNotifierProvider).book;
+        final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
         final book =
-            meta.id == ref.read(bookshelfNotifierProvider).activeBookId &&
-                shelfBook != null
+            meta.id == activeBookId && shelfBook != null
             ? shelfBook
-            : await EpubParseWorker.parseInIsolate(meta.sourcePath);
+            : ref.read(bookCacheProvider).get(meta.id) ??
+                await EpubParseWorker.parseInIsolate(meta.sourcePath);
+        ref.read(bookCacheProvider).put(meta.id, book);
         final studyWords = await AnalysisService.collectBookStudyWordsAsync(
           book,
           _wordLevelService,
