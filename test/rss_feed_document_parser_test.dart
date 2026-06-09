@@ -1,5 +1,4 @@
 import 'package:flow_rss/flow_rss.dart';
-import 'package:flow_rss/flow_rss.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart';
 

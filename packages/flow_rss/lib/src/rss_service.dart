@@ -189,7 +189,7 @@ class RssService implements RssFeedService {
       _articleCache[feedUrl] = articles;
       await _updateLastFetched(feedUrl);
       return articles;
-    } catch (error, stackTrace) {
+    } catch (error) {
       debugPrint('[rss_service] fetch failed: $error');
       if (cached != null) return cached;
       rethrow;

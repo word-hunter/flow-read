@@ -3,17 +3,6 @@ import 'package:flow_read/providers/rss_riverpod_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Future<RssNotifier> _createNotifier(
-  ProviderContainer container, {
-  List<RssFeedSubscription>? subscriptions,
-  List<RssArticle>? articles,
-  Object? latestError,
-}) async {
-  final notifier = container.read(rssNotifierProvider.notifier);
-  await notifier.init();
-  return notifier;
-}
-
 ProviderContainer _createContainer(
   List<RssFeedSubscription> subscriptions,
   List<RssArticle> articles,

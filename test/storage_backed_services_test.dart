@@ -17,7 +17,6 @@ import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/services/epub_import_source.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
-import 'package:flow_rss/flow_rss.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/services/word_context_service.dart';
