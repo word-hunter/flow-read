@@ -33,6 +33,7 @@ import '../widgets/reader/reader_search_panel.dart';
 import '../widgets/reader/reader_word_sidebar.dart';
 import '../widgets/reader_shell/desktop_reader_workspace_shell.dart';
 import '../widgets/reader_shell/reader_core_view.dart';
+import '../widgets/reader_shell/reader_right_assistant_panel.dart';
 import '../widgets/reader_shell/reader_workspace_controller.dart';
 import '../widgets/reader_text_view.dart';
 import '../widgets/selected_text_action_toolbar.dart'
@@ -688,9 +689,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
                 workspaceController: _workspaceController,
                 toolbar: buildToolbar(),
                 centerContent: buildContent(),
-                rightPanel: _workspaceController.isRightPanelOpen
-                    ? _buildReaderSidebar()
-                    : const SizedBox.shrink(),
+                rightPanel: _buildWorkspaceRightPanel(),
                 readingProgressLine: _buildReadingProgressLine(
                     theme, _displayProgressNotifier),
                 readingReminder: _buildReadingReminder(theme),
@@ -829,5 +828,52 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         onClose: () => setState(() => _sidebarOpen = false),
       ),
     };
+  }
+
+  Widget _buildWorkspaceRightPanel() {
+    if (!_workspaceController.isRightPanelOpen) {
+      return const SizedBox.shrink();
+    }
+
+    Widget? wordContent;
+    Widget? textContent;
+    Widget? aiContent;
+
+    switch (_sidebarMode) {
+      case _ReaderSidebarMode.word:
+        wordContent = ReaderWordSidebar(
+          onClose: () {
+            ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
+            _workspaceController.closeRightPanel();
+          },
+          onOpenAssistant: () {
+            _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
+            setState(() => _sidebarMode = _ReaderSidebarMode.assistant);
+          },
+        );
+      case _ReaderSidebarMode.textAnalysis:
+        if (_sidebarSelectedText.isNotEmpty) {
+          textContent = SelectedTextSheet(
+            selectedText: _sidebarSelectedText,
+            analysis: null,
+            analyzerName: _sidebarAnalyzerName,
+            embedded: true,
+            onClose: () => _workspaceController.closeRightPanel(),
+          );
+        }
+      case _ReaderSidebarMode.assistant:
+        aiContent = AIAssistantPanel(
+          controller: ref.read(aiAssistantControllerProvider),
+          embedded: true,
+          onClose: () => _workspaceController.closeRightPanel(),
+        );
+    }
+
+    return ReaderRightAssistantPanel(
+      workspaceController: _workspaceController,
+      dictionaryContent: wordContent ?? const SizedBox.shrink(),
+      selectedTextContent: textContent ?? const SizedBox.shrink(),
+      aiContent: aiContent ?? const SizedBox.shrink(),
+    );
   }
 }
