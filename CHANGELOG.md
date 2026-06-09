@@ -10,6 +10,29 @@ This project follows a simple semantic versioning flow:
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-06-09
+
+### 新增
+
+- 新增 Reader Platform Foundation：引入 `ReaderLayoutEngine`、阅读位置锚点、页面切片和布局配置模型，为后续分页、回流和跨视口定位恢复打基础。
+- 新增 City 阅读氛围：设置中可开启随时间变化或手动固定的低干扰城市背景，并同步到阅读、首页等主要界面。
+- 新增 Drift 数据层基础：加入 AppDatabase、DAO、Repository wrapper 和 Hive 到 Drift 的迁移器，Settings 与作品词库开始迁移到新的持久化路径。
+- 新增解析书籍与封面图片的 LRU 内存缓存，降低重复打开书籍和重复渲染封面的等待。
+- 新增 V2 默认封面控制能力，改善缺少封面时的书架展示。
+
+### 改进
+
+- 继续收口统一 AI 助手：补齐控制器注入、生命周期管理、面板入口迁移和 AI 状态模块化，为阅读、浏览和上下文问答复用同一套交互。
+- 拆分内部包边界：抽出 `flow_language`、`flow_dictionary`、`flow_ai`、`flow_rss`、`flow_learning` 和 `flow_backup`，降低主应用耦合。
+- 优化阅读性能：章节分析延后到首帧之后执行、全文学习词收集移入 isolate、搜索结果通知批量节流，并提前加载难度缓存。
+- 改进本地工程健康度：对 JSON 读取、空值断言、设置页拆分、Word Hunter 导入服务和 pre-push 检查做了集中清理。
+
+### 修复
+
+- 修复阅读页拖拽滚动条后可能逐渐失效，以及滚动进度同步导致页面不流畅的问题。
+- 调整阅读页选中文本工具栏结构，减少选区手势与滚动容器之间的冲突。
+- 修复测试 Drift 内存数据库未关闭的问题，并补充异常路径的调试输出。
+
 ## [1.7.1] - 2026-06-07
 
 ### Fixed
