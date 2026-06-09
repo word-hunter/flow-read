@@ -26,9 +26,9 @@ void main() {
       ),
     );
 
-    final firstTop = tester.getTopLeft(find.text('Book 0')).dy;
-    final secondTop = tester.getTopLeft(find.text('Book 1')).dy;
-    final thirdTop = tester.getTopLeft(find.text('Book 2')).dy;
+    final firstTop = tester.getTopLeft(find.text('Book 0').first).dy;
+    final secondTop = tester.getTopLeft(find.text('Book 1').first).dy;
+    final thirdTop = tester.getTopLeft(find.text('Book 2').first).dy;
 
     expect(secondTop, firstTop);
     expect(thirdTop, greaterThan(secondTop + 100));
