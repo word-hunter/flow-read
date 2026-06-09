@@ -59,11 +59,13 @@ class SelectedTextActionRegion extends StatefulWidget {
   final ValueChanged<String>? onSelectionTextChanged;
   final bool autoShowOnSelection;
   final Duration autoShowDelay;
+  final GlobalKey<SelectionAreaState>? selectionAreaKey;
 
   const SelectedTextActionRegion({
     super.key,
     required this.child,
     required this.actionsBuilder,
+    this.selectionAreaKey,
     this.onSelectionTextChanged,
     this.autoShowOnSelection = true,
     this.autoShowDelay = const Duration(milliseconds: 220),
@@ -75,11 +77,13 @@ class SelectedTextActionRegion extends StatefulWidget {
 }
 
 class SelectedTextActionRegionState extends State<SelectedTextActionRegion> {
-  final GlobalKey<SelectionAreaState> _selectionAreaKey =
-      GlobalKey<SelectionAreaState>();
+  GlobalKey<SelectionAreaState>? _internalSelectionAreaKey;
   Timer? _showToolbarTimer;
   OverlayEntry? _toolbarEntry;
   String _selectedText = '';
+
+  GlobalKey<SelectionAreaState> get _effectiveKey =>
+      widget.selectionAreaKey ?? (_internalSelectionAreaKey ??= GlobalKey<SelectionAreaState>());
 
   @override
   void dispose() {
@@ -103,7 +107,7 @@ class SelectedTextActionRegionState extends State<SelectedTextActionRegion> {
         platform == TargetPlatform.linux;
   }
 
-  void _handleSelectionChanged(SelectedContent? selection) {
+  void onSelectionChanged(SelectedContent? selection) {
     final text = selection?.plainText ?? '';
     _selectedText = text;
     widget.onSelectionTextChanged?.call(text);
@@ -116,7 +120,7 @@ class SelectedTextActionRegionState extends State<SelectedTextActionRegion> {
 
   void _showAutomaticToolbar() {
     if (!mounted || _selectedText.trim().isEmpty) return;
-    final selectionArea = _selectionAreaKey.currentState;
+    final selectionArea = _effectiveKey.currentState;
     final overlay = Overlay.maybeOf(context);
     if (selectionArea == null || overlay == null) return;
 
@@ -131,7 +135,7 @@ class SelectedTextActionRegionState extends State<SelectedTextActionRegion> {
     overlay.insert(entry);
   }
 
-  Widget _buildContextMenu(
+  Widget buildContextMenu(
     BuildContext context,
     SelectableRegionState selectableRegionState,
   ) {
@@ -149,6 +153,15 @@ class SelectedTextActionRegionState extends State<SelectedTextActionRegion> {
 
   @override
   Widget build(BuildContext context) {
+    final child = widget.selectionAreaKey != null
+        ? widget.child
+        : SelectionArea(
+            key: _effectiveKey,
+            onSelectionChanged: onSelectionChanged,
+            contextMenuBuilder: buildContextMenu,
+            child: widget.child,
+          );
+
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         if (notification is ScrollStartNotification ||
@@ -157,12 +170,7 @@ class SelectedTextActionRegionState extends State<SelectedTextActionRegion> {
         }
         return false;
       },
-      child: SelectionArea(
-        key: _selectionAreaKey,
-        onSelectionChanged: _handleSelectionChanged,
-        contextMenuBuilder: _buildContextMenu,
-        child: widget.child,
-      ),
+      child: child,
     );
   }
 }

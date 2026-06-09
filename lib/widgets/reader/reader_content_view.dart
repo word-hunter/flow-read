@@ -26,6 +26,8 @@ class ReaderContentView extends StatelessWidget {
   final WordLookupState lookupState;
   final WordLevelService? wordLevelService;
   final LanguageModule? activeLanguageModule;
+  final GlobalKey<SelectionAreaState> readerSelectionAreaKey;
+  final GlobalKey<SelectedTextActionRegionState> actionRegionKey;
   final ScrollController scrollController;
   final bool isWideScreen;
   final bool sidebarOpen;
@@ -49,6 +51,8 @@ class ReaderContentView extends StatelessWidget {
     required this.lookupState,
     required this.wordLevelService,
     required this.activeLanguageModule,
+    required this.readerSelectionAreaKey,
+    required this.actionRegionKey,
     required this.scrollController,
     required this.isWideScreen,
     required this.sidebarOpen,
@@ -62,6 +66,8 @@ class ReaderContentView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SelectedTextActionRegion(
+      key: actionRegionKey,
+      selectionAreaKey: readerSelectionAreaKey,
       actionsBuilder: (context, selectedText, closeToolbar) =>
           _buildSelectedTextActions(
             context,
@@ -94,42 +100,54 @@ class ReaderContentView extends StatelessWidget {
                 : Alignment.topCenter,
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxFrameWidth),
-              child: SingleChildScrollView(
-                key: const ValueKey('reader-scroll-view'),
-                controller: scrollController,
-                padding: EdgeInsets.fromLTRB(
-                  leftPadding,
-                  topPadding,
-                  rightPadding,
-                  40,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (showTitleBlock)
-                      _buildTitleBlock(result, theme, config, cityPreset),
-                    for (
-                      var contentIndex = 0;
-                      contentIndex < contentCount;
-                      contentIndex += 1
-                    )
-                      KeyedSubtree(
-                        key: contentKeyFor(contentIndex),
-                        child: useBlocks
-                            ? _buildContentBlock(
-                                blocks[contentIndex],
-                                isFirstBlock:
-                                    contentIndex == 0 && currentBook.hasBook,
-                                cityPreset: cityPreset,
-                              )
-                            : _buildParagraph(
-                                paragraphs[contentIndex],
-                                isFirstParagraph:
-                                    contentIndex == 0 && currentBook.hasBook,
-                                cityPreset: cityPreset,
-                              ),
-                      ),
-                  ],
+              child: SelectionContainer.disabled(
+                child: SingleChildScrollView(
+                  key: const ValueKey('reader-scroll-view'),
+                  controller: scrollController,
+                  padding: EdgeInsets.fromLTRB(
+                    leftPadding,
+                    topPadding,
+                    rightPadding,
+                    40,
+                  ),
+                  child: SelectionArea(
+                    key: readerSelectionAreaKey,
+                    onSelectionChanged:
+                        actionRegionKey.currentState?.onSelectionChanged,
+                    contextMenuBuilder:
+                        actionRegionKey.currentState?.buildContextMenu ??
+                        (_, _) => const SizedBox.shrink(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (showTitleBlock)
+                          _buildTitleBlock(result, theme, config, cityPreset),
+                        for (
+                          var contentIndex = 0;
+                          contentIndex < contentCount;
+                          contentIndex += 1
+                        )
+                          KeyedSubtree(
+                            key: contentKeyFor(contentIndex),
+                            child: useBlocks
+                                ? _buildContentBlock(
+                                    blocks[contentIndex],
+                                    isFirstBlock:
+                                        contentIndex == 0 &&
+                                        currentBook.hasBook,
+                                    cityPreset: cityPreset,
+                                  )
+                                : _buildParagraph(
+                                    paragraphs[contentIndex],
+                                    isFirstParagraph:
+                                        contentIndex == 0 &&
+                                        currentBook.hasBook,
+                                    cityPreset: cityPreset,
+                                  ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

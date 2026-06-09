@@ -31,6 +31,8 @@ import '../widgets/reader/reader_nav_bar.dart';
 import '../widgets/reader/reader_search_panel.dart';
 import '../widgets/reader/reader_word_sidebar.dart';
 import '../widgets/reader_text_view.dart';
+import '../widgets/selected_text_action_toolbar.dart'
+    show SelectedTextActionRegionState;
 import '../widgets/selected_text_sheet.dart';
 import '../widgets/toc_bottom_sheet.dart';
 import '../widgets/word_bottom_sheet.dart';
@@ -54,6 +56,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   final ScrollController _scrollController = ScrollController();
   final MenuController _tocMenuController = MenuController();
   final MenuController _fontSettingsMenuController = MenuController();
+  final GlobalKey<SelectionAreaState> _readerSelectionAreaKey =
+      GlobalKey<SelectionAreaState>();
+  final GlobalKey<SelectedTextActionRegionState> _actionRegionKey =
+      GlobalKey<SelectedTextActionRegionState>();
   @override
   final FocusNode _readerFocusNode = FocusNode(
     debugLabel: 'ReaderPageKeyboard',
@@ -474,7 +480,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       fontSize: config.fontSize,
       fontFamily: config.fontFamily,
       lineHeight: config.lineHeight,
-      viewportWidth: _layoutWidth > 0 ? _layoutWidth : MediaQuery.sizeOf(context).width,
+      viewportWidth: _layoutWidth > 0
+          ? _layoutWidth
+          : MediaQuery.sizeOf(context).width,
       viewportHeight: MediaQuery.sizeOf(context).height,
     );
     final didReflow = _needsReflow(layoutConfig);
@@ -488,7 +496,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         );
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || !_scrollController.hasClients) return;
-          final currentChapters = ref.read(bookshelfNotifierProvider).book?.chapters;
+          final currentChapters = ref
+              .read(bookshelfNotifierProvider)
+              .book
+              ?.chapters;
           if (currentChapters == null) return;
           final chapter = currentBookState.currentChapter;
           if (chapter >= currentChapters.length) return;
@@ -563,6 +574,8 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               activeLanguageModule: ref
                   .read(vocabularyNotifierProvider.notifier)
                   .activeLanguageModule,
+              readerSelectionAreaKey: _readerSelectionAreaKey,
+              actionRegionKey: _actionRegionKey,
               scrollController: _scrollController,
               isWideScreen: isWide,
               sidebarOpen: _sidebarOpen,
