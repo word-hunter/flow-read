@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
-import '../models/rss_models.dart';
+import 'package:flow_rss/flow_rss.dart';
 import '../providers/rss_provider.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../theme/app_constants.dart';

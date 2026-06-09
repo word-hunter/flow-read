@@ -1,4 +1,4 @@
-import 'package:flow_read/models/rss_models.dart';
+import 'package:flow_rss/flow_rss.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/widgets/rss/rss_article_list.dart';

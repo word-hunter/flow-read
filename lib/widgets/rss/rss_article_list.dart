@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../models/rss_models.dart';
+import 'package:flow_rss/flow_rss.dart';
 import 'rss_article_body_view.dart';
 
 class RssArticleList extends StatefulWidget {

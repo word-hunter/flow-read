@@ -7,7 +7,7 @@ import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/storage/repositories/learning_item_repository.dart';
 import 'package:flow_read/storage/repositories/reading_config_repository.dart';
 import 'package:flow_read/storage/repositories/reading_time_repository.dart';
-import 'package:flow_read/storage/repositories/rss_repository.dart';
+import 'package:flow_rss/flow_rss.dart';
 import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
 import 'package:flow_read/storage/repositories/word_context_repository.dart';
 import 'package:flow_read/storage/repositories/word_level_repository.dart';

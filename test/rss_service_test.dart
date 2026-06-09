@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:flow_read/models/rss_models.dart';
-import 'package:flow_read/services/rss_service.dart';
-import 'package:flow_read/storage/repositories/rss_repository.dart';
+import 'package:flow_rss/flow_rss.dart';
+import 'package:flow_rss/flow_rss.dart';
+import 'package:flow_rss/flow_rss.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 

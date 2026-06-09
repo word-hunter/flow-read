@@ -6,7 +6,7 @@ import 'package:hive/hive.dart';
 import '../../models/book_glossary_entry.dart' as hive_models;
 import '../../models/book_metadata.dart';
 import '../../models/learning_item.dart';
-import '../../models/rss_models.dart';
+import 'package:flow_rss/flow_rss.dart';
 import '../../models/user_vocabulary.dart';
 import '../../models/word_level.dart';
 import '../hive_box_names.dart';

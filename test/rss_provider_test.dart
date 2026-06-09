@@ -1,6 +1,6 @@
-import 'package:flow_read/models/rss_models.dart';
+import 'package:flow_rss/flow_rss.dart';
 import 'package:flow_read/providers/rss_provider.dart';
-import 'package:flow_read/services/rss_service.dart';
+import 'package:flow_rss/flow_rss.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

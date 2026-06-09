@@ -2,9 +2,12 @@ import 'dart:convert';
 
 import 'package:hive/hive.dart';
 
-import '../../models/rss_models.dart';
-import '../hive_box_names.dart';
-import 'hive_repository_box.dart';
+import 'rss_models.dart';
+
+Box<T> _requireOpenBox<T>(String name) {
+  if (!Hive.isBoxOpen(name)) throw StateError('Hive box "$name" not open');
+  return Hive.box<T>(name);
+}
 
 abstract class RssRepository {
   Future<void> init();
@@ -40,19 +43,19 @@ class HiveRssRepository implements RssRepository {
 
   Box<RssFeedSubscription> get _feedStorage {
     return _feedBox ??
-        requireOpenHiveBox<RssFeedSubscription>(HiveBoxNames.rssSubscriptions);
+        _requireOpenBox<RssFeedSubscription>('rss_subscriptions');
   }
 
   Box<dynamic> get _metaStorage {
-    return _metaBox ?? requireOpenHiveBox<dynamic>(HiveBoxNames.settings);
+    return _metaBox ?? _requireOpenBox<dynamic>('settings');
   }
 
   @override
   Future<void> init() async {
-    _feedBox ??= requireOpenHiveBox<RssFeedSubscription>(
-      HiveBoxNames.rssSubscriptions,
+    _feedBox ??= _requireOpenBox<RssFeedSubscription>(
+      'rss_subscriptions',
     );
-    _metaBox ??= requireOpenHiveBox<dynamic>(HiveBoxNames.settings);
+    _metaBox ??= _requireOpenBox<dynamic>('settings');
   }
 
   @override

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 
 import '../../models/analysis_result.dart';
-import '../../models/rss_models.dart';
+import 'package:flow_rss/flow_rss.dart';
 import '../../providers/reading/services_provider.dart';
 import '../../providers/reading/text_selection_notifier.dart';
 import '../../providers/reading/vocabulary_notifier.dart';

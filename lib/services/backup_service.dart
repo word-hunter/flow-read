@@ -10,7 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/book_glossary_entry.dart';
 import '../models/book_metadata.dart';
 import '../models/learning_item.dart';
-import '../models/rss_models.dart';
+import 'package:flow_rss/flow_rss.dart';
 import '../storage/hive_box_names.dart';
 import '../storage/storage_migrations.dart';
 import 'backup_archive.dart' as archive;

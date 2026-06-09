@@ -1,0 +1,30 @@
+name: flow_backup
+description: Backup and import for Flow Read.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  path_provider: ^2.1.5
+  hive: ^2.2.3
+  archive: ^4.0.4
+  flow_language:
+    path: ../flow_language
+  flow_ai:
+    path: ../flow_ai
+  flow_dictionary:
+    path: ../flow_dictionary
+  flow_rss:
+    path: ../flow_rss
+  flow_learning:
+    path: ../flow_learning
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

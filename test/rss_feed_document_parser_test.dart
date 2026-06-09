@@ -1,5 +1,5 @@
-import 'package:flow_read/models/rss_models.dart';
-import 'package:flow_read/services/rss/feed_document_parser.dart';
+import 'package:flow_rss/flow_rss.dart';
+import 'package:flow_rss/flow_rss.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart';
 

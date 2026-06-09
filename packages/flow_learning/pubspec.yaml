@@ -1,0 +1,22 @@
+name: flow_learning
+description: Spaced repetition learning for Flow Read.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  hive: ^2.2.3
+  flow_ai:
+    path: ../flow_ai
+  flow_dictionary:
+    path: ../flow_dictionary
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

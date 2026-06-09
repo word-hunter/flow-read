@@ -6,7 +6,7 @@ import '../models/bookmarked_word.dart';
 import '../models/learning_item.dart';
 import '../models/reading_bookmark.dart';
 import '../models/reading_config.dart';
-import '../models/rss_models.dart';
+import 'package:flow_rss/flow_rss.dart';
 import '../models/word_level.dart';
 import '../services/app_logger.dart';
 import 'package:flow_language/english/english.dart';

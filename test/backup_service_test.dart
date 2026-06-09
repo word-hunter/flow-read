@@ -6,7 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/learning_item.dart';
-import 'package:flow_read/models/rss_models.dart';
+import 'package:flow_rss/flow_rss.dart';
 import 'package:flow_read/services/backup_archive.dart' as archive;
 import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';

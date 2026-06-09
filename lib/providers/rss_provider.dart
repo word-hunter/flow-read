@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-import '../models/rss_models.dart';
+import 'package:flow_rss/flow_rss.dart';
 import '../services/app_logger.dart';
-import '../services/rss_service.dart';
+import 'package:flow_rss/flow_rss.dart';
 
 class RssProvider extends ChangeNotifier {
   RssProvider({RssFeedService? service}) : _service = service ?? RssService();

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../models/rss_models.dart';
+import 'package:flow_rss/flow_rss.dart';
 
 class RssFeedSidebar extends StatelessWidget {
   final List<RssFeedSubscription> subscriptions;

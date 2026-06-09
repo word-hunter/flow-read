@@ -2,7 +2,7 @@ import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html;
 import 'package:xml/xml.dart';
 
-import '../../models/rss_models.dart';
+import 'rss_models.dart';
 
 class RssFeedDocumentParser {
   const RssFeedDocumentParser({

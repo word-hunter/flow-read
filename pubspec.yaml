@@ -46,6 +46,12 @@ dependencies:
     path: packages/flow_dictionary
   flow_ai:
     path: packages/flow_ai
+  flow_rss:
+    path: packages/flow_rss
+  flow_learning:
+    path: packages/flow_learning
+  flow_backup:
+    path: packages/flow_backup
   flow_language:
     path: packages/flow_language
 

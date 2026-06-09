@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
-import '../models/rss_models.dart';
-import '../storage/repositories/rss_repository.dart';
-import 'app_logger.dart';
-import 'rss/feed_document_parser.dart';
+import 'rss_models.dart';
+import 'rss_repository.dart';
+import 'package:flutter/foundation.dart';
+import 'feed_document_parser.dart';
 
 typedef RssHttpGet =
     Future<http.Response> Function(Uri uri, {Map<String, String>? headers});
@@ -190,14 +190,7 @@ class RssService implements RssFeedService {
       await _updateLastFetched(feedUrl);
       return articles;
     } catch (error, stackTrace) {
-      AppLogger.instance.event(
-        'rss.fetch_failed',
-        level: AppLogLevel.warning,
-        source: 'rss_service',
-        metadata: {'usedCache': cached != null},
-        error: error,
-        stackTrace: stackTrace,
-      );
+      debugPrint('[rss_service] fetch failed: $error');
       if (cached != null) return cached;
       rethrow;
     }
