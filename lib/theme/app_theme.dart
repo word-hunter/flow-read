@@ -2,6 +2,8 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 
+import 'app_surface_tokens.dart';
+
 @Deprecated('Use PaletteId from package:flow_design_system instead')
 enum AppThemeId { classic, ocean, forest, highContrast }
 
@@ -420,7 +422,10 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: surface,
-      extensions: [_readerTokens(colorScheme, surface)],
+      extensions: [
+        _readerTokens(colorScheme, surface),
+        _surfaceTokens(colorScheme, surface),
+      ],
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -498,5 +503,13 @@ class AppTheme {
       sidebarBackground: colorScheme.surface,
       readingMaxWidth: 920,
     );
+  }
+
+  static AppSurfaceTokens _surfaceTokens(
+    ColorScheme colorScheme,
+    Color surface,
+  ) {
+    final isDark = colorScheme.brightness == Brightness.dark;
+    return isDark ? AppSurfaceTokens.dark() : AppSurfaceTokens.light();
   }
 }

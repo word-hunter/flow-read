@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_motion_tokens.dart';
+import '../surfaces/app_surface.dart';
 import 'reader_left_workspace_panel.dart';
 import 'reader_panel_resizer.dart';
 import 'reader_workspace_controller.dart';
@@ -57,10 +58,13 @@ class DesktopReaderWorkspaceShell extends StatelessWidget {
                   width: workspaceController.isLeftPanelOpen
                       ? workspaceController.leftPanelWidth
                       : 0,
-                  child: ReaderLeftWorkspacePanel(
-                    workspaceController: workspaceController,
-                    currentTab: workspaceController.leftTab,
-                    onGoToChapter: onGoToChapter,
+                  child: AppSurface(
+                    role: AppSurfaceRole.leftWorkspace,
+                    child: ReaderLeftWorkspacePanel(
+                      workspaceController: workspaceController,
+                      currentTab: workspaceController.leftTab,
+                      onGoToChapter: onGoToChapter,
+                    ),
                   ),
                 ),
               ),
@@ -103,7 +107,10 @@ class DesktopReaderWorkspaceShell extends StatelessWidget {
                   width: workspaceController.isRightPanelOpen
                       ? workspaceController.rightPanelWidth
                       : 0,
-                  child: rightPanel,
+                  child: AppSurface(
+                    role: AppSurfaceRole.rightAssistant,
+                    child: rightPanel,
+                  ),
                 ),
               ),
             ],

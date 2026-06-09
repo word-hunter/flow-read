@@ -36,6 +36,7 @@ import '../widgets/reader_shell/reader_core_view.dart';
 import '../widgets/reader_shell/reader_right_assistant_panel.dart';
 import '../widgets/reader_shell/reader_workspace_controller.dart';
 import '../widgets/reader_text_view.dart';
+import '../widgets/surfaces/app_surface.dart';
 import '../widgets/selected_text_action_toolbar.dart'
     show SelectedTextActionRegionState;
 import '../widgets/selected_text_sheet.dart';
@@ -742,9 +743,12 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     required ReadingConfigState config,
     required Widget child,
   }) {
-    return ColoredBox(
-      color: _readerBackgroundColor(context, config),
-      child: child,
+    return AppSurface(
+      role: AppSurfaceRole.readerCanvas,
+      child: ColoredBox(
+        color: _readerBackgroundColor(context, config),
+        child: child,
+      ),
     );
   }
 
