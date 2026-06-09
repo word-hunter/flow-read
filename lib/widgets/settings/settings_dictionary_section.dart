@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../services/dictionary/dictionary_source_config.dart';
-import '../../services/dictionary/dictionary_source_test_service.dart';
+import 'package:flow_dictionary/flow_dictionary.dart';
 import '../../services/settings_service.dart';
 import 'settings_shared.dart';
 

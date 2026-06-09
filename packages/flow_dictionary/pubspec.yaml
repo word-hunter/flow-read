@@ -1,0 +1,20 @@
+name: flow_dictionary
+description: Multi-source dictionary lookup for Flow Read.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  hive: ^2.2.3
+  http: ^1.2.0
+  html: ^0.15.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

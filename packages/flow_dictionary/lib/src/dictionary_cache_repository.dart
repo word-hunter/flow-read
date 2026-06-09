@@ -1,8 +1,5 @@
 import 'package:hive/hive.dart';
 
-import '../hive_box_names.dart';
-import 'hive_repository_box.dart';
-
 abstract class DictionaryCacheRepository {
   Future<void> init();
   String? get(String key);
@@ -18,23 +15,32 @@ abstract class DictionaryCacheRepository {
 class HiveDictionaryCacheRepository implements DictionaryCacheRepository {
   HiveDictionaryCacheRepository({Box<String>? box, String? languageCode})
     : _box = box,
-      _languageCode = activeHiveLanguageCode(languageCode);
+      _languageCode = _normalizeLang(languageCode);
 
   Box<String>? _box;
   final String _languageCode;
 
+  static String _normalizeLang(String? code) {
+    final c = code?.trim().toLowerCase() ?? '';
+    return c.isEmpty ? 'en' : c;
+  }
+
+  static String _boxName(String lang) => 'dictionary_cache_$lang';
+
   Box<String> get _storage {
-    return _box ??
-        requireOpenHiveBox<String>(
-          HiveBoxNames.dictionaryCacheFor(_languageCode),
-        );
+    return _box ?? requireOpenHiveBox<String>(_boxName(_languageCode));
+  }
+
+  static Box<T> requireOpenHiveBox<T>(String name) {
+    if (!Hive.isBoxOpen(name)) {
+      throw StateError('Hive box "$name" is not open');
+    }
+    return Hive.box<T>(name);
   }
 
   @override
   Future<void> init() async {
-    _box ??= requireOpenHiveBox<String>(
-      HiveBoxNames.dictionaryCacheFor(_languageCode),
-    );
+    _box ??= requireOpenHiveBox<String>(_boxName(_languageCode));
   }
 
   @override

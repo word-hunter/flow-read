@@ -1,15 +1,19 @@
-import '../../storage/repositories/dictionary_cache_repository.dart';
-import '../../storage/repositories/hive_repository_box.dart';
+import 'dictionary_cache_repository.dart';
+
+String _normalizeLanguageCode(String? code) {
+  final c = code?.trim().toLowerCase() ?? '';
+  return c.isEmpty ? 'en' : c;
+}
 
 class DictionaryCacheService {
   DictionaryCacheService({
     DictionaryCacheRepository? repository,
     String? languageCode,
-  }) : languageCode = activeHiveLanguageCode(languageCode),
+  }) : languageCode = _normalizeLanguageCode(languageCode),
        _repository =
            repository ??
            HiveDictionaryCacheRepository(
-             languageCode: activeHiveLanguageCode(languageCode),
+             languageCode: _normalizeLanguageCode(languageCode),
            );
 
   final String languageCode;

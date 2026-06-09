@@ -13,9 +13,7 @@ import '../../services/book_glossary_service.dart';
 import '../../services/book_service.dart';
 import '../../services/bookmark_service.dart';
 import '../../services/character_registry.dart';
-import '../../services/dictionary/dictionary_manager_service.dart';
-import '../../services/dictionary/dictionary_source_registry.dart';
-import '../../services/dictionary/word_repository.dart';
+import 'package:flow_dictionary/flow_dictionary.dart';
 import '../../services/learning_analytics_service.dart';
 import '../../services/learning_item_service.dart';
 import '../../services/llm_client.dart';
@@ -66,7 +64,7 @@ final wordRepositoryProvider = Provider<WordRepository>((ref) {
   final settings = ref.read(settingsProvider);
   final registry = ref.read(dictionarySourceRegistryProvider);
   return DictionaryManagerService(
-    settings: settings,
+    configs: settings.dictionarySources,
     sources: registry.adapters(),
   );
 });

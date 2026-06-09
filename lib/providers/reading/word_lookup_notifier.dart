@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/word_analysis.dart';
 import '../../models/word_context_example.dart';
 import '../../services/compound_word_analyzer.dart';
-import '../../services/dictionary/word_repository.dart';
+import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_language/flow_language.dart';
 import '../../services/reading_search_service.dart';
 import '../../services/word_context_service.dart';

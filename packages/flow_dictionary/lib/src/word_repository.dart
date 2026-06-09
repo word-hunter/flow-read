@@ -1,4 +1,4 @@
-import '../compound_word_analyzer.dart';
+import 'compound_analysis.dart';
 
 class DictionaryEntry {
   final String word;

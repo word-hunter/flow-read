@@ -1,5 +1,4 @@
 import 'dictionary_source_config.dart';
-import '../settings_service.dart';
 import 'word_repository.dart';
 
 class DictionarySourceAdapter {
@@ -10,18 +9,18 @@ class DictionarySourceAdapter {
 }
 
 class DictionaryManagerService implements WordRepository {
-  final SettingsService _settings;
+  final List<DictionarySourceConfig> _configs;
   final Map<DictionarySourceType, WordRepository> _repositories;
 
   DictionaryManagerService({
-    required SettingsService settings,
+    required List<DictionarySourceConfig> configs,
     required List<DictionarySourceAdapter> sources,
-  }) : _settings = settings,
+  }) : _configs = List.unmodifiable(configs),
        _repositories = {
          for (final source in sources) source.type: source.repository,
        };
 
-  List<DictionarySourceConfig> get activeSources => _settings.dictionarySources
+  List<DictionarySourceConfig> get activeSources => _configs
       .where((config) => config.enabled)
       .where((config) => _repositories.containsKey(config.type))
       .toList(growable: false);

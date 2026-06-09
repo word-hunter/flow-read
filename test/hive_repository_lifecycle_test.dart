@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flow_read/storage/hive_box_names.dart';
 import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
 import 'package:flow_read/storage/repositories/bookmark_repository.dart';
-import 'package:flow_read/storage/repositories/dictionary_cache_repository.dart';
+import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/storage/repositories/learning_item_repository.dart';
 import 'package:flow_read/storage/repositories/reading_config_repository.dart';
 import 'package:flow_read/storage/repositories/reading_time_repository.dart';

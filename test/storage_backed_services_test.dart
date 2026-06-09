@@ -13,7 +13,7 @@ import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/models/word_context_example.dart';
 import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/bookmark_service.dart';
-import 'package:flow_read/services/dictionary/dictionary_cache_service.dart';
+import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/services/epub_import_source.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';

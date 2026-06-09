@@ -1,0 +1,13 @@
+export 'src/compound_analysis.dart';
+export 'src/word_repository.dart';
+export 'src/dictionary_source_config.dart';
+export 'src/dictionary_manager_service.dart';
+export 'src/dictionary_source_registry.dart';
+export 'src/dictionary_repository.dart';
+export 'src/collins_repository.dart';
+export 'src/longman_repository.dart';
+export 'src/wordnet_repository.dart';
+export 'src/composite_word_repository.dart';
+export 'src/dictionary_cache_service.dart';
+export 'src/dictionary_source_test_service.dart';
+export 'src/dictionary_cache_repository.dart';

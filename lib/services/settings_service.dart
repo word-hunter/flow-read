@@ -8,7 +8,7 @@ import '../storage/database/dao/settings_dao.dart';
 import '../storage/hive_box_names.dart';
 import '../theme/app_theme.dart';
 import 'ai_provider_config.dart';
-import 'dictionary/dictionary_source_config.dart';
+import 'package:flow_dictionary/flow_dictionary.dart';
 
 class AIUsageStats {
   int chapterSummaryCount;

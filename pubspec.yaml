@@ -42,6 +42,8 @@ dependencies:
     path: packages/flow_read_atmosphere
   flow_design_system:
     path: packages/flow_design_system
+  flow_dictionary:
+    path: packages/flow_dictionary
   flow_language:
     path: packages/flow_language
 
