@@ -46,6 +46,8 @@ void main() {
     expect(find.text('当前覆盖：JA'), findsOneWidget);
     expect(find.text('恢复自动检测'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('恢复自动检测'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('恢复自动检测'));
     await tester.pump();
 
