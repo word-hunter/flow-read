@@ -1,7 +1,7 @@
-import '../models/ai_assistant_action.dart';
-import '../models/ai_context_snapshot.dart';
-import '../models/character_registry_entry.dart';
-import '../models/reading_insight_profile.dart';
+import 'models/ai_assistant_action.dart';
+import 'models/ai_context_snapshot.dart';
+import 'models/character_registry_entry.dart';
+import 'models/reading_insight_profile.dart';
 import 'prompt_builder.dart';
 
 class AIAssistantActionRegistry {

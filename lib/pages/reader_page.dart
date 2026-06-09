@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
-import '../models/ai_context_snapshot.dart';
+import 'package:flow_ai/flow_ai.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
 import '../models/reading_search_result.dart';
@@ -20,7 +20,6 @@ import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
-import '../services/ai_assistant_controller.dart';
 import '../theme/app_constants.dart';
 import '../widgets/ai_assistant_panel.dart';
 import '../widgets/bookmark_sheet.dart';
@@ -67,7 +66,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   );
 
   String _sidebarSelectedText = '';
-  String _sidebarAnalyzerName = 'AI';
+  final String _sidebarAnalyzerName = 'AI';
   _ReaderSidebarMode _sidebarMode = _ReaderSidebarMode.word;
   bool _sidebarOpen = false;
   @override

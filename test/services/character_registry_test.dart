@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flow_read/models/character_registry_entry.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/services/character_registry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';

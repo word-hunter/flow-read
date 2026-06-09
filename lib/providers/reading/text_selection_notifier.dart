@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/ai_text_analysis.dart';
+import 'package:flow_ai/flow_ai.dart';
 import '../../models/analysis_result.dart';
 import '../../models/sentence_breakdown.dart';
 import '../../services/analysis_service.dart';

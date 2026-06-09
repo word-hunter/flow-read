@@ -1,8 +1,6 @@
 import 'package:flow_read/models/book_metadata.dart';
+import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/services/app_update_service.dart';
-import 'package:flow_dictionary/flow_dictionary.dart';
-import 'package:flow_dictionary/flow_dictionary.dart';
-import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/services/mac_permission_diagnostics.dart';
 import 'package:flow_read/widgets/settings/settings_sections.dart';
 import 'package:flow_read/widgets/settings/update_check_result_dialog.dart';

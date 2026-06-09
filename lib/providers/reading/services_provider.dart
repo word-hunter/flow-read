@@ -2,12 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/ai_automation_settings.dart';
-import '../../models/reading_insight_profile.dart';
-import '../../services/ai_assistant_action_registry.dart';
-import '../../services/ai_assistant_controller.dart';
-import '../../services/ai_cache_service.dart';
-import '../../services/ai_service.dart';
+import 'package:flow_ai/flow_ai.dart';
 import '../../services/book_cache.dart';
 import '../../services/book_glossary_service.dart';
 import '../../services/book_service.dart';
@@ -16,8 +11,6 @@ import '../../services/character_registry.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
 import '../../services/learning_analytics_service.dart';
 import '../../services/learning_item_service.dart';
-import '../../services/llm_client.dart';
-import '../../services/prompt_builder.dart';
 import '../../services/pronunciation_service.dart';
 import '../../services/reading_config_service.dart';
 import '../../services/reading_insight_service.dart';
@@ -99,7 +92,7 @@ final pronunciationServiceProvider = Provider<PronunciationService>((ref) {
 
 final aiServiceProvider = Provider<AIService>((ref) {
   final settings = ref.read(settingsProvider);
-  return AIService(LLMClient(settings));
+  return AIService(LLMClient(() => settings.aiProviderConfig));
 });
 
 final aiCacheServiceProvider = Provider<AICacheService>((ref) {

@@ -1,4 +1,4 @@
-import 'package:flow_read/services/prompt_builder.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

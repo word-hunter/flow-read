@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flow_read/services/ai_cache_service.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

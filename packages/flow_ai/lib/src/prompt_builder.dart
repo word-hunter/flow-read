@@ -1,4 +1,4 @@
-import '../models/ai_summary.dart';
+import 'models/ai_summary.dart';
 
 enum SourceLanguage {
   english('en', 'English'),

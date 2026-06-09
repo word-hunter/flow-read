@@ -3,15 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flow_read/models/ai_assistant_action.dart';
-import 'package:flow_read/models/ai_automation_settings.dart';
-import 'package:flow_read/models/ai_context_snapshot.dart';
-import 'package:flow_read/models/reading_insight_profile.dart';
-import 'package:flow_read/services/ai_assistant_action_registry.dart';
-import 'package:flow_read/services/ai_assistant_controller.dart';
-import 'package:flow_read/services/ai_service.dart';
-import 'package:flow_read/services/llm_client.dart';
-import 'package:flow_read/services/prompt_builder.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/ai_assistant_panel.dart';
 import 'package:http/http.dart' as http;
@@ -93,7 +85,9 @@ void main() {
     expect(find.text('选择一个操作开始'), findsOneWidget);
   });
 
-  testWidgets('executes action and shows result via controller', (tester) async {
+  testWidgets('executes action and shows result via controller', (
+    tester,
+  ) async {
     final assistant = _buildController(settings);
     addTearDown(assistant.dispose);
 
@@ -227,21 +221,24 @@ void main() {
 
 AIAssistantController _buildController(SettingsService settings) {
   final aiService = AIService(
-    LLMClient(settings, httpClient: MockClient((_) async {
-      return http.Response.bytes(
-        utf8.encode(
-          jsonEncode({
-            'choices': [
-              {
-                'message': {'content': 'Result text'},
-              },
-            ],
-          }),
-        ),
-        200,
-        headers: {'content-type': 'application/json; charset=utf-8'},
-      );
-    })),
+    LLMClient(
+      () => settings.aiProviderConfig,
+      httpClient: MockClient((_) async {
+        return http.Response.bytes(
+          utf8.encode(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {'content': 'Result text'},
+                },
+              ],
+            }),
+          ),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      }),
+    ),
   );
   final actionController = AIActionController(aiService: aiService);
   final assistant = AIAssistantController(

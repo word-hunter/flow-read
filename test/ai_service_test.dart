@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flow_read/services/ai_service.dart';
-import 'package:flow_read/services/llm_client.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -32,7 +31,7 @@ void main() {
     'selected text analysis falls back to raw text for non-json response',
     () async {
       final client = LLMClient(
-        settings,
+        () => settings.aiProviderConfig,
         httpClient: MockClient((request) async {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           expect(body['response_format'], {'type': 'json_object'});
@@ -65,7 +64,7 @@ void main() {
 
   test('chapter preview uses json mode and parses preview response', () async {
     final client = LLMClient(
-      settings,
+      () => settings.aiProviderConfig,
       httpClient: MockClient((request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         expect(body['response_format'], {'type': 'json_object'});

@@ -1,4 +1,4 @@
-import 'package:flow_read/models/ai_text_analysis.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -1,5 +1,5 @@
 import '../models/book.dart';
-import '../models/reading_insight_profile.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_language/english/english.dart';
 import 'learning_analytics_service.dart';
 

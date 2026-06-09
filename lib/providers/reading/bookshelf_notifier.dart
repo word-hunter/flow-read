@@ -53,13 +53,13 @@ class ImportProgressState {
 
   @override
   int get hashCode => Object.hash(
-        isImportingBook,
-        isCancellingImport,
-        canCancelImport,
-        progress,
-        fileName,
-        stage,
-      );
+    isImportingBook,
+    isCancellingImport,
+    canCancelImport,
+    progress,
+    fileName,
+    stage,
+  );
 }
 
 class ImportProgressNotifier extends ValueNotifier<ImportProgressState> {
@@ -149,19 +149,19 @@ class BookshelfState {
 
   @override
   int get hashCode => Object.hash(
-        books.length,
-        activeBookId,
-        book?.title,
-        isLoading,
-        errorMessage,
-        importStage,
-        isImportingBook,
-        isCancellingImport,
-        canCancelImport,
-        importProgress,
-        importFileName,
-        lastImportResult,
-      );
+    books.length,
+    activeBookId,
+    book?.title,
+    isLoading,
+    errorMessage,
+    importStage,
+    isImportingBook,
+    isCancellingImport,
+    canCancelImport,
+    importProgress,
+    importFileName,
+    lastImportResult,
+  );
 }
 
 class BookshelfNotifier extends Notifier<BookshelfState> {
@@ -188,8 +188,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
 
   // ---- Book Management ----
 
-  List<BookMetadata> get allBooks =>
-      ref.read(bookServiceProvider).books;
+  List<BookMetadata> get allBooks => ref.read(bookServiceProvider).books;
 
   int get bookCount => allBooks.length;
 
@@ -199,8 +198,9 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
   BookDifficultyRating? difficultyForBook(String bookId) =>
       ref.read(vocabularyNotifierProvider.notifier).difficultyForBook(bookId);
 
-  bool isBookDifficultyLoading(String bookId) =>
-      ref.read(vocabularyNotifierProvider.notifier).isBookDifficultyLoading(bookId);
+  bool isBookDifficultyLoading(String bookId) => ref
+      .read(vocabularyNotifierProvider.notifier)
+      .isBookDifficultyLoading(bookId);
 
   bool get isLoadingBookDifficulties =>
       ref.read(vocabularyNotifierProvider.notifier).isLoadingBookDifficulties;
@@ -208,14 +208,14 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
   int get loadingBookDifficultyCount =>
       ref.read(vocabularyNotifierProvider.notifier).loadingBookDifficultyCount;
 
-  int get learningItemCount =>
-      ref.read(learningItemServiceProvider).count;
+  int get learningItemCount => ref.read(learningItemServiceProvider).count;
 
   int get todayReviewDueCount =>
       ref.read(reviewScheduleServiceProvider).dueCount();
 
-  Future<void> ensureBookDifficulties(Iterable<BookMetadata> books) =>
-      ref.read(vocabularyNotifierProvider.notifier).ensureBookDifficulties(books);
+  Future<void> ensureBookDifficulties(Iterable<BookMetadata> books) => ref
+      .read(vocabularyNotifierProvider.notifier)
+      .ensureBookDifficulties(books);
 
   Future<bool> switchToBook(String bookId) async {
     if (bookId == state.activeBookId && state.book != null) return true;
@@ -239,8 +239,10 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
 
     try {
       final book = await EpubParseWorker.parseInIsolate(meta.sourcePath);
-      final currentChapter =
-          meta.currentChapter.clamp(0, book.chapters.length - 1);
+      final currentChapter = meta.currentChapter.clamp(
+        0,
+        book.chapters.length - 1,
+      );
 
       state = state.copyWith(
         book: book,
@@ -249,8 +251,12 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
         isLoading: false,
       );
 
-      ref.read(currentBookNotifierProvider.notifier).invalidateChapterAnalysisCache();
-      ref.read(currentBookNotifierProvider.notifier).goToChapter(currentChapter);
+      ref
+          .read(currentBookNotifierProvider.notifier)
+          .invalidateChapterAnalysisCache();
+      ref
+          .read(currentBookNotifierProvider.notifier)
+          .goToChapter(currentChapter);
       ref.read(aiAssistantControllerProvider).clear();
 
       return true;
@@ -350,8 +356,9 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
         );
       }
 
-      final sourceLanguage =
-          LanguageRegistry.normalizeLanguageCode(book.language);
+      final sourceLanguage = LanguageRegistry.normalizeLanguageCode(
+        book.language,
+      );
       final languageConfidence = sourceLanguage == null ? null : 0.9;
 
       final metadata = restoredMeta == null
@@ -517,11 +524,13 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
   void _saveCurrentProgress() {
     final bookId = state.activeBookId;
     if (bookId == null || state.book == null) return;
-    final currentChapter =
-        ref.read(currentBookNotifierProvider).currentChapter;
-    final readingProgress =
-        ref.read(currentBookNotifierProvider).readingProgress;
-    ref.read(bookServiceProvider).updateProgress(
+    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
+    final readingProgress = ref
+        .read(currentBookNotifierProvider)
+        .readingProgress;
+    ref
+        .read(bookServiceProvider)
+        .updateProgress(
           bookId,
           currentChapter,
           readingProgress,
@@ -675,8 +684,10 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     final bookService = ref.read(bookServiceProvider);
     final existing = bookService.books;
     return existing.cast<BookMetadata?>().firstWhere(
-      (meta) => meta != null && _normalizeBookIdentity(meta.title) ==
-          _normalizeBookIdentity(book.title) &&
+      (meta) =>
+          meta != null &&
+          _normalizeBookIdentity(meta.title) ==
+              _normalizeBookIdentity(book.title) &&
           meta.author == book.author,
       orElse: () => null,
     );
@@ -689,5 +700,5 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
 
 final bookshelfNotifierProvider =
     NotifierProvider<BookshelfNotifier, BookshelfState>(
-  BookshelfNotifier.new,
-);
+      BookshelfNotifier.new,
+    );

@@ -1,11 +1,6 @@
 import 'dart:convert';
 
-import 'package:flow_read/models/ai_practice_questions.dart';
-import 'package:flow_read/models/ai_summary.dart';
-import 'package:flow_read/models/chapter_ai_status.dart';
-import 'package:flow_read/services/ai_cache_service.dart';
-import 'package:flow_read/services/chapter_ai_job.dart';
-import 'package:flow_read/services/prompt_builder.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

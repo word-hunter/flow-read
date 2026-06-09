@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flow_read/services/llm_client.dart';
-import 'package:flow_read/services/reading_assistant_agent.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -32,7 +31,7 @@ void main() {
     'summarize sends browser reading context to the configured model',
     () async {
       final client = LLMClient(
-        settings,
+        () => settings.aiProviderConfig,
         httpClient: MockClient((request) async {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           expect(body['model'], 'reader-model');

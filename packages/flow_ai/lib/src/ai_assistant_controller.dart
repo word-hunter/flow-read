@@ -3,13 +3,13 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import '../models/ai_action_result.dart';
-import '../models/ai_assistant_action.dart';
-import '../models/ai_automation_settings.dart';
-import '../models/ai_context_snapshot.dart';
-import '../models/ai_summary.dart';
-import '../models/reading_insight_profile.dart';
-import '../models/word_analysis.dart';
+import 'models/ai_action_result.dart';
+import 'models/ai_assistant_action.dart';
+import 'models/ai_automation_settings.dart';
+import 'models/ai_context_snapshot.dart';
+import 'models/ai_summary.dart';
+import 'models/reading_insight_profile.dart';
+import 'models/word_analysis.dart';
 import 'ai_assistant_action_registry.dart';
 import 'ai_cache_service.dart';
 import 'ai_service.dart';

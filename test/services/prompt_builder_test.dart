@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flow_read/services/prompt_builder.dart';
+import 'package:flow_ai/flow_ai.dart';
 
 void main() {
   const builder = PromptBuilder();

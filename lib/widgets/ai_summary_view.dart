@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import '../models/ai_chapter_preview.dart';
-import '../models/ai_summary.dart';
-import '../models/chapter_ai_coverage.dart';
-import '../models/chapter_ai_status.dart';
+import 'package:flow_ai/flow_ai.dart';
 import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/settings_provider.dart';

@@ -1,0 +1,24 @@
+name: flow_ai
+description: AI/LLM assistant for Flow Read reading analysis.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flow_language:
+    path: ../flow_language
+  flow_dictionary:
+    path: ../flow_dictionary
+  http: ^1.2.0
+  hive: ^2.2.3
+  path_provider: ^2.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 
-import '../models/ai_action_result.dart';
-import '../models/ai_assistant_action.dart';
-import '../models/ai_context_snapshot.dart';
-import '../models/ai_summary.dart';
-import '../models/word_analysis.dart';
-import '../services/ai_assistant_controller.dart';
+import 'package:flow_ai/flow_ai.dart';
 class AIAssistantPanel extends HookWidget {
   const AIAssistantPanel({
     super.key,

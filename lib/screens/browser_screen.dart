@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
-import '../models/ai_context_snapshot.dart';
+import 'package:flow_ai/flow_ai.dart';
 import '../models/analysis_result.dart';
 import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/services_provider.dart';
@@ -39,6 +39,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   final _webContentService = WebContentService();
   final _addressController = TextEditingController();
   final _scrollController = ScrollController();
+  late final AIAssistantController _assistantController;
 
   WebPageContent? _page;
   AnalysisResult? _analysis;
@@ -49,6 +50,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   @override
   void initState() {
     super.initState();
+    _assistantController = ref.read(aiAssistantControllerProvider);
     final initialUrl = widget.initialUrl?.trim();
     if (initialUrl != null && initialUrl.isNotEmpty) {
       _addressController.text = initialUrl;
@@ -60,7 +62,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
 
   @override
   void dispose() {
-    ref.read(aiAssistantControllerProvider).clear();
+    _assistantController.clear();
     _webContentService.close();
     _addressController.dispose();
     _scrollController.dispose();
@@ -395,7 +397,9 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
                         colorSettings: settings.colors,
                         lookupHighlightWord: lookupState.selectedWord,
                         wordLevelService: ref.read(wordLevelServiceProvider),
-                        languageModule: ref.read(vocabularyNotifierProvider.notifier).activeLanguageModule,
+                        languageModule: ref
+                            .read(vocabularyNotifierProvider.notifier)
+                            .activeLanguageModule,
                       ),
                       style: theme.textTheme.bodyLarge?.copyWith(
                         height: 1.75,

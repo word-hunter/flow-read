@@ -1,6 +1,6 @@
 import 'dart:ui' show PointerDeviceKind;
 
-import 'package:flow_read/models/ai_text_analysis.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/providers/reading/ai_notifier.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/services/reading_config_service.dart';

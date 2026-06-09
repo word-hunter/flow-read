@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flow_read/models/ai_text_analysis.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/services/learning_item_service.dart';
 import 'package:flutter_test/flutter_test.dart';

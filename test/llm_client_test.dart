@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flow_read/services/llm_client.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -30,7 +30,7 @@ void main() {
     await settings.setApiKey('test-key');
 
     final client = LLMClient(
-      settings,
+      () => settings.aiProviderConfig,
       httpClient: MockClient((request) async {
         expect(
           request.url.toString(),
@@ -68,7 +68,7 @@ void main() {
 
   test('chat fails fast when the selected provider has no API key', () async {
     final client = LLMClient(
-      settings,
+      () => settings.aiProviderConfig,
       httpClient: MockClient((_) async {
         fail('request should not be sent without an API key');
       }),

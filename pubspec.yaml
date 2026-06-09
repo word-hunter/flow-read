@@ -44,6 +44,8 @@ dependencies:
     path: packages/flow_design_system
   flow_dictionary:
     path: packages/flow_dictionary
+  flow_ai:
+    path: packages/flow_ai
   flow_language:
     path: packages/flow_language
 

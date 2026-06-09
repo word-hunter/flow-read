@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../models/word_context_example.dart';
 import '../models/word_level.dart';
 import '../providers/reading/word_lookup_notifier.dart';
-import '../services/compound_word_analyzer.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_language/english/english.dart';
 import '../services/word_level_service.dart';
@@ -77,13 +76,16 @@ class DictionaryDetailView extends StatelessWidget {
       contextWordEnd: lookupState.selectedWordContextEnd,
       importedExamples: lookupNotifier.importedExamplesFor(word),
       compoundAnalysis: lookupState.selectedWordLookupResult?.compoundAnalysis,
-      bookContexts: lookupState.selectedWordLookupResult?.bookContexts ?? const [],
+      bookContexts:
+          lookupState.selectedWordLookupResult?.bookContexts ?? const [],
       level: level,
       showWordHeader: showWordHeader,
       showContext: showContext,
       onSpeakWord: canPronounceWords ? lookupNotifier.speakWord : null,
       onLookupWord: lookupNotifier.lookupRelatedWord,
-      onGoBack: lookupState.canGoBackWordLookup ? lookupNotifier.goBackWordLookup : null,
+      onGoBack: lookupState.canGoBackWordLookup
+          ? lookupNotifier.goBackWordLookup
+          : null,
       canGoBack: lookupState.canGoBackWordLookup,
     );
   }

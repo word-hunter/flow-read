@@ -1,4 +1,4 @@
-import '../models/ai_text_analysis.dart';
+import 'models/ai_text_analysis.dart';
 import 'ai_service.dart';
 import 'llm_client.dart';
 import 'passage_request_builder.dart';

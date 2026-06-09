@@ -1,4 +1,4 @@
-import '../services/prompt_builder.dart' show AIContextScope, SpoilerBoundary;
+import '../prompt_builder.dart' show AIContextScope, SpoilerBoundary;
 
 enum AIContextSource {
   readerSelectedText,

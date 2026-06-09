@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-import '../models/chapter_ai_coverage.dart';
+import 'models/chapter_ai_coverage.dart';
 
 class AICacheService {
   AICacheService({Future<Directory> Function()? documentsDirectoryProvider})

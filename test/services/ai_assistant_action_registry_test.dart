@@ -1,7 +1,4 @@
-import 'package:flow_read/models/ai_assistant_action.dart';
-import 'package:flow_read/models/ai_context_snapshot.dart';
-import 'package:flow_read/services/ai_assistant_action_registry.dart';
-import 'package:flow_read/services/prompt_builder.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

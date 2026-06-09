@@ -1,0 +1,27 @@
+// Services
+export 'src/ai_provider_config.dart';
+export 'src/llm_client.dart';
+export 'src/prompt_builder.dart';
+export 'src/ai_service.dart';
+export 'src/ai_cache_service.dart';
+export 'src/chapter_ai_job.dart';
+export 'src/passage_request_builder.dart';
+export 'src/reading_assistant_agent.dart';
+export 'src/ai_assistant_controller.dart';
+export 'src/ai_assistant_action_registry.dart';
+
+// Models
+export 'src/models/ai_summary.dart';
+export 'src/models/ai_text_analysis.dart';
+export 'src/models/ai_practice_questions.dart';
+export 'src/models/word_analysis.dart';
+export 'src/models/ai_chapter_preview.dart';
+export 'src/models/chapter_ai_coverage.dart';
+export 'src/models/chapter_ai_status.dart';
+export 'src/models/ai_action_result.dart';
+export 'src/models/ai_assistant_action.dart';
+export 'src/models/ai_context_snapshot.dart';
+export 'src/models/ai_automation_settings.dart';
+export 'src/models/reading_insight_profile.dart';
+export 'src/models/json_helpers.dart';
+export 'src/models/character_registry_entry.dart';

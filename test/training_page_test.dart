@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flow_read/pages/training_page.dart';
 import 'package:flow_read/providers/reading/current_book_notifier.dart';
 import 'package:flow_read/providers/settings_provider.dart';
@@ -53,7 +51,8 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           currentBookNotifierProvider.overrideWith(
-            () => _FakeCurrentBookNotifier(hasBook: false, hasBeenOpened: false),
+            () =>
+                _FakeCurrentBookNotifier(hasBook: false, hasBeenOpened: false),
           ),
           settingsProvider.overrideWith((ref) => fake),
         ],

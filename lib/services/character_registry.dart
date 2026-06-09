@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:hive/hive.dart';
 
-import '../models/character_registry_entry.dart';
+import 'package:flow_ai/flow_ai.dart';
 import '../storage/hive_box_names.dart';
 
 class CharacterRegistry {

@@ -1,16 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flow_read/models/ai_action_result.dart';
-import 'package:flow_read/models/ai_assistant_action.dart';
-import 'package:flow_read/models/ai_automation_settings.dart';
-import 'package:flow_read/models/ai_context_snapshot.dart';
-import 'package:flow_read/models/reading_insight_profile.dart';
-import 'package:flow_read/services/ai_assistant_action_registry.dart';
-import 'package:flow_read/services/ai_assistant_controller.dart';
-import 'package:flow_read/services/ai_service.dart';
-import 'package:flow_read/services/llm_client.dart';
-import 'package:flow_read/services/prompt_builder.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -133,7 +124,7 @@ AIService _service(
   Future<http.Response> Function(http.Request) handler,
 ) {
   return AIService(
-    LLMClient(settings, httpClient: MockClient(handler)),
+    LLMClient(() => settings.aiProviderConfig, httpClient: MockClient(handler)),
   );
 }
 

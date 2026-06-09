@@ -1,12 +1,11 @@
 import 'dart:convert';
 
-import '../models/ai_practice_questions.dart';
-import '../models/ai_summary.dart';
-import '../models/chapter_ai_status.dart';
+import 'models/ai_practice_questions.dart';
+import 'models/ai_summary.dart';
+import 'models/chapter_ai_status.dart';
 import 'ai_cache_service.dart';
 import 'ai_service.dart';
 import 'prompt_builder.dart';
-import 'settings_service.dart';
 
 class ChapterAIJob {
   const ChapterAIJob({
@@ -20,16 +19,14 @@ class ChapterAIJob {
   factory ChapterAIJob.fromServices({
     required AIService aiService,
     AICacheService? cache,
-    SettingsService? settings,
+    ChapterAIUsageAdapter? usageAdapter,
   }) {
     return ChapterAIJob(
       model: AIServiceChapterAIModelAdapter(aiService),
       cache: cache == null
           ? const NoopChapterAICacheAdapter()
           : AICacheServiceChapterAICacheAdapter(cache),
-      usage: settings == null
-          ? const NoopChapterAIUsageAdapter()
-          : SettingsChapterAIUsageAdapter(settings),
+      usage: usageAdapter ?? const NoopChapterAIUsageAdapter(),
     );
   }
 
@@ -518,20 +515,20 @@ abstract class ChapterAIUsageAdapter {
   Future<void> recordPracticeGenerated();
 }
 
-class SettingsChapterAIUsageAdapter implements ChapterAIUsageAdapter {
-  const SettingsChapterAIUsageAdapter(this._settings);
+class CallbackChapterAIUsageAdapter implements ChapterAIUsageAdapter {
+  CallbackChapterAIUsageAdapter({
+    required this.onSummaryGenerated,
+    required this.onPracticeGenerated,
+  });
 
-  final SettingsService _settings;
+  final Future<void> Function() onSummaryGenerated;
+  final Future<void> Function() onPracticeGenerated;
 
   @override
-  Future<void> recordChapterSummaryGenerated() {
-    return _settings.incrementAIUsage(chapterSummary: true);
-  }
+  Future<void> recordChapterSummaryGenerated() => onSummaryGenerated();
 
   @override
-  Future<void> recordPracticeGenerated() {
-    return _settings.incrementAIUsage(practice: true);
-  }
+  Future<void> recordPracticeGenerated() => onPracticeGenerated();
 }
 
 class NoopChapterAIUsageAdapter implements ChapterAIUsageAdapter {

@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import '../models/ai_text_analysis.dart';
+import 'package:flow_ai/flow_ai.dart';
 import '../models/analysis_result.dart';
 import '../models/learning_item.dart';
 import '../models/sentence_breakdown.dart';

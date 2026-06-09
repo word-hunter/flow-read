@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/word_analysis.dart';
+import 'package:flow_ai/flow_ai.dart';
 import '../../models/word_context_example.dart';
 import '../../services/compound_word_analyzer.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';

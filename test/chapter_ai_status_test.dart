@@ -1,8 +1,4 @@
-import 'package:flow_read/models/ai_chapter_preview.dart';
-import 'package:flow_read/models/ai_practice_questions.dart';
-import 'package:flow_read/models/ai_summary.dart';
-import 'package:flow_read/models/chapter_ai_coverage.dart';
-import 'package:flow_read/models/chapter_ai_status.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/providers/reading/ai_notifier.dart';
 import 'package:flow_read/providers/reading/current_book_notifier.dart';
 import 'package:flow_read/providers/settings_provider.dart';

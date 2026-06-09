@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import '../models/ai_text_analysis.dart';
-import '../models/ai_chapter_preview.dart';
-import '../models/ai_summary.dart';
-import '../models/ai_practice_questions.dart';
-import '../models/word_analysis.dart';
+import 'models/ai_text_analysis.dart';
+import 'models/ai_chapter_preview.dart';
+import 'models/ai_summary.dart';
+import 'models/ai_practice_questions.dart';
+import 'models/word_analysis.dart';
 import 'app_logger.dart';
 import 'llm_client.dart';
 import 'prompt_builder.dart';

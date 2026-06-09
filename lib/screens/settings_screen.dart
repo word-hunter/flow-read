@@ -10,7 +10,7 @@ import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../providers/settings_provider.dart';
-import '../services/ai_cache_service.dart';
+import 'package:flow_ai/flow_ai.dart';
 import '../services/app_update_installer.dart';
 import '../services/app_update_service.dart';
 import '../services/app_links.dart';
@@ -21,7 +21,6 @@ import 'package:flow_dictionary/flow_dictionary.dart';
 import '../services/diagnostic_export_service.dart';
 import '../services/external_url_launcher.dart';
 import '../services/log_folder_opener.dart';
-import '../services/llm_client.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
 import '../widgets/release_notes_dialog.dart';
@@ -423,7 +422,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
       _connectionResult = null;
     });
 
-    final client = LLMClient(settings);
+    final client = LLMClient(() => settings.aiProviderConfig);
     final ok = await client.testConnection();
 
     if (!mounted) return;

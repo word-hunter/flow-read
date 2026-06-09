@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import '../models/ai_practice_questions.dart';
+import 'package:flow_ai/flow_ai.dart';
 import '../models/learning_item.dart';
 import '../models/review_question.dart';
 import '../providers/reading/ai_notifier.dart';

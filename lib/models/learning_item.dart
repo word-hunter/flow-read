@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
 
-import 'ai_text_analysis.dart';
+import 'package:flow_ai/flow_ai.dart';
 
 part 'learning_item.g.dart';
 
