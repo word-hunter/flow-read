@@ -96,10 +96,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
 
   bool get _isWideScreen => _layoutWidth >= AppConstants.wideBreakpoint;
   @override
-  bool get _isWorkspaceEnabled {
-    final settings = ref.read(settingsProvider);
-    return settings.desktopReaderWorkspaceEnabled;
-  }
+  bool get _isWorkspaceEnabled => true;
   bool get _isSearchPanelVisible => _searchSheetOpen;
 
   @override
@@ -294,13 +291,11 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     if (!currentBookNotifier.hasBook) return;
     _hideReadingReminder();
 
-    final settings = ref.read(settingsProvider);
     final platform = AppPlatformClassPolicy.current;
-    final widthClass = _layoutWidth;
     final layout = ReaderLayoutPolicy.resolveLayout(
       platform: platform,
-      width: widthClass,
-      workspaceFeatureEnabled: settings.desktopReaderWorkspaceEnabled,
+      width: _layoutWidth,
+      workspaceFeatureEnabled: true,
       userRequestedImmersive: false,
     );
 
@@ -615,8 +610,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           final layoutSpec = ReaderLayoutPolicy.resolveLayout(
             platform: platform,
             width: constraints.maxWidth,
-            workspaceFeatureEnabled:
-                settings.desktopReaderWorkspaceEnabled,
+            workspaceFeatureEnabled: true,
             userRequestedImmersive: false,
           );
           final useWorkspace = layoutSpec.isWorkspace;

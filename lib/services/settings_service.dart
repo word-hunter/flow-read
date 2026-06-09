@@ -82,13 +82,10 @@ class SettingsService extends ChangeNotifier {
   static const experimentalFeatureRss = 'rss';
   static const experimentalFeatureReview = 'review';
   static const experimentalFeatureV2 = 'v2';
-  static const experimentalFeatureDesktopReaderWorkspace =
-      'desktopReaderWorkspace';
   static const supportedExperimentalFeatureIds = <String>{
     experimentalFeatureRss,
     experimentalFeatureReview,
     experimentalFeatureV2,
-    experimentalFeatureDesktopReaderWorkspace,
   };
   static const _dailyReadingGoalMinutesKey = 'dailyReadingGoalMinutes';
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
@@ -200,14 +197,7 @@ class SettingsService extends ChangeNotifier {
       isExperimentalFeatureEnabled(experimentalFeatureReview);
   bool get v2FeatureEnabled =>
       isExperimentalFeatureEnabled(experimentalFeatureV2);
-  bool get desktopReaderWorkspaceEnabled =>
-      isExperimentalFeatureEnabled(experimentalFeatureDesktopReaderWorkspace);
-  Future<void> setDesktopReaderWorkspaceEnabled(bool enabled) {
-    return setExperimentalFeatureEnabled(
-      experimentalFeatureDesktopReaderWorkspace,
-      enabled,
-    );
-  }
+  bool get desktopReaderWorkspaceEnabled => true;
 
   bool get forceDefaultBookCover => _forceDefaultBookCover;
   CityAtmosphereSettings get cityAtmosphereSettings => _cityAtmosphereSettings;

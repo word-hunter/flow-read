@@ -38,14 +38,6 @@ class SettingsExperimentalFeaturesSection extends StatelessWidget {
               ),
               const Divider(height: 1),
               _ExperimentalFeatureTile(
-                icon: Icons.dashboard_outlined,
-                title: '桌面阅读工作台',
-                subtitle: '在桌面宽屏阅读时使用左侧工作台（含目录） + 正文 + 右侧辅助面板的三栏布局',
-                value: settings.desktopReaderWorkspaceEnabled,
-                onChanged: settings.setDesktopReaderWorkspaceEnabled,
-              ),
-              const Divider(height: 1),
-              _ExperimentalFeatureTile(
                 icon: Icons.auto_stories_outlined,
                 title: '强制默认封面',
                 subtitle: '在 V2 书架中忽略 EPUB 封面，统一使用 Flow Read 默认封面',
