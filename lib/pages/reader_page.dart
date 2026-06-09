@@ -21,6 +21,8 @@ import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
+import '../layout/app_platform_class.dart';
+import '../layout/reader_layout_policy.dart';
 import '../services/reader_layout_engine.dart';
 import '../theme/app_constants.dart';
 import '../widgets/ai_assistant_panel.dart';
@@ -29,7 +31,9 @@ import '../widgets/font_settings_sheet.dart';
 import '../widgets/reader/reader_nav_bar.dart';
 import '../widgets/reader/reader_search_panel.dart';
 import '../widgets/reader/reader_word_sidebar.dart';
+import '../widgets/reader_shell/desktop_reader_workspace_shell.dart';
 import '../widgets/reader_shell/reader_core_view.dart';
+import '../widgets/reader_shell/reader_workspace_controller.dart';
 import '../widgets/reader_text_view.dart';
 import '../widgets/selected_text_action_toolbar.dart'
     show SelectedTextActionRegionState;
@@ -73,6 +77,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     0.0,
   );
 
+  late final ReaderWorkspaceController _workspaceController =
+      ReaderWorkspaceController();
+
   String _sidebarSelectedText = '';
   final String _sidebarAnalyzerName = 'AI';
   _ReaderSidebarMode _sidebarMode = _ReaderSidebarMode.word;
@@ -85,6 +92,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   double _layoutWidth = 0;
 
   bool get _isWideScreen => _layoutWidth >= AppConstants.wideBreakpoint;
+  bool get _isWorkspaceEnabled {
+    final settings = ref.read(settingsProvider);
+    return settings.desktopReaderWorkspaceEnabled;
+  }
   bool get _isSearchPanelVisible => _searchSheetOpen;
 
   @override
@@ -130,6 +141,11 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       setState(() {
         _sidebarMode = _ReaderSidebarMode.word;
         _sidebarOpen = true;
+      });
+    } else if (_isWorkspaceEnabled) {
+      _workspaceController.openRightPanel(ReaderRightPanelTab.dictionary);
+      setState(() {
+        _sidebarMode = _ReaderSidebarMode.word;
       });
     } else {
       showModalBottomSheet(
@@ -181,6 +197,16 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       return;
     }
 
+    if (_isWorkspaceEnabled) {
+      ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
+      _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
+      setState(() {
+        _sidebarMode = _ReaderSidebarMode.assistant;
+        _sidebarSelectedText = selectedText;
+      });
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -202,6 +228,13 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       setState(() {
         _sidebarMode = _ReaderSidebarMode.assistant;
         _sidebarOpen = true;
+      });
+      return;
+    }
+    if (_isWorkspaceEnabled) {
+      _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
+      setState(() {
+        _sidebarMode = _ReaderSidebarMode.assistant;
       });
       return;
     }
@@ -256,6 +289,22 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
     if (!currentBookNotifier.hasBook) return;
     _hideReadingReminder();
+
+    final settings = ref.read(settingsProvider);
+    final platform = AppPlatformClassPolicy.current;
+    final widthClass = _layoutWidth;
+    final layout = ReaderLayoutPolicy.resolveLayout(
+      platform: platform,
+      width: widthClass,
+      workspaceFeatureEnabled: settings.desktopReaderWorkspaceEnabled,
+      userRequestedImmersive: false,
+    );
+
+    if (layout.isWorkspace) {
+      _workspaceController.openToc();
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -558,6 +607,16 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           _layoutWidth = constraints.maxWidth;
           final isWide = _isWideScreen;
 
+          final platform = AppPlatformClassPolicy.current;
+          final layoutSpec = ReaderLayoutPolicy.resolveLayout(
+            platform: platform,
+            width: constraints.maxWidth,
+            workspaceFeatureEnabled:
+                settings.desktopReaderWorkspaceEnabled,
+            userRequestedImmersive: false,
+          );
+          final useWorkspace = layoutSpec.isWorkspace;
+
           Widget buildContent() {
             return ReaderCoreView(
               paragraphs: paragraphs,
@@ -577,8 +636,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               readerSelectionAreaKey: _readerSelectionAreaKey,
               actionRegionKey: _actionRegionKey,
               scrollController: _scrollController,
-              isWideScreen: isWide,
-              sidebarOpen: _sidebarOpen,
+              isWideScreen: isWide || useWorkspace,
+              sidebarOpen:
+                  useWorkspace ? _workspaceController.isRightPanelOpen : _sidebarOpen,
               isSearchPanelVisible: _isSearchPanelVisible,
               progressListenable: _displayProgressNotifier,
               contentKeyFor: _contentKeyFor,
@@ -588,36 +648,62 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
             );
           }
 
+          Widget buildToolbar() {
+            return ReaderNavBar(
+              currentBook: currentBookNotifier,
+              currentBookState: currentBookState,
+              config: config,
+              bookmarks: bookmarkNotifier,
+              chapterTitle: chapterTitle,
+              layoutWidth: _layoutWidth,
+              displayProgressListenable: _displayProgressNotifier,
+              showSidebarToggle: useWorkspace || isWide,
+              sidebarOpen: useWorkspace
+                  ? _workspaceController.isLeftPanelOpen
+                  : _sidebarOpen,
+              tocMenuOpen: _tocMenuOpen,
+              tocMenuController: _tocMenuController,
+              fontSettingsMenuController: _fontSettingsMenuController,
+              onSidebarToggle: useWorkspace
+                  ? _workspaceController.toggleLeftPanel
+                  : _toggleSidebar,
+              onShowTocSheet: _showTocSheet,
+              onTocMenuToggle: _toggleTocMenu,
+              onTocMenuOpenChanged: _setTocMenuOpen,
+              onShowFontSettingsSheet: _showFontSettingsSheet,
+              onFontSettingsMenuToggle: _toggleFontSettingsMenu,
+              onFontSettingsMenuOpenChanged: _setFontSettingsMenuOpen,
+              onExitReader: _exitReader,
+              onGoToChapter: _goToChapter,
+              onSearchTap: () => unawaited(_showSearchSheet()),
+              onBookmarkTap: _onBookmarkTap,
+              onBookmarkHistoryTap: _showBookmarkHistory,
+            );
+          }
+
+          if (useWorkspace) {
+            return _buildPageScaffold(
+              config: config,
+              child: DesktopReaderWorkspaceShell(
+                workspaceController: _workspaceController,
+                toolbar: buildToolbar(),
+                centerContent: buildContent(),
+                rightPanel: _workspaceController.isRightPanelOpen
+                    ? _buildReaderSidebar()
+                    : const SizedBox.shrink(),
+                readingProgressLine: _buildReadingProgressLine(
+                    theme, _displayProgressNotifier),
+                readingReminder: _buildReadingReminder(theme),
+                onGoToChapter: _goToChapter,
+              ),
+            );
+          }
+
           return _buildPageScaffold(
             config: config,
             child: Column(
               children: [
-                ReaderNavBar(
-                  currentBook: currentBookNotifier,
-                  currentBookState: currentBookState,
-                  config: config,
-                  bookmarks: bookmarkNotifier,
-                  chapterTitle: chapterTitle,
-                  layoutWidth: _layoutWidth,
-                  displayProgressListenable: _displayProgressNotifier,
-                  showSidebarToggle: isWide,
-                  sidebarOpen: _sidebarOpen,
-                  tocMenuOpen: _tocMenuOpen,
-                  tocMenuController: _tocMenuController,
-                  fontSettingsMenuController: _fontSettingsMenuController,
-                  onSidebarToggle: _toggleSidebar,
-                  onShowTocSheet: _showTocSheet,
-                  onTocMenuToggle: _toggleTocMenu,
-                  onTocMenuOpenChanged: _setTocMenuOpen,
-                  onShowFontSettingsSheet: _showFontSettingsSheet,
-                  onFontSettingsMenuToggle: _toggleFontSettingsMenu,
-                  onFontSettingsMenuOpenChanged: _setFontSettingsMenuOpen,
-                  onExitReader: _exitReader,
-                  onGoToChapter: _goToChapter,
-                  onSearchTap: () => unawaited(_showSearchSheet()),
-                  onBookmarkTap: _onBookmarkTap,
-                  onBookmarkHistoryTap: _showBookmarkHistory,
-                ),
+                buildToolbar(),
                 _buildReadingProgressLine(theme, _displayProgressNotifier),
                 _buildReadingReminder(theme),
                 Expanded(
