@@ -42,7 +42,7 @@ void main() {
       expect(sc.background, palette.lightColorScheme.surface);
       expect(sc.textPrimary, palette.lightColorScheme.onSurface);
       expect(sc.interactivePrimary, palette.lightColorScheme.primary);
-      expect(sc.readerSelection.alpha, greaterThan(0));
+      expect((sc.readerSelection.a * 255.0).round(), greaterThan(0));
     });
 
     test('dark semantic colors are non-null and consistent', () {
@@ -92,7 +92,7 @@ void main() {
     });
 
     test('light surface is pure white', () {
-      expect(palette.lightColorScheme.surface.value, 0xFFFFFFFF);
+      expect(palette.lightColorScheme.surface.toARGB32(), 0xFFFFFFFF);
     });
 
     test('dark surface is near black', () {

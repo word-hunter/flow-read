@@ -4,15 +4,49 @@ set -eu
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
-echo "pre-push: running Flutter test suite excluding benchmarks..."
+echo "pre-push: running local CI checks..."
 
 if command -v fvm >/dev/null 2>&1; then
-  fvm flutter test --exclude-tags benchmark
+  run_flutter() {
+    fvm flutter "$@"
+  }
+  run_dart() {
+    fvm dart "$@"
+  }
 elif command -v flutter >/dev/null 2>&1; then
-  flutter test --exclude-tags benchmark
+  run_flutter() {
+    flutter "$@"
+  }
+  run_dart() {
+    dart "$@"
+  }
 else
   echo "pre-push: neither fvm nor flutter was found in PATH." >&2
   exit 1
 fi
 
-echo "pre-push: tests passed."
+echo "pre-push: installing app dependencies..."
+run_flutter pub get
+
+echo "pre-push: installing EPUB core dependencies..."
+(
+  cd packages/epub_reader_core
+  run_dart pub get
+)
+
+echo "pre-push: running Dart analyzer..."
+run_dart analyze
+
+echo "pre-push: running Flutter test suite excluding benchmarks..."
+run_flutter test --exclude-tags benchmark
+
+echo "pre-push: running EPUB core tests..."
+(
+  cd packages/epub_reader_core
+  run_dart test
+)
+
+echo "pre-push: checking generated diff..."
+git diff --check
+
+echo "pre-push: local CI checks passed."
