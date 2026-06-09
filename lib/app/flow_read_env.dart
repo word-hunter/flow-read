@@ -55,7 +55,7 @@ class FlowReadEnv {
     }
 
     return FlowReadV2Config(
-      enabled: false,
+      enabled: true,
       source: 'default',
       searchedPaths: fileResult.searchedPaths,
     );

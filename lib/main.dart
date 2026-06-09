@@ -27,10 +27,10 @@ import 'widgets/word_mastery_confetti.dart';
 
 import 'package:flow_design_system/flow_design_system.dart';
 
-const _v2CompileTime = bool.fromEnvironment('FLOW_V2', defaultValue: false);
-bool _v2Enabled = false;
+const _v2CompileTime = bool.fromEnvironment('FLOW_V2', defaultValue: true);
+bool _v2Enabled = true;
 FlowReadV2Config _v2Config = const FlowReadV2Config(
-  enabled: false,
+  enabled: true,
   source: 'not-loaded',
 );
 

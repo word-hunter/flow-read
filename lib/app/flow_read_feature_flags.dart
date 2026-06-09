@@ -1,5 +1,5 @@
 class FlowReadFeatureFlags {
-  static bool _v2Enabled = false;
+  static bool _v2Enabled = true;
 
   const FlowReadFeatureFlags._();
 
