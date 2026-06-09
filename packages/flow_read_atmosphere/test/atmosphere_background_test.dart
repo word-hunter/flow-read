@@ -51,7 +51,27 @@ void main() {
       ),
     );
 
-    expect(find.byType(CustomPaint), findsNothing);
+    expect(find.byType(CustomPaint), findsOneWidget);
+  });
+
+  testWidgets('city landscape day paints through the atmosphere layer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      CityThemeScope(
+        preset: CityThemePresets.cityDay,
+        settings: const CityAtmosphereSettings(enabled: true),
+        child: const Directionality(
+          textDirection: TextDirection.ltr,
+          child: AtmosphereBackground(
+            scene: AtmosphereScene.cityLandscapeDay,
+            child: SizedBox(width: 80, height: 80),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(CustomPaint), findsOneWidget);
   });
 
   testWidgets('zero intensity keeps the theme without dynamic paint', (

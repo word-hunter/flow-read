@@ -47,6 +47,15 @@ void main() {
     });
   });
 
+  group('CityThemePresets', () {
+    test('city day uses the landscape scene', () {
+      expect(
+        CityThemePresets.cityDay.atmosphereScene,
+        AtmosphereScene.cityLandscapeDay,
+      );
+    });
+  });
+
   group('AtmosphereSceneResolver', () {
     test('turns scene off when blend mode is off', () {
       const settings = CityAtmosphereSettings(
@@ -79,20 +88,23 @@ void main() {
       );
     });
 
-    test('reduce motion disables all dynamic scenes', () {
-      const settings = CityAtmosphereSettings(
-        enabled: true,
-        reduceMotion: true,
-      );
+    test(
+      'reduce motion keeps follow-theme scene available for static paint',
+      () {
+        const settings = CityAtmosphereSettings(
+          enabled: true,
+          reduceMotion: true,
+        );
 
-      expect(
-        AtmosphereSceneResolver.resolve(
-          preset: CityThemePresets.cityDawn,
-          settings: settings,
-        ),
-        AtmosphereScene.none,
-      );
-    });
+        expect(
+          AtmosphereSceneResolver.resolve(
+            preset: CityThemePresets.cityDay,
+            settings: settings,
+          ),
+          AtmosphereScene.cityLandscapeDay,
+        );
+      },
+    );
 
     test('storm hint is downgraded in low performance mode', () {
       const settings = CityAtmosphereSettings(

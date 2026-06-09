@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
+import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import 'package:flutter/material.dart';
+
 import '../../theme/app_constants.dart';
 import '../theme_mode_cycle_button.dart';
 import 'reading_stats_ring.dart';
@@ -152,11 +154,14 @@ class _HomeSidebarState extends State<HomeSidebar> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
     final topSpacing = 16 + AppConstants.immersiveTitleBarTopInset;
 
     return Container(
       width: AppConstants.sidebarWidth,
-      color: theme.colorScheme.surface,
+      color:
+          cityPreset?.surface.withValues(alpha: 0.72) ??
+          theme.colorScheme.surface,
       child: Column(
         children: [
           SizedBox(height: topSpacing),
@@ -166,7 +171,7 @@ class _HomeSidebarState extends State<HomeSidebar> {
               child: Column(
                 children: [
                   _buildSectionLabel(theme, '导航'),
-                  _buildNavItems(theme),
+                  _buildNavItems(theme, cityPreset),
                   const SizedBox(height: 28),
                   _buildSectionLabel(theme, '阅读目标'),
                   const SizedBox(height: 10),
@@ -188,7 +193,7 @@ class _HomeSidebarState extends State<HomeSidebar> {
     );
   }
 
-  Widget _buildNavItems(ThemeData theme) {
+  Widget _buildNavItems(ThemeData theme, CityThemePreset? cityPreset) {
     final navItems = _navItems
         .where((item) => widget.showRss || item.tabIndex != 1)
         .toList(growable: false);
@@ -199,6 +204,7 @@ class _HomeSidebarState extends State<HomeSidebar> {
         final isSelected = widget.currentTab == item.tabIndex;
         return _buildNavItem(
           theme: theme,
+          cityPreset: cityPreset,
           icon: isSelected ? item.selectedIcon : item.icon,
           label: item.label,
           isSelected: isSelected,
@@ -229,6 +235,7 @@ class _HomeSidebarState extends State<HomeSidebar> {
 
   Widget _buildNavItem({
     required ThemeData theme,
+    required CityThemePreset? cityPreset,
     required IconData icon,
     required String label,
     required bool isSelected,
@@ -238,7 +245,8 @@ class _HomeSidebarState extends State<HomeSidebar> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Material(
         color: isSelected
-            ? theme.colorScheme.primaryContainer
+            ? (cityPreset?.surfaceSoft.withValues(alpha: 0.72) ??
+                  theme.colorScheme.primaryContainer)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flow_language/flow_language.dart';
 
+import '../../app/flow_read_feature_flags.dart';
 import '../../models/book_metadata.dart';
 import '../../services/settings_service.dart';
+import 'settings_city_atmosphere_section.dart';
 import 'settings_shared.dart';
 
 class SettingsReadingSection extends StatelessWidget {
@@ -46,6 +48,10 @@ class SettingsReadingSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (FlowReadFeatureFlags.v2Enabled) ...[
+          SettingsCityAtmosphereSection(settings: settings),
+          const SizedBox(height: 16),
+        ],
         SettingsCard(
           icon: Icons.flag_outlined,
           title: '每日目标',
@@ -153,6 +159,7 @@ class SettingsReadingSection extends StatelessWidget {
     return '$hours 小时 $remain 分钟';
   }
 }
+
 class _BookLanguageSection extends StatelessWidget {
   const _BookLanguageSection({
     required this.metadata,

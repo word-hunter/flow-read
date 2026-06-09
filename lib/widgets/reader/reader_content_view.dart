@@ -1,3 +1,5 @@
+import 'package:flow_language/flow_language.dart';
+import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/analysis_result.dart';
@@ -6,7 +8,6 @@ import '../../providers/reading/current_book_notifier.dart';
 import '../../providers/reading/reading_config_notifier.dart';
 import '../../providers/reading/reading_search_notifier.dart';
 import '../../providers/reading/word_lookup_notifier.dart';
-import 'package:flow_language/flow_language.dart';
 import '../../services/settings_service.dart' show VocabularyColorSettings;
 import '../../services/word_level_service.dart';
 import '../reader_text_view.dart';
@@ -82,6 +83,7 @@ class ReaderContentView extends StatelessWidget {
           final maxFrameWidth = wide
               ? maxTextWidth + leftPadding + rightPadding
               : double.infinity;
+          final cityPreset = CityThemeScope.maybeOf(context)?.preset;
           final useBlocks = blocks.isNotEmpty;
           final contentCount = useBlocks ? blocks.length : paragraphs.length;
           onVisibleContentCountChanged(contentCount);
@@ -104,7 +106,8 @@ class ReaderContentView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (showTitleBlock) _buildTitleBlock(result, theme, config),
+                    if (showTitleBlock)
+                      _buildTitleBlock(result, theme, config, cityPreset),
                     for (
                       var contentIndex = 0;
                       contentIndex < contentCount;
@@ -117,11 +120,13 @@ class ReaderContentView extends StatelessWidget {
                                 blocks[contentIndex],
                                 isFirstBlock:
                                     contentIndex == 0 && currentBook.hasBook,
+                                cityPreset: cityPreset,
                               )
                             : _buildParagraph(
                                 paragraphs[contentIndex],
                                 isFirstParagraph:
                                     contentIndex == 0 && currentBook.hasBook,
+                                cityPreset: cityPreset,
                               ),
                       ),
                   ],
@@ -161,6 +166,7 @@ class ReaderContentView extends StatelessWidget {
   Widget _buildContentBlock(
     ContentBlock block, {
     bool isFirstBlock = false,
+    CityThemePreset? cityPreset,
   }) {
     final searchQuery = _effectiveHighlightQuery(search);
     final lookupHighlightWord = lookupState.selectedWord;
@@ -177,7 +183,8 @@ class ReaderContentView extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 10),
         child: _buildDropCapParagraph(
           block.plainText,
-          _buildBaseTextStyle(theme, config),
+          _buildBaseTextStyle(theme, config, cityPreset),
+          cityPreset,
         ),
       );
     }
@@ -190,8 +197,8 @@ class ReaderContentView extends StatelessWidget {
       fontSize: config.fontSize,
       lineHeight: config.lineHeight,
       fontFamily: config.fontFamily,
-      baseTextColor: _readerTextColor(config),
-      mutedTextColor: _readerMutedTextColor(config),
+      baseTextColor: _readerTextColor(config, cityPreset),
+      mutedTextColor: _readerMutedTextColor(config, cityPreset),
       colorSettings: colorSettings,
       searchQuery: searchQuery,
       lookupHighlightWord: lookupHighlightWord,
@@ -208,11 +215,12 @@ class ReaderContentView extends StatelessWidget {
     AnalysisResult result,
     ThemeData theme,
     ReadingConfigState config,
+    CityThemePreset? cityPreset,
   ) {
-    final titleColor = _readerTextColor(config);
+    final titleColor = _readerTextColor(config, cityPreset);
     final dividerColor = _isDarkReadingTheme(config)
         ? const Color(0xFF3A3A3A)
-        : const Color(0xFFEEEEEE);
+        : cityPreset?.outline ?? const Color(0xFFEEEEEE);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
@@ -237,8 +245,9 @@ class ReaderContentView extends StatelessWidget {
   Widget _buildParagraph(
     String paragraph, {
     bool isFirstParagraph = false,
+    CityThemePreset? cityPreset,
   }) {
-    final baseStyle = _buildBaseTextStyle(theme, config);
+    final baseStyle = _buildBaseTextStyle(theme, config, cityPreset);
     final searchQuery = _effectiveHighlightQuery(search);
     final lookupHighlightWord = lookupState.selectedWord;
     final hasLookupHighlight =
@@ -250,7 +259,7 @@ class ReaderContentView extends StatelessWidget {
         !hasLookupHighlight) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: _buildDropCapParagraph(paragraph, baseStyle),
+        child: _buildDropCapParagraph(paragraph, baseStyle, cityPreset),
       );
     }
 
@@ -265,7 +274,7 @@ class ReaderContentView extends StatelessWidget {
           fontSize: config.fontSize,
           lineHeight: config.lineHeight,
           fontFamily: config.fontFamily,
-          baseTextColor: _readerTextColor(config),
+          baseTextColor: _readerTextColor(config, cityPreset),
           colorSettings: colorSettings,
           searchQuery: searchQuery,
           lookupHighlightWord: lookupHighlightWord,
@@ -277,7 +286,11 @@ class ReaderContentView extends StatelessWidget {
     );
   }
 
-  Widget _buildDropCapParagraph(String paragraph, TextStyle baseStyle) {
+  Widget _buildDropCapParagraph(
+    String paragraph,
+    TextStyle baseStyle,
+    CityThemePreset? cityPreset,
+  ) {
     final firstLetter = paragraph.substring(0, 1).toUpperCase();
     final restText = paragraph.substring(1).trimLeft();
 
@@ -306,7 +319,7 @@ class ReaderContentView extends StatelessWidget {
               fontSize: config.fontSize,
               lineHeight: config.lineHeight,
               fontFamily: config.fontFamily,
-              baseTextColor: _readerTextColor(config),
+              baseTextColor: _readerTextColor(config, cityPreset),
               colorSettings: colorSettings,
               lookupHighlightWord: lookupState.selectedWord,
               wordLevelService: wordLevelService,
@@ -320,7 +333,12 @@ class ReaderContentView extends StatelessWidget {
   }
 }
 
-Color _readerTextColor(ReadingConfigState config) {
+Color _readerTextColor(
+  ReadingConfigState config,
+  CityThemePreset? cityPreset,
+) {
+  if (cityPreset != null) return cityPreset.primaryText;
+
   switch (config.readingTheme) {
     case 'dark':
       return const Color(0xFFE8E2D6);
@@ -331,7 +349,12 @@ Color _readerTextColor(ReadingConfigState config) {
   }
 }
 
-Color _readerMutedTextColor(ReadingConfigState config) {
+Color _readerMutedTextColor(
+  ReadingConfigState config,
+  CityThemePreset? cityPreset,
+) {
+  if (cityPreset != null) return cityPreset.secondaryText;
+
   switch (config.readingTheme) {
     case 'dark':
       return const Color(0xFFC8C1B7);
@@ -349,12 +372,13 @@ bool _isDarkReadingTheme(ReadingConfigState config) {
 TextStyle _buildBaseTextStyle(
   ThemeData theme,
   ReadingConfigState config,
+  CityThemePreset? cityPreset,
 ) {
   return (theme.textTheme.bodyLarge ?? const TextStyle()).copyWith(
     fontSize: config.fontSize,
     height: config.lineHeight,
     letterSpacing: 0.3,
     fontFamily: config.fontFamily,
-    color: _readerTextColor(config),
+    color: _readerTextColor(config, cityPreset),
   );
 }

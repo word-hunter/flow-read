@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
+import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 
 import 'app/flow_read_env.dart';
 import 'app/flow_read_feature_flags.dart';
@@ -463,8 +464,27 @@ class _FlowReadAppState extends State<FlowReadApp> {
             builder: (context, child) {
               return _buildShortcutScope(
                 context,
-                WordMasteryConfettiHost(
-                  child: child ?? const SizedBox.shrink(),
+                CityAtmosphere(
+                  enabled: v2,
+                  settings: settings.cityAtmosphereSettings,
+                  child: Builder(
+                    builder: (context) {
+                      final scopedTheme = CityThemeScope.maybeOf(context);
+                      final content = WordMasteryConfettiHost(
+                        child: child ?? const SizedBox.shrink(),
+                      );
+                      if (scopedTheme == null) return content;
+
+                      final theme = Theme.of(context);
+                      return Theme(
+                        data: theme.copyWith(
+                          scaffoldBackgroundColor: Colors.transparent,
+                          canvasColor: Colors.transparent,
+                        ),
+                        child: content,
+                      );
+                    },
+                  ),
                 ),
               );
             },

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -417,7 +418,15 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     });
   }
 
-  Color _readerBackgroundColor(ReadingConfigState config) {
+  Color _readerBackgroundColor(
+    BuildContext context,
+    ReadingConfigState config,
+  ) {
+    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
+    if (cityPreset != null) {
+      return cityPreset.pageBackground.withValues(alpha: 0.92);
+    }
+
     switch (config.readingTheme) {
       case 'sepia':
         return const Color(0xFFF5ECD7);
@@ -431,7 +440,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   @override
   Widget build(BuildContext context) {
     ref.listen(currentBookNotifierProvider, (_, currentBookState) {
-      _onReaderStateChanged(currentBookState, ref.read(readingTimeNotifierProvider));
+      _onReaderStateChanged(
+        currentBookState,
+        ref.read(readingTimeNotifierProvider),
+      );
     });
     final currentBookState = ref.watch(currentBookNotifierProvider);
     final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
@@ -452,15 +464,23 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       );
     }
 
-    final blocks = currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 0
-        ? currentBookNotifier.book!.chapters[currentBookState.currentChapter].blocks
+    final blocks =
+        currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 0
+        ? currentBookNotifier
+              .book!
+              .chapters[currentBookState.currentChapter]
+              .blocks
         : const <ContentBlock>[];
     final paragraphs = blocks.isEmpty
         ? _paragraphsFor(result, currentBookState, currentBookNotifier)
         : const <String>[];
     final theme = Theme.of(context);
-    final chapterTitle = currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 0
-        ? currentBookNotifier.book!.chapters[currentBookState.currentChapter].title
+    final chapterTitle =
+        currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 0
+        ? currentBookNotifier
+              .book!
+              .chapters[currentBookState.currentChapter]
+              .title
         : result.title;
     final colorSettings = settings.colors;
     final search = ref.watch(readingSearchNotifierProvider);
@@ -487,7 +507,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               search: search,
               lookupState: lookupState,
               wordLevelService: ref.read(wordLevelServiceProvider),
-              activeLanguageModule: ref.read(vocabularyNotifierProvider.notifier).activeLanguageModule,
+              activeLanguageModule: ref
+                  .read(vocabularyNotifierProvider.notifier)
+                  .activeLanguageModule,
               scrollController: _scrollController,
               isWideScreen: isWide,
               sidebarOpen: _sidebarOpen,
@@ -564,7 +586,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     required ReadingConfigState config,
     required Widget child,
   }) {
-    return ColoredBox(color: _readerBackgroundColor(config), child: child);
+    return ColoredBox(
+      color: _readerBackgroundColor(context, config),
+      child: child,
+    );
   }
 
   Widget _buildReadingProgressLine(

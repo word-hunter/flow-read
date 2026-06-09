@@ -1,8 +1,10 @@
+import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import 'package:flutter/material.dart';
+
 import '../pages/reader_page.dart';
-import '../pages/vocab_page.dart';
-import '../pages/training_page.dart';
 import '../pages/stats_page.dart';
+import '../pages/training_page.dart';
+import '../pages/vocab_page.dart';
 
 class ReadingDeskScreen extends StatefulWidget {
   const ReadingDeskScreen({super.key});
@@ -48,8 +50,15 @@ class _ReadingDeskScreenState extends State<ReadingDeskScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
+    final navigationBackground =
+        cityPreset?.surface.withValues(alpha: 0.94) ??
+        theme.scaffoldBackgroundColor;
+
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: cityPreset == null
+          ? theme.scaffoldBackgroundColor
+          : Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, _contentTopGap, 8, 8),
@@ -69,7 +78,7 @@ class _ReadingDeskScreenState extends State<ReadingDeskScreen> {
         ),
         child: NavigationBar(
           height: 64,
-          backgroundColor: theme.scaffoldBackgroundColor,
+          backgroundColor: navigationBackground,
           indicatorColor: theme.colorScheme.primary.withValues(alpha: 0.14),
           labelTextStyle: WidgetStateProperty.resolveWith((states) {
             final selected = states.contains(WidgetState.selected);

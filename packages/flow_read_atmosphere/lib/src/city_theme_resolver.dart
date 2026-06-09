@@ -38,7 +38,7 @@ class AtmosphereSceneResolver {
     required CityThemePreset preset,
     required CityAtmosphereSettings settings,
   }) {
-    if (!settings.enabled || settings.reduceMotion) {
+    if (!settings.enabled) {
       return AtmosphereScene.none;
     }
 

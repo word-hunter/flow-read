@@ -63,8 +63,8 @@ class CityThemePresets {
     secondaryText: Color(0xFF687385),
     accent: Color(0xFFAEDCC0),
     outline: Color(0xFFD9E9E0),
-    atmosphereScene: AtmosphereScene.cityDay,
-    atmosphereIntensity: 0.24,
+    atmosphereScene: AtmosphereScene.cityLandscapeDay,
+    atmosphereIntensity: 0.32,
     allowParticles: false,
   );
 

@@ -77,6 +77,7 @@ HomeScreen → ReadingDeskScreen → ReaderPage（正文）
 - `AppThemeId` 枚举：classic / ocean / forest / highContrast
 - `MaterialApp` theme/darkTheme 由 `SettingsService.themeMode` 控制
 - `ReaderThemeTokens` 扩展 Material ThemeData（reader 专用颜色/宽度）
+- `packages/flow_read_atmosphere` 提供 V2 City 时间主题与动态氛围背景，由 `MaterialApp.builder` 包到 app shell，Home/Reader 在 scope 内透出背景
 - 动画 220ms easeOutCubic
 
 ## 平台适配

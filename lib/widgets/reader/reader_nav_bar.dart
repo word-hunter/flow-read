@@ -1,5 +1,6 @@
 import 'dart:async' show unawaited;
 
+import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
@@ -68,13 +69,17 @@ class ReaderNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
     final isDark = _isDarkReadingTheme(config);
-    final borderColor = isDark
-        ? const Color(0xFF3A3A3A).withValues(alpha: 0.72)
-        : theme.colorScheme.outlineVariant.withValues(alpha: 0.48);
-    final toolbarTextColor = isDark
-        ? const Color(0xFFC8C1B7)
-        : theme.colorScheme.onSurfaceVariant;
+    final useDarkToolbar = isDark || cityPreset?.phase == CityTimePhase.night;
+    final borderColor =
+        cityPreset?.outline.withValues(alpha: 0.72) ??
+        (isDark
+            ? const Color(0xFF3A3A3A).withValues(alpha: 0.72)
+            : theme.colorScheme.outlineVariant.withValues(alpha: 0.48));
+    final toolbarTextColor =
+        cityPreset?.secondaryText ??
+        (isDark ? const Color(0xFFC8C1B7) : theme.colorScheme.onSurfaceVariant);
     final showSearch = layoutWidth >= 520;
     final showChapterStep = layoutWidth >= 680 && currentBook.chapterCount > 1;
     final compactToolbar = layoutWidth < 760;
@@ -96,7 +101,9 @@ class ReaderNavBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark
             ? const Color(0xFF1F1F1F).withValues(alpha: 0.42)
-            : theme.colorScheme.surface.withValues(alpha: 0.86),
+            : (cityPreset?.surface ?? theme.colorScheme.surface).withValues(
+                alpha: cityPreset == null ? 0.86 : 0.78,
+              ),
         border: Border(bottom: BorderSide(color: borderColor)),
       ),
       child: Row(
@@ -212,8 +219,11 @@ class ReaderNavBar extends StatelessWidget {
                 tooltip: '更多',
                 icon: const Icon(Icons.more_vert, size: 20),
                 padding: EdgeInsets.zero,
-                style: _toolbarIconButtonStyle(theme, darkReader: isDark)
-                    .copyWith(
+                style:
+                    _toolbarIconButtonStyle(
+                      theme,
+                      darkReader: useDarkToolbar,
+                    ).copyWith(
                       fixedSize: const WidgetStatePropertyAll(
                         Size(_toolbarButtonWidth, _toolbarButtonHeight),
                       ),
@@ -394,7 +404,9 @@ class ReaderNavBar extends StatelessWidget {
     bool selected = false,
   }) {
     final theme = Theme.of(context);
-    final isDarkReader = _isDarkReadingTheme(config);
+    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
+    final isDarkReader =
+        _isDarkReadingTheme(config) || cityPreset?.phase == CityTimePhase.night;
     return IconButton(
       key: key,
       icon: Icon(icon, size: size),
@@ -421,7 +433,9 @@ class ReaderNavBar extends StatelessWidget {
     required VoidCallback? onPressed,
   }) {
     final theme = Theme.of(context);
-    final isDarkReader = _isDarkReadingTheme(config);
+    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
+    final isDarkReader =
+        _isDarkReadingTheme(config) || cityPreset?.phase == CityTimePhase.night;
     return IconButton(
       icon: Icon(icon, size: 22),
       tooltip: tooltip,

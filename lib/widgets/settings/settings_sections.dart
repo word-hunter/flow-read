@@ -1,6 +1,7 @@
 export 'settings_shared.dart';
 export 'settings_appearance_section.dart';
 export 'settings_reading_section.dart';
+export 'settings_city_atmosphere_section.dart';
 export 'settings_ai_section.dart';
 export 'settings_dictionary_section.dart';
 export 'settings_experimental_features_section.dart';

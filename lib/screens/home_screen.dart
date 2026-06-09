@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
+import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/reading_time_notifier.dart';
@@ -104,14 +105,20 @@ class HomeScreen extends riverpod.ConsumerWidget {
   }) {
     final visibleTabs = _visibleTabs(showRss: showRss);
     _redirectHiddenTab(context, currentBook, currentBookState, visibleTabs);
-    final selectedIndex = _visibleIndexFor(currentBookState.currentTab, visibleTabs);
+    final selectedIndex = _visibleIndexFor(
+      currentBookState.currentTab,
+      visibleTabs,
+    );
+    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
 
     return Scaffold(
+      backgroundColor: cityPreset == null ? null : Colors.transparent,
       body: IndexedStack(
         index: selectedIndex,
         children: _visibleWidgets(_narrowPanels, visibleTabs),
       ),
       bottomNavigationBar: NavigationBar(
+        backgroundColor: cityPreset?.surface.withValues(alpha: 0.88),
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) =>
             currentBook.switchTab(visibleTabs[index]),
@@ -143,7 +150,8 @@ class HomeScreen extends riverpod.ConsumerWidget {
   ) {
     if (visibleTabs.contains(currentBookState.currentTab)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted || visibleTabs.contains(currentBookState.currentTab)) {
+      if (!context.mounted ||
+          visibleTabs.contains(currentBookState.currentTab)) {
         return;
       }
       currentBook.switchTab(visibleTabs.first);
@@ -164,7 +172,8 @@ class _ImportProgressHost extends riverpod.ConsumerWidget {
 
     return _ImportProgressOverlayHost(
       importProgressNotifier: importProgressNotifier,
-      onCancel: () => ref.read(bookshelfNotifierProvider.notifier).cancelImport(),
+      onCancel: () =>
+          ref.read(bookshelfNotifierProvider.notifier).cancelImport(),
       child: child,
     );
   }
@@ -498,7 +507,11 @@ class _WideHomeLayout extends riverpod.ConsumerWidget {
   final CurrentBookState currentBookState;
   final bool showRss;
 
-  const _WideHomeLayout({required this.currentBook, required this.currentBookState, required this.showRss});
+  const _WideHomeLayout({
+    required this.currentBook,
+    required this.currentBookState,
+    required this.showRss,
+  });
 
   static const _widePanels = <Widget>[
     BookshelfContent(),
@@ -511,16 +524,23 @@ class _WideHomeLayout extends riverpod.ConsumerWidget {
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
     final theme = Theme.of(context);
+    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
     final readingTime = ref.watch(readingTimeNotifierProvider);
     final settings = ref.watch(settingsProvider);
     final visibleTabs = HomeScreen._visibleTabs(showRss: showRss);
-    HomeScreen._redirectHiddenTab(context, currentBook, currentBookState, visibleTabs);
+    HomeScreen._redirectHiddenTab(
+      context,
+      currentBook,
+      currentBookState,
+      visibleTabs,
+    );
     final selectedIndex = HomeScreen._visibleIndexFor(
       currentBookState.currentTab,
       visibleTabs,
     );
 
     return Scaffold(
+      backgroundColor: cityPreset == null ? null : Colors.transparent,
       body: Row(
         children: [
           HomeSidebar(
@@ -539,7 +559,12 @@ class _WideHomeLayout extends riverpod.ConsumerWidget {
             nextThemeMode: settings.nextThemeMode,
             showRss: showRss,
           ),
-          VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
+          VerticalDivider(
+            width: 1,
+            color:
+                cityPreset?.outline.withValues(alpha: 0.70) ??
+                theme.colorScheme.outlineVariant,
+          ),
           Expanded(
             child: IndexedStack(
               index: selectedIndex,

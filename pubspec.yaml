@@ -38,6 +38,8 @@ dependencies:
     path: packages/epub_reader_core
   flow_read_image_viewer:
     path: packages/flow_read_image_viewer
+  flow_read_atmosphere:
+    path: packages/flow_read_atmosphere
   flow_design_system:
     path: packages/flow_design_system
   flow_language:

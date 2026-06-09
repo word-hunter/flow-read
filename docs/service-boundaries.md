@@ -1,6 +1,6 @@
 # Flow Read Service Boundaries
 
-> @source lib/services/ lib/providers/
+> @source lib/services/ lib/providers/ packages/flow_read_atmosphere/
 
 Last updated: 2026-06-06
 
@@ -94,6 +94,7 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 | Service | 职责 |
 |---------|------|
 | `SettingsService` | 全局设置持久化（`ChangeNotifier`） |
+| `flow_read_atmosphere` package | City 时间主题、天空/草地氛围背景、resolver 与 inherited scope；由 app shell 注入，不持有持久化 |
 | `BackupService` | 备份/恢复/导入（ZIP 打包） |
 | `AppLogger` | JSONL 文件日志（脱敏） |
 | `DiagnosticExportService` | 诊断报告 ZIP 导出 |

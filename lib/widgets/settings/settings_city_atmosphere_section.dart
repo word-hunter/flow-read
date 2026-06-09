@@ -160,6 +160,7 @@ class SettingsCityAtmosphereSection extends StatelessWidget {
 
   static const _manualSceneOptions = <AtmosphereScene>[
     AtmosphereScene.none,
+    AtmosphereScene.cityLandscapeDay,
     AtmosphereScene.cityRain,
     AtmosphereScene.cityWind,
     AtmosphereScene.cityStormHint,
@@ -243,6 +244,7 @@ class _CityAtmospherePreview extends StatelessWidget {
     return switch (scene) {
       AtmosphereScene.cityMorning => Icons.wb_twilight_outlined,
       AtmosphereScene.cityDay => Icons.wb_sunny_outlined,
+      AtmosphereScene.cityLandscapeDay => Icons.landscape_outlined,
       AtmosphereScene.cityDusk => Icons.wb_twilight,
       AtmosphereScene.cityMoon => Icons.nightlight_round,
       AtmosphereScene.cityRain => Icons.water_drop_outlined,
