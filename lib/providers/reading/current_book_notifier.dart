@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/analysis_result.dart';
 import '../../models/book.dart';
 import '../../models/book_difficulty.dart';
+import '../../models/book_metadata.dart';
 import '../../services/analysis_service.dart';
 import '../../services/book_service.dart';
 import 'package:flow_language/flow_language.dart';
@@ -142,9 +143,12 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
 
   Future<void> goToChapter(int index) async {
     final book = ref.read(bookshelfNotifierProvider).book;
-    if (book == null || index == state.currentChapter) return;
+    if (book == null) return;
     if (index < 0 || index >= book.chapters.length) return;
-    if (state.isReading) {
+    final sameChapter = index == state.currentChapter;
+    if (sameChapter && state.result != null) return;
+
+    if (!sameChapter && state.isReading) {
       final bookId = activeBookId;
       if (bookId != null) {
         await _readingTime?.switchTarget(bookId, index);
@@ -155,18 +159,26 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
 
     state = state.copyWith(
       currentChapter: index,
-      readingProgress: 0.0,
-      readingScrollOffset: 0.0,
+      readingProgress: sameChapter ? state.readingProgress : 0.0,
+      readingScrollOffset: sameChapter ? state.readingScrollOffset : 0.0,
       result: cached,
+      clearResult: cached == null,
       clearDifficulty: true,
     );
-    _saveCurrentProgress();
+    if (!sameChapter) {
+      _saveCurrentProgress();
+    }
 
     ref.read(readingSearchNotifierProvider.notifier).clearSourceHighlight();
     ref.read(aiNotifierProvider.notifier).clearAIResults();
 
     if (cached == null) {
+      if (sameChapter) {
+        await _analyzeCurrentChapter();
+        return;
+      }
       SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!ref.mounted) return;
         _analyzeCurrentChapter();
       });
     }
@@ -216,13 +228,10 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
     final chapter = book.chapters[state.currentChapter];
     final userVocab = ref.read(userVocabularyServiceProvider);
     final wordLevelService = ref.read(wordLevelServiceProvider);
-    final settings = ref.read(settingsProvider);
-    final code = settings.activeSourceLanguage;
-    final module = LanguageRegistry.instance.get(code);
-    if (module == null) throw StateError('Language "$code" not registered');
-    final languageModule = module;
+    final languageModule = _currentLanguageModule();
 
     await wordLevelService.init();
+    if (!ref.mounted) return;
 
     final analysis = AnalysisService.analyzeChapter(
       chapter.title,
@@ -235,8 +244,34 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
     state = state.copyWith(result: analysis);
   }
 
+  LanguageModule _currentLanguageModule() {
+    final settings = ref.read(settingsProvider);
+    final metadata = _activeBookMetadata();
+    final preferredCode =
+        LanguageRegistry.normalizeLanguageCode(
+          metadata?.effectiveSourceLanguage,
+        ) ??
+        LanguageRegistry.normalizeLanguageCode(settings.activeSourceLanguage) ??
+        settings.activeSourceLanguage.trim().toLowerCase();
+    final module =
+        LanguageRegistry.instance.get(preferredCode) ??
+        LanguageRegistry.instance.defaultModule;
+    if (module == null) {
+      throw StateError('Language "$preferredCode" not registered');
+    }
+    return module;
+  }
+
+  BookMetadata? _activeBookMetadata() {
+    final bookId = activeBookId;
+    if (bookId == null) return null;
+    final bookService = ref.read(bookServiceProvider);
+    return bookService.books.where((b) => b.id == bookId).firstOrNull;
+  }
+
   void invalidateChapterAnalysisCache() {
     _chapterAnalysisCache.clear();
+    state = state.copyWith(clearResult: true, clearDifficulty: true);
   }
 }
 
