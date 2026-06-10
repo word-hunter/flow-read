@@ -8,6 +8,7 @@ import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import 'package:flow_language/flow_language.dart';
 import '../theme/app_colors.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/word_bottom_sheet.dart';
 import '../widgets/word_mastery_confetti.dart';
 
@@ -58,7 +59,9 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
     final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
     final lookupNotifier = ref.read(wordLookupNotifierProvider.notifier);
     final theme = Theme.of(context);
-    final allVocab = vocabularyNotifier.getAllVocabulary(alphabetical: _sortAlpha);
+    final allVocab = vocabularyNotifier.getAllVocabulary(
+      alphabetical: _sortAlpha,
+    );
     final allLearningItems = vocabularyNotifier.learningItems;
     final languageOptions = _languageOptionsFor(allVocab);
     final effectiveLanguageFilter = languageOptions.contains(_languageFilter)
@@ -77,12 +80,14 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
         .length;
     final learningCount = filtered
         .where(
-          (v) => vocabularyNotifier.getWordStatus(v.word) == UserWordStatus.learning,
+          (v) =>
+              vocabularyNotifier.getWordStatus(v.word) ==
+              UserWordStatus.learning,
         )
         .length;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         title: const Text(
           'Vocabulary',
           style: TextStyle(fontWeight: FontWeight.w600),
@@ -107,15 +112,17 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
                         return _VocabItem(
                           vocab: vocab,
                           status: vocabularyNotifier.getWordStatus(vocab.word),
-                          onMarkKnown: (origin) => vocabularyNotifier.markWordKnown(
-                            vocab.word,
-                            celebrationOrigin: origin,
-                          ),
+                          onMarkKnown: (origin) =>
+                              vocabularyNotifier.markWordKnown(
+                                vocab.word,
+                                celebrationOrigin: origin,
+                              ),
                           onMarkLearning: () =>
                               vocabularyNotifier.markWordLearning(vocab.word),
                           onMarkUnknown: () =>
                               vocabularyNotifier.markWordUnknown(vocab.word),
-                          onTap: () => _openWordDetail(context, lookupNotifier, vocab),
+                          onTap: () =>
+                              _openWordDetail(context, lookupNotifier, vocab),
                         );
                       },
                     ),
@@ -181,10 +188,9 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
     AggregatedVocabulary vocab,
   ) {
     lookupNotifier.lookupWord(vocab.word, contextText: vocab.context);
-    showModalBottomSheet<void>(
+    showFlowSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => WordBottomSheet(word: vocab.word),
     ).whenComplete(lookupNotifier.clearWordLookup);
   }
@@ -199,7 +205,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
+            child: FlowTextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: _view == _VocabularyView.words

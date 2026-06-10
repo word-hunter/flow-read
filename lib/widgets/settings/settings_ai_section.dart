@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/settings_service.dart';
+import '../flow/flow_components.dart';
 import 'settings_shared.dart';
 
 class SettingsAISection extends StatelessWidget {
@@ -108,7 +109,7 @@ class SettingsAISection extends StatelessWidget {
                   if (value != null) onProviderChanged(value);
                 },
               ),
-              TextField(
+              FlowTextField(
                 controller: modelController,
                 enabled: provider.modelEditable,
                 decoration: const InputDecoration(
@@ -118,7 +119,7 @@ class SettingsAISection extends StatelessWidget {
                 ),
                 onChanged: onModelChanged,
               ),
-              TextField(
+              FlowTextField(
                 controller: baseUrlController,
                 enabled: provider.baseUrlEditable,
                 decoration: const InputDecoration(
@@ -128,7 +129,7 @@ class SettingsAISection extends StatelessWidget {
                 ),
                 onChanged: onBaseUrlChanged,
               ),
-              TextField(
+              FlowTextField(
                 controller: apiKeyController,
                 obscureText: obscureKey,
                 decoration: InputDecoration(
@@ -165,7 +166,7 @@ class SettingsAISection extends StatelessWidget {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  FilledButton.icon(
+                  FlowButton.primary(
                     onPressed: testingConnection || !settings.aiFeaturesEnabled
                         ? null
                         : onTestConnection,
@@ -176,15 +177,12 @@ class SettingsAISection extends StatelessWidget {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.wifi_find, size: 18),
-                    label: Text(testingConnection ? '测试中...' : '测试连接'),
+                    child: Text(testingConnection ? '测试中...' : '测试连接'),
                   ),
-                  OutlinedButton.icon(
+                  FlowButton.destructive(
                     onPressed: onClearConfig,
                     icon: const Icon(Icons.cleaning_services_outlined),
-                    label: const Text('清除配置'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
-                    ),
+                    child: const Text('清除配置'),
                   ),
                 ],
               ),
@@ -229,10 +227,10 @@ class SettingsAISection extends StatelessWidget {
               const SizedBox(height: 16),
               Align(
                 alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
+                child: FlowButton.secondary(
                   onPressed: onClearCache,
                   icon: const Icon(Icons.delete_sweep_outlined),
-                  label: const Text('清除 AI 缓存'),
+                  child: const Text('清除 AI 缓存'),
                 ),
               ),
             ],

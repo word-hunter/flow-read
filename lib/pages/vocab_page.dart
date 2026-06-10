@@ -8,6 +8,7 @@ import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../theme/app_colors.dart';
 import '../widgets/dictionary_detail_view.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/pronunciation_button.dart';
 import '../widgets/word_mastery_confetti.dart';
 
@@ -75,7 +76,14 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
           children: [
             _buildHeader(vocabularyNotifier, theme),
             _buildSearchBar(theme),
-            Expanded(child: _buildBody(vocabularyNotifier, lookupState, lookupNotifier, theme)),
+            Expanded(
+              child: _buildBody(
+                vocabularyNotifier,
+                lookupState,
+                lookupNotifier,
+                theme,
+              ),
+            ),
           ],
         ),
       ),
@@ -126,7 +134,7 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
   Widget _buildSearchBar(ThemeData theme) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: TextField(
+      child: FlowTextField(
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Search words...',
@@ -208,7 +216,7 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
         if (index >= displayCount) {
           return Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: TextButton(
+            child: FlowButton.text(
               onPressed: () => setState(() => _visibleCount += _showCount),
               child: Text(
                 'Show more (${filtered.length - displayCount} remaining)',
@@ -224,8 +232,10 @@ class _VocabPageState extends riverpod.ConsumerState<VocabPage> {
         return _VocabItem(
           vocab: vocab,
           status: vocabularyNotifier.getWordStatus(vocab.word),
-          onMarkKnown: (origin) =>
-              vocabularyNotifier.markWordKnown(vocab.word, celebrationOrigin: origin),
+          onMarkKnown: (origin) => vocabularyNotifier.markWordKnown(
+            vocab.word,
+            celebrationOrigin: origin,
+          ),
           onMarkLearning: () => vocabularyNotifier.markWordLearning(vocab.word),
           onMarkUnknown: () => vocabularyNotifier.markWordUnknown(vocab.word),
           onTap: () => lookupNotifier.lookupWord(vocab.word),

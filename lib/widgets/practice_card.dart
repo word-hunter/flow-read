@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/analysis_result.dart';
 import '../theme/app_colors.dart';
 import '../utils/syntax_helpers.dart';
+import 'flow/flow_components.dart';
 
 class PracticeCard extends StatefulWidget {
   final Practice practice;
@@ -88,13 +89,13 @@ class _PracticeCardState extends State<PracticeCard> {
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton.icon(
+              child: FlowButton.text(
                 onPressed: () => setState(() => _showAnswer = !_showAnswer),
                 icon: Icon(
                   _showAnswer ? Icons.visibility_off : Icons.visibility,
                   size: 18,
                 ),
-                label: Text(_showAnswer ? 'Hide Answer' : 'Show Answer'),
+                child: Text(_showAnswer ? 'Hide Answer' : 'Show Answer'),
               ),
             ),
             if (_showAnswer) ...[

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../providers/reading/current_book_notifier.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/practice_card.dart';
 
 class PracticeScreen extends riverpod.ConsumerWidget {
@@ -15,7 +16,7 @@ class PracticeScreen extends riverpod.ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         title: const Text('练习', style: TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: false,
       ),

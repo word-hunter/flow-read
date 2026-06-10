@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flow_dictionary/flow_dictionary.dart';
 import '../../services/settings_service.dart';
+import '../flow/flow_components.dart';
 import 'settings_shared.dart';
 
 class SettingsDictionarySection extends StatelessWidget {
@@ -99,7 +100,7 @@ class SettingsDictionarySection extends StatelessWidget {
             children: [
               ResponsiveSettingsGrid(
                 children: [
-                  TextField(
+                  FlowTextField(
                     controller: testWordController,
                     textInputAction: TextInputAction.done,
                     decoration: const InputDecoration(
@@ -113,7 +114,7 @@ class SettingsDictionarySection extends StatelessWidget {
                   ),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: FilledButton.icon(
+                    child: FlowButton.primary(
                       onPressed: testingSources ? null : onTestSources,
                       icon: testingSources
                           ? const SizedBox(
@@ -122,7 +123,7 @@ class SettingsDictionarySection extends StatelessWidget {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.wifi_find, size: 18),
-                      label: Text(testingSources ? '测试中...' : '测试来源'),
+                      child: Text(testingSources ? '测试中...' : '测试来源'),
                     ),
                   ),
                 ],
@@ -162,10 +163,10 @@ class SettingsDictionarySection extends StatelessWidget {
               const SizedBox(height: 16),
               Align(
                 alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
+                child: FlowButton.secondary(
                   onPressed: onClearCache,
                   icon: const Icon(Icons.cleaning_services_outlined),
-                  label: const Text('清理词典缓存'),
+                  child: const Text('清理词典缓存'),
                 ),
               ),
             ],

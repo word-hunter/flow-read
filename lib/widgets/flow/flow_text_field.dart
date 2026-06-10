@@ -17,6 +17,7 @@ class FlowTextField extends StatelessWidget {
     this.keyboardType,
     this.textInputAction,
     this.inputFormatters,
+    this.style,
     this.autofocus = false,
     this.obscureText = false,
     this.readOnly = false,
@@ -36,6 +37,7 @@ class FlowTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
   final List<TextInputFormatter>? inputFormatters;
+  final TextStyle? style;
   final bool autofocus;
   final bool obscureText;
   final bool readOnly;
@@ -59,6 +61,7 @@ class FlowTextField extends StatelessWidget {
         keyboardType: keyboardType,
         textInputAction: textInputAction,
         inputFormatters: inputFormatters,
+        style: style,
         autofocus: autofocus,
         obscureText: obscureText,
         readOnly: readOnly,
@@ -107,6 +110,7 @@ class _CupertinoFlowTextField extends StatelessWidget {
     this.keyboardType,
     this.textInputAction,
     this.inputFormatters,
+    this.style,
     this.autofocus = false,
     this.obscureText = false,
     this.readOnly = false,
@@ -126,6 +130,7 @@ class _CupertinoFlowTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
   final List<TextInputFormatter>? inputFormatters;
+  final TextStyle? style;
   final bool autofocus;
   final bool obscureText;
   final bool readOnly;
@@ -170,7 +175,7 @@ class _CupertinoFlowTextField extends StatelessWidget {
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
         ),
       ),
-      style: theme.textTheme.bodyMedium,
+      style: style ?? theme.textTheme.bodyMedium,
       placeholderStyle: theme.textTheme.bodyMedium?.copyWith(
         color: theme.colorScheme.onSurfaceVariant,
       ),

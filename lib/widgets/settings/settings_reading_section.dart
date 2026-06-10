@@ -4,6 +4,7 @@ import 'package:flow_language/flow_language.dart';
 import '../../app/flow_read_feature_flags.dart';
 import '../../models/book_metadata.dart';
 import '../../services/settings_service.dart';
+import '../flow/flow_components.dart';
 import 'settings_city_atmosphere_section.dart';
 import 'settings_shared.dart';
 
@@ -236,10 +237,10 @@ class _BookLanguageSection extends StatelessWidget {
           ),
           if (overrideLanguage != null) ...[
             const SizedBox(height: 14),
-            OutlinedButton.icon(
+            FlowButton.secondary(
               onPressed: () => onClearOverride(metadata.id),
               icon: const Icon(Icons.restart_alt_outlined, size: 18),
-              label: const Text('恢复自动检测'),
+              child: const Text('恢复自动检测'),
             ),
           ],
         ],

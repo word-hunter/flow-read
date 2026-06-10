@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../flow/flow_components.dart';
+
 class TodayReviewCard extends StatelessWidget {
   final int dueCount;
   final int totalLearningItems;
@@ -73,14 +75,10 @@ class TodayReviewCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          FilledButton.icon(
+          FlowButton.primary(
             onPressed: hasDue ? onStart : null,
             icon: const Icon(Icons.play_arrow, size: 18),
-            label: const Text('开始复习'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 40),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-            ),
+            child: const Text('开始复习'),
           ),
         ],
       ),

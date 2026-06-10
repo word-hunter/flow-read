@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:flow_rss/flow_rss.dart';
+import '../flow/flow_components.dart';
 
 class RssFeedSidebar extends StatelessWidget {
   final List<RssFeedSubscription> subscriptions;
@@ -250,10 +251,10 @@ class RssFeedSidebar extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              OutlinedButton.icon(
+              FlowButton.secondary(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('重试'),
+                child: const Text('重试'),
               ),
             ],
           ),
@@ -282,7 +283,7 @@ class RssFeedSidebar extends StatelessWidget {
               ),
             ),
           ),
-          TextButton(onPressed: onRetry, child: const Text('重试')),
+          FlowButton.text(onPressed: onRetry, child: const Text('重试')),
         ],
       ),
     );

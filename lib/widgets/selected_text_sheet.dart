@@ -9,6 +9,7 @@ import '../models/sentence_breakdown.dart';
 import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../utils/syntax_helpers.dart';
+import 'flow/flow_components.dart';
 
 class SelectedTextSheet extends riverpod.ConsumerStatefulWidget {
   final String selectedText;
@@ -386,19 +387,17 @@ class _SelectedTextSheetState
   Widget _buildSelectedTextLearningAction(ThemeData theme) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: OutlinedButton.icon(
-        onPressed: ref.read(vocabularyNotifierProvider.notifier).canCreateLearningItems
+      child: FlowButton.secondary(
+        onPressed:
+            ref.read(vocabularyNotifierProvider.notifier).canCreateLearningItems
             ? () => _saveLearningItem(
-                ref.read(vocabularyNotifierProvider.notifier).addSelectedTextLearningItem(),
+                ref
+                    .read(vocabularyNotifierProvider.notifier)
+                    .addSelectedTextLearningItem(),
               )
             : null,
         icon: const Icon(Icons.add_card_outlined, size: 18),
-        label: const Text('加入学习卡片'),
-        style: OutlinedButton.styleFrom(
-          visualDensity: VisualDensity.compact,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
+        child: const Text('加入学习卡片'),
       ),
     );
   }

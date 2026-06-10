@@ -22,6 +22,7 @@ import 'storage/hive_storage.dart';
 import 'theme/app_surface_tokens.dart';
 import 'theme/app_theme.dart';
 import 'widgets/epub_drop_importer.dart';
+import 'widgets/flow/flow_components.dart';
 import 'widgets/release_notes_gate.dart';
 import 'widgets/theme_transition.dart';
 import 'widgets/word_mastery_confetti.dart';
@@ -271,10 +272,10 @@ class StartupScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
-                    TextButton.icon(
+                    FlowButton.text(
                       onPressed: onRetry,
                       icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('重试'),
+                      child: const Text('重试'),
                     ),
                   ],
                 ],

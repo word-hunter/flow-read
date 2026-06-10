@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../providers/reading/current_book_notifier.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/difficulty_gauge.dart';
 
 class DashboardScreen extends riverpod.ConsumerWidget {
@@ -16,7 +17,7 @@ class DashboardScreen extends riverpod.ConsumerWidget {
     final difficulty = result.difficulty;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         title: const Text(
           '阅读分析',
           style: TextStyle(fontWeight: FontWeight.w600),

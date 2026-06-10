@@ -11,6 +11,7 @@ import '../../providers/reading/reading_time_notifier.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/epub_import_source.dart';
+import '../flow/flow_components.dart';
 import 'book_shelf_row.dart';
 import 'featured_book_card.dart';
 import 'home_hover_surface.dart';
@@ -234,15 +235,10 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final addButton = FilledButton.icon(
+          final addButton = FlowButton.primary(
             onPressed: state.isLoading ? null : () => _importEpub(notifier),
             icon: const Icon(Icons.add, size: 18),
-            label: Text(state.isLoading ? '导入中' : '添加书籍'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 40),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              enabledMouseCursor: SystemMouseCursors.click,
-            ),
+            child: Text(state.isLoading ? '导入中' : '添加书籍'),
           );
 
           if (constraints.maxWidth < 620) {
@@ -324,7 +320,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   Widget _buildSearchField(ThemeData theme, {double? width}) {
     final field = SizedBox(
       height: 40,
-      child: TextField(
+      child: FlowTextField(
         controller: _searchController,
         onChanged: _onSearchChanged,
         decoration: InputDecoration(
@@ -562,10 +558,10 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
                 ),
               ),
             ] else
-              FilledButton.icon(
+              FlowButton.primary(
                 onPressed: state.isLoading ? null : () => _importEpub(notifier),
                 icon: const Icon(Icons.file_open),
-                label: Text(state.isLoading ? '导入中...' : '导入 EPUB'),
+                child: Text(state.isLoading ? '导入中...' : '导入 EPUB'),
               ),
           ],
         ),
@@ -603,7 +599,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
           360.0,
           math.max(280.0, screenWidth - 80),
         );
-        return AlertDialog(
+        return FlowDialog(
           title: const Text('移除书籍？'),
           content: SizedBox(
             width: dialogWidth,
@@ -630,18 +626,14 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
             ),
           ),
           actions: [
-            TextButton(
+            FlowButton.text(
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('取消'),
             ),
-            FilledButton.icon(
+            FlowButton.destructive(
               onPressed: () => Navigator.pop(dialogContext, true),
               icon: const Icon(Icons.delete_outline, size: 18),
-              label: const Text('移除并清空'),
-              style: FilledButton.styleFrom(
-                backgroundColor: theme.colorScheme.error,
-                foregroundColor: theme.colorScheme.onError,
-              ),
+              child: const Text('移除并清空'),
             ),
           ],
         );
@@ -664,9 +656,9 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     final renamedTitle = await showDialog<String>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
+        return FlowDialog(
           title: const Text('重命名书籍'),
-          content: TextField(
+          content: FlowTextField(
             controller: controller,
             autofocus: true,
             decoration: const InputDecoration(labelText: '书名'),
@@ -674,11 +666,11 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
             onSubmitted: (value) => Navigator.pop(dialogContext, value),
           ),
           actions: [
-            TextButton(
+            FlowButton.text(
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('取消'),
             ),
-            FilledButton(
+            FlowButton.primary(
               onPressed: () => Navigator.pop(dialogContext, controller.text),
               child: const Text('保存'),
             ),

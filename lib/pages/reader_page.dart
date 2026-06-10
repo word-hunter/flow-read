@@ -29,6 +29,7 @@ import '../theme/app_constants.dart';
 import '../theme/app_surface_tokens.dart';
 import '../widgets/ai_assistant_panel.dart';
 import '../widgets/bookmark_sheet.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/font_settings_sheet.dart';
 import '../widgets/reader/reader_nav_bar.dart';
 import '../widgets/reader/reader_search_panel.dart';
@@ -176,10 +177,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           _sidebarOpen = true;
         });
       case ReaderActionPanelHost.bottomSheet:
-        showModalBottomSheet(
+        showFlowSheet(
           context: context,
           isScrollControlled: true,
-          backgroundColor: Colors.transparent,
           builder: (_) => WordBottomSheet(word: surface),
         ).whenComplete(() {
           lookupNotifier.clearWordLookup();
@@ -230,10 +230,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           _sidebarOpen = true;
         });
       case ReaderActionPanelHost.bottomSheet:
-        showModalBottomSheet(
+        showFlowSheet(
           context: context,
           isScrollControlled: true,
-          backgroundColor: Colors.transparent,
           builder: (_) => DraggableScrollableSheet(
             initialChildSize: 0.75,
             minChildSize: 0.4,
@@ -260,10 +259,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           _sidebarOpen = true;
         });
       case ReaderActionPanelHost.bottomSheet:
-        showModalBottomSheet(
+        showFlowSheet(
           context: context,
           isScrollControlled: true,
-          backgroundColor: Colors.transparent,
           builder: (_) => DraggableScrollableSheet(
             initialChildSize: 0.75,
             minChildSize: 0.4,
@@ -320,10 +318,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       return;
     }
 
-    showModalBottomSheet(
+    showFlowSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => TocBottomSheet(onGoToChapter: _goToChapter),
     );
   }
@@ -364,10 +361,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
 
   void _showFontSettingsSheet() {
     _hideReadingReminder();
-    showModalBottomSheet(
+    showFlowSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => const FontSettingsSheet(),
     );
   }
@@ -385,10 +381,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     if (_searchController.text.trim().isNotEmpty) {
       unawaited(search.searchInBook(_searchController.text));
     }
-    await showModalBottomSheet<void>(
+    await showFlowSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => ReaderSearchSheet(
         controller: _searchController,
         focusNode: _searchFocusNode,
@@ -469,10 +464,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final bookmarks = ref.read(bookmarkNotifierProvider.notifier);
     if (bookmarks.isCurrentPositionBookmarked()) {
       _hideReadingReminder();
-      showModalBottomSheet(
+      showFlowSheet(
         context: context,
         isScrollControlled: true,
-        backgroundColor: Colors.transparent,
         builder: (_) => const BookmarkSheet(),
       );
     } else {
@@ -484,10 +478,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   }
 
   void _showBookmarkHistory() {
-    showModalBottomSheet(
+    showFlowSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => const BookmarkSheet(),
     );
   }

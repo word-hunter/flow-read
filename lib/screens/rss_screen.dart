@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flow_rss/flow_rss.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../theme/app_constants.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/rss/rss_article_list.dart';
 import '../widgets/rss/rss_feed_sidebar.dart';
 import 'browser_screen.dart';
@@ -233,7 +234,7 @@ class RssScreen extends riverpod.ConsumerWidget {
                     ),
                   ),
                 ),
-                TextButton(
+                FlowButton.text(
                   onPressed: notifier.retry,
                   child: const Text('重试'),
                 ),
@@ -353,10 +354,10 @@ class RssScreen extends riverpod.ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                OutlinedButton.icon(
+                FlowButton.secondary(
                   onPressed: notifier.retry,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('重试'),
+                  child: const Text('重试'),
                 ),
               ],
             ),
@@ -438,7 +439,7 @@ class RssScreen extends riverpod.ConsumerWidget {
               ),
             ),
           ],
-          FilledButton.icon(
+          FlowButton.primary(
             onPressed: state.isLoading
                 ? null
                 : () => _showAddFeedDialog(context, ref),
@@ -449,7 +450,7 @@ class RssScreen extends riverpod.ConsumerWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.add),
-            label: Text(state.isLoading ? '正在添加' : '添加订阅'),
+            child: Text(state.isLoading ? '正在添加' : '添加订阅'),
           ),
         ],
       ),
@@ -464,9 +465,9 @@ class RssScreen extends riverpod.ConsumerWidget {
     final notifier = ref.read(rssNotifierProvider.notifier);
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => FlowDialog(
         title: const Text('添加 RSS 订阅'),
-        content: TextField(
+        content: FlowTextField(
           controller: controller,
           autofocus: true,
           decoration: const InputDecoration(
@@ -481,11 +482,11 @@ class RssScreen extends riverpod.ConsumerWidget {
           },
         ),
         actions: [
-          TextButton(
+          FlowButton.text(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('取消'),
           ),
-          FilledButton(
+          FlowButton.primary(
             onPressed: () {
               final url = controller.text.trim();
               if (url.isNotEmpty) {
@@ -515,14 +516,14 @@ class RssScreen extends riverpod.ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+        builder: (context, setState) => FlowDialog(
           title: const Text('编辑 RSS 订阅'),
           content: SizedBox(
             width: 420,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                FlowTextField(
                   controller: titleController,
                   autofocus: true,
                   decoration: const InputDecoration(
@@ -531,7 +532,7 @@ class RssScreen extends riverpod.ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                FlowTextField(
                   controller: urlController,
                   decoration: const InputDecoration(
                     labelText: 'RSS 地址',
@@ -539,7 +540,7 @@ class RssScreen extends riverpod.ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                FlowTextField(
                   controller: descriptionController,
                   minLines: 2,
                   maxLines: 4,
@@ -553,22 +554,23 @@ class RssScreen extends riverpod.ConsumerWidget {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('重新获取源信息'),
                   value: refreshMetadata,
-                  onChanged: (value) =>
-                      setState(() => refreshMetadata = value),
+                  onChanged: (value) => setState(() => refreshMetadata = value),
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(
+            FlowButton.text(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('取消'),
             ),
-            FilledButton(
+            FlowButton.primary(
               onPressed: () {
                 final url = urlController.text.trim();
                 if (url.isNotEmpty) {
-                  ref.read(rssNotifierProvider.notifier).updateFeed(
+                  ref
+                      .read(rssNotifierProvider.notifier)
+                      .updateFeed(
                         originalUrl: subscription.url,
                         url: url,
                         title: titleController.text,

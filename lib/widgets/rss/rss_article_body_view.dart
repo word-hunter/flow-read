@@ -14,6 +14,7 @@ import '../../services/app_logger.dart';
 import 'package:flow_language/flow_language.dart';
 import '../../services/settings_service.dart';
 import '../../services/word_level_service.dart';
+import '../flow/flow_components.dart';
 import '../reader_text_view.dart';
 import '../selected_text_action_toolbar.dart';
 import '../selected_text_sheet.dart';
@@ -442,7 +443,7 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
       contextWordStart: contextWordStart,
       contextWordEnd: contextWordEnd,
     );
-    showModalBottomSheet(
+    showFlowSheet(
       context: context,
       isScrollControlled: true,
       builder: (_) => WordBottomSheet(word: word),
@@ -459,10 +460,9 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     final notifier = ref.read(textSelectionNotifierProvider.notifier);
     notifier.analyzeSelectedText(selectedText);
     final state = ref.watch(textSelectionNotifierProvider);
-    showModalBottomSheet(
+    showFlowSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => SelectedTextSheet(
         selectedText: selectedText,
         analysis: state.selectedAnalysis,

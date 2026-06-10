@@ -3,6 +3,7 @@ import '../models/analysis_result.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../providers/reading/current_book_notifier.dart';
 import '../utils/syntax_helpers.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/syntax_breakdown.dart';
 
 class SyntaxScreen extends riverpod.ConsumerWidget {
@@ -17,7 +18,7 @@ class SyntaxScreen extends riverpod.ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         title: const Text(
           '句型分析',
           style: TextStyle(fontWeight: FontWeight.w600),

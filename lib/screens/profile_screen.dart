@@ -4,6 +4,7 @@ import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading/reading_time_notifier.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/flow/flow_components.dart';
 import 'settings_screen.dart';
 
 class ProfileScreen extends riverpod.ConsumerWidget {
@@ -21,7 +22,7 @@ class ProfileScreen extends riverpod.ConsumerWidget {
     final aiUsage = settings.aiUsage;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         title: const Text('我的', style: TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: false,
       ),

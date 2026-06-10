@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/app_update_service.dart';
+import '../flow/flow_components.dart';
 
 enum UpdateCheckResultAction { updateNow, viewReleaseNotes }
 
@@ -13,11 +14,11 @@ class UpdateCheckResultDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final update = this.update;
     if (update == null) {
-      return AlertDialog(
+      return FlowDialog(
         title: const Text('已是最新版本'),
         content: const Text('当前版本已经是最新版本。'),
         actions: [
-          TextButton(
+          FlowButton.text(
             onPressed: () => Navigator.pop(context),
             child: const Text('知道了'),
           ),
@@ -26,7 +27,7 @@ class UpdateCheckResultDialog extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
-    return AlertDialog(
+    return FlowDialog(
       title: const Text('发现新版本'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -47,12 +48,12 @@ class UpdateCheckResultDialog extends StatelessWidget {
         ],
       ),
       actions: [
-        TextButton(
+        FlowButton.text(
           onPressed: () =>
               Navigator.pop(context, UpdateCheckResultAction.viewReleaseNotes),
           child: const Text('查看更新说明'),
         ),
-        FilledButton(
+        FlowButton.primary(
           onPressed: () =>
               Navigator.pop(context, UpdateCheckResultAction.updateNow),
           child: const Text('立即更新'),

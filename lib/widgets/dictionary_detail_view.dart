@@ -7,6 +7,7 @@ import '../providers/reading/word_lookup_notifier.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_language/english/english.dart';
 import '../services/word_level_service.dart';
+import 'flow/flow_components.dart';
 import 'imported_word_examples.dart';
 import 'pronunciation_button.dart';
 
@@ -119,16 +120,10 @@ class DictionaryDetailView extends StatelessWidget {
         if (canGoBack && onGoBack != null) ...[
           SizedBox(
             width: double.infinity,
-            child: TextButton.icon(
+            child: FlowButton.text(
               onPressed: () => onGoBack?.call(),
               icon: const Icon(Icons.arrow_back, size: 18),
-              label: const Text('返回上一个词条'),
-              style: TextButton.styleFrom(
-                alignment: Alignment.centerLeft,
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(0, 40),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
+              child: const Text('返回上一个词条'),
             ),
           ),
           const SizedBox(height: 8),

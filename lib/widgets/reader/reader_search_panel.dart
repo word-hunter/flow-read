@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../../models/reading_search_result.dart';
 import '../../providers/reading/reading_search_notifier.dart';
+import '../flow/flow_components.dart';
 import '../reader_text_view.dart'
     show searchHighlightBackgroundFor, searchHighlightForegroundFor;
 
@@ -118,10 +119,10 @@ class _ReaderSearchPanel extends riverpod.ConsumerWidget {
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
-              child: FilledButton.icon(
+              child: FlowButton.primary(
                 onPressed: onMore,
                 icon: const Icon(Icons.open_in_full, size: 18),
-                label: const Text('显示更多'),
+                child: const Text('显示更多'),
               ),
             ),
           ],
@@ -152,7 +153,7 @@ class _SearchField extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: TextField(
+          child: FlowTextField(
             controller: controller,
             focusNode: focusNode,
             autofocus: true,

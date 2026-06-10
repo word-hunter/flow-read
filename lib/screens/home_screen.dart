@@ -11,6 +11,7 @@ import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/home/home_sidebar.dart';
 import '../widgets/home/bookshelf_content.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/theme_transition.dart';
 import 'bookshelf_screen.dart';
 import 'rss_screen.dart';
@@ -34,23 +35,23 @@ class HomeScreen extends riverpod.ConsumerWidget {
   ];
 
   static const _navDestinations = [
-    NavigationDestination(
+    FlowSidebarDestination(
       icon: Icon(Icons.menu_book_outlined),
       selectedIcon: Icon(Icons.menu_book),
       label: '书架',
     ),
-    NavigationDestination(
+    FlowSidebarDestination(
       icon: Icon(Icons.rss_feed_outlined),
       selectedIcon: Icon(Icons.rss_feed),
       label: 'RSS',
     ),
-    NavigationDestination(icon: SizedBox.shrink(), label: ''),
-    NavigationDestination(
+    FlowSidebarDestination(icon: SizedBox.shrink(), label: ''),
+    FlowSidebarDestination(
       icon: Icon(Icons.text_fields_outlined),
       selectedIcon: Icon(Icons.text_fields),
       label: '词汇',
     ),
-    NavigationDestination(
+    FlowSidebarDestination(
       icon: Icon(Icons.person_outlined),
       selectedIcon: Icon(Icons.person),
       label: '我的',
@@ -117,7 +118,7 @@ class HomeScreen extends riverpod.ConsumerWidget {
         index: selectedIndex,
         children: _visibleWidgets(_narrowPanels, visibleTabs),
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: FlowSidebar.bottom(
         backgroundColor: cityPreset?.surface.withValues(alpha: 0.88),
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) =>
@@ -417,12 +418,12 @@ class _ImportProgressPanel extends StatelessWidget {
               child: Align(
                 alignment: Alignment.centerRight,
                 child: showCancelAction
-                    ? OutlinedButton.icon(
+                    ? FlowButton.secondary(
                         onPressed: importState.isCancellingImport
                             ? null
                             : onCancel,
                         icon: const Icon(Icons.close, size: 18),
-                        label: Text(
+                        child: Text(
                           importState.isCancellingImport ? '正在取消...' : '取消导入',
                         ),
                       )

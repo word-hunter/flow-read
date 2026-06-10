@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/backup_service.dart';
 import '../../services/settings_service.dart';
+import '../flow/flow_components.dart';
 import 'settings_shared.dart';
 
 class SettingsBackupSection extends StatelessWidget {
@@ -128,10 +129,10 @@ class SettingsBackupSection extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-              OutlinedButton.icon(
+              FlowButton.secondary(
                 onPressed: onChooseFolder,
                 icon: const Icon(Icons.drive_folder_upload_outlined),
-                label: Text(hasFolder ? '更改位置' : '选择位置'),
+                child: Text(hasFolder ? '更改位置' : '选择位置'),
               ),
             ],
           ),
@@ -142,7 +143,7 @@ class SettingsBackupSection extends StatelessWidget {
           title: '手动操作',
           child: Align(
             alignment: Alignment.centerLeft,
-            child: FilledButton.icon(
+            child: FlowButton.primary(
               onPressed: !hasFolder || backup.isSyncing ? null : onExportBackup,
               icon: backup.isSyncing
                   ? const SizedBox(
@@ -151,7 +152,7 @@ class SettingsBackupSection extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.cloud_upload_outlined),
-              label: Text(backup.isSyncing ? '同步中...' : '立即备份'),
+              child: Text(backup.isSyncing ? '同步中...' : '立即备份'),
             ),
           ),
         ),
@@ -163,12 +164,12 @@ class SettingsBackupSection extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: [
-              OutlinedButton.icon(
+              FlowButton.secondary(
                 onPressed: backup.isSyncing ? null : onImportBackup,
                 icon: const Icon(Icons.upload_file_outlined),
-                label: const Text('导入备份'),
+                child: const Text('导入备份'),
               ),
-              OutlinedButton.icon(
+              FlowButton.secondary(
                 onPressed: backup.isSyncing || importingWordHunter
                     ? null
                     : onImportWordHunter,
@@ -179,7 +180,7 @@ class SettingsBackupSection extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.school_outlined),
-                label: Text(
+                child: Text(
                   importingWordHunter ? '导入中...' : '导入 Word Hunter 备份',
                 ),
               ),

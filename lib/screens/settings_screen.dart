@@ -23,6 +23,7 @@ import '../services/external_url_launcher.dart';
 import '../services/log_folder_opener.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/release_notes_dialog.dart';
 import '../widgets/settings/settings_sections.dart';
 import '../widgets/settings/update_check_result_dialog.dart';
@@ -508,17 +509,17 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     final confirmed =
         await showDialog<bool>(
           context: context,
-          builder: (dialogContext) => AlertDialog(
+          builder: (dialogContext) => FlowDialog(
             title: const Text('清除配置'),
             content: Text(
               '将清除 ${settings.aiProvider.label} 的 API Key，并把 Base URL 和模型恢复为默认值。',
             ),
             actions: [
-              TextButton(
+              FlowButton.text(
                 onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('取消'),
               ),
-              FilledButton(
+              FlowButton.primary(
                 onPressed: () => Navigator.pop(dialogContext, true),
                 child: const Text('清除配置'),
               ),
@@ -543,15 +544,15 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
   void _showClearCacheDialog() {
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => FlowDialog(
         title: const Text('清除 AI 缓存'),
         content: const Text('将清除所有章节总结和练习题缓存。书籍、生词、书签、阅读进度和 AI 配置不会被删除。'),
         actions: [
-          TextButton(
+          FlowButton.text(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('取消'),
           ),
-          FilledButton(
+          FlowButton.primary(
             onPressed: () async {
               Navigator.pop(dialogContext);
               await ref.read(aiNotifierProvider.notifier).clearAICache();
@@ -571,17 +572,17 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     final confirmed =
         await showDialog<bool>(
           context: context,
-          builder: (dialogContext) => AlertDialog(
+          builder: (dialogContext) => FlowDialog(
             title: const Text('清理词典缓存'),
             content: const Text(
               '将删除 Collins、Longman 等在线词典查询缓存。生词本、学习记录、书签和阅读进度不会被删除。',
             ),
             actions: [
-              TextButton(
+              FlowButton.text(
                 onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('取消'),
               ),
-              FilledButton(
+              FlowButton.primary(
                 onPressed: () => Navigator.pop(dialogContext, true),
                 child: const Text('清理'),
               ),
@@ -720,15 +721,15 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
   Future<bool> _confirmImport() async {
     return await showDialog<bool>(
           context: context,
-          builder: (dialogContext) => AlertDialog(
+          builder: (dialogContext) => FlowDialog(
             title: const Text('导入备份'),
             content: const Text('导入前将自动备份当前数据。导入后将替换当前书架、词汇、书签、RSS 和阅读数据。'),
             actions: [
-              TextButton(
+              FlowButton.text(
                 onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('取消'),
               ),
-              FilledButton(
+              FlowButton.primary(
                 onPressed: () => Navigator.pop(dialogContext, true),
                 child: const Text('导入'),
               ),
@@ -741,17 +742,17 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
   Future<bool> _confirmWordHunterImport() async {
     return await showDialog<bool>(
           context: context,
-          builder: (dialogContext) => AlertDialog(
+          builder: (dialogContext) => FlowDialog(
             title: const Text('导入 Word Hunter 备份'),
             content: const Text(
               '将合并熟词、学习中单词和例句，不会清空当前 FlowRead 数据；同一个单词以熟词状态优先。',
             ),
             actions: [
-              TextButton(
+              FlowButton.text(
                 onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('取消'),
               ),
-              FilledButton(
+              FlowButton.primary(
                 onPressed: () => Navigator.pop(dialogContext, true),
                 child: const Text('导入'),
               ),
@@ -849,16 +850,16 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
 
     final openFallback = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => FlowDialog(
         title: const Text('检查更新失败'),
         content: Text(message),
         actions: [
-          TextButton(
+          FlowButton.text(
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('知道了'),
           ),
           if (actionLabel != null && actionUrl != null)
-            FilledButton(
+            FlowButton.primary(
               onPressed: () => Navigator.pop(dialogContext, true),
               child: Text(actionLabel),
             ),

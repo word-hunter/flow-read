@@ -14,6 +14,7 @@ import '../services/epub_import_source.dart';
 import '../services/external_url_launcher.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/home/book_cover_view.dart';
 import '../widgets/home/today_review_card.dart';
 
@@ -60,7 +61,7 @@ class _NarrowBookshelf extends riverpod.ConsumerWidget {
     _queueDifficultyRatings(context, bookshelfNotifier, books);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         title: const Text(
           '我的书架',
           style: TextStyle(fontWeight: FontWeight.w600),
@@ -117,7 +118,7 @@ class _WideBookshelfState extends riverpod.ConsumerState<_WideBookshelf> {
     _queueDifficultyRatings(context, bookshelfNotifier, books);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         title: const Text(
           '我的书架',
           style: TextStyle(fontWeight: FontWeight.w600),
@@ -527,10 +528,10 @@ Widget _buildBookDetails(
         ),
       ),
       const SizedBox(height: 16),
-      FilledButton.icon(
+      FlowButton.primary(
         onPressed: () => _openBook(context, notifier, meta.id),
         icon: const Icon(Icons.menu_book, size: 18),
-        label: const Text('继续阅读'),
+        child: const Text('继续阅读'),
       ),
     ],
   );
@@ -659,7 +660,7 @@ Widget _buildEmptyState(
               ],
             ),
           ] else
-            FilledButton.icon(
+            FlowButton.primary(
               onPressed: state.isLoading
                   ? null
                   : () => _importEpub(context, notifier),
@@ -673,7 +674,7 @@ Widget _buildEmptyState(
                       ),
                     )
                   : const Icon(Icons.file_open),
-              label: Text(state.isLoading ? '导入中...' : '导入 EPUB'),
+              child: Text(state.isLoading ? '导入中...' : '导入 EPUB'),
             ),
           if (state.errorMessage != null) ...[
             const SizedBox(height: 16),
@@ -746,7 +747,7 @@ void _showAbout(BuildContext context) {
 
   showDialog(
     context: context,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) => FlowDialog(
       title: const Text('Flow Read'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -788,19 +789,19 @@ void _showAbout(BuildContext context) {
         ],
       ),
       actions: [
-        TextButton.icon(
+        FlowButton.text(
           onPressed: () =>
               unawaited(_openAboutLink(context, AppLinks.repositoryUrl)),
           icon: const Icon(Icons.open_in_new),
-          label: const Text('GitHub'),
+          child: const Text('GitHub'),
         ),
-        TextButton.icon(
+        FlowButton.text(
           onPressed: () =>
               unawaited(_openAboutLink(context, AppLinks.issueFeedbackUrl)),
           icon: const Icon(Icons.bug_report_outlined),
-          label: const Text('反馈问题'),
+          child: const Text('反馈问题'),
         ),
-        TextButton(
+        FlowButton.text(
           onPressed: () => Navigator.pop(ctx),
           child: const Text('关闭'),
         ),

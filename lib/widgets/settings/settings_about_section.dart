@@ -4,6 +4,7 @@ import '../../services/app_links.dart';
 import '../../services/app_update_service.dart';
 import '../../services/app_version.dart';
 import '../../services/mac_permission_diagnostics.dart';
+import '../flow/flow_components.dart';
 import 'settings_shared.dart';
 
 class SettingsAboutSection extends StatelessWidget {
@@ -152,6 +153,7 @@ class SettingsAboutSection extends StatelessWidget {
     );
   }
 }
+
 class _AboutHeroCard extends StatelessWidget {
   const _AboutHeroCard({
     required this.checkingForUpdate,
@@ -262,6 +264,7 @@ class _AboutHeroCard extends StatelessWidget {
     );
   }
 }
+
 class _AboutIdentity extends StatelessWidget {
   const _AboutIdentity({required this.status, required this.compact});
 
@@ -329,6 +332,7 @@ class _AboutIdentity extends StatelessWidget {
     );
   }
 }
+
 class _AboutActions extends StatelessWidget {
   const _AboutActions({
     required this.checkingForUpdate,
@@ -352,7 +356,7 @@ class _AboutActions extends StatelessWidget {
       children: [
         SizedBox(
           height: 50,
-          child: FilledButton.icon(
+          child: FlowButton.primary(
             onPressed: checkingForUpdate ? null : onCheckForUpdates,
             icon: checkingForUpdate
                 ? const SizedBox(
@@ -361,16 +365,16 @@ class _AboutActions extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.sync),
-            label: Text(checkingForUpdate ? '检查中...' : '检查更新'),
+            child: Text(checkingForUpdate ? '检查中...' : '检查更新'),
           ),
         ),
         const SizedBox(height: 12),
         SizedBox(
           height: 50,
-          child: OutlinedButton.icon(
+          child: FlowButton.secondary(
             onPressed: onShowReleaseNotes,
             icon: const Icon(Icons.article_outlined),
-            label: const Text('查看更新内容'),
+            child: const Text('查看更新内容'),
           ),
         ),
         if (updateFallbackActionLabel != null &&
@@ -378,10 +382,10 @@ class _AboutActions extends StatelessWidget {
           const SizedBox(height: 12),
           SizedBox(
             height: 50,
-            child: OutlinedButton.icon(
+            child: FlowButton.secondary(
               onPressed: onOpenUpdateFallback,
               icon: const Icon(Icons.open_in_new),
-              label: Text(updateFallbackActionLabel!),
+              child: Text(updateFallbackActionLabel!),
             ),
           ),
         ],
@@ -389,6 +393,7 @@ class _AboutActions extends StatelessWidget {
     );
   }
 }
+
 class _ProjectFeedbackContent extends StatelessWidget {
   const _ProjectFeedbackContent({
     required this.onOpenRepository,
@@ -423,15 +428,15 @@ class _ProjectFeedbackContent extends StatelessWidget {
           spacing: 12,
           runSpacing: 12,
           children: [
-            OutlinedButton.icon(
+            FlowButton.secondary(
               onPressed: onOpenRepository,
               icon: const Icon(Icons.code),
-              label: const Text('GitHub 仓库'),
+              child: const Text('GitHub 仓库'),
             ),
-            OutlinedButton.icon(
+            FlowButton.secondary(
               onPressed: onOpenIssueFeedback,
               icon: const Icon(Icons.chat_bubble_outline),
-              label: const Text('反馈问题'),
+              child: const Text('反馈问题'),
             ),
           ],
         ),
@@ -439,6 +444,7 @@ class _ProjectFeedbackContent extends StatelessWidget {
     );
   }
 }
+
 class _DiagnosticsContent extends StatelessWidget {
   const _DiagnosticsContent({
     required this.onOpenLogsFolder,
@@ -468,7 +474,7 @@ class _DiagnosticsContent extends StatelessWidget {
           spacing: 12,
           runSpacing: 12,
           children: [
-            OutlinedButton.icon(
+            FlowButton.secondary(
               onPressed: exportingDiagnostics ? null : onExportDiagnostics,
               icon: exportingDiagnostics
                   ? const SizedBox(
@@ -477,12 +483,12 @@ class _DiagnosticsContent extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.bug_report_outlined),
-              label: Text(exportingDiagnostics ? '导出中...' : '导出诊断报告'),
+              child: Text(exportingDiagnostics ? '导出中...' : '导出诊断报告'),
             ),
-            OutlinedButton.icon(
+            FlowButton.secondary(
               onPressed: onOpenLogsFolder,
               icon: const Icon(Icons.folder_outlined),
-              label: const Text('打开日志文件夹'),
+              child: const Text('打开日志文件夹'),
             ),
           ],
         ),
@@ -497,6 +503,7 @@ class _DiagnosticsContent extends StatelessWidget {
     );
   }
 }
+
 class _MacPermissionDiagnosticsContent extends StatefulWidget {
   const _MacPermissionDiagnosticsContent({
     required this.diagnostics,
@@ -603,6 +610,7 @@ class _MacPermissionDiagnosticsContentState
     );
   }
 }
+
 class _PermissionDiagnosticRow extends StatelessWidget {
   const _PermissionDiagnosticRow({
     required this.item,
@@ -660,7 +668,7 @@ class _PermissionDiagnosticRow extends StatelessWidget {
               item.name == '备份文件夹访问' &&
               item.status != PermissionDiagnosticStatus.ok) ...[
             const SizedBox(width: 8),
-            TextButton(
+            FlowButton.text(
               onPressed: onReauthorizeBackupFolder,
               child: Text(item.fixAction!),
             ),
@@ -688,6 +696,7 @@ class _PermissionDiagnosticRow extends StatelessWidget {
     };
   }
 }
+
 class _AboutInfoRow extends StatelessWidget {
   const _AboutInfoRow({
     required this.icon,
@@ -734,6 +743,7 @@ class _AboutInfoRow extends StatelessWidget {
     );
   }
 }
+
 class _AboutPill extends StatelessWidget {
   const _AboutPill({
     required this.icon,
@@ -777,6 +787,7 @@ class _AboutPill extends StatelessWidget {
     );
   }
 }
+
 class _AboutStatusData {
   const _AboutStatusData({
     required this.icon,
@@ -788,6 +799,7 @@ class _AboutStatusData {
   final String label;
   final Color color;
 }
+
 class _AvailableUpdateCard extends StatelessWidget {
   const _AvailableUpdateCard({
     required this.update,
@@ -889,17 +901,17 @@ class _AvailableUpdateCard extends StatelessWidget {
               if (!readyToInstall &&
                   !downloadingUpdate &&
                   onDownloadUpdate != null)
-                FilledButton.icon(
+                FlowButton.primary(
                   onPressed: onDownloadUpdate,
                   icon: Icon(
                     update.hasDownloadAsset
                         ? Icons.download_outlined
                         : Icons.open_in_new,
                   ),
-                  label: Text(update.hasDownloadAsset ? '下载更新' : '打开发布页'),
+                  child: Text(update.hasDownloadAsset ? '下载更新' : '打开发布页'),
                 ),
               if (onInstallUpdate != null)
-                FilledButton.icon(
+                FlowButton.primary(
                   onPressed: installingUpdate ? null : onInstallUpdate,
                   icon: installingUpdate
                       ? const SizedBox(
@@ -908,15 +920,15 @@ class _AvailableUpdateCard extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.restart_alt),
-                  label: Text(installingUpdate ? '安装中...' : '安装并重启'),
+                  child: Text(installingUpdate ? '安装中...' : '安装并重启'),
                 ),
               if (!readyToInstall &&
                   !downloadingUpdate &&
                   update.hasDownloadAsset)
-                OutlinedButton.icon(
+                FlowButton.secondary(
                   onPressed: onOpenReleasePage,
                   icon: const Icon(Icons.open_in_new),
-                  label: const Text('查看更新说明'),
+                  child: const Text('查看更新说明'),
                 ),
             ],
           ),

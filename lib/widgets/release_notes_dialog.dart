@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/app_version.dart';
 import '../services/changelog_service.dart';
+import 'flow/flow_components.dart';
 
 class ReleaseNotesDialog extends StatefulWidget {
   const ReleaseNotesDialog({super.key, required this.notes});
@@ -25,7 +26,7 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AlertDialog(
+    return FlowDialog(
       title: const Text('Flow Read ${FlowReadVersion.shortDisplay}'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460, maxHeight: 420),
@@ -54,7 +55,7 @@ class _ReleaseNotesDialogState extends State<ReleaseNotesDialog> {
               ),
       ),
       actions: [
-        TextButton(
+        FlowButton.text(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('知道了'),
         ),

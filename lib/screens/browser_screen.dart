@@ -15,6 +15,7 @@ import '../services/settings_service.dart';
 import '../services/web_content_service.dart';
 import '../theme/app_constants.dart';
 import '../widgets/ai_assistant_panel.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/selected_text_action_toolbar.dart';
 import '../widgets/reader_text_view.dart';
 import '../widgets/selected_text_sheet.dart';
@@ -125,10 +126,9 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
       contextWordStart: contextWordStart,
       contextWordEnd: contextWordEnd,
     );
-    showModalBottomSheet(
+    showFlowSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => WordBottomSheet(word: surface),
     ).whenComplete(lookupNotifier.clearWordLookup);
   }
@@ -147,10 +147,9 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
 
   void _showSelectedTextSheet(String selectedText) {
     final analyzerName = '${ref.read(settingsProvider).aiProvider.label} AI';
-    showModalBottomSheet(
+    showFlowSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => SelectedTextSheet(
         selectedText: selectedText,
         analysis: null,
@@ -255,7 +254,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
           Expanded(
             child: SizedBox(
               height: 42,
-              child: TextField(
+              child: FlowTextField(
                 controller: _addressController,
                 textInputAction: TextInputAction.go,
                 decoration: InputDecoration(

@@ -10,6 +10,7 @@ import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
 import 'dictionary_detail_view.dart';
+import 'flow/flow_components.dart';
 import 'word_mastery_confetti.dart';
 
 class WordBottomSheet extends riverpod.ConsumerStatefulWidget {
@@ -156,7 +157,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
         children: [
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
+            child: FlowButton.secondary(
               onPressed: canToggleAIAnalysis
                   ? () {
                       final assistant = ref.read(aiAssistantControllerProvider);
@@ -171,25 +172,12 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                     }
                   : null,
               icon: const Icon(Icons.psychology, size: 20),
-              label: const Text(
+              child: const Text(
                 'AI 详解此词',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 11,
-                  horizontal: 14,
-                ),
-                side: BorderSide(
-                  color: AppColors.vocabLearning.withValues(alpha: 0.4),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                minimumSize: const Size.fromHeight(44),
               ),
             ),
           ),
@@ -204,10 +192,10 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                       label: 'Known',
                       icon: Icons.check_circle_outline,
                       color: AppColors.familiarityHigh,
-                          onPressed: () => vocabularyNotifier.markWordKnown(
-                            word,
-                            celebrationOrigin: origin(),
-                          ),
+                      onPressed: () => vocabularyNotifier.markWordKnown(
+                        word,
+                        celebrationOrigin: origin(),
+                      ),
                     ),
                   ),
                 ),
@@ -218,7 +206,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                     label: 'Learning',
                     icon: Icons.school_outlined,
                     color: AppColors.vocabLearning,
-                      onPressed: () => vocabularyNotifier.markWordLearning(word),
+                    onPressed: () => vocabularyNotifier.markWordLearning(word),
                   ),
                 ),
               if (status != null || isBookmarked)
@@ -228,8 +216,11 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                     label: 'Unknown',
                     icon: Icons.help_outline,
                     color: AppColors.familiarityLow,
-                    onPressed: () =>
-                        _markWordUnknown(vocabularyNotifier, bookmarkNotifier, word),
+                    onPressed: () => _markWordUnknown(
+                      vocabularyNotifier,
+                      bookmarkNotifier,
+                      word,
+                    ),
                   ),
                 ),
             ],
@@ -239,24 +230,14 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
               ? _savedLearningItemHint(theme)
               : SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton.icon(
+                  child: FlowButton.secondary(
                     onPressed:
                         vocabularyNotifier.canCreateLearningItems &&
                             lookupState.selectedWordTranslation != null
                         ? () => _addLearningItem()
                         : null,
                     icon: const Icon(Icons.add_card_outlined, size: 20),
-                    label: const Text('加入学习卡片'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
+                    child: const Text('加入学习卡片'),
                   ),
                 ),
           const SizedBox(height: 8),
@@ -293,7 +274,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                 )
               : SizedBox(
                   width: double.infinity,
-                  child: FilledButton.icon(
+                  child: FlowButton.primary(
                     onPressed: lookupState.selectedWordTranslation != null
                         ? () {
                             bookmarkNotifier.addBookmark(
@@ -304,14 +285,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                           }
                         : null,
                     icon: const Icon(Icons.bookmark_border, size: 22),
-                    label: const Text('加入生词本'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(58),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 16,
-                        horizontal: 18,
-                      ),
-                    ),
+                    child: const Text('加入生词本'),
                   ),
                 ),
         ],
@@ -320,7 +294,9 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
   }
 
   Future<void> _addLearningItem() async {
-    final result = await ref.read(vocabularyNotifierProvider.notifier).addSelectedWordLearningItem();
+    final result = await ref
+        .read(vocabularyNotifierProvider.notifier)
+        .addSelectedWordLearningItem();
     if (!mounted) return;
     if (result != null) {
       setState(() => _learningItemSaved = true);
@@ -388,10 +364,10 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: OutlinedButton.icon(
+      child: FlowButton.secondary(
         onPressed: onPressed,
         icon: Icon(icon, size: 20, color: color),
-        label: Text(
+        child: Text(
           label,
           style: TextStyle(
             fontSize: 13,
@@ -399,17 +375,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
-          side: BorderSide(color: color.withValues(alpha: 0.4)),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          minimumSize: const Size(0, 44),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
       ),
     );
   }
-
 }

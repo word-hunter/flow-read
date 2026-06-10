@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/flow/flow_components.dart';
+
 class DiscoverScreen extends StatelessWidget {
   const DiscoverScreen({super.key});
 
@@ -8,7 +10,7 @@ class DiscoverScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         title: const Text('发现', style: TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: false,
       ),

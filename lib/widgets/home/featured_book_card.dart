@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/book_difficulty.dart';
 import '../book_difficulty_chip.dart';
+import '../flow/flow_components.dart';
 import 'book_cover_view.dart';
 import 'home_hover_surface.dart';
 
@@ -195,13 +196,10 @@ class FeaturedBookCard extends StatelessWidget {
           runSpacing: 10,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            FilledButton.icon(
+            FlowButton.primary(
               onPressed: onContinueReading,
               icon: const Icon(Icons.menu_book, size: 18),
-              label: const Text('继续阅读'),
-              style: FilledButton.styleFrom(
-                enabledMouseCursor: SystemMouseCursors.click,
-              ),
+              child: const Text('继续阅读'),
             ),
             if (onRename != null || onRemove != null)
               PopupMenuButton<FeaturedBookAction>(

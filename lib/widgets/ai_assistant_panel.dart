@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 
 import 'package:flow_ai/flow_ai.dart';
+import 'flow/flow_components.dart';
+
 class AIAssistantPanel extends HookWidget {
   const AIAssistantPanel({
     super.key,
@@ -47,8 +49,11 @@ class _EmptyPanel extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.auto_awesome_outlined,
-                  size: 48, color: theme.colorScheme.outline),
+              Icon(
+                Icons.auto_awesome_outlined,
+                size: 48,
+                color: theme.colorScheme.outline,
+              ),
               const SizedBox(height: 12),
               Text(
                 '选中文字或点击单词开始分析',
@@ -59,7 +64,7 @@ class _EmptyPanel extends StatelessWidget {
               ),
               if (onClose != null) ...[
                 const SizedBox(height: 12),
-                TextButton(
+                FlowButton.text(
                   onPressed: onClose,
                   child: const Text('关闭'),
                 ),
@@ -95,7 +100,11 @@ class _ActivePanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _PanelHeader(snapshot: snapshot, embedded: embedded, onClose: onClose),
+          _PanelHeader(
+            snapshot: snapshot,
+            embedded: embedded,
+            onClose: onClose,
+          ),
           const Divider(height: 1),
           _ContextCard(snapshot: snapshot),
           if (availableActions.isNotEmpty) ...[
@@ -498,10 +507,10 @@ class _ResultArea extends HookWidget {
             ),
             if (error.isRetryable && onRetry != null) ...[
               const SizedBox(height: 12),
-              OutlinedButton.icon(
+              FlowButton.secondary(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('重试'),
+                child: const Text('重试'),
               ),
             ],
           ],
@@ -512,7 +521,10 @@ class _ResultArea extends HookWidget {
 
   Widget _buildResult(BuildContext context, AIActionResult result) {
     if (result is AIStreamingProgress) {
-      return _BuildStreamingResult(chunk: result.chunk, progress: result.progress);
+      return _BuildStreamingResult(
+        chunk: result.chunk,
+        progress: result.progress,
+      );
     }
     if (result is AISummaryResult) {
       return _SummaryView(summary: result.summary);
@@ -584,9 +596,12 @@ class _SummaryView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(e.description,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      e.description,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     if (e.significance.isNotEmpty)
                       Text(e.significance, style: theme.textTheme.bodySmall),
                   ],
@@ -604,9 +619,12 @@ class _SummaryView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(c.character,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      c.character,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     if (c.change.isNotEmpty)
                       Text(c.change, style: theme.textTheme.bodySmall),
                   ],
@@ -624,12 +642,17 @@ class _SummaryView extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${v.word} ',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      '${v.word} ',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     Expanded(
-                      child: Text(v.meaningInContext,
-                          style: theme.textTheme.bodySmall),
+                      child: Text(
+                        v.meaningInContext,
+                        style: theme.textTheme.bodySmall,
+                      ),
                     ),
                   ],
                 ),
@@ -676,9 +699,12 @@ class _WordAnalysisView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(m.meaning,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      m.meaning,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     if (m.explanation.isNotEmpty)
                       Text(m.explanation, style: theme.textTheme.bodySmall),
                   ],
@@ -697,7 +723,9 @@ class _WordAnalysisView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('• '),
-                    Expanded(child: Text(tip, style: theme.textTheme.bodySmall)),
+                    Expanded(
+                      child: Text(tip, style: theme.textTheme.bodySmall),
+                    ),
                   ],
                 ),
               ),
@@ -762,9 +790,12 @@ class _PhraseView extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(phrase.phrase,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              phrase.phrase,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(phrase.explanation, style: theme.textTheme.bodySmall),
           ],
@@ -791,14 +822,18 @@ class _QuestionView extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${index + 1}. ${question.question}',
-                style: theme.textTheme.bodyMedium),
+            Text(
+              '${index + 1}. ${question.question}',
+              style: theme.textTheme.bodyMedium,
+            ),
             if (question.answer.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text('答案: ${question.answer}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                  )),
+              Text(
+                '答案: ${question.answer}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
             ],
           ],
         );
@@ -857,13 +892,16 @@ class _FollowUpInput extends HookWidget {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
+            child: FlowTextField(
               controller: controller,
               enabled: !busy,
               decoration: const InputDecoration(
                 hintText: '追问...',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 8,
+                ),
                 isDense: true,
               ),
               style: Theme.of(context).textTheme.bodySmall,
@@ -890,7 +928,8 @@ class _ScopeIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final langLabel = '${snapshot.sourceLanguage.toUpperCase()} → '
+    final langLabel =
+        '${snapshot.sourceLanguage.toUpperCase()} → '
         '${snapshot.outputLanguage.toUpperCase()}';
 
     return Container(

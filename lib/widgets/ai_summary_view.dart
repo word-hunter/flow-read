@@ -6,6 +6,7 @@ import '../providers/reading/current_book_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
 import '../theme/app_colors.dart';
+import 'flow/flow_components.dart';
 
 class AISummaryView extends riverpod.ConsumerStatefulWidget {
   const AISummaryView({super.key});
@@ -55,7 +56,12 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
           child: Column(
             children: [
               _buildHeader(theme),
-              _buildLanguageToggle(theme, aiState, aiNotifier, settings.aiFeaturesEnabled),
+              _buildLanguageToggle(
+                theme,
+                aiState,
+                aiNotifier,
+                settings.aiFeaturesEnabled,
+              ),
               _buildAIStatus(theme, aiState.chapterAIStatus),
               _buildSummaryCoverage(theme, aiState, currentChapter),
               Divider(
@@ -112,7 +118,11 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
     );
   }
 
-  Widget _buildSummaryCoverage(ThemeData theme, AIState aiState, int currentChapter) {
+  Widget _buildSummaryCoverage(
+    ThemeData theme,
+    AIState aiState,
+    int currentChapter,
+  ) {
     final coverage = aiState.chapterAISummaryCoverage;
     if (!aiState.isLoadingChapterAISummaryCoverage && coverage == null) {
       return const SizedBox.shrink();
@@ -311,18 +321,20 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
             ),
             const SizedBox(height: 16),
           ],
-          OutlinedButton.icon(
+          FlowButton.secondary(
             onPressed: aiFeaturesEnabled && !aiState.isGeneratingChapterPreview
                 ? () => aiNotifier.generateChapterPreview()
                 : null,
             icon: const Icon(Icons.visibility_outlined, size: 18),
-            label: const Text('生成读前预览'),
+            child: const Text('生成读前预览'),
           ),
           const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: aiFeaturesEnabled ? () => aiNotifier.generateSummary() : null,
+          FlowButton.primary(
+            onPressed: aiFeaturesEnabled
+                ? () => aiNotifier.generateSummary()
+                : null,
             icon: const Icon(Icons.auto_awesome, size: 18),
-            label: const Text('生成 AI 总结'),
+            child: const Text('生成 AI 总结'),
           ),
         ],
       ),
@@ -343,7 +355,8 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (aiState.aiChapterPreview != null && !aiState.aiChapterPreview!.isEmpty) ...[
+          if (aiState.aiChapterPreview != null &&
+              !aiState.aiChapterPreview!.isEmpty) ...[
             _buildPreviewSection(aiState.aiChapterPreview!, theme),
             const SizedBox(height: 20),
           ],
@@ -386,7 +399,7 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
             const SizedBox(height: 16),
           ],
           Center(
-            child: FilledButton.icon(
+            child: FlowButton.primary(
               onPressed: aiFeaturesEnabled
                   ? () {
                       aiNotifier.generatePractice();
@@ -394,7 +407,7 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
                     }
                   : null,
               icon: const Icon(Icons.quiz, size: 18),
-              label: const Text('生成练习题'),
+              child: const Text('生成练习题'),
             ),
           ),
         ],

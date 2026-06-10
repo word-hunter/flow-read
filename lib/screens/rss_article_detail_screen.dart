@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flow_rss/flow_rss.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../theme/app_constants.dart';
+import '../widgets/flow/flow_components.dart';
 import '../widgets/font_settings_sheet.dart';
 import '../widgets/rss/rss_article_body_view.dart';
 import 'browser_screen.dart';
@@ -45,7 +46,7 @@ class _RssArticleDetailScreenState
     final article = currentIndex == -1 ? null : widget.articles[currentIndex];
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: '返回列表',
@@ -181,7 +182,7 @@ class _RssArticleDetailScreenState
                   onPressed: () => _openOriginalArticle(context, article),
                 ),
               const SizedBox(width: 8),
-              FilledButton.tonalIcon(
+              FlowButton.tonal(
                 onPressed: _toggleIntensiveReading,
                 icon: Icon(
                   _isIntensiveReading
@@ -189,7 +190,7 @@ class _RssArticleDetailScreenState
                       : Icons.local_library_outlined,
                   size: 18,
                 ),
-                label: Text(_isIntensiveReading ? '退出精读' : '进入精读'),
+                child: Text(_isIntensiveReading ? '退出精读' : '进入精读'),
               ),
             ],
           ),
@@ -205,8 +206,8 @@ class _RssArticleDetailScreenState
   ) {
     final horizontalPadding =
         MediaQuery.sizeOf(context).width >= AppConstants.wideBreakpoint
-            ? 32.0
-            : 16.0;
+        ? 32.0
+        : 16.0;
 
     return ColoredBox(
       color: _isIntensiveReading
@@ -347,9 +348,7 @@ class _RssArticleDetailScreenState
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        article.link?.trim().isNotEmpty == true
-            ? '暂无可阅读正文，可查看原文。'
-            : '暂无可阅读正文。',
+        article.link?.trim().isNotEmpty == true ? '暂无可阅读正文，可查看原文。' : '暂无可阅读正文。',
         style: theme.textTheme.bodyMedium?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
@@ -407,7 +406,7 @@ class _RssArticleDetailScreenState
   }
 
   void _showReadingSettings(BuildContext context) {
-    showModalBottomSheet(
+    showFlowSheet(
       context: context,
       isScrollControlled: true,
       builder: (_) => const FontSettingsSheet(),

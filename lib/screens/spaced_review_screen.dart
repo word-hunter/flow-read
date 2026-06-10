@@ -6,6 +6,7 @@ import '../providers/reading/services_provider.dart';
 import '../services/review_schedule_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
+import '../widgets/flow/flow_components.dart';
 
 class SpacedReviewScreen extends riverpod.ConsumerStatefulWidget {
   const SpacedReviewScreen({super.key});
@@ -101,7 +102,7 @@ class _SpacedReviewScreenState
                 ),
               ),
               const SizedBox(height: 24),
-              FilledButton(
+              FlowButton.primary(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('返回'),
               ),
@@ -149,7 +150,7 @@ class _SpacedReviewScreenState
                 ),
               ),
               const SizedBox(height: 26),
-              FilledButton(
+              FlowButton.primary(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('返回首页'),
               ),
@@ -397,7 +398,7 @@ class _SpacedReviewScreenState
       LearningReviewCardType.questionMistake => '输入你现在的答案',
     };
 
-    return TextField(
+    return FlowTextField(
       controller: _answerController,
       maxLines: maxLines,
       minLines: 1,
@@ -522,18 +523,18 @@ class _SpacedReviewScreenState
       return Row(
         children: [
           Expanded(
-            child: OutlinedButton.icon(
+            child: FlowButton.secondary(
               onPressed: _isSaving ? null : _revealAnswer,
               icon: const Icon(Icons.visibility_outlined, size: 18),
-              label: const Text('看答案'),
+              child: const Text('看答案'),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: FilledButton.icon(
+            child: FlowButton.primary(
               onPressed: _isSaving || !canSubmit ? null : _revealAnswer,
               icon: const Icon(Icons.check, size: 18),
-              label: const Text('提交'),
+              child: const Text('提交'),
             ),
           ),
         ],
@@ -543,22 +544,22 @@ class _SpacedReviewScreenState
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton.icon(
+          child: FlowButton.secondary(
             onPressed: _isSaving
                 ? null
                 : () => _finishCard(LearningReviewResult.missed),
             icon: const Icon(Icons.replay, size: 18),
-            label: const Text('没记住'),
+            child: const Text('没记住'),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: FilledButton.icon(
+          child: FlowButton.primary(
             onPressed: _isSaving
                 ? null
                 : () => _finishCard(LearningReviewResult.remembered),
             icon: const Icon(Icons.check, size: 18),
-            label: const Text('记住了'),
+            child: const Text('记住了'),
           ),
         ),
       ],
@@ -616,10 +617,8 @@ class _ReviewAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppBar(
-      toolbarHeight: preferredSize.height,
-      titleSpacing: 0,
-      leadingWidth: 72,
+    return FlowToolbar(
+      height: preferredSize.height,
       leading: Padding(
         padding: EdgeInsets.only(top: _topInset),
         child: IconButton(

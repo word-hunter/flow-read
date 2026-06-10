@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../models/reader_font.dart';
 import '../providers/reading/reading_config_notifier.dart';
+import 'flow/flow_components.dart';
 
 class FontSettingsSheet extends StatelessWidget {
   const FontSettingsSheet({super.key});
@@ -1180,10 +1181,10 @@ class _PanelFooter extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
         child: Row(
           children: [
-            TextButton.icon(
+            FlowButton.text(
               onPressed: onRestoreDefaults,
               icon: const Icon(Icons.restart_alt, size: 18),
-              label: const Text('恢复默认'),
+              child: const Text('恢复默认'),
             ),
             const Spacer(),
             Icon(

@@ -10,6 +10,7 @@ import '../providers/settings_provider.dart';
 import '../services/review_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_constants.dart';
+import '../widgets/flow/flow_components.dart';
 
 class ReviewScreen extends riverpod.ConsumerStatefulWidget {
   const ReviewScreen({super.key});
@@ -28,14 +29,17 @@ class _ReviewScreenState extends riverpod.ConsumerState<ReviewScreen> {
     if (result == null) return const Center(child: CircularProgressIndicator());
 
     final chapterTitle =
-        currentBookNotifier.book?.chapters[currentBookState.currentChapter].title ??
+        currentBookNotifier
+            .book
+            ?.chapters[currentBookState.currentChapter]
+            .title ??
         result.title;
 
     final aiPractice = aiState.aiPractice;
 
     if (aiState.isGeneratingPractice) {
       return Scaffold(
-        appBar: AppBar(title: const Text('正在生成练习题...')),
+        appBar: const FlowToolbar(title: Text('正在生成练习题...')),
         body: const Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -80,7 +84,7 @@ class _NarrowReview extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
@@ -134,7 +138,7 @@ class _WideReview extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
@@ -232,7 +236,7 @@ class _WideReview extends StatelessWidget {
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
-                        child: TextField(
+                        child: FlowTextField(
                           maxLines: 6,
                           decoration: InputDecoration(
                             hintText: '在此输入你的回答...',
@@ -274,7 +278,7 @@ class _WideReview extends StatelessWidget {
                             ),
                             onPressed: () {},
                           ),
-                          FilledButton(
+                          FlowButton.primary(
                             onPressed: () {},
                             child: const Text('提交'),
                           ),
@@ -395,7 +399,7 @@ class _QuestionCardState extends State<_QuestionCard> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            FlowTextField(
               controller: _controller,
               maxLines: 3,
               decoration: InputDecoration(
@@ -493,7 +497,7 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
     final settings = ref.watch(settingsProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: FlowToolbar(
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
@@ -515,14 +519,14 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
           ],
         ),
         actions: [
-          TextButton.icon(
+          FlowButton.text(
             onPressed: settings.aiFeaturesEnabled
                 ? () {
                     ref.read(aiNotifierProvider.notifier).generatePractice();
                   }
                 : null,
             icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('重新生成'),
+            child: const Text('重新生成'),
           ),
         ],
       ),
@@ -743,12 +747,12 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
             if (!showAnswer) ...[
               const SizedBox(height: 8),
               Center(
-                child: FilledButton.icon(
+                child: FlowButton.primary(
                   onPressed: selected != null
                       ? () => _submitAnswer(q, index, selected)
                       : null,
                   icon: const Icon(Icons.check, size: 18),
-                  label: const Text('提交'),
+                  child: const Text('提交'),
                 ),
               ),
             ],
@@ -853,31 +857,42 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
     final currentBookState = ref.read(currentBookNotifierProvider);
     final bookId = currentBookNotifier.activeBookId;
     if (bookId != null) {
-      await ref.read(learningAnalyticsServiceProvider).recordPracticeAnswer(
-        bookId: bookId,
-        chapterIndex: currentBookState.currentChapter,
-        isCorrect: isCorrect,
-      );
+      await ref
+          .read(learningAnalyticsServiceProvider)
+          .recordPracticeAnswer(
+            bookId: bookId,
+            chapterIndex: currentBookState.currentChapter,
+            isCorrect: isCorrect,
+          );
     }
     if (isCorrect) return;
-    await ref.read(learningItemServiceProvider).saveDraft(
-      LearningItemDraft.questionMistake(
-        question: question.question,
-        correctAnswer: question.answer,
-        selectedAnswer: selectedAnswer,
-        sourceExcerpt: question.sourceExcerpt,
-        explanation: question.answerExplanation,
-        source: LearningItemSource(
-          bookId: bookId ?? '',
-          chapterIndex: currentBookNotifier.book != null ? currentBookState.currentChapter : -1,
-          chapterTitle: currentBookNotifier.book?.chapters[currentBookState.currentChapter].title ?? '',
-        ),
-        metadata: {
-          'questionType': question.type,
-          'difficulty': question.difficulty,
-        },
-      ),
-    );
+    await ref
+        .read(learningItemServiceProvider)
+        .saveDraft(
+          LearningItemDraft.questionMistake(
+            question: question.question,
+            correctAnswer: question.answer,
+            selectedAnswer: selectedAnswer,
+            sourceExcerpt: question.sourceExcerpt,
+            explanation: question.answerExplanation,
+            source: LearningItemSource(
+              bookId: bookId ?? '',
+              chapterIndex: currentBookNotifier.book != null
+                  ? currentBookState.currentChapter
+                  : -1,
+              chapterTitle:
+                  currentBookNotifier
+                      .book
+                      ?.chapters[currentBookState.currentChapter]
+                      .title ??
+                  '',
+            ),
+            metadata: {
+              'questionType': question.type,
+              'difficulty': question.difficulty,
+            },
+          ),
+        );
   }
 
   void _showSourceInReader(PracticeQuestion question) {
@@ -928,14 +943,10 @@ class _SourceExcerptBox extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              TextButton.icon(
+              FlowButton.text(
                 onPressed: onOpen,
                 icon: const Icon(Icons.open_in_new, size: 14),
-                label: const Text('查看'),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+                child: const Text('查看'),
               ),
             ],
           ),
