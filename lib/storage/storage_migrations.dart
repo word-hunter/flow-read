@@ -22,6 +22,8 @@ Future<void> runStorageMigrations() async {
     await _migrateV1ToV2();
     await settings.put(StorageSchema.versionKey, StorageSchema.currentVersion);
   }
+
+  await _backfillMissingReadingConfigFromV1();
 }
 
 Future<void> migrateV1BoxesToLanguageBoxes() => _migrateV1ToV2();
@@ -66,6 +68,40 @@ Future<void> _migrateV1ToV2() async {
     HiveBoxNames.learningAnalytics,
     HiveBoxNames.learningAnalyticsFor(lang),
   );
+}
+
+Future<void> _backfillMissingReadingConfigFromV1() async {
+  final oldBox = await _openExistingBox<String>(HiveBoxNames.readingConfig);
+  if (oldBox == null || oldBox.isEmpty) return;
+
+  for (final languageCode in _readingConfigBackfillLanguages()) {
+    final newBoxName = HiveBoxNames.readingConfigFor(languageCode);
+    final newBox = Hive.isBoxOpen(newBoxName)
+        ? Hive.box<String>(newBoxName)
+        : await Hive.openBox<String>(newBoxName);
+
+    const keys = ['fontSize', 'fontFamily', 'lineHeight', 'theme'];
+    for (final key in keys) {
+      if (newBox.containsKey(key)) continue;
+      final value = oldBox.get(key);
+      if (value != null && value.isNotEmpty) {
+        await newBox.put(key, value);
+      }
+    }
+  }
+}
+
+Set<String> _readingConfigBackfillLanguages() {
+  final settings = Hive.box(HiveBoxNames.settings);
+  final raw = settings.get(
+    HiveBoxNames.activeSourceLanguageKey,
+    defaultValue: HiveBoxNames.defaultLanguageCode,
+  );
+  final active = raw?.toString().trim().toLowerCase();
+  return {
+    HiveBoxNames.defaultLanguageCode,
+    if (active != null && active.isNotEmpty) active,
+  };
 }
 
 Future<void> _copyBox<T>(String oldName, String newName) async {

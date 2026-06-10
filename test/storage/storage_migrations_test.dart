@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/learning_item.dart';
+import 'package:flow_read/models/reader_font.dart';
 import 'package:flow_read/storage/hive_box_names.dart';
 import 'package:flow_read/storage/storage_migrations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -124,6 +125,47 @@ void main() {
     expect(v1BooksBox().get('book-1')?.title, book.title);
     expect(v1UserVocabularyBox().get('flow'), 'known');
   });
+
+  test(
+    'backfills missing reading display settings from v1 config after schema upgrade',
+    () async {
+      final settings = await Hive.openBox<dynamic>(HiveBoxNames.settings);
+      await settings.put(
+        StorageSchema.versionKey,
+        StorageSchema.currentVersion,
+      );
+      await settings.put(HiveBoxNames.activeSourceLanguageKey, 'ja');
+      final oldReadingConfig = await Hive.openBox<String>(
+        HiveBoxNames.readingConfig,
+      );
+      await oldReadingConfig.put('fontSize', '19');
+      await oldReadingConfig.put('fontFamily', ReaderFonts.literata);
+      await oldReadingConfig.put('lineHeight', '2.4');
+      await oldReadingConfig.put('theme', 'dark');
+      final currentReadingConfig = await Hive.openBox<String>(
+        HiveBoxNames.readingConfigFor('en'),
+      );
+      await currentReadingConfig.put('theme', 'sepia');
+      final activeReadingConfig = await Hive.openBox<String>(
+        HiveBoxNames.readingConfigFor('ja'),
+      );
+      await activeReadingConfig.put('fontFamily', ReaderFonts.systemSansSerif);
+
+      await runStorageMigrations();
+
+      expect(currentReadingConfig.get('fontSize'), '19');
+      expect(currentReadingConfig.get('fontFamily'), ReaderFonts.literata);
+      expect(currentReadingConfig.get('lineHeight'), '2.4');
+      expect(currentReadingConfig.get('theme'), 'sepia');
+      expect(activeReadingConfig.get('fontSize'), '19');
+      expect(
+        activeReadingConfig.get('fontFamily'),
+        ReaderFonts.systemSansSerif,
+      );
+      expect(activeReadingConfig.get('lineHeight'), '2.4');
+      expect(activeReadingConfig.get('theme'), 'dark');
+    },
+  );
 
   test(
     'migration can run repeatedly without duplicating or deleting v1 data',
