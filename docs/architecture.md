@@ -1,6 +1,6 @@
 # Flow Read Architecture
 
-> @source lib/main.dart lib/platform/flow_shell_resolver.dart lib/providers/ lib/storage/hive_storage.dart packages/flow_design_system/lib/theme/flow_theme.dart
+> @source lib/main.dart lib/platform/flow_shell_resolver.dart lib/providers/ lib/storage/hive_storage.dart lib/widgets/flow/flow_components.dart packages/flow_design_system/lib/theme/flow_theme.dart
 
 Last updated: 2026-06-10
 
@@ -78,6 +78,7 @@ HomeScreen → ReadingDeskScreen → ReaderPage（正文）
 - `MaterialApp` theme/darkTheme 由 `SettingsService.themeMode` 控制
 - `FlowShellResolver` 按 Flutter `TargetPlatform` 选择设计系统 shell：Android=Material 3、iOS=Cupertino、macOS=HIG、Windows=Fluent
 - Linux 当前显式走 `macosStandard` 桌面 shell 规范，避免 fallback 到 Android Material
+- 业务 UI 入口应优先使用 `FlowButton`、`FlowSidebar`、`FlowDialog`、`FlowSheet`、`FlowTextField`、`FlowToolbar`，由组件适配层按当前 shell 选择 Material/Cupertino/桌面 token
 - `ReaderThemeTokens` 扩展 Material ThemeData（reader 专用颜色/宽度）
 - `packages/flow_read_atmosphere` 提供 V2 City 时间主题与动态氛围背景，由 `MaterialApp.builder` 包到 app shell，Home/Reader 在 scope 内透出背景
 - 动画 220ms easeOutCubic
