@@ -272,9 +272,50 @@ void main() {
 
     expect(book.chapters.single.title, '封面');
   });
+
+  test(
+    'EPUB service keeps chapter href and prefers TOC labels with fragments',
+    () async {
+      final epubBytes = _buildEpub(
+        {
+          'OEBPS/Text/chapter1.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Chapter One</title></head>
+          <body><p>First chapter body.</p></body>
+        </html>
+      ''',
+          'OEBPS/toc.ncx': '''
+        <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/">
+          <navMap>
+            <navPoint id="chapter-1" playOrder="1">
+              <navLabel><text>Reader TOC Title</text></navLabel>
+              <content src="Text/chapter1.xhtml#opening"/>
+            </navPoint>
+          </navMap>
+        </ncx>
+      ''',
+        },
+        manifestItems: '''
+        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+      ''',
+        spineAttributes: 'toc="ncx"',
+      );
+
+      final book = await EpubService.parseBytes(epubBytes);
+
+      expect(book.toc.single.label, 'Reader TOC Title');
+      expect(book.chapters.single.href, 'Text/chapter1.xhtml');
+      expect(book.chapters.single.title, 'Reader TOC Title');
+    },
+  );
 }
 
-Uint8List _buildEpub(Map<String, String> extraFiles) {
+Uint8List _buildEpub(
+  Map<String, String> extraFiles, {
+  String manifestItems = '',
+  String spineAttributes = '',
+  String spineItems = '<itemref idref="chapter1"/>',
+}) {
   final archive = Archive();
   void addString(String path, String content) {
     archive.addFile(ArchiveFile.string(path, content));
@@ -300,9 +341,10 @@ Uint8List _buildEpub(Map<String, String> extraFiles) {
         <manifest>
           <item id="chapter1" href="Text/chapter1.xhtml" media-type="application/xhtml+xml"/>
           <item id="pic" href="Images/pic.png" media-type="image/png"/>
+          $manifestItems
         </manifest>
-        <spine>
-          <itemref idref="chapter1"/>
+        <spine $spineAttributes>
+          $spineItems
         </spine>
       </package>
     ''');

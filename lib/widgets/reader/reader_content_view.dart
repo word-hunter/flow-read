@@ -222,6 +222,7 @@ class ReaderContentView extends StatelessWidget {
       lookupHighlightWord: lookupHighlightWord,
       wordLevelService: wordLevelService,
       languageModule: activeLanguageModule,
+      footnoteMap: currentBook.book?.footnoteMap ?? const {},
     );
   }
 
@@ -395,7 +396,7 @@ TextStyle _buildBaseTextStyle(
   return (theme.textTheme.bodyLarge ?? const TextStyle()).copyWith(
     fontSize: config.fontSize,
     height: config.lineHeight,
-    letterSpacing: 0.3,
+    letterSpacing: 0,
     fontFamily: config.fontFamily,
     color: _readerTextColor(config, cityPreset),
   );

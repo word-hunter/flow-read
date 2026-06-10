@@ -110,6 +110,66 @@ void main() {
     expect(chapterEvent.chapterTitle, 'Chapter One');
     expect(_isMonotonic(events.map((event) => event.progress)), isTrue);
   });
+
+  test('preserves nested NCX table of contents levels', () {
+    final epubBytes = _buildEpub(
+      {
+        'OEBPS/Text/chapter1.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Chapter One</title></head>
+          <body><p>First chapter.</p></body>
+        </html>
+      ''',
+        'OEBPS/Text/chapter2.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Chapter Two</title></head>
+          <body><p>Second chapter.</p></body>
+        </html>
+      ''',
+        'OEBPS/toc.ncx': '''
+        <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/">
+          <navMap>
+            <navPoint id="part-1" playOrder="1">
+              <navLabel><text>Part One</text></navLabel>
+              <content src="Text/chapter1.xhtml"/>
+              <navPoint id="scene-1" playOrder="2">
+                <navLabel><text>Scene One</text></navLabel>
+                <content src="Text/chapter1.xhtml#scene"/>
+              </navPoint>
+            </navPoint>
+            <navPoint id="part-2" playOrder="3">
+              <navLabel><text>Part Two</text></navLabel>
+              <content src="Text/chapter2.xhtml"/>
+            </navPoint>
+          </navMap>
+        </ncx>
+      ''',
+      },
+      manifestItems: '''
+        <item id="chapter2" href="Text/chapter2.xhtml" media-type="application/xhtml+xml"/>
+        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+      ''',
+      spineAttributes: 'toc="ncx"',
+      spineItems: '''
+        <itemref idref="chapter1"/>
+        <itemref idref="chapter2"/>
+      ''',
+    );
+
+    final book = EpubParser.parseBytesSync(epubBytes);
+
+    expect(book.toc.map((entry) => entry.label), [
+      'Part One',
+      'Scene One',
+      'Part Two',
+    ]);
+    expect(book.toc.map((entry) => entry.level), [0, 1, 0]);
+    expect(book.toc.map((entry) => entry.href), [
+      'Text/chapter1.xhtml',
+      'Text/chapter1.xhtml#scene',
+      'Text/chapter2.xhtml',
+    ]);
+  });
 }
 
 bool _isMonotonic(Iterable<double> values) {
@@ -124,6 +184,9 @@ bool _isMonotonic(Iterable<double> values) {
 Uint8List _buildEpub(
   Map<String, String> extraFiles, {
   Map<String, List<int>> extraBytes = const {},
+  String manifestItems = '',
+  String spineAttributes = '',
+  String spineItems = '<itemref idref="chapter1"/>',
 }) {
   final archive = Archive();
 
@@ -151,9 +214,10 @@ Uint8List _buildEpub(
         <manifest>
           <item id="chapter1" href="Text/chapter1.xhtml" media-type="application/xhtml+xml"/>
           <item id="pic" href="Images/pic.png" media-type="image/png"/>
+          $manifestItems
         </manifest>
-        <spine>
-          <itemref idref="chapter1"/>
+        <spine $spineAttributes>
+          $spineItems
         </spine>
       </package>
     ''');

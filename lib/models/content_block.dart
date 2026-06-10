@@ -19,8 +19,9 @@ export 'package:epub_reader_core/epub_reader_core.dart'
 class StyledText {
   final String text;
   final InlineStyle style;
+  final String? footnoteTarget;
 
-  const StyledText(this.text, [this.style = InlineStyle.normal]);
+  const StyledText(this.text, [this.style = InlineStyle.normal, this.footnoteTarget]);
 }
 
 enum BlockType { paragraph, heading, listItem, blockquote }

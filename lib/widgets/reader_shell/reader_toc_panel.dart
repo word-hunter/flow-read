@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
+import '../../models/book.dart';
 import '../../models/chapter.dart';
 import '../../models/content_block.dart';
 import '../../providers/reading/current_book_notifier.dart';
+import '../../theme/app_surface_tokens.dart';
 
 class ReaderTocPanel extends riverpod.ConsumerStatefulWidget {
   final ValueChanged<int>? onGoToChapter;
@@ -21,9 +23,12 @@ class ReaderTocPanel extends riverpod.ConsumerStatefulWidget {
 }
 
 class _ReaderTocPanelState extends riverpod.ConsumerState<ReaderTocPanel> {
+  static const _estimatedItemExtent = 50.0;
+
   final ScrollController _scrollController = ScrollController();
-  bool _initialChapterPositionQueued = false;
-  int _initialChapterPositionAttempts = 0;
+  final Map<int, GlobalKey> _itemKeys = {};
+  int? _lastQueuedSelectedIndex;
+  int? _lastQueuedItemCount;
 
   @override
   void dispose() {
@@ -31,28 +36,68 @@ class _ReaderTocPanelState extends riverpod.ConsumerState<ReaderTocPanel> {
     super.dispose();
   }
 
-  void _queueInitialChapterPosition(int currentChapter, int itemCount) {
-    if (_initialChapterPositionQueued) return;
-    _initialChapterPositionQueued = true;
+  GlobalKey _itemKeyFor(int index) =>
+      _itemKeys.putIfAbsent(index, GlobalKey.new);
+
+  void _trimItemKeys(int itemCount) {
+    _itemKeys.removeWhere((index, _) => index >= itemCount);
+  }
+
+  void _queueSelectedItemPosition({
+    required int selectedIndex,
+    required int itemCount,
+  }) {
+    if (itemCount <= 0) return;
+    if (_lastQueuedSelectedIndex == selectedIndex &&
+        _lastQueuedItemCount == itemCount) {
+      return;
+    }
+
+    _lastQueuedSelectedIndex = selectedIndex;
+    _lastQueuedItemCount = itemCount;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (!_scrollController.hasClients) {
-        _initialChapterPositionAttempts += 1;
-        if (_initialChapterPositionAttempts < 3) {
-          _initialChapterPositionQueued = false;
-          _queueInitialChapterPosition(currentChapter, itemCount);
-        }
-        return;
-      }
-
-      final visibleAnchorIndex = (currentChapter - 2).clamp(0, itemCount - 1);
-      final target = (visibleAnchorIndex * 52.0).clamp(
-        _scrollController.position.minScrollExtent,
-        _scrollController.position.maxScrollExtent,
+      _scrollSelectedItemIntoView(
+        selectedIndex: selectedIndex,
+        retryAfterEstimatedJump: true,
       );
-      if ((_scrollController.offset - target).abs() > 0.5) {
-        _scrollController.jumpTo(target);
-      }
+    });
+  }
+
+  void _scrollSelectedItemIntoView({
+    required int selectedIndex,
+    required bool retryAfterEstimatedJump,
+  }) {
+    if (!_scrollController.hasClients) return;
+
+    final selectedContext = _itemKeys[selectedIndex]?.currentContext;
+    if (selectedContext != null) {
+      Scrollable.ensureVisible(
+        selectedContext,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutCubic,
+        alignment: 0.14,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+      );
+      return;
+    }
+
+    final position = _scrollController.position;
+    final estimatedTarget = (selectedIndex * _estimatedItemExtent).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    if ((_scrollController.offset - estimatedTarget).abs() > 0.5) {
+      _scrollController.jumpTo(estimatedTarget.toDouble());
+    }
+
+    if (!retryAfterEstimatedJump) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _scrollSelectedItemIntoView(
+        selectedIndex: selectedIndex,
+        retryAfterEstimatedJump: false,
+      );
     });
   }
 
@@ -61,50 +106,56 @@ class _ReaderTocPanelState extends riverpod.ConsumerState<ReaderTocPanel> {
     final currentBookState = ref.watch(currentBookNotifierProvider);
     final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
     final theme = Theme.of(context);
+    final tokens = AppSurfaceTokens.of(context);
     final book = currentBookNotifier.book;
     if (book == null) return _buildEmptyState(theme);
 
-    _queueInitialChapterPosition(
-      currentBookState.currentChapter,
-      book.chapters.length,
-    );
+    final items = buildReaderTocItems(book);
+    if (items.isEmpty) return _buildEmptyState(theme);
 
-    final labels = <_ChapterTocLabel>[];
-    for (var i = 0; i < book.chapters.length; i++) {
-      labels.add(_chapterLabelForWorkspace(book.chapters[i], i));
-    }
+    _trimItemKeys(items.length);
+    final selectedIndex = selectedReaderTocIndexForChapter(
+      items,
+      currentBookState.currentChapter,
+    );
+    _queueSelectedItemPosition(
+      selectedIndex: selectedIndex,
+      itemCount: items.length,
+    );
 
     return Column(
       children: [
         _TocWorkspaceHeader(
-          itemCount: book.chapters.length,
+          itemCount: items.length,
+          chapterCount: book.chapters.length,
           currentChapter: currentBookState.currentChapter,
+          usingStructuredToc: book.toc.isNotEmpty,
         ),
         Divider(
           height: 1,
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.32),
+          color: tokens.panelBorderColor,
         ),
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
             primary: false,
-            itemExtent: 52,
             padding: const EdgeInsets.fromLTRB(8, 6, 8, 28),
-            itemCount: labels.length,
+            itemCount: items.length,
             itemBuilder: (context, index) {
-              final isSelected = index == currentBookState.currentChapter;
+              final item = items[index];
+              final isSelected = index == selectedIndex;
               return _TocChapterTile(
-                index: index,
-                label: labels[index],
+                key: _itemKeyFor(index),
+                item: item,
                 isSelected: isSelected,
                 onTap: () {
                   final onGoToChapter = widget.onGoToChapter;
                   if (onGoToChapter == null) {
-                    currentBookNotifier.goToChapter(index);
+                    currentBookNotifier.goToChapter(item.targetChapterIndex);
                   } else {
-                    onGoToChapter(index);
+                    onGoToChapter(item.targetChapterIndex);
                   }
-                  widget.onChapterSelected?.call(index);
+                  widget.onChapterSelected?.call(item.targetChapterIndex);
                 },
               );
             },
@@ -131,43 +182,178 @@ class _ReaderTocPanelState extends riverpod.ConsumerState<ReaderTocPanel> {
 
 class _TocWorkspaceHeader extends StatelessWidget {
   final int itemCount;
+  final int chapterCount;
   final int currentChapter;
+  final bool usingStructuredToc;
 
   const _TocWorkspaceHeader({
     required this.itemCount,
+    required this.chapterCount,
     required this.currentChapter,
+    required this.usingStructuredToc,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final currentChapterLabel = chapterCount == 0
+        ? 0
+        : (currentChapter + 1).clamp(1, chapterCount);
+    final countLabel = usingStructuredToc
+        ? '目录条目 $itemCount'
+        : '全部章节 $itemCount';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 14, 10, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(18, 12, 14, 10),
+      child: Row(
         children: [
-          Text(
-            '目录',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+          Expanded(
+            child: Text(
+              countLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            '共 $itemCount 节 · 当前第 ${currentChapter + 1} 节',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+          if (chapterCount > 0) ...[
+            const SizedBox(width: 10),
+            Text(
+              '当前 $currentChapterLabel / $chapterCount',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: primary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
+}
+
+class ReaderTocItem {
+  final String title;
+  final String? subtitle;
+  final int targetChapterIndex;
+  final int level;
+  final int ordinal;
+
+  const ReaderTocItem({
+    required this.title,
+    this.subtitle,
+    required this.targetChapterIndex,
+    this.level = 0,
+    required this.ordinal,
+  });
+}
+
+List<ReaderTocItem> buildReaderTocItems(Book book) {
+  if (book.chapters.isEmpty) return const [];
+
+  if (book.toc.isNotEmpty) {
+    return [
+      for (var i = 0; i < book.toc.length; i += 1)
+        _tocEntryItemForBook(book, i),
+    ];
+  }
+
+  return [
+    for (var i = 0; i < book.chapters.length; i += 1)
+      _fallbackChapterItem(book.chapters[i], i),
+  ];
+}
+
+int selectedReaderTocIndexForChapter(
+  List<ReaderTocItem> items,
+  int currentChapter,
+) {
+  if (items.isEmpty) return 0;
+  final exactIndex = items.indexWhere(
+    (item) => item.targetChapterIndex == currentChapter,
+  );
+  if (exactIndex != -1) return exactIndex;
+  return currentChapter.clamp(0, items.length - 1).toInt();
+}
+
+ReaderTocItem _tocEntryItemForBook(Book book, int index) {
+  final entry = book.toc[index];
+  final targetChapterIndex =
+      _chapterIndexForHref(book.chapters, entry.href) ??
+      index.clamp(0, book.chapters.length - 1).toInt();
+  final fallbackLabel = _chapterLabelForWorkspace(
+    book.chapters[targetChapterIndex],
+    targetChapterIndex,
+  );
+  final title = _normalizeTocTitle(entry.label);
+  return ReaderTocItem(
+    title: title.isEmpty ? fallbackLabel.title : title,
+    targetChapterIndex: targetChapterIndex,
+    level: entry.level.clamp(0, 4).toInt(),
+    ordinal: index + 1,
+  );
+}
+
+ReaderTocItem _fallbackChapterItem(Chapter chapter, int index) {
+  final label = _chapterLabelForWorkspace(chapter, index);
+  return ReaderTocItem(
+    title: label.title,
+    subtitle: label.subtitle,
+    targetChapterIndex: index,
+    ordinal: index + 1,
+  );
+}
+
+int? _chapterIndexForHref(List<Chapter> chapters, String href) {
+  final target = _normalizedHrefPath(href);
+  if (target.isEmpty) return null;
+
+  for (var i = 0; i < chapters.length; i += 1) {
+    final chapterHref = chapters[i].href;
+    if (chapterHref == null || chapterHref.trim().isEmpty) continue;
+    final chapterPath = _normalizedHrefPath(chapterHref);
+    if (chapterPath.isEmpty) continue;
+    if (target == chapterPath) return i;
+    if (target.endsWith('/$chapterPath')) return i;
+    if (chapterPath.endsWith('/$target')) return i;
+  }
+  return null;
+}
+
+String _normalizedHrefPath(String href) {
+  var text = href.trim().replaceAll('\\', '/');
+  final hashIndex = text.indexOf('#');
+  if (hashIndex != -1) {
+    text = text.substring(0, hashIndex);
+  }
+  final queryIndex = text.indexOf('?');
+  if (queryIndex != -1) {
+    text = text.substring(0, queryIndex);
+  }
+  try {
+    text = Uri.decodeFull(text);
+  } on FormatException {
+    // Keep the raw href when an EPUB contains malformed percent escapes.
+  }
+
+  final segments = <String>[];
+  for (final segment in text.split('/')) {
+    if (segment.isEmpty || segment == '.') continue;
+    if (segment == '..') {
+      if (segments.isNotEmpty) segments.removeLast();
+      continue;
+    }
+    segments.add(segment);
+  }
+  return segments.join('/');
+}
+
+String _normalizeTocTitle(String title) {
+  return title.replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
 class _ChapterTocLabel {
@@ -182,8 +368,10 @@ _ChapterTocLabel _chapterLabelForWorkspace(Chapter chapter, int index) {
   final fallbackTitle = '第 ${index + 1} 节';
   final isGenericTitle =
       title.isEmpty ||
-      RegExp(r'^(section|chapter|part)\s*\d+$', caseSensitive: false)
-          .hasMatch(title) ||
+      RegExp(
+        r'^(section|chapter|part)\s*\d+$',
+        caseSensitive: false,
+      ).hasMatch(title) ||
       RegExp(r'^第\s*\d+\s*[章节回]$').hasMatch(title);
 
   if (!isGenericTitle) {
@@ -192,8 +380,7 @@ _ChapterTocLabel _chapterLabelForWorkspace(Chapter chapter, int index) {
 
   final opening = _chapterOpeningSnippet(chapter);
   if (opening.isEmpty) {
-    return _ChapterTocLabel(
-        title: title.isEmpty ? fallbackTitle : title);
+    return _ChapterTocLabel(title: title.isEmpty ? fallbackTitle : title);
   }
 
   return _ChapterTocLabel(
@@ -234,14 +421,13 @@ String _chapterOpeningSnippet(Chapter chapter) {
 }
 
 class _TocChapterTile extends StatefulWidget {
-  final int index;
-  final _ChapterTocLabel label;
+  final ReaderTocItem item;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _TocChapterTile({
-    required this.index,
-    required this.label,
+    super.key,
+    required this.item,
     required this.isSelected,
     required this.onTap,
   });
@@ -262,135 +448,112 @@ class _TocChapterTileState extends State<_TocChapterTile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final tokens = AppSurfaceTokens.of(context);
     final backgroundColor = widget.isSelected
-        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.2)
-        : Colors.transparent;
+        ? primary.withValues(alpha: 0.13)
+        : (_isHovered
+              ? theme.colorScheme.surface.withValues(alpha: 0.58)
+              : Colors.transparent);
     final borderColor = widget.isSelected
-        ? primary.withValues(alpha: 0.12)
-        : Colors.transparent;
+        ? primary.withValues(alpha: 0.18)
+        : (_isHovered ? tokens.panelBorderColor : Colors.transparent);
+    final titleColor = widget.isSelected
+        ? primary
+        : theme.colorScheme.onSurface;
+    final levelIndent = widget.item.level * 14.0;
+    final tooltipMessage = widget.item.subtitle == null
+        ? widget.item.title
+        : '${widget.item.title}\n${widget.item.subtitle}';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: DecoratedBox(
-        key: ValueKey('toc-chapter-tile-${widget.index}'),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: borderColor),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onTap,
-              onHover: _setHovered,
-              mouseCursor: SystemMouseCursors.click,
-              hoverColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              child: SizedBox(
-                height: 52,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 5, 10, 5),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 6,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
-                            curve: Curves.easeOutCubic,
-                            width: widget.isSelected ? 3 : 0,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: primary.withValues(alpha: 0.82),
-                              borderRadius: BorderRadius.circular(999),
+      child: Tooltip(
+        message: tooltipMessage,
+        waitDuration: const Duration(milliseconds: 700),
+        child: Semantics(
+          button: true,
+          selected: widget.isSelected,
+          label: widget.item.title,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: borderColor),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: widget.onTap,
+                  onHover: _setHovered,
+                  mouseCursor: SystemMouseCursors.click,
+                  hoverColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 46),
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        0,
+                        7,
+                        10,
+                        widget.item.subtitle == null ? 7 : 6,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 6,
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                curve: Curves.easeOutCubic,
+                                width: widget.isSelected ? 3 : 0,
+                                height: widget.item.subtitle == null ? 26 : 34,
+                                decoration: BoxDecoration(
+                                  color: primary.withValues(alpha: 0.82),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 36,
-                        child: Center(
-                          child: widget.isSelected
-                              ? CircleAvatar(
-                                  radius: 13,
-                                  backgroundColor: primary.withValues(
-                                    alpha: 0.86,
+                          SizedBox(width: 8 + levelIndent),
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.item.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: titleColor,
+                                    fontWeight: widget.isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    height: 1.18,
                                   ),
-                                  child: Text(
-                                    '${widget.index + 1}',
-                                    style: theme.textTheme.labelMedium
-                                        ?.copyWith(
-                                      color: theme.colorScheme.onPrimary,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1,
+                                ),
+                                if (widget.item.subtitle != null) ...[
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    widget.item.subtitle!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                      height: 1.12,
                                     ),
                                   ),
-                                )
-                              : Text(
-                                  '${widget.index + 1}',
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.label.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface,
-                                fontWeight: widget.isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                height: 1.2,
-                              ),
-                            ),
-                            if (widget.label.subtitle != null) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                widget.label.subtitle!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  height: 1.15,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      if (widget.isSelected) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            '当前',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: primary,
-                              fontWeight: FontWeight.w600,
-                              height: 1,
+                                ],
+                              ],
                             ),
                           ),
-                        ),
-                      ],
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),

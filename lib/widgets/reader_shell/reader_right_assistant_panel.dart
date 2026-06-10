@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_surface_tokens.dart';
 import 'reader_workspace_controller.dart';
 
 class ReaderRightAssistantPanel extends StatelessWidget {
@@ -35,22 +36,18 @@ class ReaderRightAssistantPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = AppSurfaceTokens.of(context);
 
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          left: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-        ),
+        color: tokens.assistantSurface,
       ),
       child: Column(
         children: [
           _buildHeader(context, theme),
           Divider(
             height: 1,
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.32),
+            color: tokens.panelBorderColor,
           ),
           Expanded(child: _buildBody()),
         ],
@@ -67,38 +64,32 @@ class ReaderRightAssistantPanel extends StatelessWidget {
     ];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 4, 4),
+      padding: const EdgeInsets.fromLTRB(12, 10, 6, 0),
       child: Row(
         children: [
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final (tab, icon, label) in tabs)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 2),
-                      child: _TabChip(
-                        icon: icon,
-                        label: label,
-                        isSelected: workspaceController.rightTab == tab,
-                        onTap: () =>
-                            workspaceController.setRightTab(tab),
-                      ),
+            child: Row(
+              children: [
+                for (final (tab, icon, label) in tabs)
+                  Expanded(
+                    child: _TabChip(
+                      icon: icon,
+                      label: label,
+                      isSelected: workspaceController.rightTab == tab,
+                      onTap: () => workspaceController.setRightTab(tab),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
           _IconAction(
             icon: workspaceController.isRightPanelPinned
                 ? Icons.push_pin
                 : Icons.push_pin_outlined,
-            tooltip: workspaceController.isRightPanelPinned
-                ? '取消固定面板'
-                : '固定面板',
-            onTap: () => workspaceController
-                .setRightPanelPinned(!workspaceController.isRightPanelPinned),
+            tooltip: workspaceController.isRightPanelPinned ? '取消固定面板' : '固定面板',
+            onTap: () => workspaceController.setRightPanelPinned(
+              !workspaceController.isRightPanelPinned,
+            ),
           ),
           _IconAction(
             icon: Icons.close,
@@ -145,34 +136,65 @@ class _TabChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final foreground = isSelected
+        ? primary
+        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.82);
 
-    final chip = InputChip(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: isSelected ? primary : null),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
+    return Tooltip(
+      message: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          mouseCursor: SystemMouseCursors.click,
+          borderRadius: BorderRadius.circular(6),
+          child: SizedBox(
+            height: 38,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon, size: 15, color: foreground),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: foreground,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  curve: Curves.easeOutCubic,
+                  width: isSelected ? 34 : 0,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      selected: isSelected,
-      onSelected: (_) => onTap(),
-      selectedColor: primary.withValues(alpha: 0.12),
-      backgroundColor: Colors.transparent,
-      side: BorderSide.none,
-      showCheckmark: false,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
-      labelStyle: theme.textTheme.labelMedium?.copyWith(
-        color: isSelected
-            ? primary
-            : theme.colorScheme.onSurfaceVariant,
-        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
     );
-
-    return chip;
   }
 }
 
@@ -189,6 +211,7 @@ class _IconAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return IconButton(
       icon: Icon(icon, size: 18),
       tooltip: tooltip,
@@ -197,6 +220,11 @@ class _IconAction extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
       visualDensity: VisualDensity.compact,
       splashRadius: 18,
+      style: IconButton.styleFrom(
+        foregroundColor: theme.colorScheme.onSurfaceVariant,
+        hoverColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
     );
   }
 }
@@ -216,7 +244,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 40, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+            Icon(
+              icon,
+              size: 40,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
             const SizedBox(height: 16),
             Text(
               message,

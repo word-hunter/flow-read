@@ -4,6 +4,7 @@ import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/app_constants.dart';
+import '../../theme/app_surface_tokens.dart';
 import '../theme_mode_cycle_button.dart';
 import 'reading_stats_ring.dart';
 
@@ -42,6 +43,8 @@ class HomeSidebar extends StatefulWidget {
 }
 
 class _HomeSidebarState extends State<HomeSidebar> {
+  static const _logoAsset = 'assets/brand/flow_read_logo.png';
+
   final _readingGoalKey = GlobalKey();
   OverlayEntry? _readingGoalOverlay;
 
@@ -154,17 +157,20 @@ class _HomeSidebarState extends State<HomeSidebar> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = AppSurfaceTokens.of(context);
     final cityPreset = CityThemeScope.maybeOf(context)?.preset;
-    final topSpacing = 16 + AppConstants.immersiveTitleBarTopInset;
+    final topSpacing = 12 + AppConstants.immersiveTitleBarTopInset;
 
     return Container(
       width: AppConstants.sidebarWidth,
       color:
           cityPreset?.surface.withValues(alpha: 0.72) ??
-          theme.colorScheme.surface,
+          tokens.leftWorkspaceColor,
       child: Column(
         children: [
           SizedBox(height: topSpacing),
+          _buildBrandHeader(theme),
+          const SizedBox(height: 18),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 16),
@@ -217,6 +223,34 @@ class _HomeSidebarState extends State<HomeSidebar> {
     );
   }
 
+  Widget _buildBrandHeader(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 30,
+            height: 30,
+            child: Image.asset(_logoAsset, filterQuality: FilterQuality.high),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Flow Read',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w800,
+                height: 1,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSectionLabel(ThemeData theme, String label) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 0, 28, 8),
@@ -248,11 +282,11 @@ class _HomeSidebarState extends State<HomeSidebar> {
             ? (cityPreset?.surfaceSoft.withValues(alpha: 0.72) ??
                   theme.colorScheme.primaryContainer)
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: InkWell(
           onTap: onTap,
           mouseCursor: SystemMouseCursors.click,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(

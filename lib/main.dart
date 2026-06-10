@@ -19,6 +19,7 @@ import 'screens/spaced_review_screen.dart';
 import 'screens/syntax_screen.dart';
 import 'services/app_logger.dart';
 import 'storage/hive_storage.dart';
+import 'theme/app_surface_tokens.dart';
 import 'theme/app_theme.dart';
 import 'widgets/epub_drop_importer.dart';
 import 'widgets/release_notes_gate.dart';
@@ -327,6 +328,23 @@ PaletteId _toPaletteId(AppThemeId id) {
   };
 }
 
+ThemeData _withFlowReadThemeExtensions(
+  ThemeData theme, {
+  required Brightness brightness,
+}) {
+  final extensions = theme.extensions.values
+      .where((extension) => extension is! AppSurfaceTokens)
+      .toList(growable: false);
+  return theme.copyWith(
+    extensions: [
+      ...extensions,
+      brightness == Brightness.dark
+          ? AppSurfaceTokens.dark()
+          : AppSurfaceTokens.light(),
+    ],
+  );
+}
+
 const _availableShells = {ShellId.android, ShellId.ios, ShellId.macosStandard};
 
 ShellId _resolveDefaultShell() {
@@ -434,21 +452,27 @@ class _FlowReadAppState extends State<FlowReadApp> {
           );
         }
 
-        final lightTheme = v2
-            ? FlowTheme.build(
-                shellId: _resolveDefaultShell(),
-                paletteId: _toPaletteId(themeId),
-                brightness: Brightness.light,
-              )
-            : AppTheme.lightThemeFor(themeId);
+        final lightTheme = _withFlowReadThemeExtensions(
+          v2
+              ? FlowTheme.build(
+                  shellId: _resolveDefaultShell(),
+                  paletteId: _toPaletteId(themeId),
+                  brightness: Brightness.light,
+                )
+              : AppTheme.lightThemeFor(themeId),
+          brightness: Brightness.light,
+        );
 
-        final darkTheme = v2
-            ? FlowTheme.build(
-                shellId: _resolveDefaultShell(),
-                paletteId: _toPaletteId(themeId),
-                brightness: Brightness.dark,
-              )
-            : AppTheme.darkThemeFor(themeId);
+        final darkTheme = _withFlowReadThemeExtensions(
+          v2
+              ? FlowTheme.build(
+                  shellId: _resolveDefaultShell(),
+                  paletteId: _toPaletteId(themeId),
+                  brightness: Brightness.dark,
+                )
+              : AppTheme.darkThemeFor(themeId),
+          brightness: Brightness.dark,
+        );
 
         return ThemeTransitionHost(
           child: MaterialApp(

@@ -25,6 +25,7 @@ import '../layout/app_platform_class.dart';
 import '../layout/reader_layout_policy.dart';
 import '../services/reader_layout_engine.dart';
 import '../theme/app_constants.dart';
+import '../theme/app_surface_tokens.dart';
 import '../widgets/ai_assistant_panel.dart';
 import '../widgets/bookmark_sheet.dart';
 import '../widgets/font_settings_sheet.dart';
@@ -503,9 +504,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       case 'sepia':
         return const Color(0xFFF5ECD7);
       case 'dark':
-        return const Color(0xFF1E1E1E);
+        return AppSurfaceTokens.of(context).readerWorkspaceBackground;
       default:
-        return Colors.white;
+        return AppSurfaceTokens.of(context).readerOpaqueSurface;
     }
   }
 
@@ -635,8 +636,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               actionRegionKey: _actionRegionKey,
               scrollController: _scrollController,
               isWideScreen: isWide || useWorkspace,
-              sidebarOpen:
-                  useWorkspace ? _workspaceController.isRightPanelOpen : _sidebarOpen,
+              sidebarOpen: useWorkspace ? false : _sidebarOpen,
               isSearchPanelVisible: _isSearchPanelVisible,
               progressListenable: _displayProgressNotifier,
               contentKeyFor: _contentKeyFor,
@@ -688,7 +688,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
                 centerContent: buildContent(),
                 rightPanel: _buildWorkspaceRightPanel(),
                 readingProgressLine: _buildReadingProgressLine(
-                    theme, _displayProgressNotifier),
+                  theme,
+                  _displayProgressNotifier,
+                ),
                 readingReminder: _buildReadingReminder(theme),
                 onGoToChapter: _goToChapter,
               ),

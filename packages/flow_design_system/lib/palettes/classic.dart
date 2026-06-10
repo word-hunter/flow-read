@@ -19,71 +19,72 @@ class ClassicPalette implements Palette {
   @override
   ColorPrimitives get primitives => defaultColorPrimitives;
 
-  static const _warmPaper = Color(0xFFFFF8EA);
-  static const _softCanvas = Color(0xFFF7F0E2);
+  static const _lightCanvas = Color(0xFFEAF7FF);
+  static const _lightSurface = Color(0xFFF9FCFF);
+  static const _lightSurfaceRaised = Color(0xFFFFFFFF);
 
   static const _lightColorScheme = ColorScheme(
     brightness: Brightness.light,
-    primary: Color(0xFF2F8FB8),
+    primary: Color(0xFF087CFA),
     onPrimary: Color(0xFFFFFFFF),
-    primaryContainer: Color(0xFFDDF3FA),
-    onPrimaryContainer: Color(0xFF0A1E2E),
-    secondary: Color(0xFFC58A1E),
+    primaryContainer: Color(0xFFD9EBFF),
+    onPrimaryContainer: Color(0xFF001D3A),
+    secondary: Color(0xFFF1A40F),
     onSecondary: Color(0xFFFFFFFF),
-    secondaryContainer: Color(0xFFFFF1B8),
-    onSecondaryContainer: Color(0xFF2E1F00),
-    tertiary: Color(0xFF3C8C5A),
+    secondaryContainer: Color(0xFFFFE8B6),
+    onSecondaryContainer: Color(0xFF2B1B00),
+    tertiary: Color(0xFF2FA66A),
     onTertiary: Color(0xFFFFFFFF),
-    tertiaryContainer: Color(0xFFE5F5E6),
-    onTertiaryContainer: Color(0xFF0A1E10),
-    error: Color(0xFFD85C6D),
+    tertiaryContainer: Color(0xFFDFF5E8),
+    onTertiaryContainer: Color(0xFF00210D),
+    error: Color(0xFFD85662),
     onError: Color(0xFFFFFFFF),
-    errorContainer: Color(0xFFF9D0C9),
-    onErrorContainer: Color(0xFF2E0A0A),
-    surface: _warmPaper,
-    onSurface: Color(0xFF25211C),
-    surfaceContainerHighest: _softCanvas,
-    onSurfaceVariant: Color(0xFF5F574D),
-    outline: Color(0xFF9B9184),
-    outlineVariant: Color(0xFFE1D6C8),
+    errorContainer: Color(0xFFFFDAD8),
+    onErrorContainer: Color(0xFF410007),
+    surface: _lightCanvas,
+    onSurface: Color(0xFF071A33),
+    surfaceContainerHighest: _lightSurfaceRaised,
+    onSurfaceVariant: Color(0xFF50647B),
+    outline: Color(0xFF8295AB),
+    outlineVariant: Color(0xFFCFE0F1),
     shadow: Color(0xFF000000),
     scrim: Color(0xFF000000),
-    inverseSurface: Color(0xFF2E2A25),
-    onInverseSurface: Color(0xFFFFF8EA),
-    inversePrimary: Color(0xFF6EC7E8),
-    surfaceTint: Color(0xFF2F8FB8),
+    inverseSurface: Color(0xFF18283A),
+    onInverseSurface: Color(0xFFEAF7FF),
+    inversePrimary: Color(0xFF9BCAFF),
+    surfaceTint: Color(0xFF087CFA),
   );
 
   static const _darkColorScheme = ColorScheme(
     brightness: Brightness.dark,
-    primary: Color(0xFF6EC7E8),
-    onPrimary: Color(0xFF0A1E2E),
-    primaryContainer: Color(0xFF1A5678),
-    onPrimaryContainer: Color(0xFFDDF3FA),
-    secondary: Color(0xFFFFD86B),
-    onSecondary: Color(0xFF2E1F00),
-    secondaryContainer: Color(0xFF8A6215),
-    onSecondaryContainer: Color(0xFFFFF1B8),
-    tertiary: Color(0xFF8FD19E),
-    onTertiary: Color(0xFF0A1E10),
-    tertiaryContainer: Color(0xFF2A6B3E),
-    onTertiaryContainer: Color(0xFFE5F5E6),
-    error: Color(0xFFF58A9D),
-    onError: Color(0xFF2E0A0A),
-    errorContainer: Color(0xFFA83E4E),
-    onErrorContainer: Color(0xFFFFE2E7),
-    surface: Color(0xFF1E1B16),
-    onSurface: Color(0xFFF7F0E2),
-    surfaceContainerHighest: Color(0xFF2C2822),
-    onSurfaceVariant: Color(0xFFC4BEB4),
-    outline: Color(0xFF8B857A),
-    outlineVariant: Color(0xFF4A453E),
+    primary: Color(0xFF4D9BFF),
+    onPrimary: Color(0xFF001D36),
+    primaryContainer: Color(0xFF0F3B67),
+    onPrimaryContainer: Color(0xFFD9EBFF),
+    secondary: Color(0xFFFFC04D),
+    onSecondary: Color(0xFF2D1D00),
+    secondaryContainer: Color(0xFF684A00),
+    onSecondaryContainer: Color(0xFFFFE8B6),
+    tertiary: Color(0xFF65D08E),
+    onTertiary: Color(0xFF00391B),
+    tertiaryContainer: Color(0xFF155B34),
+    onTertiaryContainer: Color(0xFFDFF5E8),
+    error: Color(0xFFFFB3B7),
+    onError: Color(0xFF680011),
+    errorContainer: Color(0xFF93001B),
+    onErrorContainer: Color(0xFFFFDAD8),
+    surface: Color(0xFF07111D),
+    onSurface: Color(0xFFEAF1FA),
+    surfaceContainerHighest: Color(0xFF162133),
+    onSurfaceVariant: Color(0xFFB7C5D6),
+    outline: Color(0xFF6C7B8F),
+    outlineVariant: Color(0xFF263548),
     shadow: Color(0xFF000000),
     scrim: Color(0xFF000000),
-    inverseSurface: Color(0xFFF7F0E2),
-    onInverseSurface: Color(0xFF1E1B16),
-    inversePrimary: Color(0xFF2F8FB8),
-    surfaceTint: Color(0xFF6EC7E8),
+    inverseSurface: Color(0xFFEAF1FA),
+    onInverseSurface: Color(0xFF07111D),
+    inversePrimary: Color(0xFF087CFA),
+    surfaceTint: Color(0xFF4D9BFF),
   );
 
   @override
@@ -94,9 +95,26 @@ class ClassicPalette implements Palette {
 
   @override
   SemanticColors lightSemantic() =>
-      semanticFromColorScheme(_lightColorScheme, scaffoldBackground: _warmPaper);
+      semanticFromColorScheme(
+        _lightColorScheme,
+        scaffoldBackground: _lightCanvas,
+      ).copyWith(
+        surface: _lightSurface,
+        surfaceElevated: _lightSurfaceRaised,
+        surfaceGlass: _lightSurfaceRaised,
+        readerBackground: const Color(0xFFFFFCF6),
+        readerText: const Color(0xFF0A1E3D),
+        readerSidebarBackground: _lightSurface,
+      );
 
   @override
   SemanticColors darkSemantic() =>
-      semanticFromColorScheme(_darkColorScheme);
+      semanticFromColorScheme(_darkColorScheme).copyWith(
+        surface: const Color(0xFF0C1724),
+        surfaceElevated: const Color(0xFF121E2C),
+        surfaceGlass: const Color(0xFF121E2C),
+        readerBackground: const Color(0xFF07111D),
+        readerText: const Color(0xFFEAF1FA),
+        readerSidebarBackground: const Color(0xFF0C1724),
+      );
 }

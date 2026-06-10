@@ -291,6 +291,7 @@ InlineSpan buildStyledBlock(
   String? lookupHighlightWord,
   WordLevelService? wordLevelService,
   LanguageModule? languageModule,
+  Map<String, String> footnoteMap = const {},
 }) {
   return _StyledBlockBuilder(
     block,
@@ -306,6 +307,7 @@ InlineSpan buildStyledBlock(
     lookupHighlightWord,
     wordLevelService,
     languageModule,
+    footnoteMap: footnoteMap,
   ).build();
 }
 
@@ -325,6 +327,7 @@ Widget buildBlockWidget(
   String? lookupHighlightWord,
   WordLevelService? wordLevelService,
   LanguageModule? languageModule,
+  Map<String, String> footnoteMap = const {},
 }) {
   switch (block) {
     case TextBlock():
@@ -355,6 +358,7 @@ Widget buildBlockWidget(
         lookupHighlightWord: lookupHighlightWord,
         wordLevelService: wordLevelService,
         languageModule: languageModule,
+        footnoteMap: footnoteMap,
       );
 
       final richText = Text.rich(
@@ -362,7 +366,7 @@ Widget buildBlockWidget(
         textAlign: TextAlign.start,
         style: theme.textTheme.bodyLarge?.copyWith(
           height: lineHeight,
-          letterSpacing: 0.3,
+          letterSpacing: 0,
           fontFamily: fontFamily,
           fontSize: effectiveFontSize,
           fontWeight: block.type == BlockType.heading ? FontWeight.bold : null,
@@ -572,7 +576,7 @@ class _HighlightBuilder {
   TextStyle _baseTextStyle() {
     return theme.textTheme.bodyLarge!.copyWith(
       height: lineHeight,
-      letterSpacing: 0.3,
+      letterSpacing: 0,
       fontFamily: fontFamily,
       fontSize: fontSize,
       color: baseTextColor,
@@ -727,10 +731,12 @@ class _StyledBlockBuilder {
   final String? lookupHighlightWord;
   final WordLevelService? wordLevelService;
   final LanguageModule? languageModule;
+  final Map<String, String> footnoteMap;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
   late final Set<String> learningSet;
   late final String? lookupHighlightKey;
+  late final List<({int start, int end, String target})> _footnoteRanges;
 
   _StyledBlockBuilder(
     this.block,
@@ -745,8 +751,9 @@ class _StyledBlockBuilder {
     this.searchQuery,
     this.lookupHighlightWord,
     this.wordLevelService,
-    this.languageModule,
-  ) {
+    this.languageModule, {
+    this.footnoteMap = const {},
+  }) {
     vocabWords = {};
     for (final v in result.vocabulary) {
       vocabWords[v.word.toLowerCase()] = v;
@@ -754,6 +761,7 @@ class _StyledBlockBuilder {
     knownSet = result.knownWords;
     learningSet = result.learningWords;
     lookupHighlightKey = _lookupKeyFor(lookupHighlightWord);
+    _footnoteRanges = _buildFootnoteRanges();
   }
 
   Color _colorForVocab(String lower, Vocabulary vocab) {
@@ -815,6 +823,30 @@ class _StyledBlockBuilder {
     for (final token in tokens) {
       if (token.isBoundary) {
         final segStyle = _styleAt(styleRanges, token.startOffset);
+        final fnTarget = _footnoteAt(token.startOffset);
+        if (fnTarget != null) {
+          final fnText = footnoteMap[fnTarget] ?? '';
+          if (fnText.isNotEmpty) {
+            spans.add(
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Tooltip(
+                  message: fnText,
+                  preferBelow: false,
+                  triggerMode: TooltipTriggerMode.tap,
+                  child: Text(
+                    token.surface,
+                    style: _textStyleFor(segStyle).copyWith(
+                      color: theme.colorScheme.primary,
+                      fontSize: fontSize * 0.75,
+                    ),
+                  ),
+                ),
+              ),
+            );
+            continue;
+          }
+        }
         spans.addAll(
           _buildSearchHighlightedSpans(
             token.surface,
@@ -833,6 +865,31 @@ class _StyledBlockBuilder {
       final isKnown = knownSet.contains(key);
       final isLearning = !isVocab && learningSet.contains(key);
       final isLookupHighlighted = _isLookupHighlighted(key);
+
+      final wordFnTarget = _footnoteAt(token.startOffset);
+      if (wordFnTarget != null) {
+        final fnText = footnoteMap[wordFnTarget] ?? '';
+        if (fnText.isNotEmpty) {
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Tooltip(
+                message: fnText,
+                preferBelow: false,
+                triggerMode: TooltipTriggerMode.tap,
+                child: Text(
+                  word,
+                  style: _textStyleFor(wordStyle).copyWith(
+                    color: theme.colorScheme.primary,
+                    fontSize: fontSize * 0.75,
+                  ),
+                ),
+              ),
+            ),
+          );
+          continue;
+        }
+      }
 
       if (isVocab) {
         final vocab = vocabWords[key]!;
@@ -926,10 +983,35 @@ class _StyledBlockBuilder {
     return InlineStyle.normal;
   }
 
+  String? _footnoteAt(int offset) {
+    for (final range in _footnoteRanges) {
+      if (offset >= range.start && offset < range.end) {
+        return range.target;
+      }
+    }
+    return null;
+  }
+
+  List<({int start, int end, String target})> _buildFootnoteRanges() {
+    final ranges = <({int start, int end, String target})>[];
+    var offset = 0;
+    for (final span in block.spans) {
+      if (span.footnoteTarget != null) {
+        ranges.add((
+          start: offset,
+          end: offset + span.text.length,
+          target: span.footnoteTarget!,
+        ));
+      }
+      offset += span.text.length;
+    }
+    return ranges;
+  }
+
   TextStyle _textStyleFor(InlineStyle style) {
     return theme.textTheme.bodyLarge!.copyWith(
       height: lineHeight,
-      letterSpacing: 0.3,
+      letterSpacing: 0,
       fontFamily: fontFamily,
       fontSize: fontSize,
       color: baseTextColor,
@@ -971,7 +1053,8 @@ Widget buildChapterNav(
           icon: const Icon(Icons.chevron_left),
           tooltip: '上一个目录项',
           onPressed: currentBookState.currentChapter > 0
-              ? () => currentBook.goToChapter(currentBookState.currentChapter - 1)
+              ? () =>
+                    currentBook.goToChapter(currentBookState.currentChapter - 1)
               : null,
         ),
         Expanded(
@@ -986,8 +1069,10 @@ Widget buildChapterNav(
         IconButton(
           icon: const Icon(Icons.chevron_right),
           tooltip: '下一个目录项',
-          onPressed: currentBookState.currentChapter < currentBook.chapterCount - 1
-              ? () => currentBook.goToChapter(currentBookState.currentChapter + 1)
+          onPressed:
+              currentBookState.currentChapter < currentBook.chapterCount - 1
+              ? () =>
+                    currentBook.goToChapter(currentBookState.currentChapter + 1)
               : null,
         ),
       ],
@@ -1068,11 +1153,21 @@ Widget buildInlineDictionaryPopup(
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildPopupHeader(lookupState, lookupNotifier, canPronounceWords, theme),
+        _buildPopupHeader(
+          lookupState,
+          lookupNotifier,
+          canPronounceWords,
+          theme,
+        ),
         Flexible(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: _buildDictionaryContent(lookupState, lookupNotifier, canPronounceWords, theme),
+            child: _buildDictionaryContent(
+              lookupState,
+              lookupNotifier,
+              canPronounceWords,
+              theme,
+            ),
           ),
         ),
       ],

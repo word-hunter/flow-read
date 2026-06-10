@@ -40,11 +40,25 @@ class EpubService {
   }
 
   static Book fromParsed(core.ParsedEpubBook parsed) {
+    // Use NCX toc to title chapters. Build a map from href -> label.
+    final tocLabelByHref = <String, String>{};
+    for (final entry in parsed.toc) {
+      tocLabelByHref.putIfAbsent(_hrefKey(entry.href), () => entry.label);
+    }
+
     final chapters = <Chapter>[];
 
     for (final parsedChapter in parsed.chapters) {
+      final tocLabel = parsedChapter.href != null
+          ? tocLabelByHref[_hrefKey(parsedChapter.href!)]
+          : null;
       chapters.addAll(
-        _trySplitMetadata(parsedChapter, parsed.title, chapters.length),
+        _trySplitMetadata(
+          parsedChapter,
+          parsed.title,
+          chapters.length,
+          tocLabel: tocLabel,
+        ),
       );
     }
 
@@ -64,24 +78,35 @@ class EpubService {
       language: parsed.language,
       chapters: chapters,
       coverBytes: parsed.coverBytes,
+      toc: parsed.toc,
+      footnoteMap: parsed.footnoteMap,
     );
   }
 
   static List<Chapter> _trySplitMetadata(
     core.ParsedEpubChapter parsed,
     String bookTitle,
-    int index,
-  ) {
+    int index, {
+    String? tocLabel,
+  }) {
     final blocks = _mapBlocks(parsed.blocks);
     final plainText = parsed.plainText;
 
     if (blocks.length < 3) {
       return [
         Chapter(
-          title: _extractTitle(parsed, index, bookTitle, blocks, plainText),
+          title: _extractTitle(
+            parsed,
+            index,
+            bookTitle,
+            blocks,
+            plainText,
+            tocLabel: tocLabel,
+          ),
           plainText: plainText,
           rawHtml: parsed.rawHtml,
           blocks: blocks,
+          href: parsed.href,
         ),
       ];
     }
@@ -97,10 +122,18 @@ class EpubService {
     if (lastMetaIndex == -1 || lastMetaIndex >= blocks.length - 1) {
       return [
         Chapter(
-          title: _extractTitle(parsed, index, bookTitle, blocks, plainText),
+          title: _extractTitle(
+            parsed,
+            index,
+            bookTitle,
+            blocks,
+            plainText,
+            tocLabel: tocLabel,
+          ),
           plainText: plainText,
           rawHtml: parsed.rawHtml,
           blocks: blocks,
+          href: parsed.href,
         ),
       ];
     }
@@ -112,10 +145,18 @@ class EpubService {
     if (metaText.isEmpty || contentText.isEmpty) {
       return [
         Chapter(
-          title: _extractTitle(parsed, index, bookTitle, blocks, plainText),
+          title: _extractTitle(
+            parsed,
+            index,
+            bookTitle,
+            blocks,
+            plainText,
+            tocLabel: tocLabel,
+          ),
           plainText: plainText,
           rawHtml: parsed.rawHtml,
           blocks: blocks,
+          href: parsed.href,
         ),
       ];
     }
@@ -134,12 +175,35 @@ class EpubService {
           bookTitle,
           contentBlocks,
           contentText,
+          tocLabel: tocLabel,
         ),
         plainText: contentText,
         rawHtml: parsed.rawHtml,
         blocks: contentBlocks,
+        href: parsed.href,
       ),
     ];
+  }
+
+  static String _hrefKey(String href) {
+    var text = href.trim().replaceAll('\\', '/');
+    final hashIndex = text.indexOf('#');
+    if (hashIndex != -1) {
+      text = text.substring(0, hashIndex);
+    }
+    final queryIndex = text.indexOf('?');
+    if (queryIndex != -1) {
+      text = text.substring(0, queryIndex);
+    }
+    try {
+      text = Uri.decodeFull(text);
+    } on FormatException {
+      // Keep the raw href when an EPUB contains malformed percent escapes.
+    }
+    return text
+        .split('/')
+        .where((segment) => segment.isNotEmpty && segment != '.')
+        .join('/');
   }
 
   static String _extractTitle(
@@ -147,8 +211,11 @@ class EpubService {
     int index,
     String bookTitle,
     List<ContentBlock> blocks,
-    String plainText,
-  ) {
+    String plainText, {
+    String? tocLabel,
+  }) {
+    if (tocLabel != null && tocLabel.isNotEmpty) return tocLabel;
+
     final headingTitle = _firstBlockTitle(blocks, headingOnly: true);
     if (headingTitle != null) return headingTitle;
 
@@ -185,7 +252,13 @@ class EpubService {
         type: _mapBlockType(block.type),
         headingLevel: block.headingLevel,
         spans: block.spans
-            .map((span) => StyledText(span.text, span.style))
+            .map(
+              (span) => StyledText(
+                span.text,
+                span.style,
+                span.footnoteTarget,
+              ),
+            )
             .toList(growable: false),
         indent: block.indent,
         style: block.style,

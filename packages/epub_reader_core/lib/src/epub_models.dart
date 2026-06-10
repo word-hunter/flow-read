@@ -1,11 +1,27 @@
 import 'dart:typed_data';
 
+class EpubTocEntry {
+  final String label;
+  final String href;
+  final int playOrder;
+  final int level;
+
+  const EpubTocEntry({
+    required this.label,
+    required this.href,
+    required this.playOrder,
+    this.level = 0,
+  });
+}
+
 class ParsedEpubBook {
   final String title;
   final String author;
   final String? language;
   final List<ParsedEpubChapter> chapters;
   final Uint8List? coverBytes;
+  final List<EpubTocEntry> toc;
+  final Map<String, String> footnoteMap;
 
   const ParsedEpubBook({
     required this.title,
@@ -13,6 +29,8 @@ class ParsedEpubBook {
     this.language,
     required this.chapters,
     this.coverBytes,
+    this.toc = const [],
+    this.footnoteMap = const {},
   });
 }
 
@@ -21,12 +39,14 @@ class ParsedEpubChapter {
   final String plainText;
   final String rawHtml;
   final List<ParsedContentBlock> blocks;
+  final String? href;
 
   const ParsedEpubChapter({
     required this.documentTitle,
     required this.plainText,
     required this.rawHtml,
     this.blocks = const [],
+    this.href,
   });
 }
 
@@ -211,8 +231,13 @@ class InlineStyle {
 class ParsedStyledText {
   final String text;
   final InlineStyle style;
+  final String? footnoteTarget;
 
-  const ParsedStyledText(this.text, [this.style = InlineStyle.normal]);
+  const ParsedStyledText(
+    this.text, [
+    this.style = InlineStyle.normal,
+    this.footnoteTarget,
+  ]);
 }
 
 enum ParsedBlockType { paragraph, heading, listItem, blockquote }

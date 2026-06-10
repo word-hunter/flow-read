@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../providers/reading/bookmark_notifier.dart';
 import '../../providers/reading/current_book_notifier.dart';
 import '../../providers/reading/reading_config_notifier.dart';
+import '../../theme/app_surface_tokens.dart';
 import '../font_settings_sheet.dart';
 import '../toc_bottom_sheet.dart';
 import 'reader_location_summary.dart';
@@ -71,17 +72,15 @@ class ReaderNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = AppSurfaceTokens.of(context);
     final cityPreset = CityThemeScope.maybeOf(context)?.preset;
     final isDark = _isDarkReadingTheme(config);
     final useDarkToolbar = isDark || cityPreset?.phase == CityTimePhase.night;
     final borderColor =
         cityPreset?.outline.withValues(alpha: 0.72) ??
-        (isDark
-            ? const Color(0xFF3A3A3A).withValues(alpha: 0.72)
-            : theme.colorScheme.outlineVariant.withValues(alpha: 0.48));
+        tokens.readerPageBorderColor;
     final toolbarTextColor =
-        cityPreset?.secondaryText ??
-        (isDark ? const Color(0xFFC8C1B7) : theme.colorScheme.onSurfaceVariant);
+        cityPreset?.secondaryText ?? theme.colorScheme.onSurfaceVariant;
     final showSearch = layoutWidth >= 520;
     final showChapterStep = layoutWidth >= 680 && currentBook.chapterCount > 1;
     final compactToolbar = layoutWidth < 760;
@@ -98,14 +97,12 @@ class ReaderNavBar extends StatelessWidget {
         currentBookState.currentChapter < currentBook.chapterCount - 1;
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      constraints: const BoxConstraints(minHeight: 50),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF1F1F1F).withValues(alpha: 0.42)
-            : (cityPreset?.surface ?? theme.colorScheme.surface).withValues(
-                alpha: cityPreset == null ? 0.86 : 0.78,
-              ),
+        color:
+            cityPreset?.surface.withValues(alpha: 0.78) ??
+            tokens.readerControlSurface,
         border: Border(bottom: BorderSide(color: borderColor)),
       ),
       child: Row(
@@ -455,9 +452,7 @@ class ReaderNavBar extends StatelessWidget {
     bool darkReader = false,
   }) {
     final colorScheme = theme.colorScheme;
-    final inactiveForeground = darkReader
-        ? const Color(0xFFC8C1B7)
-        : colorScheme.onSurfaceVariant;
+    final inactiveForeground = colorScheme.onSurfaceVariant;
     return ButtonStyle(
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       mouseCursor: WidgetStateProperty.resolveWith((states) {

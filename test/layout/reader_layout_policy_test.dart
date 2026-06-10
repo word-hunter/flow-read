@@ -38,18 +38,18 @@ void main() {
       expect(spec.shellKind, ReaderShellKind.desktopWorkspace);
       expect(spec.isWorkspace, true);
       expect(spec.tocHost, TocPanelHost.leftWorkspace);
-      expect(spec.leftPanelOpenByDefault, false);
+      expect(spec.leftPanelOpenByDefault, true);
     });
 
-    test('desktop wide with restore left panel', () {
+    test('desktop wide can restore left panel closed', () {
       final spec = ReaderLayoutPolicy.resolveLayout(
         platform: AppPlatformClass.desktop,
         width: 1440,
         workspaceFeatureEnabled: true,
         userRequestedImmersive: false,
-        restoreLeftPanelOpen: true,
+        restoreLeftPanelOpen: false,
       );
-      expect(spec.leftPanelOpenByDefault, true);
+      expect(spec.leftPanelOpenByDefault, false);
     });
 
     test('desktop wide with feature disabled returns immersive', () {
@@ -63,16 +63,19 @@ void main() {
       expect(spec.tocHost, TocPanelHost.sheet);
     });
 
-    test('desktop medium with feature enabled returns immersive with drawer', () {
-      final spec = ReaderLayoutPolicy.resolveLayout(
-        platform: AppPlatformClass.desktop,
-        width: 900,
-        workspaceFeatureEnabled: true,
-        userRequestedImmersive: false,
-      );
-      expect(spec.shellKind, ReaderShellKind.immersive);
-      expect(spec.tocHost, TocPanelHost.drawer);
-    });
+    test(
+      'desktop medium with feature enabled returns immersive with drawer',
+      () {
+        final spec = ReaderLayoutPolicy.resolveLayout(
+          platform: AppPlatformClass.desktop,
+          width: 900,
+          workspaceFeatureEnabled: true,
+          userRequestedImmersive: false,
+        );
+        expect(spec.shellKind, ReaderShellKind.immersive);
+        expect(spec.tocHost, TocPanelHost.drawer);
+      },
+    );
 
     test('desktop compact returns immersive', () {
       final spec = ReaderLayoutPolicy.resolveLayout(

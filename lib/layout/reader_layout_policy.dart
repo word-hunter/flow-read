@@ -10,7 +10,7 @@ class ReaderLayoutPolicy {
     required double width,
     required bool workspaceFeatureEnabled,
     required bool userRequestedImmersive,
-    bool restoreLeftPanelOpen = false,
+    bool restoreLeftPanelOpen = true,
   }) {
     final widthClass = WidthClass.resolve(width);
 

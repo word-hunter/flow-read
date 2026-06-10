@@ -204,6 +204,9 @@ class EpubParser {
       progress: totalChapters == 0 ? 0.5 : 0.05,
     );
 
+    // Parse NCX for table of contents
+    final toc = _parseNcx(archive, package, manifest, opfDir);
+
     // Extract cover image
     Uint8List? coverBytes;
     final coverId = _findCoverId(package, manifest);
@@ -263,6 +266,7 @@ class EpubParser {
           archive,
           chapterHref,
           chapterDir,
+          spineHref: entry.href,
           chapterIndex: i,
           styleCache: styleCache,
           profile: profile,
@@ -302,6 +306,9 @@ class EpubParser {
       );
     }
 
+    // Extract footnote content from spine items
+    final footnoteMap = _extractFootnotes(archive, spineItems, opfDir);
+
     report(
       EpubParsePhase.complete,
       totalChapters: chapters.length,
@@ -314,6 +321,8 @@ class EpubParser {
       language: language,
       chapters: chapters,
       coverBytes: coverBytes,
+      toc: toc,
+      footnoteMap: footnoteMap,
     );
   }
 
@@ -322,6 +331,7 @@ class EpubParser {
     _EpubArchive archive,
     String chapterHref,
     String chapterDir, {
+    required String spineHref,
     required Map<String, _CssCascade> styleCache,
     required int chapterIndex,
     void Function(
@@ -349,7 +359,15 @@ class EpubParser {
         chapterIndex: chapterIndex,
         detail: chapterHref,
       );
-      return chapter;
+      return chapter != null
+          ? ParsedEpubChapter(
+              documentTitle: chapter.documentTitle,
+              plainText: chapter.plainText,
+              rawHtml: chapter.rawHtml,
+              blocks: chapter.blocks,
+              href: spineHref,
+            )
+          : null;
     } catch (_) {
       fastStopwatch.stop();
       profile?.call(
@@ -362,13 +380,22 @@ class EpubParser {
 
     final fallbackStopwatch = Stopwatch()..start();
     try {
-      return _parseChapterWithDom(
+      final chapter = _parseChapterWithDom(
         html,
         archive,
         chapterDir,
         styleCache: styleCache,
         onImageLoad: onImageLoad,
       );
+      return chapter != null
+          ? ParsedEpubChapter(
+              documentTitle: chapter.documentTitle,
+              plainText: chapter.plainText,
+              rawHtml: chapter.rawHtml,
+              blocks: chapter.blocks,
+              href: spineHref,
+            )
+          : null;
     } finally {
       fallbackStopwatch.stop();
       profile?.call(
@@ -479,6 +506,86 @@ class EpubParser {
       }
     }
     return null;
+  }
+
+  static List<EpubTocEntry> _parseNcx(
+    _EpubArchive archive,
+    XmlElement package,
+    Map<String, ({String href, String mediaType, String? properties})> manifest,
+    String opfDir,
+  ) {
+    final ncxId = package
+        .findAllElements('spine')
+        .firstOrNull
+        ?.getAttribute('toc');
+    if (ncxId == null || !manifest.containsKey(ncxId)) return const [];
+    final ncxHref = manifest[ncxId]!.href;
+    final ncxContent = _readFile(archive, '$opfDir$ncxHref');
+    if (ncxContent == null) return const [];
+    final ncxDoc = XmlDocument.parse(ncxContent);
+    final entries = <EpubTocEntry>[];
+
+    void visitNavPoints(XmlElement parent, int level) {
+      for (final navPoint in parent.findElements('navPoint')) {
+        final label = navPoint.findElements('navLabel').firstOrNull;
+        final labelText =
+            label?.findElements('text').firstOrNull?.innerText.trim() ?? '';
+        final content = navPoint.findElements('content').firstOrNull;
+        final src = content?.getAttribute('src') ?? '';
+        final playOrder =
+            int.tryParse(navPoint.getAttribute('playOrder') ?? '') ?? 0;
+        if (labelText.isNotEmpty && src.isNotEmpty) {
+          entries.add(
+            EpubTocEntry(
+              label: labelText,
+              href: src,
+              playOrder: playOrder,
+              level: level,
+            ),
+          );
+        }
+        visitNavPoints(navPoint, level + 1);
+      }
+    }
+
+    final navMap = ncxDoc.rootElement.findAllElements('navMap').firstOrNull;
+    if (navMap == null) {
+      visitNavPoints(ncxDoc.rootElement, 0);
+      return entries;
+    }
+    visitNavPoints(navMap, 0);
+    return entries;
+  }
+
+  static Map<String, String> _extractFootnotes(
+    _EpubArchive archive,
+    List<({String idref, String href, String mediaType})> spineItems,
+    String opfDir,
+  ) {
+    final footnoteMap = <String, String>{};
+    for (final entry in spineItems) {
+      final href = '$opfDir${entry.href}';
+      final html = _readFile(archive, href);
+      if (html == null ||
+          !(html.contains('rearnote') || html.contains('noteref'))) {
+        continue;
+      }
+      final doc = html_parser.parse(html);
+      for (final aside in doc.querySelectorAll('aside[type="rearnote"]')) {
+        final id = aside.attributes['id'];
+        if (id == null) {
+          continue;
+        }
+        final fullText = aside.text.trim();
+        final cleanedText = fullText
+            .replaceFirst(RegExp(r'^\[\d+\]\s*'), '')
+            .trim();
+        if (cleanedText.isNotEmpty) {
+          footnoteMap[id] = cleanedText;
+        }
+      }
+    }
+    return footnoteMap;
   }
 
   static String? _readFile(_EpubArchive archive, String path) {
@@ -1454,15 +1561,37 @@ class EpubParser {
       spans = [];
     }
 
-    void visit(_XNode node, InlineStyle inlineStyle) {
+    void visit(_XNode node, InlineStyle inlineStyle, {String? footnoteTarget}) {
       switch (node) {
         case _XText(:final text):
           if (text.isNotEmpty) {
-            _appendStyledSpan(spans, ParsedStyledText(text, inlineStyle));
+            _appendStyledSpan(
+              spans,
+              ParsedStyledText(text, inlineStyle, footnoteTarget),
+            );
           }
         case _XElement():
           if (_shouldSkipFastElement(node)) return;
           final tag = node.tag;
+
+          if (tag == 'a' && node.attributes['type'] == 'noteref') {
+            final href = node.attributes['href'] ?? '';
+            final fnTarget = href.contains('#')
+                ? href.substring(href.indexOf('#') + 1)
+                : '';
+            var childStyle = inlineStyle.merge(
+              css.declarationForFast(node).inlineStyle,
+            );
+            for (final child in node.children) {
+              visit(
+                child,
+                childStyle,
+                footnoteTarget: fnTarget.isNotEmpty ? fnTarget : null,
+              );
+            }
+            return;
+          }
+
           if (_isFastImageElement(node)) {
             flushParsedTextBlock();
             _addFastImageBlock(
@@ -1492,7 +1621,10 @@ class EpubParser {
           }
 
           if (tag == 'br') {
-            _appendStyledSpan(spans, ParsedStyledText('\n', inlineStyle));
+            _appendStyledSpan(
+              spans,
+              ParsedStyledText('\n', inlineStyle),
+            );
             return;
           }
 
@@ -1506,7 +1638,7 @@ class EpubParser {
           }
 
           for (final child in node.children) {
-            visit(child, childStyle);
+            visit(child, childStyle, footnoteTarget: footnoteTarget);
           }
       }
     }
@@ -2094,10 +2226,17 @@ class EpubParser {
       spans = [];
     }
 
-    void visit(dom.Node node, InlineStyle inlineStyle) {
+    void visit(
+      dom.Node node,
+      InlineStyle inlineStyle, {
+      String? footnoteTarget,
+    }) {
       if (node is dom.Text) {
         if (node.text.isNotEmpty) {
-          _appendStyledSpan(spans, ParsedStyledText(node.text, inlineStyle));
+          _appendStyledSpan(
+            spans,
+            ParsedStyledText(node.text, inlineStyle, footnoteTarget),
+          );
         }
         return;
       }
@@ -2105,6 +2244,25 @@ class EpubParser {
       if (node is! dom.Element) return;
 
       final tag = node.localName?.toLowerCase() ?? '';
+
+      if (tag == 'a' && node.attributes['type'] == 'noteref') {
+        final href = node.attributes['href'] ?? '';
+        final fnTarget = href.contains('#')
+            ? href.substring(href.indexOf('#') + 1)
+            : '';
+        var childStyle = inlineStyle.merge(
+          css.declarationFor(node).inlineStyle,
+        );
+        for (final child in node.nodes) {
+          visit(
+            child,
+            childStyle,
+            footnoteTarget: fnTarget.isNotEmpty ? fnTarget : null,
+          );
+        }
+        return;
+      }
+
       if (_isImageElement(node)) {
         flushParsedTextBlock();
         _addParsedImageBlock(
@@ -2134,7 +2292,10 @@ class EpubParser {
       }
 
       if (tag == 'br') {
-        _appendStyledSpan(spans, ParsedStyledText('\n', inlineStyle));
+        _appendStyledSpan(
+          spans,
+          ParsedStyledText('\n', inlineStyle),
+        );
         return;
       }
 
@@ -2146,7 +2307,7 @@ class EpubParser {
       }
 
       for (final child in node.nodes) {
-        visit(child, childStyle);
+        visit(child, childStyle, footnoteTarget: footnoteTarget);
       }
     }
 
@@ -2378,14 +2539,20 @@ class EpubParser {
         text = text.trimLeft();
       }
       if (text.isEmpty) continue;
-      _appendStyledSpan(result, ParsedStyledText(text, span.style));
+      _appendStyledSpan(
+        result,
+        ParsedStyledText(text, span.style, span.footnoteTarget),
+      );
     }
 
     if (result.isEmpty) return result;
     final last = result.removeLast();
     final trimmed = last.text.trimRight();
     if (trimmed.isNotEmpty) {
-      _appendStyledSpan(result, ParsedStyledText(trimmed, last.style));
+      _appendStyledSpan(
+        result,
+        ParsedStyledText(trimmed, last.style, last.footnoteTarget),
+      );
     }
     return result;
   }
@@ -2395,16 +2562,24 @@ class EpubParser {
     ParsedStyledText span,
   ) {
     if (span.text.isEmpty) return;
-    if (spans.isNotEmpty && _sameStyle(spans.last.style, span.style)) {
+    if (spans.isNotEmpty && _sameStyle(spans.last, span)) {
       final last = spans.removeLast();
-      spans.add(ParsedStyledText('${last.text}${span.text}', last.style));
+      spans.add(
+        ParsedStyledText(
+          '${last.text}${span.text}',
+          last.style,
+          last.footnoteTarget,
+        ),
+      );
     } else {
       spans.add(span);
     }
   }
 
-  static bool _sameStyle(InlineStyle a, InlineStyle b) {
-    return a.bold == b.bold && a.italic == b.italic;
+  static bool _sameStyle(ParsedStyledText a, ParsedStyledText b) {
+    return a.style.bold == b.style.bold &&
+        a.style.italic == b.style.italic &&
+        a.footnoteTarget == b.footnoteTarget;
   }
 
   static String _plainTextFromBlocks(List<ParsedContentBlock> blocks) {

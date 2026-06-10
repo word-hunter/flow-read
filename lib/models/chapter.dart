@@ -5,11 +5,13 @@ class Chapter {
   final String plainText;
   final String rawHtml;
   final List<ContentBlock> blocks;
+  final String? href;
 
   const Chapter({
     required this.title,
     required this.plainText,
     required this.rawHtml,
     this.blocks = const [],
+    this.href,
   });
 }
