@@ -583,14 +583,6 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       _primeReaderState(currentBookState, currentBookNotifier, readingTime);
     }
     final result = currentBookNotifier.result;
-    if (result == null) {
-      return _buildKeyboardScope(
-        _buildPageScaffold(
-          config: config,
-          child: const Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
 
     final blocks =
         currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 0
@@ -599,7 +591,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               .chapters[currentBookState.currentChapter]
               .blocks
         : const <ContentBlock>[];
-    final paragraphs = blocks.isEmpty
+    final paragraphs = result != null && blocks.isEmpty
         ? _paragraphsFor(result, currentBookState, currentBookNotifier)
         : const <String>[];
     final theme = Theme.of(context);
@@ -609,7 +601,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               .book!
               .chapters[currentBookState.currentChapter]
               .title
-        : result.title;
+        : (result?.title ?? '当前位置');
     final colorSettings = settings.colors;
     final search = ref.watch(readingSearchNotifierProvider);
     final lookupState = ref.watch(wordLookupNotifierProvider);
@@ -626,6 +618,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           final useWorkspace = layoutSpec.isWorkspace;
 
           Widget buildContent() {
+            if (result == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
             return ReaderCoreView(
               paragraphs: paragraphs,
               blocks: blocks,

@@ -107,6 +107,44 @@ void main() {
       }
     },
   );
+
+  testWidgets(
+    'desktop workspace keeps side panels during uncached chapter load',
+    (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1440, 900);
+      try {
+        await _pumpWorkspaceReader(
+          tester,
+          bookshelf: () => _ReaderTestBookshelfNotifier(_bookWithToc()),
+        );
+
+        _tapRichTextSpan(tester, 'river');
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 20));
+
+        expect(find.byType(ReaderRightAssistantPanel), findsOneWidget);
+        expect(find.byType(ReaderWordSidebar), findsOneWidget);
+
+        await tester.tap(find.byTooltip('下一个目录项'));
+        await tester.pump();
+
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.byType(ReaderLeftWorkspacePanel), findsOneWidget);
+        expect(find.byType(ReaderRightAssistantPanel), findsOneWidget);
+        expect(find.byType(ReaderWordSidebar), findsOneWidget);
+        expect(find.text('词典'), findsWidgets);
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      }
+    },
+  );
 }
 
 Future<void> _pumpWorkspaceReader(
@@ -296,6 +334,14 @@ class _EmptyBookshelfNotifier extends BookshelfNotifier {
 class _NoopBookService extends BookService {
   @override
   List<BookMetadata> get books => const [];
+
+  @override
+  Future<void> updateProgress(
+    String id,
+    int currentChapter,
+    double chapterProgress, {
+    double? chapterScrollOffset,
+  }) async {}
 }
 
 class _MemoryWordRepository implements WordRepository {
