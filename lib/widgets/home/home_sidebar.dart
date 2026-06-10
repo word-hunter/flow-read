@@ -43,8 +43,6 @@ class HomeSidebar extends StatefulWidget {
 }
 
 class _HomeSidebarState extends State<HomeSidebar> {
-  static const _logoAsset = 'assets/brand/flow_read_logo.png';
-
   final _readingGoalKey = GlobalKey();
   OverlayEntry? _readingGoalOverlay;
 
@@ -228,12 +226,6 @@ class _HomeSidebarState extends State<HomeSidebar> {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
-          SizedBox(
-            width: 30,
-            height: 30,
-            child: Image.asset(_logoAsset, filterQuality: FilterQuality.high),
-          ),
-          const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Flow Read',
