@@ -31,6 +31,9 @@ class _ReleaseNotesGateState extends riverpod.ConsumerState<ReleaseNotesGate> {
     if (!mounted) return;
 
     final settings = ref.read(settingsProvider);
+    await settings.init();
+    if (!mounted) return;
+
     if (!settings.shouldShowReleaseNotes(FlowReadVersion.releaseName)) {
       return;
     }
@@ -38,13 +41,13 @@ class _ReleaseNotesGateState extends riverpod.ConsumerState<ReleaseNotesGate> {
     final notes = await ChangelogService.loadCurrentReleaseNotes();
     if (!mounted) return;
 
+    await settings.markReleaseNotesSeen(FlowReadVersion.releaseName);
+    if (!mounted) return;
+
     await showDialog<void>(
       context: context,
       builder: (_) => ReleaseNotesDialog(notes: notes),
     );
-
-    if (!mounted) return;
-    await settings.markReleaseNotesSeen(FlowReadVersion.releaseName);
   }
 
   @override

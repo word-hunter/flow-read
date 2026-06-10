@@ -111,6 +111,8 @@ class SettingsService extends ChangeNotifier {
 
   final SettingsDao _dao;
   Map<String, String> _cache = {};
+  Future<void>? _initFuture;
+  bool _initialized = false;
 
   VocabularyColorSettings _colors = VocabularyColorSettings();
   String _aiProviderId = AIProviders.deepSeek.id;
@@ -202,15 +204,31 @@ class SettingsService extends ChangeNotifier {
   bool get forceDefaultBookCover => _forceDefaultBookCover;
   CityAtmosphereSettings get cityAtmosphereSettings => _cityAtmosphereSettings;
 
-  Future<void> init() async {
-    _cache = await _dao.allEntries();
-    _load();
-    await _writeDictionarySources(_dictionarySources);
+  Future<void> init() {
+    if (_initialized) return Future.value();
+    final pending = _initFuture;
+    if (pending != null) return pending;
+    final future = _init();
+    _initFuture = future;
+    return future;
+  }
+
+  Future<void> _init() async {
+    try {
+      _cache = await _dao.allEntries();
+      _load();
+      await _writeDictionarySources(_dictionarySources);
+      _initialized = true;
+    } catch (_) {
+      _initFuture = null;
+      rethrow;
+    }
   }
 
   Future<void> reloadFromStorage() async {
     _cache = await _dao.allEntries();
     _load();
+    _initialized = true;
     notifyListeners();
   }
 
@@ -453,7 +471,7 @@ class SettingsService extends ChangeNotifier {
   Future<void> _writeDictionarySources(
     List<DictionarySourceConfig> value,
   ) async {
-    _put(
+    await _putAndWait(
       _dictionarySourcesKey,
       jsonEncode(value.map((c) => c.toJson()).toList()),
     );
@@ -612,7 +630,7 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> markReleaseNotesSeen(String version) async {
     _lastSeenReleaseNotesVersion = version;
-    _put('lastSeenReleaseNotesVersion', version);
+    await _putAndWait('lastSeenReleaseNotesVersion', version);
     notifyListeners();
   }
 
