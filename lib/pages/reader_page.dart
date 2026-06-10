@@ -23,6 +23,7 @@ import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../layout/app_platform_class.dart';
 import '../layout/reader_layout_policy.dart';
+import '../layout/reader_layout_spec.dart';
 import '../services/reader_layout_engine.dart';
 import '../theme/app_constants.dart';
 import '../theme/app_surface_tokens.dart';
@@ -59,6 +60,8 @@ class ReaderPage extends riverpod.ConsumerStatefulWidget {
 
 class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     with ReaderDailyGoalMixin, ReaderViewportMixin, ReaderKeyboardMixin {
+  static const bool _workspaceFeatureEnabled = true;
+
   @override
   final ScrollController _scrollController = ScrollController();
   final MenuController _tocMenuController = MenuController();
@@ -97,13 +100,19 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
 
   bool get _isWideScreen => _layoutWidth >= AppConstants.wideBreakpoint;
   @override
-  bool get _isWorkspaceEnabled => true;
+  bool get _isWorkspaceEnabled => _currentLayoutSpec.isWorkspace;
+  ReaderLayoutSpec get _currentLayoutSpec => _resolveLayout(_layoutWidth);
+  ReaderActionPanelHost get _actionPanelHost => ReaderActionPanelPolicy.resolve(
+    layoutSpec: _currentLayoutSpec,
+    isWideScreen: _isWideScreen,
+  );
   bool get _isSearchPanelVisible => _searchSheetOpen;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _workspaceController.addListener(_onWorkspaceControllerChanged);
   }
 
   @override
@@ -112,11 +121,27 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     _disposeDailyGoalWatcher();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _workspaceController.removeListener(_onWorkspaceControllerChanged);
+    _workspaceController.dispose();
     _displayProgressNotifier.dispose();
     _readerFocusNode.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  ReaderLayoutSpec _resolveLayout(double width) {
+    return ReaderLayoutPolicy.resolveLayout(
+      platform: AppPlatformClassPolicy.current,
+      width: width,
+      workspaceFeatureEnabled: _workspaceFeatureEnabled,
+      userRequestedImmersive: false,
+    );
+  }
+
+  void _onWorkspaceControllerChanged() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   void _onWordTapped(
@@ -139,29 +164,30 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       contextWordEnd: contextWordEnd,
       trackReadingLookup: true,
     );
-    if (_isWideScreen) {
-      setState(() {
-        _sidebarMode = _ReaderSidebarMode.word;
-        _sidebarOpen = true;
-      });
-    } else if (_isWorkspaceEnabled) {
-      _workspaceController.openRightPanel(ReaderRightPanelTab.dictionary);
-      setState(() {
-        _sidebarMode = _ReaderSidebarMode.word;
-      });
-    } else {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => WordBottomSheet(word: surface),
-      ).whenComplete(() {
-        lookupNotifier.clearWordLookup();
-        final assistant = ref.read(aiAssistantControllerProvider);
-        if (!assistant.isEmpty) {
-          _openAssistantPanel(assistant);
-        }
-      });
+    switch (_actionPanelHost) {
+      case ReaderActionPanelHost.workspaceRightPanel:
+        _workspaceController.openRightPanel(ReaderRightPanelTab.dictionary);
+        setState(() {
+          _sidebarMode = _ReaderSidebarMode.word;
+        });
+      case ReaderActionPanelHost.wideSidebar:
+        setState(() {
+          _sidebarMode = _ReaderSidebarMode.word;
+          _sidebarOpen = true;
+        });
+      case ReaderActionPanelHost.bottomSheet:
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => WordBottomSheet(word: surface),
+        ).whenComplete(() {
+          lookupNotifier.clearWordLookup();
+          final assistant = ref.read(aiAssistantControllerProvider);
+          if (!assistant.isEmpty) {
+            _openAssistantPanel(assistant);
+          }
+        });
     }
   }
 
@@ -189,71 +215,66 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       ),
     );
 
-    if (_isWideScreen) {
-      ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
-      setState(() {
-        _sidebarMode = _ReaderSidebarMode.assistant;
-        _sidebarSelectedText = selectedText;
-        _sidebarOpen = true;
-      });
-      return;
+    ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
+    switch (_actionPanelHost) {
+      case ReaderActionPanelHost.workspaceRightPanel:
+        _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
+        setState(() {
+          _sidebarMode = _ReaderSidebarMode.assistant;
+          _sidebarSelectedText = selectedText;
+        });
+      case ReaderActionPanelHost.wideSidebar:
+        setState(() {
+          _sidebarMode = _ReaderSidebarMode.assistant;
+          _sidebarSelectedText = selectedText;
+          _sidebarOpen = true;
+        });
+      case ReaderActionPanelHost.bottomSheet:
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => DraggableScrollableSheet(
+            initialChildSize: 0.75,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            expand: false,
+            builder: (_, scrollController) => AIAssistantPanel(
+              controller: assistant,
+            ),
+          ),
+        );
     }
-
-    if (_isWorkspaceEnabled) {
-      ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
-      _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
-      setState(() {
-        _sidebarMode = _ReaderSidebarMode.assistant;
-        _sidebarSelectedText = selectedText;
-      });
-      return;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        minChildSize: 0.4,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, scrollController) => AIAssistantPanel(
-          controller: assistant,
-        ),
-      ),
-    );
   }
 
   void _openAssistantPanel(AIAssistantController assistant) {
-    if (_isWideScreen) {
-      setState(() {
-        _sidebarMode = _ReaderSidebarMode.assistant;
-        _sidebarOpen = true;
-      });
-      return;
+    switch (_actionPanelHost) {
+      case ReaderActionPanelHost.workspaceRightPanel:
+        _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
+        setState(() {
+          _sidebarMode = _ReaderSidebarMode.assistant;
+        });
+      case ReaderActionPanelHost.wideSidebar:
+        setState(() {
+          _sidebarMode = _ReaderSidebarMode.assistant;
+          _sidebarOpen = true;
+        });
+      case ReaderActionPanelHost.bottomSheet:
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => DraggableScrollableSheet(
+            initialChildSize: 0.75,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            expand: false,
+            builder: (_, scrollController) => AIAssistantPanel(
+              controller: assistant,
+            ),
+          ),
+        );
     }
-    if (_isWorkspaceEnabled) {
-      _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
-      setState(() {
-        _sidebarMode = _ReaderSidebarMode.assistant;
-      });
-      return;
-    }
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        minChildSize: 0.4,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, scrollController) => AIAssistantPanel(
-          controller: assistant,
-        ),
-      ),
-    );
   }
 
   void _exitReader() {
@@ -292,13 +313,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     if (!currentBookNotifier.hasBook) return;
     _hideReadingReminder();
 
-    final platform = AppPlatformClassPolicy.current;
-    final layout = ReaderLayoutPolicy.resolveLayout(
-      platform: platform,
-      width: _layoutWidth,
-      workspaceFeatureEnabled: true,
-      userRequestedImmersive: false,
-    );
+    final layout = _currentLayoutSpec;
 
     if (layout.isWorkspace) {
       _workspaceController.openToc();
@@ -607,13 +622,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           _layoutWidth = constraints.maxWidth;
           final isWide = _isWideScreen;
 
-          final platform = AppPlatformClassPolicy.current;
-          final layoutSpec = ReaderLayoutPolicy.resolveLayout(
-            platform: platform,
-            width: constraints.maxWidth,
-            workspaceFeatureEnabled: true,
-            userRequestedImmersive: false,
-          );
+          final layoutSpec = _resolveLayout(constraints.maxWidth);
           final useWorkspace = layoutSpec.isWorkspace;
 
           Widget buildContent() {
@@ -659,12 +668,14 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               sidebarOpen: useWorkspace
                   ? _workspaceController.isLeftPanelOpen
                   : _sidebarOpen,
+              useWorkspaceTocPanel: useWorkspace,
               tocMenuOpen: _tocMenuOpen,
               tocMenuController: _tocMenuController,
               fontSettingsMenuController: _fontSettingsMenuController,
               onSidebarToggle: useWorkspace
                   ? _workspaceController.toggleLeftPanel
                   : _toggleSidebar,
+              onShowWorkspaceToc: _workspaceController.openToc,
               onShowTocSheet: _showTocSheet,
               onTocMenuToggle: _toggleTocMenu,
               onTocMenuOpenChanged: _setTocMenuOpen,

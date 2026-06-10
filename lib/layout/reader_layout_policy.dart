@@ -2,6 +2,25 @@ import 'app_platform_class.dart';
 import 'reader_layout_spec.dart';
 import 'width_class_policy.dart';
 
+enum ReaderActionPanelHost { workspaceRightPanel, wideSidebar, bottomSheet }
+
+class ReaderActionPanelPolicy {
+  const ReaderActionPanelPolicy._();
+
+  static ReaderActionPanelHost resolve({
+    required ReaderLayoutSpec layoutSpec,
+    required bool isWideScreen,
+  }) {
+    if (layoutSpec.isWorkspace) {
+      return ReaderActionPanelHost.workspaceRightPanel;
+    }
+    if (isWideScreen) {
+      return ReaderActionPanelHost.wideSidebar;
+    }
+    return ReaderActionPanelHost.bottomSheet;
+  }
+}
+
 class ReaderLayoutPolicy {
   const ReaderLayoutPolicy._();
 

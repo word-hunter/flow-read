@@ -26,10 +26,12 @@ class ReaderNavBar extends StatelessWidget {
   final ValueListenable<double> displayProgressListenable;
   final bool showSidebarToggle;
   final bool sidebarOpen;
+  final bool useWorkspaceTocPanel;
   final bool tocMenuOpen;
   final MenuController tocMenuController;
   final MenuController fontSettingsMenuController;
   final VoidCallback onSidebarToggle;
+  final VoidCallback onShowWorkspaceToc;
   final VoidCallback onShowTocSheet;
   final ValueChanged<MenuController> onTocMenuToggle;
   final ValueChanged<bool> onTocMenuOpenChanged;
@@ -53,10 +55,12 @@ class ReaderNavBar extends StatelessWidget {
     required this.displayProgressListenable,
     required this.showSidebarToggle,
     required this.sidebarOpen,
+    required this.useWorkspaceTocPanel,
     required this.tocMenuOpen,
     required this.tocMenuController,
     required this.fontSettingsMenuController,
     required this.onSidebarToggle,
+    required this.onShowWorkspaceToc,
     required this.onShowTocSheet,
     required this.onTocMenuToggle,
     required this.onTocMenuOpenChanged,
@@ -152,7 +156,11 @@ class ReaderNavBar extends StatelessWidget {
                 tooltip: '返回',
                 onPressed: onExitReader,
               ),
-              _buildTocButton(context, useDropdown: showSidebarToggle),
+              _buildTocButton(
+                context,
+                useDropdown: showSidebarToggle,
+                useWorkspacePanel: useWorkspaceTocPanel,
+              ),
             ],
           ),
           Expanded(
@@ -326,9 +334,21 @@ class ReaderNavBar extends StatelessWidget {
   Widget _buildTocButton(
     BuildContext context, {
     required bool useDropdown,
+    required bool useWorkspacePanel,
   }) {
     if (!currentBook.hasBook || currentBook.chapterCount <= 1) {
       return const SizedBox.shrink();
+    }
+
+    if (useWorkspacePanel) {
+      return _compactIconButton(
+        context,
+        key: const ValueKey('reader-toolbar-toc'),
+        icon: Icons.menu,
+        tooltip: '目录',
+        selected: sidebarOpen,
+        onPressed: onShowWorkspaceToc,
+      );
     }
 
     if (!useDropdown) {

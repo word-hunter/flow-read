@@ -113,4 +113,57 @@ void main() {
       }
     });
   });
+
+  group('ReaderActionPanelPolicy', () {
+    test('workspace layout wins over legacy wide sidebar', () {
+      final layoutSpec = ReaderLayoutPolicy.resolveLayout(
+        platform: AppPlatformClass.desktop,
+        width: 1440,
+        workspaceFeatureEnabled: true,
+        userRequestedImmersive: false,
+      );
+
+      expect(
+        ReaderActionPanelPolicy.resolve(
+          layoutSpec: layoutSpec,
+          isWideScreen: true,
+        ),
+        ReaderActionPanelHost.workspaceRightPanel,
+      );
+    });
+
+    test('non-workspace wide layout keeps legacy sidebar', () {
+      final layoutSpec = ReaderLayoutPolicy.resolveLayout(
+        platform: AppPlatformClass.phone,
+        width: 1440,
+        workspaceFeatureEnabled: true,
+        userRequestedImmersive: false,
+      );
+
+      expect(
+        ReaderActionPanelPolicy.resolve(
+          layoutSpec: layoutSpec,
+          isWideScreen: true,
+        ),
+        ReaderActionPanelHost.wideSidebar,
+      );
+    });
+
+    test('compact immersive layout uses bottom sheet', () {
+      final layoutSpec = ReaderLayoutPolicy.resolveLayout(
+        platform: AppPlatformClass.desktop,
+        width: 500,
+        workspaceFeatureEnabled: true,
+        userRequestedImmersive: false,
+      );
+
+      expect(
+        ReaderActionPanelPolicy.resolve(
+          layoutSpec: layoutSpec,
+          isWideScreen: false,
+        ),
+        ReaderActionPanelHost.bottomSheet,
+      );
+    });
+  });
 }
