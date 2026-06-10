@@ -208,6 +208,11 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
         .highlightSourceExcerpt(excerpt);
   }
 
+  Future<void> reanalyzeCurrentChapter() async {
+    _chapterAnalysisCache.remove(state.currentChapter);
+    await _analyzeCurrentChapter();
+  }
+
   // ---- Internal ----
 
   void _saveCurrentProgress() {

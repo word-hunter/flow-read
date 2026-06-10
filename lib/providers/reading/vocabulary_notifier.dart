@@ -244,11 +244,10 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
       try {
         final shelfBook = ref.read(bookshelfNotifierProvider).book;
         final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
-        final book =
-            meta.id == activeBookId && shelfBook != null
+        final book = meta.id == activeBookId && shelfBook != null
             ? shelfBook
             : ref.read(bookCacheProvider).get(meta.id) ??
-                await EpubParseWorker.parseInIsolate(meta.sourcePath);
+                  await EpubParseWorker.parseInIsolate(meta.sourcePath);
         ref.read(bookCacheProvider).put(meta.id, book);
         final studyWords = await AnalysisService.collectBookStudyWordsAsync(
           book,
@@ -296,7 +295,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
       previousStatus,
       UserWordStatus.known,
     );
-    await _analyzeCurrentChapter();
+    await _reanalyzeCurrentChapter();
   }
 
   Future<void> markWordLearning(String word) async {
@@ -308,7 +307,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
       previousStatus,
       UserWordStatus.learning,
     );
-    await _analyzeCurrentChapter();
+    await _reanalyzeCurrentChapter();
   }
 
   Future<void> markWordUnknown(String word) async {
@@ -316,7 +315,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
     final previousStatus = _userVocab?.getStatus(canonical);
     await _userVocab?.setUnknown(canonical);
     _queueDifficultyRefreshForVocabularyChange(canonical, previousStatus, null);
-    await _analyzeCurrentChapter();
+    await _reanalyzeCurrentChapter();
   }
 
   Future<void> deleteLearningItem(String id) async {
@@ -374,9 +373,12 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
 
   // ---- Chapter re-analysis ----
 
-  Future<void> _analyzeCurrentChapter() async {
+  Future<void> _reanalyzeCurrentChapter() async {
     final shelfBook = ref.read(bookshelfNotifierProvider).book;
     if (shelfBook == null) return;
+    await ref
+        .read(currentBookNotifierProvider.notifier)
+        .reanalyzeCurrentChapter();
     _updateAllVocab();
   }
 
