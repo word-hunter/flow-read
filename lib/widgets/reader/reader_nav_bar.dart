@@ -7,6 +7,7 @@ import '../../providers/reading/current_book_notifier.dart';
 import '../../providers/reading/reading_config_notifier.dart';
 import '../../theme/app_surface_tokens.dart';
 import '../font_settings_sheet.dart';
+import '../reader_shell/reader_toc_panel.dart';
 import '../toc_bottom_sheet.dart';
 import 'reader_location_summary.dart';
 
@@ -82,19 +83,54 @@ class ReaderNavBar extends StatelessWidget {
     final toolbarTextColor =
         cityPreset?.secondaryText ?? theme.colorScheme.onSurfaceVariant;
     final showSearch = layoutWidth >= 520;
-    final showChapterStep = layoutWidth >= 680 && currentBook.chapterCount > 1;
+    final book = currentBook.book;
+    final tocItems = book == null
+        ? const <ReaderTocItem>[]
+        : buildReaderTocItems(book);
+    final usingStructuredToc =
+        book != null && book.toc.isNotEmpty && tocItems.isNotEmpty;
+    final selectedTocIndex = selectedReaderTocIndexForChapter(
+      tocItems,
+      currentBookState.currentChapter,
+    );
+    final visibleNavigationCount = usingStructuredToc
+        ? tocItems.length
+        : currentBook.chapterCount;
+    final showChapterStep = layoutWidth >= 680 && visibleNavigationCount > 1;
     final compactToolbar = layoutWidth < 760;
     final contentTitle = chapterTitle.trim().isNotEmpty
         ? chapterTitle.trim()
         : '当前位置';
-    final chapterMetaPrefix = currentBook.hasBook
-        ? '${currentBookState.currentChapter + 1} / ${currentBook.chapterCount} · '
+    final currentPosition = usingStructuredToc && tocItems.isNotEmpty
+        ? selectedTocIndex + 1
+        : currentBookState.currentChapter + 1;
+    final chapterMetaPrefix = currentBook.hasBook && visibleNavigationCount > 0
+        ? '$currentPosition / $visibleNavigationCount · '
         : null;
+    final previousChapterTarget = usingStructuredToc
+        ? _tocStepTarget(
+            tocItems,
+            selectedTocIndex,
+            currentBookState.currentChapter,
+            -1,
+          )
+        : currentBookState.currentChapter - 1;
+    final nextChapterTarget = usingStructuredToc
+        ? _tocStepTarget(
+            tocItems,
+            selectedTocIndex,
+            currentBookState.currentChapter,
+            1,
+          )
+        : currentBookState.currentChapter + 1;
     final canGoPreviousChapter =
-        currentBook.hasBook && currentBookState.currentChapter > 0;
+        currentBook.hasBook &&
+        previousChapterTarget != null &&
+        previousChapterTarget >= 0;
     final canGoNextChapter =
         currentBook.hasBook &&
-        currentBookState.currentChapter < currentBook.chapterCount - 1;
+        nextChapterTarget != null &&
+        nextChapterTarget < currentBook.chapterCount;
 
     return Container(
       constraints: const BoxConstraints(minHeight: 50),
@@ -134,9 +170,7 @@ class ReaderNavBar extends StatelessWidget {
                         icon: Icons.chevron_left,
                         tooltip: '上一个目录项',
                         onPressed: canGoPreviousChapter
-                            ? () => onGoToChapter(
-                                currentBookState.currentChapter - 1,
-                              )
+                            ? () => onGoToChapter(previousChapterTarget!)
                             : null,
                       ),
                       const SizedBox(width: _toolbarIconGap),
@@ -171,9 +205,7 @@ class ReaderNavBar extends StatelessWidget {
                         icon: Icons.chevron_right,
                         tooltip: '下一个目录项',
                         onPressed: canGoNextChapter
-                            ? () => onGoToChapter(
-                                currentBookState.currentChapter + 1,
-                              )
+                            ? () => onGoToChapter(nextChapterTarget!)
                             : null,
                       ),
                     ],
@@ -236,16 +268,12 @@ class ReaderNavBar extends StatelessWidget {
                       break;
                     case 'prevChapter':
                       if (canGoPreviousChapter) {
-                        onGoToChapter(
-                          currentBookState.currentChapter - 1,
-                        );
+                        onGoToChapter(previousChapterTarget!);
                       }
                       break;
                     case 'nextChapter':
                       if (canGoNextChapter) {
-                        onGoToChapter(
-                          currentBookState.currentChapter + 1,
-                        );
+                        onGoToChapter(nextChapterTarget!);
                       }
                       break;
                     case 'bookmarks':
@@ -257,7 +285,7 @@ class ReaderNavBar extends StatelessWidget {
                   if (!showSearch)
                     const PopupMenuItem(value: 'search', child: Text('搜索')),
                   if (!showSearch) const PopupMenuDivider(),
-                  if (currentBook.hasBook && currentBook.chapterCount > 1) ...[
+                  if (currentBook.hasBook && visibleNavigationCount > 1) ...[
                     PopupMenuItem(
                       value: 'prevChapter',
                       enabled: canGoPreviousChapter,
@@ -498,6 +526,21 @@ class ReaderNavBar extends StatelessWidget {
       }),
     );
   }
+}
+
+int? _tocStepTarget(
+  List<ReaderTocItem> items,
+  int selectedIndex,
+  int currentChapter,
+  int direction,
+) {
+  var index = selectedIndex + direction;
+  while (index >= 0 && index < items.length) {
+    final target = items[index].targetChapterIndex;
+    if (target != currentChapter) return target;
+    index += direction;
+  }
+  return null;
 }
 
 bool _isDarkReadingTheme(ReadingConfigState config) {

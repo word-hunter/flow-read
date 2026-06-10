@@ -821,29 +821,38 @@ class _StyledBlockBuilder {
     }
 
     for (final token in tokens) {
+      if (_hasRenderableFootnoteOverlap(token.startOffset, token.endOffset)) {
+        for (final segment in _footnoteSegmentsFor(
+          token.startOffset,
+          token.endOffset,
+        )) {
+          final text = fullText.substring(segment.start, segment.end);
+          final segStyle = _styleAt(styleRanges, segment.start);
+          final target = segment.target;
+          final fnText = target == null ? '' : footnoteMap[target] ?? '';
+          if (fnText.isNotEmpty) {
+            spans.add(_buildFootnoteSpan(text, segStyle, fnText));
+          } else {
+            spans.addAll(
+              _buildSearchHighlightedSpans(
+                text,
+                theme,
+                style: _textStyleFor(segStyle),
+                searchQuery: searchQuery,
+              ),
+            );
+          }
+        }
+        continue;
+      }
+
       if (token.isBoundary) {
         final segStyle = _styleAt(styleRanges, token.startOffset);
         final fnTarget = _footnoteAt(token.startOffset);
         if (fnTarget != null) {
           final fnText = footnoteMap[fnTarget] ?? '';
           if (fnText.isNotEmpty) {
-            spans.add(
-              WidgetSpan(
-                alignment: PlaceholderAlignment.middle,
-                child: Tooltip(
-                  message: fnText,
-                  preferBelow: false,
-                  triggerMode: TooltipTriggerMode.tap,
-                  child: Text(
-                    token.surface,
-                    style: _textStyleFor(segStyle).copyWith(
-                      color: theme.colorScheme.primary,
-                      fontSize: fontSize * 0.75,
-                    ),
-                  ),
-                ),
-              ),
-            );
+            spans.add(_buildFootnoteSpan(token.surface, segStyle, fnText));
             continue;
           }
         }
@@ -870,23 +879,7 @@ class _StyledBlockBuilder {
       if (wordFnTarget != null) {
         final fnText = footnoteMap[wordFnTarget] ?? '';
         if (fnText.isNotEmpty) {
-          spans.add(
-            WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
-              child: Tooltip(
-                message: fnText,
-                preferBelow: false,
-                triggerMode: TooltipTriggerMode.tap,
-                child: Text(
-                  word,
-                  style: _textStyleFor(wordStyle).copyWith(
-                    color: theme.colorScheme.primary,
-                    fontSize: fontSize * 0.75,
-                  ),
-                ),
-              ),
-            ),
-          );
+          spans.add(_buildFootnoteSpan(word, wordStyle, fnText));
           continue;
         }
       }
@@ -992,6 +985,44 @@ class _StyledBlockBuilder {
     return null;
   }
 
+  bool _hasRenderableFootnoteOverlap(int start, int end) {
+    for (final range in _footnoteRanges) {
+      if (range.end <= start || range.start >= end) continue;
+      final fnText = footnoteMap[range.target] ?? '';
+      if (fnText.isNotEmpty) return true;
+    }
+    return false;
+  }
+
+  List<({int start, int end, String? target})> _footnoteSegmentsFor(
+    int start,
+    int end,
+  ) {
+    final segments = <({int start, int end, String? target})>[];
+    var cursor = start;
+    for (final range in _footnoteRanges) {
+      if (range.end <= start || range.start >= end) continue;
+
+      final overlapStart = range.start.clamp(start, end).toInt();
+      final overlapEnd = range.end.clamp(start, end).toInt();
+      if (overlapStart > cursor) {
+        segments.add((start: cursor, end: overlapStart, target: null));
+      }
+      if (overlapEnd > overlapStart) {
+        segments.add((
+          start: overlapStart,
+          end: overlapEnd,
+          target: range.target,
+        ));
+      }
+      cursor = overlapEnd;
+    }
+    if (cursor < end) {
+      segments.add((start: cursor, end: end, target: null));
+    }
+    return segments;
+  }
+
   List<({int start, int end, String target})> _buildFootnoteRanges() {
     final ranges = <({int start, int end, String target})>[];
     var offset = 0;
@@ -1006,6 +1037,27 @@ class _StyledBlockBuilder {
       offset += span.text.length;
     }
     return ranges;
+  }
+
+  WidgetSpan _buildFootnoteSpan(
+    String text,
+    InlineStyle style,
+    String footnoteText,
+  ) {
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.middle,
+      child: Tooltip(
+        message: footnoteText,
+        preferBelow: false,
+        child: Text(
+          text,
+          style: _textStyleFor(style).copyWith(
+            color: theme.colorScheme.primary,
+            fontSize: fontSize * 0.75,
+          ),
+        ),
+      ),
+    );
   }
 
   TextStyle _textStyleFor(InlineStyle style) {

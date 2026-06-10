@@ -23,9 +23,24 @@ class ReaderLeftWorkspacePanel extends riverpod.ConsumerWidget {
     final currentBookState = ref.watch(currentBookNotifierProvider);
     final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
     final book = currentBookNotifier.book;
-    final currentChapter = currentBookState.currentChapter + 1;
     final chapterCount = currentBookNotifier.chapterCount;
     final progress = (currentBookState.readingProgress * 100).round();
+    final tocItems = book == null
+        ? const <ReaderTocItem>[]
+        : buildReaderTocItems(book);
+    final usingStructuredToc = book != null && book.toc.isNotEmpty;
+    final selectedTocIndex = selectedReaderTocIndexForChapter(
+      tocItems,
+      currentBookState.currentChapter,
+    );
+    final chapterProgress = _chapterProgressLabel(
+      currentChapter: currentBookState.currentChapter,
+      chapterCount: chapterCount,
+      progress: progress,
+      tocItemCount: tocItems.length,
+      selectedTocIndex: selectedTocIndex,
+      usingStructuredToc: usingStructuredToc,
+    );
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -39,9 +54,7 @@ class ReaderLeftWorkspacePanel extends riverpod.ConsumerWidget {
           _ReaderLeftPanelHeader(
             bookTitle: book?.title ?? '当前书籍',
             author: book?.author,
-            chapterProgress: chapterCount > 0
-                ? '第 $currentChapter / $chapterCount 节 · $progress%'
-                : null,
+            chapterProgress: chapterProgress,
           ),
           Divider(
             height: 1,
@@ -57,6 +70,23 @@ class ReaderLeftWorkspacePanel extends riverpod.ConsumerWidget {
       ),
     );
   }
+}
+
+String? _chapterProgressLabel({
+  required int currentChapter,
+  required int chapterCount,
+  required int progress,
+  required int tocItemCount,
+  required int selectedTocIndex,
+  required bool usingStructuredToc,
+}) {
+  if (usingStructuredToc && tocItemCount > 0) {
+    final currentToc = (selectedTocIndex + 1).clamp(1, tocItemCount);
+    return '目录 $currentToc / $tocItemCount · $progress%';
+  }
+  if (chapterCount <= 0) return null;
+  final current = (currentChapter + 1).clamp(1, chapterCount);
+  return '第 $current / $chapterCount 节 · $progress%';
 }
 
 class _ReaderLeftPanelTitleBar extends StatelessWidget {

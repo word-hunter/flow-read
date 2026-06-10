@@ -170,6 +170,57 @@ void main() {
       'Text/chapter2.xhtml',
     ]);
   });
+
+  test('extracts cross-file rearnotes and marks noteref spans', () {
+    final epubBytes = _buildEpub(
+      {
+        'OEBPS/Text/chapter1.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Chapter One</title></head>
+          <body>
+            <p>Later Guangwu restored the Han<a id="noteref_2" type="noteref" href="notes.xhtml#rearnote_2">[2]</a>.</p>
+          </body>
+        </html>
+      ''',
+        'OEBPS/Text/notes.xhtml': '''
+        <html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Notes</title></head>
+          <body>
+            <section type="rearnotes">
+              <aside id="rearnote_2" type="rearnote">
+                <p><a type="noteref" href="chapter1.xhtml#noteref_2">[2]</a>Guangwu Restoration: explanatory note.</p>
+              </aside>
+            </section>
+          </body>
+        </html>
+      ''',
+      },
+      manifestItems: '''
+        <item id="notes" href="Text/notes.xhtml" media-type="application/xhtml+xml"/>
+      ''',
+      spineItems: '''
+        <itemref idref="chapter1"/>
+        <itemref idref="notes"/>
+      ''',
+    );
+
+    final book = EpubParser.parseBytesSync(epubBytes);
+    final firstTextBlock = book.chapters.first.blocks
+        .whereType<ParsedTextBlock>()
+        .single;
+
+    expect(
+      book.footnoteMap['rearnote_2'],
+      'Guangwu Restoration: explanatory note.',
+    );
+    expect(
+      firstTextBlock.spans
+          .where((span) => span.text == '[2]')
+          .single
+          .footnoteTarget,
+      'rearnote_2',
+    );
+  });
 }
 
 bool _isMonotonic(Iterable<double> values) {

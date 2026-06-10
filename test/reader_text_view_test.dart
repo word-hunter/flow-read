@@ -208,6 +208,41 @@ void main() {
     expect(richText.text.style?.color, readerTextColor);
   });
 
+  testWidgets('footnote spans expose a hover tooltip on desktop', (
+    tester,
+  ) async {
+    const noteText = '光武中兴：继西汉之后，东汉创始者光武帝刘秀励精图治使汉朝重新繁荣昌盛的统治期。';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: buildBlockWidget(
+            TextBlock(
+              type: BlockType.paragraph,
+              spans: const [
+                StyledText('后来光武中兴'),
+                StyledText('[2]', InlineStyle.normal, 'rearnote_2'),
+                StyledText('，传至献帝。'),
+              ],
+            ),
+            result,
+            ThemeData(),
+            footnoteMap: const {'rearnote_2': noteText},
+            onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
+          ),
+        ),
+      ),
+    );
+
+    final tooltip = tester
+        .widgetList<Tooltip>(find.byType(Tooltip))
+        .where((tooltip) => tooltip.message == noteText)
+        .single;
+
+    expect(find.text('[2]'), findsOneWidget);
+    expect(tooltip.triggerMode, isNot(TooltipTriggerMode.tap));
+  });
+
   testWidgets('text blocks ignore EPUB typography CSS in reader rendering', (
     tester,
   ) async {

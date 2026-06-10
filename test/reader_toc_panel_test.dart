@@ -47,6 +47,56 @@ void main() {
       expect(items.map((item) => item.level), [0, 1]);
     });
 
+    test('does not expose spine-only entries when EPUB TOC exists', () {
+      final book = Book(
+        title: 'Fixture',
+        author: 'Author',
+        chapters: const [
+          Chapter(
+            title: 'Chapter One',
+            plainText: 'First chapter.',
+            rawHtml: '',
+            href: 'Text/chapter1.xhtml',
+          ),
+          Chapter(
+            title: 'Image Split',
+            plainText: '',
+            rawHtml: '',
+            href: 'Text/chapter1-image.xhtml',
+          ),
+          Chapter(
+            title: 'Chapter Two',
+            plainText: 'Second chapter.',
+            rawHtml: '',
+            href: 'Text/chapter2.xhtml',
+          ),
+          Chapter(
+            title: 'Notes',
+            plainText: 'Footnotes.',
+            rawHtml: '',
+            href: 'Text/notes.xhtml',
+          ),
+        ],
+        toc: const [
+          EpubTocEntry(
+            label: 'Chapter One',
+            href: 'Text/chapter1.xhtml',
+            playOrder: 1,
+          ),
+          EpubTocEntry(
+            label: 'Chapter Two',
+            href: 'Text/chapter2.xhtml',
+            playOrder: 2,
+          ),
+        ],
+      );
+
+      final items = buildReaderTocItems(book);
+
+      expect(items.map((item) => item.title), ['Chapter One', 'Chapter Two']);
+      expect(items.map((item) => item.targetChapterIndex), [0, 2]);
+    });
+
     test('falls back to readable chapter labels when EPUB TOC is missing', () {
       final book = Book(
         title: 'Fixture',
@@ -92,6 +142,21 @@ void main() {
 
       expect(selectedReaderTocIndexForChapter(items, 1), 1);
     });
+
+    test(
+      'keeps selection on the previous TOC item for spine-only chapters',
+      () {
+        const items = [
+          ReaderTocItem(title: 'One', targetChapterIndex: 0, ordinal: 1),
+          ReaderTocItem(title: 'Two', targetChapterIndex: 2, ordinal: 2),
+          ReaderTocItem(title: 'Notes', targetChapterIndex: 5, ordinal: 3),
+        ];
+
+        expect(selectedReaderTocIndexForChapter(items, 1), 0);
+        expect(selectedReaderTocIndexForChapter(items, 3), 1);
+        expect(selectedReaderTocIndexForChapter(items, 4), 1);
+      },
+    );
 
     test('clamps to visible item range when no target chapter matches', () {
       const items = [

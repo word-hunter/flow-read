@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import '../models/chapter.dart';
-import '../models/content_block.dart';
 import '../providers/reading/current_book_notifier.dart';
+import 'reader_shell/reader_toc_panel.dart';
 
 class TocBottomSheet extends riverpod.ConsumerWidget {
   final ValueChanged<int>? onGoToChapter;
@@ -69,7 +68,8 @@ class TocDropdownPanel extends riverpod.ConsumerWidget {
     final panelMaxHeight = (screenSize.height - 112)
         .clamp(260.0, maxHeight)
         .toDouble();
-    final panelHeight = (96 + book.chapters.length * 50.0).clamp(
+    final tocItems = buildReaderTocItems(book);
+    final panelHeight = (96 + tocItems.length * _tocTileExtent).clamp(
       220.0,
       panelMaxHeight,
     );
@@ -89,79 +89,6 @@ class TocDropdownPanel extends riverpod.ConsumerWidget {
       ),
     );
   }
-}
-
-class _ChapterTocLabel {
-  final String title;
-  final String? subtitle;
-
-  const _ChapterTocLabel({required this.title, this.subtitle});
-}
-
-_ChapterTocLabel _chapterLabel(Chapter chapter, int index) {
-  final title = chapter.title.replaceAll(RegExp(r'\s+'), ' ').trim();
-  final fallbackTitle = '第 ${index + 1} 节';
-  final isGenericTitle =
-      title.isEmpty ||
-      RegExp(
-        r'^(section|chapter|part)\s*\d+$',
-        caseSensitive: false,
-      ).hasMatch(title) ||
-      RegExp(r'^第\s*\d+\s*[章节回]$').hasMatch(title);
-
-  if (!isGenericTitle) {
-    return _ChapterTocLabel(title: title);
-  }
-
-  final opening = _chapterOpeningSnippet(chapter);
-  if (opening.isEmpty) {
-    return _ChapterTocLabel(title: title.isEmpty ? fallbackTitle : title);
-  }
-
-  return _ChapterTocLabel(
-    title: opening,
-    subtitle: title.isEmpty ? fallbackTitle : title,
-  );
-}
-
-String _chapterOpeningSnippet(Chapter chapter) {
-  final blockText = _firstReadableTextBlock(chapter.blocks);
-  final normalized = _cleanOpeningText(
-    blockText.isEmpty ? chapter.plainText : blockText,
-  );
-  if (normalized.isEmpty) return '';
-
-  final words = normalized.split(' ');
-  if (words.length > 8) {
-    final snippet = words.take(8).join(' ');
-    if (snippet.length <= 72) return '$snippet...';
-  }
-
-  if (normalized.length <= 72) return normalized;
-  return '${normalized.substring(0, 72).trimRight()}...';
-}
-
-String _firstReadableTextBlock(List<ContentBlock> blocks) {
-  for (final block in blocks) {
-    if (block is! TextBlock) continue;
-    final text = _cleanOpeningText(block.plainText);
-    if (text.isEmpty) continue;
-    return text;
-  }
-  return '';
-}
-
-String _cleanOpeningText(String text) {
-  var normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-  while (normalized.isNotEmpty) {
-    final withoutImagePrefix = normalized.replaceFirst(
-      RegExp(r'^(?:image|img|figure)\b[\s:：\-—–]*', caseSensitive: false),
-      '',
-    );
-    if (withoutImagePrefix == normalized) break;
-    normalized = withoutImagePrefix.trimLeft();
-  }
-  return normalized;
 }
 
 class _TocPanelSurface extends StatelessWidget {
@@ -260,16 +187,22 @@ class _TocPanelContentState extends riverpod.ConsumerState<_TocPanelContent> {
     final theme = Theme.of(context);
     final book = currentBookNotifier.book;
     if (book == null) return const SizedBox.shrink();
-    _queueInitialChapterPosition(
+    final tocItems = buildReaderTocItems(book);
+    if (tocItems.isEmpty) return const SizedBox.shrink();
+    final selectedIndex = selectedReaderTocIndexForChapter(
+      tocItems,
       currentBookState.currentChapter,
-      book.chapters.length,
+    );
+    _queueInitialChapterPosition(
+      selectedIndex,
+      tocItems.length,
     );
 
     return Column(
       children: [
         _TocPanelHeader(
-          itemCount: book.chapters.length,
-          currentChapter: currentBookState.currentChapter,
+          itemCount: tocItems.length,
+          currentIndex: selectedIndex,
           showDragHandle: widget.showDragHandle,
           onClose: widget.onClose,
         ),
@@ -290,21 +223,24 @@ class _TocPanelContentState extends riverpod.ConsumerState<_TocPanelContent> {
                   8,
                   28,
                 ),
-                itemCount: book.chapters.length,
+                itemCount: tocItems.length,
                 itemBuilder: (context, index) {
-                  final isSelected = index == currentBookState.currentChapter;
+                  final item = tocItems[index];
+                  final isSelected = index == selectedIndex;
                   return _TocChapterTile(
                     index: index,
-                    label: _chapterLabel(book.chapters[index], index),
+                    item: item,
                     isSelected: isSelected,
                     onTap: () {
                       final onGoToChapter = widget.onGoToChapter;
                       if (onGoToChapter == null) {
-                        currentBookNotifier.goToChapter(index);
+                        currentBookNotifier.goToChapter(
+                          item.targetChapterIndex,
+                        );
                       } else {
-                        onGoToChapter(index);
+                        onGoToChapter(item.targetChapterIndex);
                       }
-                      widget.onChapterSelected?.call(index);
+                      widget.onChapterSelected?.call(item.targetChapterIndex);
                     },
                   );
                 },
@@ -339,13 +275,13 @@ class _TocPanelContentState extends riverpod.ConsumerState<_TocPanelContent> {
 
 class _TocPanelHeader extends StatelessWidget {
   final int itemCount;
-  final int currentChapter;
+  final int currentIndex;
   final bool showDragHandle;
   final VoidCallback? onClose;
 
   const _TocPanelHeader({
     required this.itemCount,
-    required this.currentChapter,
+    required this.currentIndex,
     required this.showDragHandle,
     required this.onClose,
   });
@@ -403,7 +339,7 @@ class _TocPanelHeader extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              '共 $itemCount 节 · 当前第 ${currentChapter + 1} 节',
+              '共 $itemCount 项 · 当前第 ${(currentIndex + 1).clamp(1, itemCount)} 项',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelMedium?.copyWith(
@@ -420,13 +356,13 @@ class _TocPanelHeader extends StatelessWidget {
 
 class _TocChapterTile extends StatefulWidget {
   final int index;
-  final _ChapterTocLabel label;
+  final ReaderTocItem item;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _TocChapterTile({
     required this.index,
-    required this.label,
+    required this.item,
     required this.isSelected,
     required this.onTap,
   });
@@ -456,6 +392,7 @@ class _TocChapterTileState extends State<_TocChapterTile> {
     final numberColor = _isHovered && !widget.isSelected
         ? primary
         : theme.colorScheme.onSurfaceVariant;
+    final levelIndent = widget.item.level * 12.0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -541,7 +478,7 @@ class _TocChapterTileState extends State<_TocChapterTile> {
                                         alpha: 0.86,
                                       ),
                                       child: Text(
-                                        '${widget.index + 1}',
+                                        '${widget.item.ordinal}',
                                         style: theme.textTheme.labelMedium
                                             ?.copyWith(
                                               color:
@@ -552,7 +489,7 @@ class _TocChapterTileState extends State<_TocChapterTile> {
                                       ),
                                     )
                                   : Text(
-                                      '${widget.index + 1}',
+                                      '${widget.item.ordinal}',
                                       style: theme.textTheme.labelLarge
                                           ?.copyWith(
                                             color: numberColor,
@@ -562,13 +499,14 @@ class _TocChapterTileState extends State<_TocChapterTile> {
                             ),
                           ),
                           const SizedBox(width: 10),
+                          SizedBox(width: levelIndent),
                           Expanded(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  widget.label.title,
+                                  widget.item.title,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -579,10 +517,10 @@ class _TocChapterTileState extends State<_TocChapterTile> {
                                     height: 1.2,
                                   ),
                                 ),
-                                if (widget.label.subtitle != null) ...[
+                                if (widget.item.subtitle != null) ...[
                                   const SizedBox(height: 2),
                                   Text(
-                                    widget.label.subtitle!,
+                                    widget.item.subtitle!,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: theme.textTheme.labelSmall?.copyWith(

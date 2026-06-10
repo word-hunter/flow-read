@@ -129,6 +129,7 @@ class _ReaderTocPanelState extends riverpod.ConsumerState<ReaderTocPanel> {
           itemCount: items.length,
           chapterCount: book.chapters.length,
           currentChapter: currentBookState.currentChapter,
+          selectedTocIndex: selectedIndex,
           usingStructuredToc: book.toc.isNotEmpty,
         ),
         Divider(
@@ -184,12 +185,14 @@ class _TocWorkspaceHeader extends StatelessWidget {
   final int itemCount;
   final int chapterCount;
   final int currentChapter;
+  final int selectedTocIndex;
   final bool usingStructuredToc;
 
   const _TocWorkspaceHeader({
     required this.itemCount,
     required this.chapterCount,
     required this.currentChapter,
+    required this.selectedTocIndex,
     required this.usingStructuredToc,
   });
 
@@ -197,9 +200,10 @@ class _TocWorkspaceHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
-    final currentChapterLabel = chapterCount == 0
-        ? 0
-        : (currentChapter + 1).clamp(1, chapterCount);
+    final currentPositionLabel = usingStructuredToc
+        ? (selectedTocIndex + 1).clamp(1, itemCount)
+        : (chapterCount == 0 ? 0 : (currentChapter + 1).clamp(1, chapterCount));
+    final totalPositionLabel = usingStructuredToc ? itemCount : chapterCount;
     final countLabel = usingStructuredToc
         ? '目录条目 $itemCount'
         : '全部章节 $itemCount';
@@ -218,10 +222,10 @@ class _TocWorkspaceHeader extends StatelessWidget {
               ),
             ),
           ),
-          if (chapterCount > 0) ...[
+          if (totalPositionLabel > 0) ...[
             const SizedBox(width: 10),
             Text(
-              '当前 $currentChapterLabel / $chapterCount',
+              '当前 $currentPositionLabel / $totalPositionLabel',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelSmall?.copyWith(
@@ -277,7 +281,19 @@ int selectedReaderTocIndexForChapter(
     (item) => item.targetChapterIndex == currentChapter,
   );
   if (exactIndex != -1) return exactIndex;
-  return currentChapter.clamp(0, items.length - 1).toInt();
+
+  var nearestPreviousIndex = -1;
+  var nearestPreviousTarget = -1;
+  for (var i = 0; i < items.length; i += 1) {
+    final target = items[i].targetChapterIndex;
+    if (target <= currentChapter && target >= nearestPreviousTarget) {
+      nearestPreviousIndex = i;
+      nearestPreviousTarget = target;
+    }
+  }
+  if (nearestPreviousIndex != -1) return nearestPreviousIndex;
+
+  return 0;
 }
 
 ReaderTocItem _tocEntryItemForBook(Book book, int index) {
