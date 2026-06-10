@@ -25,13 +25,25 @@ class BookService {
   final DateTime Function() _clock;
 
   String? _booksDir;
+  Future<void>? _initFuture;
 
   final _coverCache = <String, Uint8List?>{};
   final _coverAccessOrder = <String>[];
 
   List<BookMetadata> get books => _repository.values.toList();
 
-  Future<void> init() async {
+  Future<void> init() {
+    final pending = _initFuture;
+    if (pending != null) return pending;
+
+    final future = _initialize().whenComplete(() {
+      _initFuture = null;
+    });
+    _initFuture = future;
+    return future;
+  }
+
+  Future<void> _initialize() async {
     await _repository.init();
     final dir = await _documentsDirectoryProvider();
     _booksDir = '${dir.path}/books';
@@ -49,12 +61,18 @@ class BookService {
     return booksDir;
   }
 
+  Future<void> _ensureFileAccessReady() async {
+    if (_booksDir != null) return;
+    await init();
+  }
+
   String _coverFilePath(String bookId) =>
       '$_requiredBooksDir/${bookId}_cover.png';
 
   String _sourceFilePath(String bookId) => '$_requiredBooksDir/$bookId.epub';
 
   Future<String> saveSource(String bookId, EpubImportSource source) async {
+    await _ensureFileAccessReady();
     final path = _sourceFilePath(bookId);
     final tempPath = '$path.importing';
     final tempFile = File(tempPath);
@@ -79,6 +97,7 @@ class BookService {
   }
 
   Future<String> replaceSourceFile(String bookId, String sourcePath) async {
+    await _ensureFileAccessReady();
     final path = _sourceFilePath(bookId);
     if (sourcePath == path) return path;
 
@@ -101,6 +120,7 @@ class BookService {
   }
 
   Future<String?> saveCover(String bookId, Uint8List bytes) async {
+    await _ensureFileAccessReady();
     final path = _coverFilePath(bookId);
     final file = File(path);
     await file.writeAsBytes(bytes);
@@ -163,6 +183,7 @@ class BookService {
   }
 
   Future<void> removeBook(String id) async {
+    await _ensureFileAccessReady();
     clearCoverCacheFor(id);
     await _repository.delete(id);
     final coverFile = File(_coverFilePath(id));

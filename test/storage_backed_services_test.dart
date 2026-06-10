@@ -276,6 +276,37 @@ void main() {
     },
   );
 
+  test('book source save initializes file access lazily', () async {
+    final documentsDir = await Directory('${tempDir.path}/documents').create();
+    var documentsDirectoryReads = 0;
+    final service = BookService(
+      documentsDirectoryProvider: () async {
+        documentsDirectoryReads += 1;
+        return documentsDir;
+      },
+    );
+
+    final sourcePath = await service.saveSource(
+      'book-1',
+      EpubImportSource.bytes(
+        Uint8List.fromList([4, 5, 6]),
+        fileName: 'flow.epub',
+      ),
+    );
+
+    expect(sourcePath, '${documentsDir.path}/books/book-1.epub');
+    expect(await File(sourcePath).readAsBytes(), Uint8List.fromList([4, 5, 6]));
+    expect(documentsDirectoryReads, 1);
+
+    final coverPath = await service.saveCover(
+      'book-1',
+      Uint8List.fromList([1, 2, 3]),
+    );
+
+    expect(coverPath, '${documentsDir.path}/books/book-1_cover.png');
+    expect(documentsDirectoryReads, 1);
+  });
+
   test('book cover loading falls back to persisted cover path', () async {
     final documentsDir = await Directory('${tempDir.path}/documents').create();
     final legacyCoverDir = await Directory(
