@@ -5,6 +5,7 @@ import '../shells/shell.dart';
 import '../shells/android_shell.dart';
 import '../shells/ios_shell.dart';
 import '../shells/macos_standard_shell.dart';
+import '../shells/windows_shell.dart';
 import '../tokens/typography.dart';
 import '../tokens/spacing.dart';
 import '../tokens/radii.dart';
@@ -18,6 +19,7 @@ class FlowTheme {
     ShellId.android: const AndroidShell(),
     ShellId.ios: const IosShell(),
     ShellId.macosStandard: const MacOsStandardShell(),
+    ShellId.windows: const WindowsShell(),
   };
 
   static Shell getShell(ShellId id) {

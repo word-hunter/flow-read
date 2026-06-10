@@ -1,15 +1,15 @@
 # Flow Read Architecture
 
-> @source lib/main.dart lib/providers/ lib/storage/hive_storage.dart
+> @source lib/main.dart lib/platform/flow_shell_resolver.dart lib/providers/ lib/storage/hive_storage.dart packages/flow_design_system/lib/theme/flow_theme.dart
 
-Last updated: 2026-06-03
+Last updated: 2026-06-10
 
 ## 分层架构
 
 ```
 ┌──────────────────────────────────────────────────┐
 │  UI Layer: screens/ + pages/ + widgets/           │
-│  (Material 3, Riverpod consumers)                 │
+│  (platform shell components, Riverpod consumers)  │
 ├──────────────────────────────────────────────────┤
 │  State Layer: providers/                          │
 │  (Riverpod providers + transitional ChangeNotifiers) │
@@ -76,6 +76,8 @@ HomeScreen → ReadingDeskScreen → ReaderPage（正文）
 
 - `AppThemeId` 枚举：classic / ocean / forest / highContrast
 - `MaterialApp` theme/darkTheme 由 `SettingsService.themeMode` 控制
+- `FlowShellResolver` 按 Flutter `TargetPlatform` 选择设计系统 shell：Android=Material 3、iOS=Cupertino、macOS=HIG、Windows=Fluent
+- Linux 当前显式走 `macosStandard` 桌面 shell 规范，避免 fallback 到 Android Material
 - `ReaderThemeTokens` 扩展 Material ThemeData（reader 专用颜色/宽度）
 - `packages/flow_read_atmosphere` 提供 V2 City 时间主题与动态氛围背景，由 `MaterialApp.builder` 包到 app shell，Home/Reader 在 scope 内透出背景
 - 动画 220ms easeOutCubic
@@ -87,5 +89,5 @@ HomeScreen → ReadingDeskScreen → ReaderPage（正文）
 | macOS | stable | 原生菜单、AppUpdateInstaller、MacPermissionDiagnostics、Bookmark 文件夹访问 |
 | iPad | experimental | ios/ 工程存在，导入/阅读闭环可用，布局待适配 |
 | iPhone | 兼容性 | 不崩溃即可，非完整支持 |
-| Windows | 未评估 | — |
-| Linux | out of scope | — |
+| Windows | experimental | Dart UI 走 `WindowsShell` Fluent token；原生打包、CI、安装器仍未纳入正式发布 |
+| Linux | experimental | Dart UI 显式走 `macosStandard` 桌面 shell token；原生工程、CI、打包仍未纳入正式发布 |

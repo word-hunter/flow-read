@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +8,7 @@ import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 
 import 'app/flow_read_env.dart';
 import 'app/flow_read_feature_flags.dart';
+import 'platform/flow_shell_resolver.dart';
 import 'providers/settings_provider.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/home_screen.dart';
@@ -345,22 +345,6 @@ ThemeData _withFlowReadThemeExtensions(
   );
 }
 
-const _availableShells = {ShellId.android, ShellId.ios, ShellId.macosStandard};
-
-ShellId _resolveDefaultShell() {
-  ShellId preferred;
-  if (Platform.isMacOS) {
-    preferred = ShellId.macosStandard;
-  } else if (Platform.isWindows) {
-    preferred = ShellId.windows;
-  } else if (Platform.isIOS) {
-    preferred = ShellId.ios;
-  } else {
-    preferred = ShellId.android;
-  }
-  return _availableShells.contains(preferred) ? preferred : ShellId.android;
-}
-
 class FlowReadApp extends StatefulWidget {
   const FlowReadApp({super.key});
 
@@ -442,11 +426,12 @@ class _FlowReadAppState extends State<FlowReadApp> {
         final settings = ref.watch(settingsProvider);
         final themeId = settings.appThemeId;
         final v2 = FlowReadFeatureFlags.v2Enabled;
+        final shellId = FlowShellResolver.resolveCurrent();
 
         if (v2) {
           // ignore: avoid_print
           debugPrint(
-            '[V2] enabled | shell: ${_resolveDefaultShell().name}'
+            '[V2] enabled | shell: ${shellId.name}'
             ' | palette: ${_toPaletteId(themeId).name}'
             ' | mode: ${settings.themeMode.name}',
           );
@@ -455,7 +440,7 @@ class _FlowReadAppState extends State<FlowReadApp> {
         final lightTheme = _withFlowReadThemeExtensions(
           v2
               ? FlowTheme.build(
-                  shellId: _resolveDefaultShell(),
+                  shellId: shellId,
                   paletteId: _toPaletteId(themeId),
                   brightness: Brightness.light,
                 )
@@ -466,7 +451,7 @@ class _FlowReadAppState extends State<FlowReadApp> {
         final darkTheme = _withFlowReadThemeExtensions(
           v2
               ? FlowTheme.build(
-                  shellId: _resolveDefaultShell(),
+                  shellId: shellId,
                   paletteId: _toPaletteId(themeId),
                   brightness: Brightness.dark,
                 )

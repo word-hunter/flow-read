@@ -66,16 +66,16 @@ void main() {
       expect(data.colors.background, isA<Color>());
     });
 
-    test('unknown shell throws', () {
-      // ShellId.windows is not yet registered
-      expect(
-        () => FlowTheme.build(
-          shellId: ShellId.windows,
-          paletteId: PaletteId.classic,
-          brightness: Brightness.light,
-        ),
-        throwsA(isA<ArgumentError>()),
+    test('builds windows fluent theme', () {
+      final theme = FlowTheme.build(
+        shellId: ShellId.windows,
+        paletteId: PaletteId.classic,
+        brightness: Brightness.light,
       );
+
+      expect(theme, isNotNull);
+      expect(theme.extension<FlowThemeData>()?.shellId, ShellId.windows);
+      expect(theme.appBarTheme.toolbarHeight, 40);
     });
   });
 
