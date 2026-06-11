@@ -52,7 +52,7 @@ void main() {
       expect(find.text('继续阅读'), findsOneWidget);
     });
 
-    testWidgets('FlowMenuButton renders desktop menu on macOS shell', (
+    testWidgets('FlowMenuButton renders macOS popover on macOS shell', (
       tester,
     ) async {
       String? selected;
@@ -82,19 +82,13 @@ void main() {
       );
 
       expect(find.byType(PopupMenuButton<String>), findsNothing);
+      expect(find.byType(MenuAnchor), findsNothing);
 
       await tester.tap(find.text('更多'));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('flow-menu-surface')), findsOneWidget);
       expect(find.text('重命名'), findsOneWidget);
       expect(find.text('移出书架'), findsOneWidget);
-      final surface = tester.widget<Material>(
-        find.byKey(const ValueKey('flow-menu-surface')),
-      );
-      final shape = surface.shape! as RoundedRectangleBorder;
-      expect(surface.elevation, 12);
-      expect(shape.side.width, 1);
 
       await tester.tap(find.text('重命名'));
       await tester.pumpAndSettle();

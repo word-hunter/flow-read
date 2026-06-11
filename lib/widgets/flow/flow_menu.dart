@@ -2,32 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flow_design_system/flow_design_system.dart';
 import 'package:flutter/material.dart';
+import 'flow_menu_entry.dart';
+import 'flow_menu_macos.dart';
 
-abstract class FlowMenuEntry<T> {
-  const FlowMenuEntry();
-}
-
-class FlowMenuItem<T> extends FlowMenuEntry<T> {
-  const FlowMenuItem({
-    required this.value,
-    required this.label,
-    this.icon,
-    this.enabled = true,
-    this.destructive = false,
-    this.selected = false,
-  });
-
-  final T value;
-  final String label;
-  final IconData? icon;
-  final bool enabled;
-  final bool destructive;
-  final bool selected;
-}
-
-class FlowMenuDivider<T> extends FlowMenuEntry<T> {
-  const FlowMenuDivider();
-}
+export 'flow_menu_entry.dart';
 
 class FlowMenuButton<T> extends StatefulWidget {
   const FlowMenuButton({
@@ -61,8 +39,26 @@ class FlowMenuButton<T> extends StatefulWidget {
 class _FlowMenuButtonState<T> extends State<FlowMenuButton<T>> {
   final MenuController _controller = MenuController();
 
+  bool get _isMacOs {
+    final shellId = FlowThemeData.of(context)?.shellId;
+    return shellId == ShellId.macosStandard ||
+        shellId == ShellId.macosLiquidGlass;
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isMacOs) {
+      return buildMacOsMenuButton<T>(
+        entries: widget.entries,
+        onSelected: widget.onSelected,
+        child: widget.child,
+        builder: widget.builder,
+        tooltip: widget.tooltip,
+        alignmentOffset: widget.alignmentOffset,
+        minWidth: widget.minWidth,
+      );
+    }
+
     final shellId = FlowThemeData.of(context)?.shellId;
     if (shellId == ShellId.android && widget.child != null) {
       return PopupMenuButton<T>(
@@ -130,6 +126,19 @@ Future<T?> showFlowMenuAt<T>({
   required List<FlowMenuEntry<T>> entries,
   double? minWidth,
 }) {
+  final shellId = FlowThemeData.of(context)?.shellId;
+  final isMacOs =
+      shellId == ShellId.macosStandard || shellId == ShellId.macosLiquidGlass;
+
+  if (isMacOs) {
+    return showMacOsMenuAt<T>(
+      context: context,
+      position: position,
+      entries: entries,
+      minWidth: minWidth,
+    );
+  }
+
   final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
   final localPosition = overlay.globalToLocal(position);
   final theme = Theme.of(context);
