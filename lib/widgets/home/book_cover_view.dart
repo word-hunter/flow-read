@@ -13,6 +13,7 @@ class BookCoverView extends StatelessWidget {
   static const double featuredHeight = 200;
   static const Size shelfSize = Size(shelfWidth, shelfHeight);
   static const Size featuredSize = Size(featuredWidth, featuredHeight);
+  static const double tooltipMaxWidth = 420;
 
   final Uint8List? coverBytes;
   final int progressPercent;
@@ -44,51 +45,61 @@ class BookCoverView extends StatelessWidget {
     final forceGeneratedCover = useNewDefaultCover && forceDefaultCover;
     final showDefaultProgressBadge =
         showProgressBadge && (coverBytes == null || forceGeneratedCover);
+    final tooltipTitle = title.trim().isEmpty ? 'Untitled Book' : title.trim();
 
-    return SizedBox(
-      width: width,
-      height: height,
-      child: Stack(
-        children: [
-          Container(
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(borderRadius),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.22),
-                  blurRadius: 14,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(borderRadius),
-              child: forceGeneratedCover || coverBytes == null
-                  ? _buildPlaceholder(
-                      context,
-                      useNewDefaultCover,
-                      showDefaultProgressBadge: showDefaultProgressBadge,
-                    )
-                  : Image.memory(
-                      coverBytes!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _buildPlaceholder(
+    return Tooltip(
+      richMessage: WidgetSpan(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: tooltipMaxWidth),
+          child: Text(tooltipTitle),
+        ),
+      ),
+      waitDuration: const Duration(milliseconds: 400),
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: Stack(
+          children: [
+            Container(
+              width: width,
+              height: height,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(borderRadius),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.22),
+                    blurRadius: 14,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(borderRadius),
+                child: forceGeneratedCover || coverBytes == null
+                    ? _buildPlaceholder(
                         context,
                         useNewDefaultCover,
-                        showDefaultProgressBadge: false,
+                        showDefaultProgressBadge: showDefaultProgressBadge,
+                      )
+                    : Image.memory(
+                        coverBytes!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _buildPlaceholder(
+                          context,
+                          useNewDefaultCover,
+                          showDefaultProgressBadge: false,
+                        ),
                       ),
-                    ),
+              ),
             ),
-          ),
-          if (showProgressBadge && coverBytes != null && !forceGeneratedCover)
-            Positioned(
-              left: 8,
-              bottom: 8,
-              child: _ProgressBadge(progressPercent: progressPercent),
-            ),
-        ],
+            if (showProgressBadge && coverBytes != null && !forceGeneratedCover)
+              Positioned(
+                left: 8,
+                bottom: 8,
+                child: _ProgressBadge(progressPercent: progressPercent),
+              ),
+          ],
+        ),
       ),
     );
   }

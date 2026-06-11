@@ -41,6 +41,8 @@ void main() {
     tester,
   ) async {
     FlowReadFeatureFlags.setV2Enabled(true);
+    const fullTitle =
+        'Harry Potter and the Order of the Phoenix and the Very Long Subtitle';
 
     await tester.pumpWidget(
       const MaterialApp(
@@ -51,8 +53,7 @@ void main() {
             child: BookCoverView(
               coverBytes: null,
               progressPercent: 37,
-              title:
-                  'Harry Potter and the Order of the Phoenix and the Very Long Subtitle',
+              title: fullTitle,
               author: 'J. K. Rowling',
             ),
           ),
@@ -63,11 +64,50 @@ void main() {
     final titleText = tester.widget<Text>(
       find.byKey(DefaultBookCover.titleTextKey),
     );
+    final authorText = tester.widget<Text>(
+      find.byKey(DefaultBookCover.authorTextKey),
+    );
 
     expect(titleText.maxLines, 3);
     expect(titleText.overflow, TextOverflow.ellipsis);
+    expect(authorText.data, 'J. K. ROWLING');
+    expect(find.text('FLOW READ'), findsNothing);
     expect(find.text('37%'), findsOneWidget);
     expect(find.text('J. K. ROWLING'), findsOneWidget);
+    expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
+    expect(find.byIcon(Icons.wb_sunny_outlined), findsNothing);
+    expect(find.byIcon(Icons.diamond_outlined), findsNothing);
+    _expectCoverTooltip(
+      tester,
+      message: fullTitle,
+      maxWidth: BookCoverView.tooltipMaxWidth,
+    );
+  });
+
+  testWidgets('exposes full book title in cover tooltip', (tester) async {
+    FlowReadFeatureFlags.setV2Enabled(true);
+    const fullTitle = 'A Complete Book Title Hidden Behind the Cover Artwork';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BookCoverView(
+            coverBytes: _onePixelPng(),
+            progressPercent: 48,
+            title: fullTitle,
+            author: 'Flow Read',
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.text(fullTitle), findsNothing);
+    _expectCoverTooltip(
+      tester,
+      message: fullTitle,
+      maxWidth: BookCoverView.tooltipMaxWidth,
+    );
   });
 
   testWidgets(
@@ -150,6 +190,21 @@ void main() {
       expect(find.text('71%'), findsOneWidget);
     },
   );
+}
+
+void _expectCoverTooltip(
+  WidgetTester tester, {
+  required String message,
+  required double maxWidth,
+}) {
+  final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+  expect(tooltip.message, isNull);
+  final richMessage = tooltip.richMessage;
+  expect(richMessage, isA<WidgetSpan>());
+  final constrainedBox = (richMessage! as WidgetSpan).child as ConstrainedBox;
+  expect(constrainedBox.constraints.maxWidth, maxWidth);
+  final text = constrainedBox.child as Text;
+  expect(text.data, message);
 }
 
 Uint8List _onePixelPng() {

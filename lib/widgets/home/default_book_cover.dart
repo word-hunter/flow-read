@@ -23,7 +23,7 @@ class DefaultBookCover extends StatelessWidget {
   Widget build(BuildContext context) {
     final displayTitle = title.trim().isEmpty ? 'Untitled Book' : title.trim();
     final displayAuthor = author.trim().isEmpty
-        ? 'FLOW READ'
+        ? 'UNKNOWN AUTHOR'
         : author.trim().toUpperCase();
 
     return LayoutBuilder(
@@ -32,10 +32,7 @@ class DefaultBookCover extends StatelessWidget {
         final height = _finite(constraints.maxHeight, 184);
         final scale = math.min(width / 128, height / 184).clamp(0.82, 1.72);
         final titleSize = (17.5 * scale).clamp(15.0, 30.0);
-        final brandSize = (8.5 * scale).clamp(7.0, 13.0);
         final authorSize = (10.5 * scale).clamp(8.5, 16.0);
-        final bottomTop = height * 0.82;
-        final bottomHeight = height * 0.18;
         final progressBadgeHeight = 27 * scale;
 
         return ClipRRect(
@@ -52,13 +49,14 @@ class DefaultBookCover extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'FLOW READ',
+                      displayAuthor,
+                      key: authorTextKey,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: const Color(0xFF168BCB),
-                        fontSize: brandSize,
+                        fontSize: authorSize,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -95,43 +93,20 @@ class DefaultBookCover extends StatelessWidget {
                 ),
               ),
               Positioned(
-                left: width * 0.31,
-                right: width * 0.23,
-                top: height * 0.59,
+                left: width * 0.27,
+                right: width * 0.27,
+                top: height * 0.56,
                 child: _TitleDivider(scale: scale),
-              ),
-              Positioned(
-                left: width * 0.31,
-                right: width * 0.21,
-                top: height * 0.65,
-                child: _SmallOrnament(scale: scale),
               ),
               if (showProgressBadge)
                 Positioned(
                   left: width * 0.12,
-                  top: bottomTop + (bottomHeight - progressBadgeHeight) / 2,
+                  top: height - progressBadgeHeight - 11 * scale,
                   child: _DefaultProgressBadge(
                     progressPercent: progressPercent,
                     scale: scale,
                   ),
                 ),
-              Positioned(
-                left: showProgressBadge ? width * 0.41 : width * 0.16,
-                right: width * 0.12,
-                top: bottomTop + (height * 0.052),
-                child: Text(
-                  displayAuthor,
-                  key: authorTextKey,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.94),
-                    fontSize: authorSize,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
             ],
           ),
         );
@@ -151,71 +126,12 @@ class _TitleDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(child: _Line(color: Color(0xFF168BCB))),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10 * scale),
-          child: Icon(
-            Icons.auto_awesome,
-            size: 18 * scale,
-            color: const Color(0xFFF3B63C),
-          ),
-        ),
-        const Expanded(child: _Line(color: Color(0xFF168BCB))),
-      ],
-    );
-  }
-}
-
-class _SmallOrnament extends StatelessWidget {
-  final double scale;
-
-  const _SmallOrnament({required this.scale});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.wb_sunny_outlined,
-          size: 18 * scale,
-          color: const Color(0xFFF3B63C),
-        ),
-        SizedBox(height: 8 * scale),
-        Row(
-          children: [
-            const Expanded(child: _Line(color: Color(0xFFF3B63C))),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14 * scale),
-              child: Icon(
-                Icons.diamond_outlined,
-                size: 12 * scale,
-                color: const Color(0xFF168BCB),
-              ),
-            ),
-            const Expanded(child: _Line(color: Color(0xFFF3B63C))),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _Line extends StatelessWidget {
-  final Color color;
-
-  const _Line({required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(1),
+    return Center(
+      child: Icon(
+        Icons.auto_awesome,
+        size: 18 * scale,
+        color: const Color(0xFFF3B63C),
       ),
-      child: const SizedBox(height: 1.2),
     );
   }
 }
@@ -278,7 +194,6 @@ class _DefaultBookCoverPainter extends CustomPainter {
 
     _paintTopSky(canvas, size);
     _paintClouds(canvas, size);
-    _paintBottomBand(canvas, size);
     _paintSpine(canvas, size);
   }
 
@@ -354,26 +269,6 @@ class _DefaultBookCoverPainter extends CustomPainter {
     );
   }
 
-  void _paintBottomBand(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final band = Rect.fromLTWH(0, h * 0.82, w, h * 0.18);
-    canvas.drawRect(
-      band,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2199DA), Color(0xFF0876BF)],
-        ).createShader(band),
-    );
-
-    canvas.drawRect(
-      Rect.fromLTWH(0, h * 0.975, w, h * 0.025),
-      Paint()..color = const Color(0xFF046AAD),
-    );
-  }
-
   void _paintSpine(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
@@ -384,10 +279,6 @@ class _DefaultBookCoverPainter extends CustomPainter {
     canvas.drawRect(
       Rect.fromLTWH(w * 0.045, 0, w * 0.018, h),
       Paint()..color = Colors.white.withValues(alpha: 0.22),
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(w * 0.065, h * 0.82, w * 0.028, h * 0.18),
-      Paint()..color = const Color(0xFF006DAF).withValues(alpha: 0.28),
     );
   }
 
