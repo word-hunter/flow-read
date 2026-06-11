@@ -43,6 +43,14 @@ dart run tool/release.dart check
 dart run tool/release.dart package-local
 ```
 
+When updating `assets/brand/flow_read_logo.png`, regenerate the macOS app
+switcher icon before sharing changes:
+
+```bash
+dart run tool/sync_macos_app_icon.dart --fix
+dart run tool/sync_macos_app_icon.dart --check
+```
+
 Do not bump versions unless the change is explicitly a release/version update.
 
 ## Private Notes And Secrets

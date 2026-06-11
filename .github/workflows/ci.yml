@@ -73,5 +73,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Check macOS app icon
+        run: dart run tool/sync_macos_app_icon.dart --check
+
       - name: Build macOS app
         run: flutter build macos --debug

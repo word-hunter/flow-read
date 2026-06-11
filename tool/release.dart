@@ -3,6 +3,7 @@ import 'dart:io';
 const _pubspecPath = 'pubspec.yaml';
 const _changelogPath = 'CHANGELOG.md';
 const _appVersionPath = 'lib/services/app_version.dart';
+const _macosAppIconToolPath = 'tool/sync_macos_app_icon.dart';
 const _defaultDistDir = 'dist';
 const _appBundleName = 'FlowRead.app';
 const _requiredReleaseEntitlements = [
@@ -162,6 +163,7 @@ void _validateReleaseMetadata(
     );
   }
   _checkAppVersionFile(version);
+  _checkMacosAppIcon();
 }
 
 void _notes(List<String> args) {
@@ -213,7 +215,10 @@ void _bump(List<String> args) {
   _writeChangelogRelease(
     next.releaseName,
     date,
-    excludeScopes: {..._excludedChangelogScopes, ...options.values('exclude-scope')},
+    excludeScopes: {
+      ..._excludedChangelogScopes,
+      ...options.values('exclude-scope'),
+    },
   );
 
   stdout.writeln('Bumped version to ${next.full}.');
@@ -265,6 +270,21 @@ void _checkAppVersionFile(AppVersion version) {
   }
 }
 
+void _checkMacosAppIcon() {
+  final result = Process.runSync(Platform.resolvedExecutable, [
+    'run',
+    _macosAppIconToolPath,
+    '--check',
+  ]);
+  stdout.write(result.stdout);
+  stderr.write(result.stderr);
+  if (result.exitCode != 0) {
+    throw ReleaseException(
+      'macOS AppIcon must be regenerated from assets/brand/flow_read_logo.png.',
+    );
+  }
+}
+
 void _writeAppVersion(AppVersion version) {
   File(_appVersionPath).writeAsStringSync(_appVersionContent(version));
 }
@@ -284,7 +304,11 @@ class FlowReadVersion {
 ''';
 }
 
-void _writeChangelogRelease(String version, String date, {Set<String> excludeScopes = const {}}) {
+void _writeChangelogRelease(
+  String version,
+  String date, {
+  Set<String> excludeScopes = const {},
+}) {
   final changelog = _readRequiredFile(_changelogPath);
   if (_hasChangelogSection(changelog, version)) {
     throw ReleaseException('CHANGELOG.md already contains $version.');
@@ -319,7 +343,10 @@ String _unreleasedContent(String changelog) {
   return match?.group(1) ?? '';
 }
 
-String _generatedReleaseNotesFromGit(String version, {Set<String> excludeScopes = const {}}) {
+String _generatedReleaseNotesFromGit(
+  String version, {
+  Set<String> excludeScopes = const {},
+}) {
   final commits = _releaseCommitsSinceLastTag();
   if (commits.isEmpty) {
     return '### Changed\n\n- 发布 $version 版本。';
