@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import 'models/ai_summary.dart';
 import 'models/chapter_ai_coverage.dart';
 
 class AICacheService {
@@ -376,6 +377,70 @@ class AICacheService {
     return count;
   }
 
+  Future<List<CachedSummaryEntry>> listBookSummaries(String bookId) async {
+    await _ensureInitialized();
+    final entries = <CachedSummaryEntry>[];
+    final cacheDir = _cacheDir;
+    if (cacheDir == null) return entries;
+
+    final bookDirs = {
+      '$cacheDir/$bookId',
+      '$cacheDir/${_safePathSegment(bookId)}',
+    };
+
+    for (final path in bookDirs) {
+      final dir = Directory(path);
+      if (!await dir.exists()) continue;
+
+      await for (final entity in dir.list(recursive: true)) {
+        if (entity is! File) continue;
+        final filePath = entity.path;
+        if (filePath.endsWith('.meta')) continue;
+
+        if (!filePath.contains('_summary_') &&
+            !filePath.contains('/summary_v')) {
+          continue;
+        }
+
+        if (!filePath.endsWith('.json')) continue;
+
+        final chapterIndex = _summaryChapterFromPath(filePath);
+        if (chapterIndex == null) continue;
+
+        final raw = await _readFile(filePath);
+        if (raw == null) continue;
+
+        final summary = _parseSummary(raw);
+        DateTime? generatedAt;
+        try {
+          generatedAt = await entity.lastModified();
+        } catch (_) {}
+
+        entries.add(
+          CachedSummaryEntry(
+            bookId: bookId,
+            chapterIndex: chapterIndex,
+            summary: summary,
+            generatedAt: generatedAt,
+          ),
+        );
+      }
+    }
+
+    entries.sort((a, b) => a.chapterIndex.compareTo(b.chapterIndex));
+    return entries;
+  }
+
+  AISummary _parseSummary(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return AISummary.fromJson(decoded);
+      }
+    } catch (_) {}
+    return AISummary.fallback(raw);
+  }
+
   Future<ChapterAISummaryCoverage> summaryCoverageFor(
     String bookId, {
     required int totalChapters,
@@ -520,5 +585,19 @@ class AICacheKey {
     required this.sourceLanguage,
     required this.outputLanguage,
     this.modelConfigFingerprint,
+  });
+}
+
+class CachedSummaryEntry {
+  final String bookId;
+  final int chapterIndex;
+  final AISummary summary;
+  final DateTime? generatedAt;
+
+  const CachedSummaryEntry({
+    required this.bookId,
+    required this.chapterIndex,
+    required this.summary,
+    this.generatedAt,
   });
 }

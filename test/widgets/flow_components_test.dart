@@ -225,6 +225,18 @@ void main() {
       final appBar = tester.widget<AppBar>(find.byType(AppBar));
       expect(appBar.toolbarHeight, 38);
     });
+
+    test('FlowToolbar includes bottom preferred height', () {
+      const toolbar = FlowToolbar(
+        title: Text('书籍洞察'),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(48),
+          child: SizedBox(height: 48),
+        ),
+      );
+
+      expect(toolbar.preferredSize.height, 88);
+    });
   });
 }
 

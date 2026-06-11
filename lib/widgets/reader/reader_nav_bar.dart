@@ -48,6 +48,7 @@ class ReaderNavBar extends StatelessWidget {
   final VoidCallback onStartChapterTraining;
   final VoidCallback onOpenStatsPanel;
   final VoidCallback onOpenChapterAI;
+  final VoidCallback onOpenBookInsights;
 
   const ReaderNavBar({
     super.key,
@@ -81,6 +82,7 @@ class ReaderNavBar extends StatelessWidget {
     required this.onStartChapterTraining,
     required this.onOpenStatsPanel,
     required this.onOpenChapterAI,
+    required this.onOpenBookInsights,
   });
 
   @override
@@ -289,6 +291,9 @@ class ReaderNavBar extends StatelessWidget {
                     case 'chapterAI':
                       onOpenChapterAI();
                       break;
+                    case 'bookInsights':
+                      onOpenBookInsights();
+                      break;
                   }
                 },
                 entries: [
@@ -340,6 +345,11 @@ class ReaderNavBar extends StatelessWidget {
                     value: 'chapterAI',
                     icon: Icons.auto_awesome_outlined,
                     label: '章节 AI',
+                  ),
+                  const FlowMenuItem(
+                    value: 'bookInsights',
+                    icon: Icons.dashboard_outlined,
+                    label: '书籍洞察',
                   ),
                 ],
                 builder: (context, isOpen, toggle) => _compactIconButton(

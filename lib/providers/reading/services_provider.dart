@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:flow_ai/flow_ai.dart';
 import '../../services/book_cache.dart';
@@ -25,6 +26,7 @@ import '../../storage/database/app_database.dart';
 import '../../storage/database/dao/book_glossary_dao.dart';
 import '../../storage/database/repositories/drift_reading_config_repository.dart';
 import '../../storage/hive_storage.dart';
+import '../book_insight_provider.dart';
 import '../settings_provider.dart';
 
 final bookCacheProvider = Provider<BookCache>((ref) => BookCache());
@@ -172,4 +174,12 @@ final appDatabaseProvider = FutureProvider<AppDatabase>((ref) async {
 final bookGlossaryDaoProvider = Provider<BookGlossaryDao>((ref) {
   final db = ref.watch(appDatabaseProvider).requireValue;
   return BookGlossaryDao(db);
+});
+
+final bookInsightProvider = ChangeNotifierProvider<BookInsightProvider>((ref) {
+  final provider = BookInsightProvider(
+    cacheService: ref.watch(aiCacheServiceProvider),
+  );
+  ref.onDispose(() => provider.dispose());
+  return provider;
 });

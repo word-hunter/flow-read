@@ -28,6 +28,7 @@ import '../services/reader_layout_engine.dart';
 import '../theme/app_constants.dart';
 import '../theme/app_motion_tokens.dart';
 import '../theme/app_surface_tokens.dart';
+import '../screens/book_insights_page.dart';
 import '../widgets/ai_assistant_panel.dart';
 import '../widgets/bookmark_sheet.dart';
 import '../widgets/flow/flow_components.dart';
@@ -488,6 +489,51 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     );
 
     _openAssistantPanel(assistant);
+  }
+
+  void _openBookInsights() {
+    final bookshelf = ref.read(bookshelfNotifierProvider);
+    final book = bookshelf.book;
+    final currentBookState = ref.read(currentBookNotifierProvider);
+    if (book == null || bookshelf.activeBookId == null) return;
+
+    final provider = ref.read(bookInsightProvider);
+    unawaited(
+      provider.loadForBook(
+        bookshelf.activeBookId!,
+        totalChapters: book.chapters.length,
+        currentChapter: currentBookState.currentChapter,
+      ),
+    );
+    _hideReadingReminder();
+    unawaited(
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => BookInsightsPage(
+            provider: provider,
+            bookTitle: book.title,
+            onGenerateChapter: (chapterIndex) {
+              final assistant = ref.read(aiAssistantControllerProvider);
+              final chapterTitle = chapterIndex < book.chapters.length
+                  ? book.chapters[chapterIndex].title
+                  : 'Chapter ${chapterIndex + 1}';
+              final chapterContent = book.chapters[chapterIndex].plainText;
+
+              assistant.setContext(
+                AIContextSnapshot(
+                  source: AIContextSource.readerChapter,
+                  bookId: bookshelf.activeBookId!,
+                  chapterIndex: chapterIndex,
+                  chapterTitle: chapterTitle,
+                  chapterContent: chapterContent,
+                ),
+              );
+              _openAssistantPanel(assistant);
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   bool _openAssistantFromCurrentWord() {
@@ -1053,6 +1099,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               onStartChapterTraining: _startChapterTraining,
               onOpenStatsPanel: _openStatsPanel,
               onOpenChapterAI: _openChapterAIPanel,
+              onOpenBookInsights: _openBookInsights,
             );
           }
 

@@ -9,6 +9,7 @@ export 'src/passage_request_builder.dart';
 export 'src/reading_assistant_agent.dart';
 export 'src/ai_assistant_controller.dart';
 export 'src/ai_assistant_action_registry.dart';
+export 'src/book_insight_aggregator.dart';
 
 // Models
 export 'src/models/ai_summary.dart';
@@ -25,3 +26,4 @@ export 'src/models/ai_automation_settings.dart';
 export 'src/models/reading_insight_profile.dart';
 export 'src/models/json_helpers.dart';
 export 'src/models/character_registry_entry.dart';
+export 'src/models/book_insight.dart';
