@@ -63,6 +63,15 @@ class LearningAnalyticsService {
         .fold<int>(0, (sum, count) => sum + (count > 1 ? count - 1 : 0));
   }
 
+  List<String> lookedUpWordsForChapter(String bookId, int chapterIndex) {
+    final prefix = _chapterWordPrefixFor(bookId, chapterIndex);
+    return _repository.keys
+        .where((key) => key.startsWith(prefix))
+        .map((key) => Uri.decodeComponent(key.substring(prefix.length)))
+        .where((word) => word.isNotEmpty)
+        .toList();
+  }
+
   Future<void> recordPracticeAnswer({
     required String bookId,
     required int chapterIndex,

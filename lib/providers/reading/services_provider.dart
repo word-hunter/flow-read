@@ -28,6 +28,7 @@ import '../../storage/database/repositories/drift_reading_config_repository.dart
 import '../../storage/hive_storage.dart';
 import '../book_insight_provider.dart';
 import '../settings_provider.dart';
+import 'bookshelf_notifier.dart';
 
 final bookCacheProvider = Provider<BookCache>((ref) => BookCache());
 
@@ -154,7 +155,22 @@ final aiAutomationSettingsProvider = Provider<AIAutomationSettings>((ref) {
 });
 
 final aiActionRegistryProvider = Provider<AIAssistantActionRegistry>((ref) {
-  return const AIAssistantActionRegistry(promptBuilder: PromptBuilder());
+  final bookshelf = ref.watch(bookshelfNotifierProvider);
+  String? userProfile;
+  if (bookshelf.activeBookId != null && bookshelf.book != null) {
+    final service = ref.read(readingInsightServiceProvider);
+    final profile = service.compute(
+      bookId: bookshelf.activeBookId!,
+      book: bookshelf.book!,
+    );
+    if (!profile.isEmpty) {
+      userProfile = profile.learningFocusSummary;
+    }
+  }
+  return AIAssistantActionRegistry(
+    promptBuilder: PromptBuilder(userProfile: userProfile),
+    contextSelector: const ExplanationContextSelector(),
+  );
 });
 
 final aiActionControllerProvider = Provider<AIActionController>((ref) {

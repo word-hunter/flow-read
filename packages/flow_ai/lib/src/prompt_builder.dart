@@ -354,27 +354,51 @@ class PromptSections {
     required SourceLanguage sourceLanguage,
     required OutputLanguage outputLanguage,
     required SpoilerBoundary spoilerBoundary,
+    String? userProfile,
   }) {
-    return [
+    final parts = <String>[
       flowReadRole(sourceLanguage),
       PromptSections.outputLanguage(outputLanguage),
       evidenceRules(),
       PromptSections.spoilerBoundary(spoilerBoundary),
       learningFocus(sourceLanguage),
-    ].join('\n');
+    ];
+    if (userProfile != null && userProfile.isNotEmpty) {
+      parts.add(
+        'Reader profile: the reader shows the following learning patterns. '
+        'Adjust your explanations to address these when relevant (keep under 200 tokens). '
+        '$userProfile',
+      );
+    }
+    return parts.join('\n');
   }
 }
 
 class PromptBuilder {
   static const currentPromptVersion = 1;
 
-  const PromptBuilder();
+  final String? userProfile;
+
+  const PromptBuilder({this.userProfile});
+
+  String _preamble({
+    required SourceLanguage sourceLanguage,
+    required OutputLanguage outputLanguage,
+    required SpoilerBoundary spoilerBoundary,
+  }) {
+    return PromptSections.preamble(
+      sourceLanguage: sourceLanguage,
+      outputLanguage: outputLanguage,
+      spoilerBoundary: spoilerBoundary,
+      userProfile: userProfile,
+    );
+  }
 
   PromptBuildResult buildChapterSummary(ChapterSummaryPromptRequest request) {
     final langName = request.outputLanguage.promptLabel;
     final vocabList = request.vocabulary.take(30).join(', ');
     final systemPrompt = [
-      PromptSections.preamble(
+      _preamble(
         sourceLanguage: request.sourceLanguage,
         outputLanguage: request.outputLanguage,
         spoilerBoundary: request.spoilerBoundary,
@@ -434,7 +458,7 @@ $vocabList''';
   PromptBuildResult buildChapterPreview(ChapterPreviewPromptRequest request) {
     final vocabList = request.vocabulary.take(20).join(', ');
     final systemPrompt = [
-      PromptSections.preamble(
+      _preamble(
         sourceLanguage: request.sourceLanguage,
         outputLanguage: request.outputLanguage,
         spoilerBoundary: request.spoilerBoundary,
@@ -483,7 +507,7 @@ $vocabList''';
     final vocabList = request.vocabulary.take(30).join(', ');
     final eventsText = request.events.map((e) => e.description).join('; ');
     final systemPrompt = [
-      PromptSections.preamble(
+      _preamble(
         sourceLanguage: request.sourceLanguage,
         outputLanguage: request.outputLanguage,
         spoilerBoundary: request.spoilerBoundary,
@@ -540,7 +564,7 @@ $vocabList''';
         ? 'particles, predicates, omitted subjects, register, kanji/kana choices, and context-sensitive readings'
         : 'sentence structure, clauses, grammar, vocabulary, collocations, and expressions';
     final systemPrompt = [
-      PromptSections.preamble(
+      _preamble(
         sourceLanguage: request.sourceLanguage,
         outputLanguage: request.outputLanguage,
         spoilerBoundary: request.spoilerBoundary,
@@ -604,7 +628,7 @@ current_unit: ${request.spoilerBoundary.currentUnitId}
 
   PromptBuildResult buildTranslation(TranslationPromptRequest request) {
     final systemPrompt = [
-      PromptSections.preamble(
+      _preamble(
         sourceLanguage: request.sourceLanguage,
         outputLanguage: request.outputLanguage,
         spoilerBoundary: request.spoilerBoundary,
@@ -632,7 +656,7 @@ ${request.selectedText}''';
 
   PromptBuildResult buildWordAnalysis(WordAnalysisPromptRequest request) {
     final systemPrompt = [
-      PromptSections.preamble(
+      _preamble(
         sourceLanguage: request.sourceLanguage,
         outputLanguage: request.outputLanguage,
         spoilerBoundary: request.spoilerBoundary,
@@ -680,7 +704,7 @@ ${request.word}
 
   PromptBuildResult buildArticleSummary(ArticlePromptRequest request) {
     final systemPrompt = [
-      PromptSections.preamble(
+      _preamble(
         sourceLanguage: request.sourceLanguage,
         outputLanguage: request.outputLanguage,
         spoilerBoundary: request.spoilerBoundary,
@@ -707,7 +731,7 @@ ${request.text}''';
   PromptBuildResult buildArticleAnswer(ArticlePromptRequest request) {
     final question = request.question ?? '';
     final systemPrompt = [
-      PromptSections.preamble(
+      _preamble(
         sourceLanguage: request.sourceLanguage,
         outputLanguage: request.outputLanguage,
         spoilerBoundary: request.spoilerBoundary,
@@ -739,7 +763,7 @@ $question''';
     BookGlossaryPromptRequest request,
   ) {
     final systemPrompt = [
-      PromptSections.preamble(
+      _preamble(
         sourceLanguage: request.sourceLanguage,
         outputLanguage: request.outputLanguage,
         spoilerBoundary: request.spoilerBoundary,
@@ -779,7 +803,7 @@ ${request.currentPassage}$occurrenceLines$characterLines''';
         : '';
 
     final systemPrompt = [
-      PromptSections.preamble(
+      _preamble(
         sourceLanguage: request.sourceLanguage,
         outputLanguage: request.outputLanguage,
         spoilerBoundary: request.spoilerBoundary,
