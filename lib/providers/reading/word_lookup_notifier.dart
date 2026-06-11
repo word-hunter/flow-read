@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flow_ai/flow_ai.dart';
 import '../../models/word_context_example.dart';
 import '../../services/compound_word_analyzer.dart';
+import '../../models/book_glossary_entry.dart' as glossary;
 import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_language/flow_language.dart';
 import '../../services/reading_search_service.dart';
@@ -206,6 +207,14 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
     }
     if (requestVersion != _wordLookupRequestVersion) return;
 
+    final glossaryResult = await _checkBookGlossary(request);
+    if (glossaryResult != null) {
+      if (requestVersion != _wordLookupRequestVersion) return;
+      _applyWordLookupResult(glossaryResult);
+      state = state.copyWith(isLoadingWord: false);
+      return;
+    }
+
     var result = await _wordRepo.lookupRequest(request);
     if (requestVersion != _wordLookupRequestVersion) return;
     result = await _withDictionaryFallbacks(result);
@@ -268,6 +277,26 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
       selectedWordEntry: result.entry,
       selectedWordTranslation: result.primaryDefinition,
     );
+  }
+
+  Future<DictionaryLookupResult?> _checkBookGlossary(
+    DictionaryLookupRequest request,
+  ) async {
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
+    if (activeBookId == null) return null;
+
+    final glossaryService = ref.read(bookGlossaryServiceProvider);
+    final entry = await glossaryService.getEntry(
+      bookId: activeBookId,
+      word: request.query,
+      canonicalForm: request.canonicalForm,
+    );
+    if (entry == null || entry.explanation == null) return null;
+
+    return DictionaryLookupResult.fromEntry(
+      request: request,
+      entry: null,
+    ).copyWith(primaryDefinition: entry.explanation);
   }
 
   Future<DictionaryLookupResult> _withDictionaryFallbacks(
