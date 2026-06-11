@@ -32,6 +32,15 @@ class LLMClient {
   LLMClient(this._configProvider, {http.Client? httpClient})
     : _httpClient = httpClient ?? http.Client();
 
+  String get modelConfigFingerprint {
+    final config = _configProvider();
+    return [
+      config.definition.id,
+      config.normalizedBaseUrl,
+      config.model.trim(),
+    ].join('|');
+  }
+
   Future<bool> testConnection({
     String? apiKey,
     AIProviderConfig? config,
@@ -105,9 +114,10 @@ class LLMClient {
     final response = await _httpClient.send(request);
     await _validateNonStream(response);
 
-    await for (final chunk in response.stream
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())) {
+    await for (final chunk
+        in response.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())) {
       yield* _processStreamChunk(chunk);
     }
   }
@@ -155,11 +165,17 @@ class LLMClient {
 
   void _ensureApiKey(AIProviderConfig config) {
     if (config.apiKey.trim().isEmpty) {
-      throw AIClientException('API key not configured', AIClientErrorType.unauthorized);
+      throw AIClientException(
+        'API key not configured',
+        AIClientErrorType.unauthorized,
+      );
     }
   }
 
-  Future<String> _doChat(Map<String, dynamic> body, AIProviderConfig config) async {
+  Future<String> _doChat(
+    Map<String, dynamic> body,
+    AIProviderConfig config,
+  ) async {
     final uri = _chatCompletionsUri(config);
     final response = await _httpClient
         .post(

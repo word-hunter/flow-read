@@ -1,4 +1,5 @@
 import 'ai_summary.dart';
+import 'ai_text_analysis.dart';
 import 'word_analysis.dart';
 
 sealed class AIActionResult {
@@ -10,6 +11,12 @@ class AIExplainResult extends AIActionResult {
 
   final String explanation;
   final List<String>? sources;
+}
+
+class AITextAnalysisResult extends AIActionResult {
+  const AITextAnalysisResult({required this.analysis});
+
+  final AITextAnalysis analysis;
 }
 
 class AITranslateResult extends AIActionResult {

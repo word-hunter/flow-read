@@ -17,6 +17,7 @@ class AIService {
     : _promptBuilder = promptBuilder;
 
   int get promptVersion => PromptBuilder.currentPromptVersion;
+  String get modelConfigFingerprint => _client.modelConfigFingerprint;
 
   Future<String> executePrompt(
     PromptBuildResult prompt, {

@@ -63,12 +63,53 @@ void main() {
   });
 
   test(
+    'AIActionController reuses cached action result until retry',
+    () async {
+      var count = 0;
+      final service = _service(settings, (_) async {
+        count += 1;
+        return _chatResponse('译文-$count');
+      });
+      final controller = AIActionController(
+        aiService: service,
+        cacheService: AICacheService(
+          documentsDirectoryProvider: () async => tempDir,
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      await controller.enqueue(_prompt(), AIAssistantActionType.translate);
+      expect(count, 1);
+      expect((controller.lastResult as AITranslateResult).translation, '译文-1');
+
+      await controller.enqueue(_prompt(), AIAssistantActionType.translate);
+      expect(count, 1);
+      expect((controller.lastResult as AITranslateResult).translation, '译文-1');
+
+      await controller.retry();
+      expect(count, 2);
+      expect((controller.lastResult as AITranslateResult).translation, '译文-2');
+    },
+  );
+
+  test(
     'AIAssistantController routes current context through registry',
     () async {
       final service = _service(settings, (request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         expect(body['messages'].last['content'], contains('Selected Text'));
-        return _chatResponse('{"translation":"译文"}');
+        return _chatResponse(
+          jsonEncode({
+            'translation': '译文',
+            'structure_notes': [
+              {
+                'source': 'The door opened.',
+                'role': 'main clause',
+                'explanation': '主句说明发生的动作。',
+              },
+            ],
+          }),
+        );
       });
       final actionController = AIActionController(aiService: service);
       final assistant = AIAssistantController(
@@ -99,7 +140,10 @@ void main() {
 
       final result = actionController.lastResult;
       if (result is AIErrorResult) fail(result.message);
-      expect(result, isA<AIExplainResult>());
+      expect(result, isA<AITextAnalysisResult>());
+      final analysis = (result as AITextAnalysisResult).analysis;
+      expect(analysis.translation, '译文');
+      expect(analysis.structureNotes.single.role, 'main clause');
     },
   );
 

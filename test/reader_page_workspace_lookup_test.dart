@@ -1,4 +1,5 @@
 import 'package:epub_reader_core/epub_reader_core.dart';
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/book.dart';
@@ -30,6 +31,7 @@ import 'package:flow_read/storage/repositories/reading_time_repository.dart';
 import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
 import 'package:flow_read/storage/repositories/word_context_repository.dart';
 import 'package:flow_read/storage/repositories/word_level_repository.dart';
+import 'package:flow_read/widgets/reader/reader_content_view.dart';
 import 'package:flow_read/widgets/reader/reader_word_sidebar.dart';
 import 'package:flow_read/widgets/reader_shell/reader_left_workspace_panel.dart';
 import 'package:flow_read/widgets/reader_shell/reader_right_assistant_panel.dart';
@@ -210,6 +212,54 @@ void main() {
   );
 
   testWidgets(
+    'desktop workspace auto explains selected text in AI panel',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1440, 900);
+      final actionController = _RecordingAIActionController();
+      try {
+        await _pumpWorkspaceReader(
+          tester,
+          bookshelf: () => _ReaderTestBookshelfNotifier(_bookWithToc()),
+          configureSettings: (settings) async {
+            await settings.setAIProvider('openai_compatible');
+            await settings.setAIBaseUrl('https://llm.example.com/v1');
+            await settings.setAIModel('reader-model');
+            await settings.setApiKey('test-key');
+          },
+          aiActionController: actionController,
+        );
+
+        final contentView = tester.widget<ReaderContentView>(
+          find.byType(ReaderContentView),
+        );
+        contentView.onAnalyzeSelected(
+          'The river runs through the quiet valley.',
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 260));
+
+        expect(find.byType(ReaderRightAssistantPanel), findsOneWidget);
+        expect(find.text('AI'), findsWidgets);
+        expect(actionController.enqueueCount, 1);
+        expect(actionController.lastAction, AIAssistantActionType.explain);
+        expect(
+          actionController.lastPrompt?.userPrompt,
+          contains('The river runs through the quiet valley.'),
+        );
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        actionController.dispose();
+      }
+    },
+  );
+
+  testWidgets(
     'desktop workspace keeps side panels during uncached chapter load',
     (
       tester,
@@ -253,9 +303,14 @@ Future<void> _pumpWorkspaceReader(
   required BookshelfNotifier Function() bookshelf,
   AnalysisResult? analysis,
   Widget? home,
+  Future<void> Function(SettingsService settings)? configureSettings,
+  AIActionController? aiActionController,
 }) async {
   final settings = SettingsService(_MemorySettingsDao());
   await settings.init();
+  if (configureSettings != null) {
+    await configureSettings(settings);
+  }
   final readingConfig = ReadingConfigService(
     repository: _MemoryReadingConfigRepository(),
   );
@@ -298,6 +353,8 @@ Future<void> _pumpWorkspaceReader(
         learningItemServiceProvider.overrideWithValue(
           LearningItemService(repository: _MemoryLearningItemRepository()),
         ),
+        if (aiActionController != null)
+          aiActionControllerProvider.overrideWithValue(aiActionController),
       ],
       child: MaterialApp(
         theme: ThemeData(useMaterial3: true),
@@ -306,6 +363,37 @@ Future<void> _pumpWorkspaceReader(
     ),
   );
   await tester.pump();
+}
+
+class _RecordingAIActionController extends AIActionController {
+  _RecordingAIActionController()
+    : super(
+        aiService: AIService(
+          LLMClient(
+            () => const AIProviderConfig(
+              definition: AIProviders.openAICompatible,
+              apiKey: 'test-key',
+              baseUrl: 'https://llm.example.com/v1',
+              model: 'reader-model',
+            ),
+          ),
+        ),
+      );
+
+  int enqueueCount = 0;
+  AIAssistantActionType? lastAction;
+  PromptBuildResult? lastPrompt;
+
+  @override
+  Future<void> enqueue(
+    PromptBuildResult prompt,
+    AIAssistantActionType action, {
+    bool bypassCache = false,
+  }) async {
+    enqueueCount += 1;
+    lastAction = action;
+    lastPrompt = prompt;
+  }
 }
 
 AnalysisResult _analysis() {
@@ -438,12 +526,14 @@ class _NoopBookService extends BookService {
   List<BookMetadata> get books => const [];
 
   @override
-  Future<void> updateProgress(
+  Future<BookMetadata?> updateProgress(
     String id,
     int currentChapter,
     double chapterProgress, {
     double? chapterScrollOffset,
-  }) async {}
+  }) async {
+    return null;
+  }
 }
 
 class _MemoryWordRepository implements WordRepository {

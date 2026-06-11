@@ -135,6 +135,63 @@ void main() {
     );
   });
 
+  test(
+    'caches assistant actions by action kind and model fingerprint',
+    () async {
+      await cache.saveAssistantAction(
+        kind: 'assistant_explain',
+        bookId: 'book-one',
+        chapterIndex: 3,
+        contentHash: 'prompt-hash',
+        promptVersion: 4,
+        sourceLanguage: 'en',
+        outputLanguage: 'zh',
+        modelConfigFingerprint: 'provider|base|model-a',
+        response: '{"translation":"cached"}',
+      );
+
+      expect(
+        await cache.loadAssistantAction(
+          kind: 'assistant_explain',
+          bookId: 'book-one',
+          chapterIndex: 3,
+          contentHash: 'prompt-hash',
+          promptVersion: 4,
+          sourceLanguage: 'en',
+          outputLanguage: 'zh',
+          modelConfigFingerprint: 'provider|base|model-a',
+        ),
+        '{"translation":"cached"}',
+      );
+      expect(
+        await cache.loadAssistantAction(
+          kind: 'assistant_translate',
+          bookId: 'book-one',
+          chapterIndex: 3,
+          contentHash: 'prompt-hash',
+          promptVersion: 4,
+          sourceLanguage: 'en',
+          outputLanguage: 'zh',
+          modelConfigFingerprint: 'provider|base|model-a',
+        ),
+        isNull,
+      );
+      expect(
+        await cache.loadAssistantAction(
+          kind: 'assistant_explain',
+          bookId: 'book-one',
+          chapterIndex: 3,
+          contentHash: 'prompt-hash',
+          promptVersion: 4,
+          sourceLanguage: 'en',
+          outputLanguage: 'zh',
+          modelConfigFingerprint: 'provider|base|model-b',
+        ),
+        isNull,
+      );
+    },
+  );
+
   test('caches chapter preview by upgraded key', () async {
     await cache.saveChapterPreview(
       'book-one',

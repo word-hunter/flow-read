@@ -20,14 +20,17 @@ class AIAssistantPanel extends HookWidget {
   Widget build(BuildContext context) {
     useListenable(controller);
     final snapshot = controller.currentContext;
-    if (snapshot == null) {
-      return _EmptyPanel(embedded: embedded, onClose: onClose);
-    }
-    return _ActivePanel(
-      controller: controller,
-      snapshot: snapshot,
-      embedded: embedded,
-      onClose: onClose,
+    final child = snapshot == null
+        ? _EmptyPanel(embedded: embedded, onClose: onClose)
+        : _ActivePanel(
+            controller: controller,
+            snapshot: snapshot,
+            embedded: embedded,
+            onClose: onClose,
+          );
+    return Material(
+      type: MaterialType.transparency,
+      child: child,
     );
   }
 }
@@ -535,6 +538,9 @@ class _ResultArea extends HookWidget {
     if (result is AITranslateResult) {
       return _TranslateView(translation: result.translation);
     }
+    if (result is AITextAnalysisResult) {
+      return _TextAnalysisView(analysis: result.analysis);
+    }
     if (result is AIExplainResult) {
       return _ExplainView(explanation: result.explanation);
     }
@@ -738,6 +744,368 @@ class _WordAnalysisView extends StatelessWidget {
             Text(analysis.memoryTip, style: theme.textTheme.bodySmall),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _TextAnalysisView extends StatelessWidget {
+  const _TextAnalysisView({required this.analysis});
+
+  final AITextAnalysis analysis;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sections = <Widget>[];
+
+    void addSection(Widget section) {
+      if (sections.isNotEmpty) {
+        sections.add(const SizedBox(height: 10));
+      }
+      sections.add(section);
+    }
+
+    final translation = analysis.translation.trim();
+    if (translation.isNotEmpty) {
+      addSection(
+        _TextAnalysisSection(
+          icon: Icons.translate_outlined,
+          title: '译文',
+          child: Text(
+            translation,
+            style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+          ),
+        ),
+      );
+    }
+
+    if (analysis.structureNotes.isNotEmpty) {
+      addSection(
+        _TextAnalysisSection(
+          icon: Icons.schema_outlined,
+          title: '结构',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: analysis.structureNotes
+                .map((note) => _StructureNoteItem(note: note))
+                .toList(growable: false),
+          ),
+        ),
+      );
+    }
+
+    if (analysis.grammarPoints.isNotEmpty) {
+      addSection(
+        _TextAnalysisSection(
+          icon: Icons.account_tree_outlined,
+          title: '语法',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: analysis.grammarPoints
+                .map((point) => _GrammarPointItem(point: point))
+                .toList(growable: false),
+          ),
+        ),
+      );
+    }
+
+    if (analysis.vocabularyNotes.isNotEmpty) {
+      addSection(
+        _TextAnalysisSection(
+          icon: Icons.format_list_bulleted_outlined,
+          title: '词汇',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: analysis.vocabularyNotes
+                .map((note) => _VocabularyNoteItem(note: note))
+                .toList(growable: false),
+          ),
+        ),
+      );
+    }
+
+    if (analysis.expressionNotes.isNotEmpty) {
+      addSection(
+        _TextAnalysisSection(
+          icon: Icons.auto_fix_high_outlined,
+          title: '表达',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: analysis.expressionNotes
+                .map((note) => _ExpressionNoteItem(note: note))
+                .toList(growable: false),
+          ),
+        ),
+      );
+    }
+
+    final readingTip = analysis.readingTip.trim();
+    if (readingTip.isNotEmpty) {
+      addSection(
+        _TextAnalysisSection(
+          icon: Icons.lightbulb_outline,
+          title: '阅读提示',
+          child: Text(
+            readingTip,
+            style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
+          ),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: sections,
+      ),
+    );
+  }
+}
+
+class _TextAnalysisSection extends StatelessWidget {
+  const _TextAnalysisSection({
+    required this.icon,
+    required this.title,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.35,
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _StructureNoteItem extends StatelessWidget {
+  const _StructureNoteItem({required this.note});
+
+  final StructureNote note;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final role = note.role.trim();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (note.source.trim().isNotEmpty)
+            Text(
+              note.source,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                height: 1.5,
+              ),
+            ),
+          if (role.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _MetaPill(label: role),
+          ],
+          if (note.explanation.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              note.explanation,
+              style: theme.textTheme.bodySmall?.copyWith(height: 1.5),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GrammarPointItem extends StatelessWidget {
+  const _GrammarPointItem({required this.point});
+
+  final GrammarPoint point;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (point.source.trim().isNotEmpty)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    point.source,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+                if (point.difficulty.trim().isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  _MetaPill(label: point.difficulty),
+                ],
+              ],
+            ),
+          if (point.explanation.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              point.explanation,
+              style: theme.textTheme.bodySmall?.copyWith(height: 1.5),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VocabularyNoteItem extends StatelessWidget {
+  const _VocabularyNoteItem({required this.note});
+
+  final VocabularyNote note;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  note.word,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (note.pos.trim().isNotEmpty) ...[
+                const SizedBox(width: 8),
+                _MetaPill(label: note.pos),
+              ],
+            ],
+          ),
+          if (note.contextMeaning.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              note.contextMeaning,
+              style: theme.textTheme.bodySmall?.copyWith(height: 1.5),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ExpressionNoteItem extends StatelessWidget {
+  const _ExpressionNoteItem({required this.note});
+
+  final ExpressionNote note;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (note.source.trim().isNotEmpty)
+            Text(
+              note.source,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          if (note.meaning.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              note.meaning,
+              style: theme.textTheme.bodySmall?.copyWith(height: 1.5),
+            ),
+          ],
+          if (note.usage.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              note.usage,
+              style: theme.textTheme.bodySmall?.copyWith(
+                height: 1.5,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        child: Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onPrimaryContainer,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

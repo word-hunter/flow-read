@@ -109,6 +109,57 @@ void main() {
     expect(result, isNotNull);
   });
 
+  testWidgets('renders selected text analysis as structured sections', (
+    tester,
+  ) async {
+    final responseJson = jsonEncode({
+      'translation': '正是在一个周六的早上，布伦登被抓到在弹钢琴。',
+      'structure_notes': [
+        {
+          'source':
+              'It was on a Saturday morning that Brendon was caught playing the piano.',
+          'role': 'main clause',
+          'explanation': '强调句型，用来突出时间状语。',
+        },
+      ],
+      'grammar_points': [
+        {
+          'source': 'was caught playing',
+          'explanation': '被动语态后接现在分词，说明被看见时正在做的动作。',
+          'difficulty': 'medium',
+        },
+      ],
+    });
+    final assistant = _buildController(
+      settings,
+      responseContent: '```json\n$responseJson\n```',
+    );
+    addTearDown(assistant.dispose);
+
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.readerSelectedText,
+        selectedText:
+            'It was on a Saturday morning that Brendon was caught playing the piano.',
+        surroundingPassage:
+            'It was on a Saturday morning that Brendon was caught playing the piano.',
+      ),
+    );
+
+    await tester.pumpWidget(_wrap(AIAssistantPanel(controller: assistant)));
+    await tester.pump();
+
+    await assistant.executeAction(AIAssistantActionType.explain);
+    await tester.pumpAndSettle();
+
+    expect(find.text('译文'), findsOneWidget);
+    expect(find.text('结构'), findsOneWidget);
+    expect(find.text('语法'), findsOneWidget);
+    expect(find.textContaining('正是在一个周六的早上'), findsOneWidget);
+    expect(find.text('main clause'), findsOneWidget);
+    expect(find.textContaining('structure_notes'), findsNothing);
+  });
+
   testWidgets('closes via onClose when context is set', (tester) async {
     final assistant = _buildController(settings);
     addTearDown(assistant.dispose);
@@ -219,7 +270,10 @@ void main() {
   });
 }
 
-AIAssistantController _buildController(SettingsService settings) {
+AIAssistantController _buildController(
+  SettingsService settings, {
+  String responseContent = 'Result text',
+}) {
   final aiService = AIService(
     LLMClient(
       () => settings.aiProviderConfig,
@@ -229,7 +283,7 @@ AIAssistantController _buildController(SettingsService settings) {
             jsonEncode({
               'choices': [
                 {
-                  'message': {'content': 'Result text'},
+                  'message': {'content': responseContent},
                 },
               ],
             }),

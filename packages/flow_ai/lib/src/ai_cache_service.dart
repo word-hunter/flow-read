@@ -287,6 +287,61 @@ class AICacheService {
     await _writeMetadata(path, key);
   }
 
+  Future<String?> loadAssistantAction({
+    required String kind,
+    required String bookId,
+    required int chapterIndex,
+    required String contentHash,
+    required int promptVersion,
+    required String sourceLanguage,
+    required String outputLanguage,
+    String? modelConfigFingerprint,
+  }) async {
+    await _ensureInitialized();
+    return _readFile(
+      _keyedPath(
+        AICacheKey(
+          kind: kind,
+          bookId: bookId,
+          chapterIndex: chapterIndex,
+          contentHash: contentHash,
+          promptVersion: promptVersion,
+          sourceLanguage: sourceLanguage,
+          outputLanguage: outputLanguage,
+          modelConfigFingerprint: modelConfigFingerprint,
+        ),
+      ),
+    );
+  }
+
+  Future<void> saveAssistantAction({
+    required String kind,
+    required String bookId,
+    required int chapterIndex,
+    required String contentHash,
+    required int promptVersion,
+    required String sourceLanguage,
+    required String outputLanguage,
+    required String response,
+    String? modelConfigFingerprint,
+  }) async {
+    await _ensureInitialized();
+    final key = AICacheKey(
+      kind: kind,
+      bookId: bookId,
+      chapterIndex: chapterIndex,
+      contentHash: contentHash,
+      promptVersion: promptVersion,
+      sourceLanguage: sourceLanguage,
+      outputLanguage: outputLanguage,
+      modelConfigFingerprint: modelConfigFingerprint,
+    );
+    final path = _keyedPath(key);
+    await _ensureDir(File(path).parent.path);
+    await File(path).writeAsString(response);
+    await _writeMetadata(path, key);
+  }
+
   Future<void> clearBookCache(String bookId) async {
     final paths = {
       '$_cacheDir/$bookId',
@@ -368,6 +423,12 @@ class AICacheService {
     final dir = Directory(path);
     if (!await dir.exists()) {
       await dir.create(recursive: true);
+    }
+  }
+
+  Future<void> _ensureInitialized() async {
+    if (_cacheDir == null) {
+      await init();
     }
   }
 

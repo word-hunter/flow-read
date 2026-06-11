@@ -241,6 +241,8 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           ),
         );
     }
+
+    _executeDefaultSelectedTextAction(assistant);
   }
 
   void _openAssistantPanel(AIAssistantController assistant) {
@@ -272,9 +274,16 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     }
   }
 
+  void _executeDefaultSelectedTextAction(AIAssistantController assistant) {
+    if (!assistant.availableActions.contains(AIAssistantActionType.explain)) {
+      return;
+    }
+    unawaited(assistant.executeAction(AIAssistantActionType.explain));
+  }
+
   void _exitReader() {
     _flushPendingScrollProgress();
-    ref.read(currentBookNotifierProvider.notifier).exitReader();
+    unawaited(ref.read(currentBookNotifierProvider.notifier).exitReader());
   }
 
   void _openVocabularyPanel() {
