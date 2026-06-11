@@ -1,7 +1,7 @@
+import 'package:flow_rss/flow_rss.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
-import 'package:flow_rss/flow_rss.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../theme/app_constants.dart';
 import '../widgets/flow/flow_components.dart';
@@ -24,7 +24,9 @@ class RssScreen extends riverpod.ConsumerWidget {
         state.articlesStatus == RssLoadStatus.idle &&
         state.subscriptions.isEmpty &&
         state.articles.isEmpty) {
-      ref.read(rssNotifierProvider.notifier).init();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(rssNotifierProvider.notifier).init();
+      });
     }
 
     if (state.subscriptions.isEmpty) {
