@@ -59,17 +59,28 @@ class _MacOsFlowMenuButtonState<T> extends State<_MacOsFlowMenuButton<T>> {
 
     final renderBox =
         _triggerKey.currentContext?.findRenderObject() as RenderBox?;
-    final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final offset =
+        renderBox?.localToGlobal(Offset.zero, ancestor: overlay) ?? Offset.zero;
     final size = renderBox?.size ?? Size.zero;
 
-    final left = offset.dx + widget.alignmentOffset.dx;
-    final top = offset.dy + size.height + widget.alignmentOffset.dy;
+    final menuWidth = widget.minWidth ?? _MacOsPopoverSurface.defaultMinWidth;
+    final estimatedHeight = _MacOsPopoverSurface.estimatedHeight(
+      widget.entries,
+    );
+    final left = (offset.dx + widget.alignmentOffset.dx).clamp(
+      8.0,
+      (overlay.size.width - menuWidth - 8).clamp(8.0, double.infinity),
+    );
+    final top = (offset.dy + size.height + widget.alignmentOffset.dy).clamp(
+      8.0,
+      (overlay.size.height - estimatedHeight - 8).clamp(8.0, double.infinity),
+    );
 
     final selected = await showGeneralDialog<T>(
       context: context,
       barrierDismissible: true,
-      barrierLabel:
-          MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 80),
       pageBuilder: (dialogContext, _, _) {
@@ -81,8 +92,7 @@ class _MacOsFlowMenuButtonState<T> extends State<_MacOsFlowMenuButton<T>> {
               child: _MacOsPopoverSurface<T>(
                 entries: widget.entries,
                 minWidth: widget.minWidth,
-                onSelected: (value) =>
-                    Navigator.of(dialogContext).pop(value),
+                onSelected: (value) => Navigator.of(dialogContext).pop(value),
               ),
             ),
           ],
@@ -97,16 +107,17 @@ class _MacOsFlowMenuButtonState<T> extends State<_MacOsFlowMenuButton<T>> {
 
   @override
   Widget build(BuildContext context) {
-    final trigger = widget.builder?.call(context, _isOpen, _toggle) ??
+    final trigger =
+        widget.builder?.call(context, _isOpen, _toggle) ??
         GestureDetector(
-          key: _triggerKey,
           behavior: HitTestBehavior.opaque,
           onTap: _toggle,
           child: widget.child!,
         );
+    final anchoredTrigger = KeyedSubtree(key: _triggerKey, child: trigger);
 
-    if (widget.tooltip == null) return trigger;
-    return Tooltip(message: widget.tooltip!, child: trigger);
+    if (widget.tooltip == null) return anchoredTrigger;
+    return Tooltip(message: widget.tooltip!, child: anchoredTrigger);
   }
 }
 
@@ -129,10 +140,9 @@ class _MacOsPopoverSurface<T> extends StatelessWidget {
   static double estimatedHeight<T>(List<FlowMenuEntry<T>> entries) {
     return entries.fold<double>(
       0,
-      (height, entry) => height +
-          (entry is FlowMenuDivider<T>
-              ? _dividerSpacing * 2 + 1
-              : _itemHeight),
+      (height, entry) =>
+          height +
+          (entry is FlowMenuDivider<T> ? _dividerSpacing * 2 + 1 : _itemHeight),
     );
   }
 
@@ -146,6 +156,7 @@ class _MacOsPopoverSurface<T> extends StatelessWidget {
         : colorScheme.surface.withValues(alpha: 0.98);
 
     return Container(
+      key: const ValueKey('flow-menu-surface'),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(8),
@@ -213,14 +224,14 @@ class _MacOsMenuItemState<T> extends State<_MacOsMenuItem<T>> {
     final foreground = entry.destructive
         ? colorScheme.error
         : entry.enabled
-            ? colorScheme.onSurface
-            : colorScheme.onSurface.withValues(alpha: 0.38);
+        ? colorScheme.onSurface
+        : colorScheme.onSurface.withValues(alpha: 0.38);
 
     final iconColor = entry.destructive
         ? colorScheme.error
         : entry.enabled
-            ? colorScheme.onSurfaceVariant
-            : colorScheme.onSurface.withValues(alpha: 0.32);
+        ? colorScheme.onSurfaceVariant
+        : colorScheme.onSurface.withValues(alpha: 0.32);
 
     final bgColor = entry.enabled && _hovered
         ? colorScheme.primary.withValues(alpha: 0.10)
@@ -229,8 +240,9 @@ class _MacOsMenuItemState<T> extends State<_MacOsMenuItem<T>> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      cursor:
-          entry.enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      cursor: entry.enabled
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: entry.enabled ? () => widget.onSelected(entry.value) : null,
@@ -300,8 +312,10 @@ Future<T?> showMacOsMenuAt<T>({
   final localPosition = overlay.globalToLocal(position);
   final width = minWidth ?? _MacOsPopoverSurface.defaultMinWidth;
   final estimatedHeight = _MacOsPopoverSurface.estimatedHeight(entries);
-  final left = (localPosition.dx)
-      .clamp(8.0, (overlay.size.width - width - 8).clamp(8.0, double.infinity));
+  final left = (localPosition.dx).clamp(
+    8.0,
+    (overlay.size.width - width - 8).clamp(8.0, double.infinity),
+  );
   final top = (localPosition.dy).clamp(
     8.0,
     (overlay.size.height - estimatedHeight - 8).clamp(8.0, double.infinity),

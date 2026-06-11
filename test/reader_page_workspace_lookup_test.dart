@@ -183,6 +183,11 @@ void main() {
       await tester.tap(find.byTooltip('更多'));
       await tester.pump();
       expect(find.text('阅读统计'), findsOneWidget);
+      final menuRect = tester.getRect(
+        find.byKey(const ValueKey('flow-menu-surface')),
+      );
+      expect(menuRect.left, greaterThan(1100));
+      expect(menuRect.right, lessThanOrEqualTo(1440));
 
       await tester.tap(find.text('阅读统计'));
       await tester.pump();
