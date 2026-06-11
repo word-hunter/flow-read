@@ -256,7 +256,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     if (_actionPanelHost != ReaderActionPanelHost.bottomSheet) {
       _ensureSelectedTextVisibleAfterPanelOpen(selectedText);
     }
-    _executeDefaultSelectedTextAction(assistant);
+    _executeDefaultAssistantAction(
+      assistant,
+      preferred: AIAssistantActionType.explain,
+    );
   }
 
   void _ensureSelectedTextVisibleAfterPanelOpen(String selectedText) {
@@ -416,7 +419,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         normalizedSource.contains(normalizedSelection);
   }
 
-  void _openAssistantPanel(AIAssistantController assistant) {
+  void _openAssistantPanel(
+    AIAssistantController assistant, {
+    bool executeDefaultAction = false,
+  }) {
     switch (_actionPanelHost) {
       case ReaderActionPanelHost.workspaceRightPanel:
         _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
@@ -443,13 +449,117 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           ),
         );
     }
+    if (executeDefaultAction) {
+      _executeDefaultAssistantAction(assistant);
+    }
   }
 
-  void _executeDefaultSelectedTextAction(AIAssistantController assistant) {
-    if (!assistant.availableActions.contains(AIAssistantActionType.explain)) {
-      return;
+  @override
+  void _openAssistantFromCurrentContext() {
+    if (_openAssistantFromCurrentWord()) return;
+    _openAssistantPanel(ref.read(aiAssistantControllerProvider));
+  }
+
+  void _openChapterAIPanel() {
+    final settings = ref.read(settingsProvider);
+    if (!settings.aiFeaturesEnabled) return;
+
+    final currentBookNotifier = ref.read(currentBookNotifierProvider);
+    final bookshelfNotifier = ref.read(bookshelfNotifierProvider);
+    final book = bookshelfNotifier.book;
+    final chapterIndex = currentBookNotifier.currentChapter;
+    final currentResult = currentBookNotifier.result;
+    final chapterContent = currentResult?.passageText ?? '';
+    if (chapterContent.isEmpty) return;
+
+    final chapterTitle = book != null && chapterIndex < book.chapters.length
+        ? book.chapters[chapterIndex].title
+        : 'Chapter ${chapterIndex + 1}';
+
+    final assistant = ref.read(aiAssistantControllerProvider);
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.readerChapter,
+        bookId: bookshelfNotifier.activeBookId,
+        chapterIndex: chapterIndex,
+        chapterTitle: chapterTitle,
+        chapterContent: chapterContent,
+      ),
+    );
+
+    _openAssistantPanel(assistant);
+  }
+
+  bool _openAssistantFromCurrentWord() {
+    final settings = ref.read(settingsProvider);
+    if (!settings.aiFeaturesEnabled) return false;
+    final lookupState = ref.read(wordLookupNotifierProvider);
+    final word = lookupState.selectedWord?.trim();
+    if (word == null || word.isEmpty) return false;
+
+    final assistant = ref.read(aiAssistantControllerProvider);
+    assistant.setContext(_wordAssistantContext(lookupState, word));
+    _openAssistantPanel(
+      assistant,
+      executeDefaultAction: false,
+    );
+    _executeDefaultAssistantAction(
+      assistant,
+      preferred: AIAssistantActionType.wordAnalysis,
+    );
+    return true;
+  }
+
+  AIContextSnapshot _wordAssistantContext(
+    WordLookupState lookupState,
+    String word,
+  ) {
+    final currentBookState = ref.read(currentBookNotifierProvider);
+    final bookshelf = ref.read(bookshelfNotifierProvider);
+    final book = bookshelf.book;
+    final chapterIndex = currentBookState.currentChapter;
+    final chapterTitle = book != null && chapterIndex < book.chapters.length
+        ? book.chapters[chapterIndex].title
+        : null;
+
+    return AIContextSnapshot(
+      source: AIContextSource.readerWord,
+      word: word,
+      wordSentence: _wordAnalysisContext(lookupState, word),
+      bookId: bookshelf.activeBookId,
+      chapterIndex: chapterIndex,
+      chapterTitle: chapterTitle,
+    );
+  }
+
+  String _wordAnalysisContext(WordLookupState lookupState, String word) {
+    final contextText = lookupState.selectedWordContext?.trim();
+    if (contextText != null && contextText.isNotEmpty) return contextText;
+    final definitions = lookupState.selectedWordEntry?.meanings
+        .expand((meaning) => meaning.definitions)
+        .map((definition) => definition.trim())
+        .where((definition) => definition.isNotEmpty);
+    if (definitions != null && definitions.isNotEmpty) {
+      return definitions.first;
     }
-    unawaited(assistant.executeAction(AIAssistantActionType.explain));
+    return lookupState.selectedWordTranslation?.trim().isNotEmpty == true
+        ? lookupState.selectedWordTranslation!.trim()
+        : word;
+  }
+
+  void _executeDefaultAssistantAction(
+    AIAssistantController assistant, {
+    AIAssistantActionType? preferred,
+  }) {
+    final actions = assistant.availableActions;
+    if (actions.isEmpty) return;
+
+    final action = preferred != null && actions.contains(preferred)
+        ? preferred
+        : actions.contains(AIAssistantActionType.explain)
+        ? AIAssistantActionType.explain
+        : actions.first;
+    unawaited(assistant.executeAction(action));
   }
 
   void _exitReader() {
@@ -482,8 +592,6 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
             expand: false,
             builder: (_, _) => ReaderVocabularyPanel(
               onVocabularySelected: _openVocabularyLookup,
-              onOpenAssistant: () =>
-                  _openAssistantPanel(ref.read(aiAssistantControllerProvider)),
             ),
           ),
         );
@@ -944,6 +1052,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               onOpenVocabularyPanel: _openVocabularyPanel,
               onStartChapterTraining: _startChapterTraining,
               onOpenStatsPanel: _openStatsPanel,
+              onOpenChapterAI: _openChapterAIPanel,
             );
           }
 
@@ -1081,9 +1190,6 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
           setState(() => _sidebarOpen = false);
         },
-        onOpenAssistant: () {
-          setState(() => _sidebarMode = _ReaderSidebarMode.assistant);
-        },
       ),
       _ReaderSidebarMode.assistant => AIAssistantPanel(
         controller: ref.read(aiAssistantControllerProvider),
@@ -1114,15 +1220,12 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
 
     return ReaderRightAssistantPanel(
       workspaceController: _workspaceController,
+      onTabSelected: _onWorkspaceRightTabSelected,
       dictionaryContent: ReaderVocabularyPanel(
         onVocabularySelected: _openVocabularyLookup,
         onClose: () {
           ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
           _workspaceController.closeRightPanel();
-        },
-        onOpenAssistant: () {
-          _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
-          setState(() => _sidebarMode = _ReaderSidebarMode.assistant);
         },
       ),
       aiContent: aiContent ?? const SizedBox.shrink(),
@@ -1130,5 +1233,17 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         onStartTraining: _startChapterTraining,
       ),
     );
+  }
+
+  void _onWorkspaceRightTabSelected(ReaderRightPanelTab tab) {
+    switch (tab) {
+      case ReaderRightPanelTab.ai:
+        _openAssistantFromCurrentContext();
+      case ReaderRightPanelTab.dictionary:
+        _workspaceController.setRightTab(tab);
+        setState(() => _sidebarMode = _ReaderSidebarMode.word);
+      case ReaderRightPanelTab.chapter:
+        _workspaceController.setRightTab(tab);
+    }
   }
 }

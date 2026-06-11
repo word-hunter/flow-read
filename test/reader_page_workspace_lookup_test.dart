@@ -36,6 +36,7 @@ import 'package:flow_read/widgets/reader/reader_content_view.dart';
 import 'package:flow_read/widgets/reader/reader_word_sidebar.dart';
 import 'package:flow_read/widgets/reader_shell/reader_left_workspace_panel.dart';
 import 'package:flow_read/widgets/reader_shell/reader_right_assistant_panel.dart';
+import 'package:flow_read/widgets/reader_shell/reader_workspace_controller.dart';
 import 'package:flow_read/widgets/toc_bottom_sheet.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -68,6 +69,21 @@ void main() {
       expect(find.text('选中'), findsNothing);
       expect(find.text('词典'), findsWidgets);
       expect(find.text('river'), findsWidgets);
+      expect(
+        find.descendant(
+          of: find.byType(ReaderWordSidebar),
+          matching: find.text('已掌握'),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(ReaderWordSidebar),
+          matching: find.text('生词本'),
+        ),
+        findsNothing,
+      );
+      expect(find.byTooltip('AI 详解语境'), findsNothing);
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
       debugDefaultTargetPlatformOverride = null;
@@ -75,6 +91,55 @@ void main() {
       tester.view.resetDevicePixelRatio();
     }
   });
+
+  testWidgets(
+    'desktop workspace AI tab auto analyzes current dictionary word',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1440, 900);
+      final actionController = _RecordingAIActionController();
+      try {
+        await _pumpWorkspaceReader(
+          tester,
+          bookshelf: () => _ReaderTestBookshelfNotifier(_bookWithToc()),
+          configureSettings: (settings) async {
+            await settings.setAIProvider('openai_compatible');
+            await settings.setAIBaseUrl('https://llm.example.com/v1');
+            await settings.setAIModel('reader-model');
+            await settings.setApiKey('test-key');
+          },
+          aiActionController: actionController,
+        );
+
+        _tapRichTextSpan(tester, 'river');
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 20));
+
+        final rightPanel = tester.widget<ReaderRightAssistantPanel>(
+          find.byType(ReaderRightAssistantPanel),
+        );
+        rightPanel.onTabSelected?.call(ReaderRightPanelTab.ai);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 260));
+
+        expect(find.text('单词分析'), findsOneWidget);
+        expect(actionController.enqueueCount, 1);
+        expect(actionController.lastAction, AIAssistantActionType.wordAnalysis);
+        expect(actionController.lastPrompt?.userPrompt, contains('river'));
+        expect(
+          actionController.lastPrompt?.userPrompt,
+          contains('The river runs through the quiet valley.'),
+        );
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        actionController.dispose();
+      }
+    },
+  );
 
   testWidgets('reading desk omits the old four-way bottom navigation', (
     tester,

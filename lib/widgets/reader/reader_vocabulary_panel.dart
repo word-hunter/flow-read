@@ -13,12 +13,10 @@ class ReaderVocabularyPanel extends riverpod.ConsumerWidget {
     super.key,
     required this.onVocabularySelected,
     this.onClose,
-    this.onOpenAssistant,
   });
 
   final ValueChanged<Vocabulary> onVocabularySelected;
   final VoidCallback? onClose;
-  final VoidCallback? onOpenAssistant;
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
@@ -26,7 +24,6 @@ class ReaderVocabularyPanel extends riverpod.ConsumerWidget {
     if (lookupState.selectedWord != null) {
       return ReaderWordSidebar(
         onClose: onClose,
-        onOpenAssistant: onOpenAssistant,
       );
     }
 

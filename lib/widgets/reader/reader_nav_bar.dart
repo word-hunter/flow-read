@@ -47,6 +47,7 @@ class ReaderNavBar extends StatelessWidget {
   final VoidCallback onOpenVocabularyPanel;
   final VoidCallback onStartChapterTraining;
   final VoidCallback onOpenStatsPanel;
+  final VoidCallback onOpenChapterAI;
 
   const ReaderNavBar({
     super.key,
@@ -79,6 +80,7 @@ class ReaderNavBar extends StatelessWidget {
     required this.onOpenVocabularyPanel,
     required this.onStartChapterTraining,
     required this.onOpenStatsPanel,
+    required this.onOpenChapterAI,
   });
 
   @override
@@ -284,6 +286,9 @@ class ReaderNavBar extends StatelessWidget {
                     case 'stats':
                       onOpenStatsPanel();
                       break;
+                    case 'chapterAI':
+                      onOpenChapterAI();
+                      break;
                   }
                 },
                 entries: [
@@ -329,6 +334,12 @@ class ReaderNavBar extends StatelessWidget {
                     value: 'stats',
                     icon: Icons.insights_outlined,
                     label: '阅读统计',
+                  ),
+                  const FlowMenuDivider(),
+                  const FlowMenuItem(
+                    value: 'chapterAI',
+                    icon: Icons.auto_awesome_outlined,
+                    label: '章节 AI',
                   ),
                 ],
                 builder: (context, isOpen, toggle) => _compactIconButton(

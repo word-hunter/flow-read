@@ -9,6 +9,7 @@ class ReaderRightAssistantPanel extends StatelessWidget {
   final Widget aiContent;
   final Widget chapterContent;
   final Widget? currentContent;
+  final ValueChanged<ReaderRightPanelTab>? onTabSelected;
 
   const ReaderRightAssistantPanel({
     super.key,
@@ -26,6 +27,7 @@ class ReaderRightAssistantPanel extends StatelessWidget {
       message: '当前章节进度、词汇与阅读状态会显示在这里',
     ),
     this.currentContent,
+    this.onTabSelected,
   });
 
   @override
@@ -67,10 +69,11 @@ class ReaderRightAssistantPanel extends StatelessWidget {
                 for (final (tab, icon, label) in tabs)
                   Expanded(
                     child: _TabChip(
+                      buttonKey: ValueKey('reader-right-tab-${tab.name}'),
                       icon: icon,
                       label: label,
                       isSelected: workspaceController.rightTab == tab,
-                      onTap: () => workspaceController.setRightTab(tab),
+                      onTap: () => _selectTab(tab),
                     ),
                   ),
               ],
@@ -84,6 +87,15 @@ class ReaderRightAssistantPanel extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _selectTab(ReaderRightPanelTab tab) {
+    final callback = onTabSelected;
+    if (callback != null) {
+      callback(tab);
+      return;
+    }
+    workspaceController.setRightTab(tab);
   }
 
   Widget _buildBody() {
@@ -104,12 +116,14 @@ class ReaderRightAssistantPanel extends StatelessWidget {
 }
 
 class _TabChip extends StatelessWidget {
+  final Key? buttonKey;
   final IconData icon;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _TabChip({
+    this.buttonKey,
     required this.icon,
     required this.label,
     required this.isSelected,
@@ -129,6 +143,7 @@ class _TabChip extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          key: buttonKey,
           onTap: onTap,
           mouseCursor: SystemMouseCursors.click,
           borderRadius: BorderRadius.circular(6),

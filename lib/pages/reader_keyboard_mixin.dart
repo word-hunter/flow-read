@@ -9,6 +9,7 @@ mixin ReaderKeyboardMixin on riverpod.ConsumerState<ReaderPage> {
   void _goToChapter(int index);
   ReaderWorkspaceController get _workspaceController;
   bool get _isWorkspaceEnabled;
+  void _openAssistantFromCurrentContext();
 
   Widget _buildKeyboardScope(Widget child) {
     return Focus(
@@ -55,7 +56,7 @@ mixin ReaderKeyboardMixin on riverpod.ConsumerState<ReaderPage> {
         return KeyEventResult.handled;
       }
       if (key == LogicalKeyboardKey.keyA) {
-        _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
+        _openAssistantFromCurrentContext();
         return KeyEventResult.handled;
       }
       if (key == LogicalKeyboardKey.keyI) {
