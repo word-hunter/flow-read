@@ -1,4 +1,4 @@
-.PHONY: run bench bench-open bench-all bench-lock bench-reset bench-trend
+.PHONY: run bench bench-open bench-all bench-lock bench-reset bench-trend package-local
 
 run:
 	@fvm dart run tool/run_app.dart $(ARGS)
@@ -37,3 +37,6 @@ bench-search:
 
 bench-trend-%:
 	@dart run tool/benchmark.dart trend --bench $* --last 10
+
+package-local:
+	@dart run tool/release.dart package-local --skip-tests $(ARGS)
