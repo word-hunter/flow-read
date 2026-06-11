@@ -5,6 +5,7 @@ import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/chapter.dart';
+import 'package:flow_read/models/content_block.dart';
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
 import 'package:flow_read/models/word_level.dart';
@@ -260,6 +261,68 @@ void main() {
   );
 
   testWidgets(
+    'desktop workspace keeps selected text visible after opening AI panel',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1440, 900);
+      final actionController = _RecordingAIActionController();
+      const selectedText =
+          'Selected sentence should remain visible after the assistant opens.';
+      final selectedTextFinder = find.descendant(
+        of: find.byType(ReaderContentView),
+        matching: find.text(selectedText, findRichText: true),
+      );
+      try {
+        await _pumpWorkspaceReader(
+          tester,
+          bookshelf: () => _ReaderTestBookshelfNotifier(
+            _bookWithLongChapter(selectedText),
+          ),
+          configureSettings: (settings) async {
+            await settings.setAIProvider('openai_compatible');
+            await settings.setAIBaseUrl('https://llm.example.com/v1');
+            await settings.setAIModel('reader-model');
+            await settings.setApiKey('test-key');
+          },
+          aiActionController: actionController,
+        );
+
+        Scrollable.ensureVisible(
+          tester.element(selectedTextFinder),
+          duration: Duration.zero,
+          alignment: 0.86,
+        );
+        await tester.pump();
+
+        final contentView = tester.widget<ReaderContentView>(
+          find.byType(ReaderContentView),
+        );
+        contentView.onAnalyzeSelected(selectedText);
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 520));
+
+        final viewport = tester.getRect(
+          find.byKey(const ValueKey('reader-scroll-view')),
+        );
+        final selectedRect = tester.getRect(selectedTextFinder);
+
+        expect(find.byType(ReaderRightAssistantPanel), findsOneWidget);
+        expect(selectedRect.top, greaterThanOrEqualTo(viewport.top - 0.5));
+        expect(selectedRect.bottom, lessThanOrEqualTo(viewport.bottom + 0.5));
+      } finally {
+        await tester.pump(const Duration(milliseconds: 1000));
+        await tester.pumpWidget(const SizedBox.shrink());
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        actionController.dispose();
+      }
+    },
+  );
+
+  testWidgets(
     'desktop workspace keeps side panels during uncached chapter load',
     (
       tester,
@@ -452,6 +515,60 @@ Book _bookWithToc() {
         label: 'Chapter II',
         href: 'Text/chapter2.xhtml',
         playOrder: 2,
+      ),
+    ],
+  );
+}
+
+Book _bookWithLongChapter(String selectedText) {
+  final blocks = <ContentBlock>[
+    for (var index = 0; index < 34; index += 1)
+      TextBlock(
+        type: BlockType.paragraph,
+        spans: [
+          StyledText(
+            'Filler paragraph $index keeps enough content above the target '
+            'sentence for a meaningful scroll position in the reader.',
+          ),
+        ],
+      ),
+    TextBlock(
+      type: BlockType.paragraph,
+      spans: [StyledText(selectedText)],
+    ),
+    for (var index = 0; index < 12; index += 1)
+      TextBlock(
+        type: BlockType.paragraph,
+        spans: [
+          StyledText(
+            'Trailing paragraph $index keeps the selected sentence away from '
+            'the end of the chapter during visibility checks.',
+          ),
+        ],
+      ),
+  ];
+  final plainText = blocks
+      .whereType<TextBlock>()
+      .map((block) => block.plainText)
+      .join('\n\n');
+
+  return Book(
+    title: 'Long Reader',
+    author: 'Flow Read',
+    chapters: [
+      Chapter(
+        title: 'Chapter I',
+        plainText: plainText,
+        rawHtml: '',
+        blocks: blocks,
+        href: 'Text/long.xhtml',
+      ),
+    ],
+    toc: const [
+      EpubTocEntry(
+        label: 'Chapter I',
+        href: 'Text/long.xhtml',
+        playOrder: 1,
       ),
     ],
   );

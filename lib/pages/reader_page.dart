@@ -26,6 +26,7 @@ import '../layout/reader_layout_policy.dart';
 import '../layout/reader_layout_spec.dart';
 import '../services/reader_layout_engine.dart';
 import '../theme/app_constants.dart';
+import '../theme/app_motion_tokens.dart';
 import '../theme/app_surface_tokens.dart';
 import '../widgets/ai_assistant_panel.dart';
 import '../widgets/bookmark_sheet.dart';
@@ -63,6 +64,14 @@ class ReaderPage extends riverpod.ConsumerStatefulWidget {
 class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     with ReaderDailyGoalMixin, ReaderViewportMixin, ReaderKeyboardMixin {
   static const bool _workspaceFeatureEnabled = true;
+  static const List<Duration> _selectedTextVisibilityCheckDelays = [
+    Duration.zero,
+    Duration(milliseconds: 80),
+    ReaderMotionTokens.panelOpenDuration,
+    Duration(milliseconds: 320),
+  ];
+  static const double _selectedTextVisibilityTopMargin = 72;
+  static const double _selectedTextVisibilityBottomMargin = 96;
 
   @override
   final ScrollController _scrollController = ScrollController();
@@ -78,6 +87,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   );
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final Set<Timer> _selectedTextVisibilityTimers = {};
   @override
   final Map<int, GlobalKey> _contentKeys = {};
   @override
@@ -117,6 +127,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
 
   @override
   void dispose() {
+    _clearSelectedTextVisibilityTimers();
     _disposeViewportTracking();
     _disposeDailyGoalWatcher();
     _scrollController.removeListener(_onScroll);
@@ -242,7 +253,167 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         );
     }
 
+    if (_actionPanelHost != ReaderActionPanelHost.bottomSheet) {
+      _ensureSelectedTextVisibleAfterPanelOpen(selectedText);
+    }
     _executeDefaultSelectedTextAction(assistant);
+  }
+
+  void _ensureSelectedTextVisibleAfterPanelOpen(String selectedText) {
+    _clearSelectedTextVisibilityTimers();
+    for (final delay in _selectedTextVisibilityCheckDelays) {
+      _scheduleSelectedTextVisibilityCheck(selectedText, delay);
+    }
+  }
+
+  void _scheduleSelectedTextVisibilityCheck(
+    String selectedText,
+    Duration delay,
+  ) {
+    void checkAfterLayout() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _ensureSelectedTextVisible(selectedText);
+      });
+    }
+
+    if (delay == Duration.zero) {
+      checkAfterLayout();
+      return;
+    }
+
+    late final Timer timer;
+    timer = Timer(delay, () {
+      _selectedTextVisibilityTimers.remove(timer);
+      if (!mounted) return;
+      checkAfterLayout();
+    });
+    _selectedTextVisibilityTimers.add(timer);
+  }
+
+  void _clearSelectedTextVisibilityTimers() {
+    for (final timer in _selectedTextVisibilityTimers) {
+      timer.cancel();
+    }
+    _selectedTextVisibilityTimers.clear();
+  }
+
+  void _ensureSelectedTextVisible(String selectedText) {
+    if (!_scrollController.hasClients) return;
+    if (_ensureCurrentSelectionAnchorVisible()) return;
+    _ensureSelectedTextContentVisible(selectedText);
+  }
+
+  bool _ensureCurrentSelectionAnchorVisible() {
+    final anchors = _actionRegionKey.currentState?.currentSelectionAnchors;
+    if (anchors == null) return false;
+    final viewport = _scrollableViewportRect();
+    if (viewport == null) return false;
+
+    final primaryY = anchors.primaryAnchor.dy;
+    final secondaryY = anchors.secondaryAnchor?.dy ?? primaryY;
+    if (!primaryY.isFinite || !secondaryY.isFinite) return false;
+
+    final selectionTop = primaryY < secondaryY ? primaryY : secondaryY;
+    final selectionBottom = primaryY > secondaryY ? primaryY : secondaryY;
+    final topLimit = viewport.top + _selectedTextVisibilityTopMargin;
+    final bottomLimit = viewport.bottom - _selectedTextVisibilityBottomMargin;
+
+    final delta = selectionTop < topLimit
+        ? selectionTop - topLimit
+        : selectionBottom > bottomLimit
+        ? selectionBottom - bottomLimit
+        : 0.0;
+    if (delta.abs() < 1) return true;
+
+    _animateReaderScrollBy(
+      delta,
+      duration: const Duration(milliseconds: 180),
+    );
+    return true;
+  }
+
+  Rect? _scrollableViewportRect() {
+    if (!_scrollController.hasClients) return null;
+    final viewportContext =
+        _scrollController.position.context.notificationContext;
+    final renderObject = viewportContext?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
+    return renderObject.localToGlobal(Offset.zero) & renderObject.size;
+  }
+
+  void _animateReaderScrollBy(double delta, {required Duration duration}) {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final target = (position.pixels + delta)
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
+    if ((target - position.pixels).abs() < 1) return;
+
+    unawaited(
+      _scrollController.animateTo(
+        target,
+        duration: duration,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+  }
+
+  bool _ensureSelectedTextContentVisible(String selectedText) {
+    final index = _selectedTextContentIndex(selectedText);
+    if (index == null) return false;
+    final contextForItem = _contentKeys[index]?.currentContext;
+    if (contextForItem == null || !contextForItem.mounted) return false;
+
+    Scrollable.ensureVisible(
+      contextForItem,
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      alignment: 0.35,
+    );
+    return true;
+  }
+
+  int? _selectedTextContentIndex(String selectedText) {
+    final query = selectedText.trim();
+    if (query.isEmpty) return null;
+
+    final currentBookState = ref.read(currentBookNotifierProvider);
+    final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
+    final book = ref.read(bookshelfNotifierProvider).book;
+    final currentChapter = currentBookState.currentChapter;
+    if (book != null && currentChapter < book.chapters.length) {
+      final blocks = book.chapters[currentChapter].blocks;
+      for (var i = 0; i < blocks.length; i += 1) {
+        final block = blocks[i];
+        if (block is TextBlock &&
+            _containsSelectedText(block.plainText, query)) {
+          return i;
+        }
+      }
+    }
+
+    final result = currentBookNotifier.result;
+    if (result == null) return null;
+    final paragraphs = _paragraphsFor(
+      result,
+      currentBookState,
+      currentBookNotifier,
+    );
+    for (var i = 0; i < paragraphs.length; i += 1) {
+      if (_containsSelectedText(paragraphs[i], query)) return i;
+    }
+    return null;
+  }
+
+  bool _containsSelectedText(String source, String selectedText) {
+    if (source.contains(selectedText)) return true;
+    final normalizedSource = source.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final normalizedSelection = selectedText
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return normalizedSelection.isNotEmpty &&
+        normalizedSource.contains(normalizedSelection);
   }
 
   void _openAssistantPanel(AIAssistantController assistant) {

@@ -124,20 +124,10 @@ class AIAssistantActionRegistry {
 
     return switch (context.source) {
       AIContextSource.readerSelectedText =>
-        hasSelectedText &&
-            {
-              AIAssistantActionType.explain,
-              AIAssistantActionType.translate,
-              AIAssistantActionType.phraseExtraction,
-              AIAssistantActionType.pronounReference,
-            }.contains(action),
+        hasSelectedText && action == AIAssistantActionType.explain,
       AIContextSource.readerParagraph =>
         _hasText(context.surroundingPassage) &&
-            {
-              AIAssistantActionType.explain,
-              AIAssistantActionType.translate,
-              AIAssistantActionType.phraseExtraction,
-            }.contains(action),
+            action == AIAssistantActionType.explain,
       AIContextSource.readerWord =>
         hasWord && action == AIAssistantActionType.wordAnalysis,
       AIContextSource.readerChapter =>

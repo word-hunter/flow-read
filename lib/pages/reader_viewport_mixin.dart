@@ -336,9 +336,7 @@ mixin ReaderViewportMixin on riverpod.ConsumerState<ReaderPage> {
   }
 
   void _disposeViewportTracking() {
-    _flushPendingScrollProgress();
-    _scrollProgressCommitTimer?.cancel();
-    _scrollProgressCommitTimer = null;
+    _cancelPendingScrollProgressCommit();
   }
 
   void _setDisplayProgress(double progress) {

@@ -1235,6 +1235,8 @@ class _FollowUpInput extends HookWidget {
   Widget build(BuildContext context) {
     final controller = useTextEditingController();
     final hasText = useState(false);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     useEffect(() {
       void listener() {
@@ -1255,34 +1257,89 @@ class _FollowUpInput extends HookWidget {
       controller.clear();
     }
 
+    final canSubmit = !busy && hasText.value;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: FlowTextField(
-              controller: controller,
-              enabled: !busy,
-              decoration: const InputDecoration(
-                hintText: '追问...',
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 8,
-                ),
-                isDense: true,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutCubic,
+        constraints: const BoxConstraints(minHeight: 48),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.36),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: canSubmit
+                ? colorScheme.primary.withValues(alpha: 0.45)
+                : colorScheme.outlineVariant.withValues(alpha: 0.55),
+          ),
+        ),
+        child: Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 12, right: 8),
+              child: Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 17,
+                color: canSubmit
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
               ),
-              style: Theme.of(context).textTheme.bodySmall,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => submit(),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.send, size: 20),
-            onPressed: busy || !hasText.value ? null : submit,
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
+            Expanded(
+              child: FlowTextField(
+                controller: controller,
+                enabled: !busy,
+                decoration: InputDecoration(
+                  hintText: '继续追问...',
+                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.68),
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  isDense: true,
+                ),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface,
+                  height: 1.35,
+                ),
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => submit(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 8, right: 6),
+              child: IconButton.filledTonal(
+                tooltip: '发送追问',
+                icon: busy
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      )
+                    : const Icon(Icons.arrow_upward_rounded, size: 20),
+                onPressed: canSubmit ? submit : null,
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  fixedSize: const Size.square(36),
+                  minimumSize: const Size.square(36),
+                  padding: EdgeInsets.zero,
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
+                  disabledBackgroundColor: colorScheme.surfaceContainerHigh,
+                  disabledForegroundColor: colorScheme.onSurfaceVariant
+                      .withValues(alpha: 0.45),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

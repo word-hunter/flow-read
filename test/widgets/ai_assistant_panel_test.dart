@@ -65,6 +65,9 @@ void main() {
     expect(find.text('选中文本'), findsOneWidget);
     expect(find.text('The door opened slowly.'), findsOneWidget);
     expect(find.text('解释'), findsOneWidget);
+    expect(find.text('翻译'), findsNothing);
+    expect(find.text('短语'), findsNothing);
+    expect(find.text('指代'), findsNothing);
   });
 
   testWidgets('shows idle hint when no action executed yet', (tester) async {
@@ -85,6 +88,26 @@ void main() {
     expect(find.text('选择一个操作开始'), findsOneWidget);
   });
 
+  testWidgets('renders compact follow-up composer', (tester) async {
+    final assistant = _buildController(settings);
+    addTearDown(assistant.dispose);
+
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.readerSelectedText,
+        selectedText: 'Sample text.',
+        surroundingPassage: 'Sample text.',
+      ),
+    );
+
+    await tester.pumpWidget(_wrap(AIAssistantPanel(controller: assistant)));
+    await tester.pump();
+
+    expect(find.text('继续追问...'), findsOneWidget);
+    expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
+    expect(find.byTooltip('发送追问'), findsOneWidget);
+  });
+
   testWidgets('executes action and shows result via controller', (
     tester,
   ) async {
@@ -102,7 +125,7 @@ void main() {
     await tester.pumpWidget(_wrap(AIAssistantPanel(controller: assistant)));
     await tester.pump();
 
-    await assistant.executeAction(AIAssistantActionType.translate);
+    await assistant.executeAction(AIAssistantActionType.explain);
     await tester.pumpAndSettle();
 
     final result = assistant.actionController.lastResult;

@@ -82,6 +82,7 @@ class FlowTextField extends StatelessWidget {
       controller: controller,
       focusNode: focusNode,
       decoration: effectiveDecoration,
+      style: style,
       onChanged: onChanged,
       onSubmitted: onSubmitted,
       keyboardType: keyboardType,

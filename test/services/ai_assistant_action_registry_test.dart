@@ -12,12 +12,18 @@ void main() {
       ),
     );
 
-    expect(actions, [
-      AIAssistantActionType.explain,
-      AIAssistantActionType.translate,
-      AIAssistantActionType.phraseExtraction,
-      AIAssistantActionType.pronounReference,
-    ]);
+    expect(actions, [AIAssistantActionType.explain]);
+  });
+
+  test('returns only explain for paragraph contexts', () {
+    final actions = registry.availableActions(
+      AIContextSnapshot(
+        source: AIContextSource.readerParagraph,
+        surroundingPassage: 'The old road ran north.',
+      ),
+    );
+
+    expect(actions, [AIAssistantActionType.explain]);
   });
 
   test('returns available actions for chapter and article contexts', () {

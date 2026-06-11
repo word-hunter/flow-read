@@ -83,7 +83,13 @@ class SelectedTextActionRegionState extends State<SelectedTextActionRegion> {
   String _selectedText = '';
 
   GlobalKey<SelectionAreaState> get _effectiveKey =>
-      widget.selectionAreaKey ?? (_internalSelectionAreaKey ??= GlobalKey<SelectionAreaState>());
+      widget.selectionAreaKey ??
+      (_internalSelectionAreaKey ??= GlobalKey<SelectionAreaState>());
+
+  TextSelectionToolbarAnchors? get currentSelectionAnchors {
+    if (_selectedText.trim().isEmpty) return null;
+    return _effectiveKey.currentState?.selectableRegion.contextMenuAnchors;
+  }
 
   @override
   void dispose() {
