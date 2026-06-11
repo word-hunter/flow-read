@@ -7,4 +7,5 @@ enum AIAssistantActionType {
   summary,
   wordAnalysis,
   articleQA,
+  paragraphInsight,
 }

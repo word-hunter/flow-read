@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'models/ai_summary.dart';
 
 enum SourceLanguage {
@@ -277,6 +279,34 @@ class CharacterCardSnippet {
   const CharacterCardSnippet({
     required this.name,
     required this.description,
+  });
+}
+
+class ParagraphInsightPromptRequest {
+  final String paragraphText;
+  final SourceLanguage sourceLanguage;
+  final OutputLanguage outputLanguage;
+  final SpoilerBoundary spoilerBoundary;
+  final String? contextBundle;
+
+  const ParagraphInsightPromptRequest({
+    required this.paragraphText,
+    required this.sourceLanguage,
+    required this.outputLanguage,
+    required this.spoilerBoundary,
+    this.contextBundle,
+  });
+}
+
+class CharacterMergePromptRequest {
+  final List<Map<String, dynamic>> characterEntries;
+  final SourceLanguage sourceLanguage;
+  final OutputLanguage outputLanguage;
+
+  const CharacterMergePromptRequest({
+    required this.characterEntries,
+    required this.sourceLanguage,
+    required this.outputLanguage,
   });
 }
 
@@ -740,6 +770,90 @@ ${request.currentPassage}$occurrenceLines$characterLines''';
     return _result(request, systemPrompt, userPrompt);
   }
 
+  PromptBuildResult buildParagraphInsight(
+    ParagraphInsightPromptRequest request,
+  ) {
+    final contextStr = request.contextBundle != null &&
+            request.contextBundle!.isNotEmpty
+        ? '\n\n## Additional Context from Earlier Chapters\n${request.contextBundle}'
+        : '';
+
+    final systemPrompt = [
+      PromptSections.preamble(
+        sourceLanguage: request.sourceLanguage,
+        outputLanguage: request.outputLanguage,
+        spoilerBoundary: request.spoilerBoundary,
+      ),
+      'Task: analyze this paragraph for a reader who is learning the source language. '
+          'Explain what this passage is about, its narrative function, any mood shifts, '
+          'key references (pronouns, titles, implications), difficult language, '
+          'and why it matters at this point in the reading (without spoiling future events).',
+      PromptSections.strictJsonSchema('''{
+  "gist": "1-2 sentence summary of what this paragraph is about",
+  "narrative_function": "setup / conflict / transition / mood_change / description",
+  "has_mood_shift": true,
+  "key_references": ["he -> Harry", "it -> the letter"],
+  "difficult_language": ["word or phrase that may be hard to understand"],
+  "why_it_matters_now": "Why this passage matters for the reader at this point in the story (no spoilers)"
+}'''),
+      'Rules: use provided context if available, cite source evidence, '
+          'do not reveal future events. Keep explanations practical for a language learner.',
+    ].join('\n\n');
+
+    final userPrompt =
+        '''## Source Language
+${request.sourceLanguage.promptLabel}
+
+## Output Language
+${request.outputLanguage.promptLabel}
+
+## Paragraph
+${request.paragraphText}$contextStr''';
+
+    return _result(request, systemPrompt, userPrompt);
+  }
+
+  PromptBuildResult buildCharacterMerge(CharacterMergePromptRequest request) {
+    final spoilerBoundary = SpoilerBoundary.currentPassage();
+    final entriesJson = request.characterEntries
+        .map((e) => '{'
+            '"name": "${e["name"]}", '
+            '"first_seen_chapter": ${e["firstSeenChapter"] ?? 0}, '
+            '"developments": ${jsonEncode(e["developments"] ?? [])}'
+            '}')
+        .join(',\n');
+
+    final systemPrompt = [
+      PromptSections.flowReadRole(request.sourceLanguage),
+      'You are processing structured character data extracted from AI chapter summaries.',
+      'Task: identify characters that likely refer to the same person, '
+          'and return merge suggestions.',
+      'Rules: '
+          '- Only suggest merges when you are confident they refer to the same character. '
+          '- Titles (Mr., Lord, Captain) are often not different characters. '
+          '- "the boy" / "the girl" / "the old man" may be pronouns for named characters. '
+          '- For Japanese: honorifics (-san, -kun, -sama) do not create different characters. '
+          '- Return confidence as "high", "medium", or "low".',
+      'Output as JSON array of merge suggestions.',
+    ].join('\n\n');
+
+    final userPrompt =
+        '''## Characters
+[$entriesJson]
+
+Return JSON array of suggestions like:
+[{"canonical_name": "Harry Potter", "merged_names": ["Potter", "the boy"], "confidence": "high"}]''';
+
+    return PromptBuildResult(
+      systemPrompt: systemPrompt,
+      userPrompt: userPrompt,
+      promptVersion: currentPromptVersion,
+      sourceLanguage: request.sourceLanguage,
+      outputLanguage: request.outputLanguage,
+      spoilerBoundary: spoilerBoundary,
+    );
+  }
+
   PromptBuildResult _result(
     Object request,
     String systemPrompt,
@@ -754,6 +868,7 @@ ${request.currentPassage}$occurrenceLines$characterLines''';
       WordAnalysisPromptRequest r => r.sourceLanguage,
       ArticlePromptRequest r => r.sourceLanguage,
       BookGlossaryPromptRequest r => r.sourceLanguage,
+      ParagraphInsightPromptRequest r => r.sourceLanguage,
       _ => SourceLanguage.english,
     };
     final outputLanguage = switch (request) {
@@ -765,6 +880,7 @@ ${request.currentPassage}$occurrenceLines$characterLines''';
       WordAnalysisPromptRequest r => r.outputLanguage,
       ArticlePromptRequest r => r.outputLanguage,
       BookGlossaryPromptRequest r => r.outputLanguage,
+      ParagraphInsightPromptRequest r => r.outputLanguage,
       _ => OutputLanguage.zhHans,
     };
     final spoilerBoundary = switch (request) {
@@ -776,6 +892,7 @@ ${request.currentPassage}$occurrenceLines$characterLines''';
       WordAnalysisPromptRequest r => r.spoilerBoundary,
       ArticlePromptRequest r => r.spoilerBoundary,
       BookGlossaryPromptRequest r => r.spoilerBoundary,
+      ParagraphInsightPromptRequest r => r.spoilerBoundary,
       _ => SpoilerBoundary.currentPassage(),
     };
     return PromptBuildResult(

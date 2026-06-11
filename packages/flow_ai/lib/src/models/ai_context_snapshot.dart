@@ -1,3 +1,4 @@
+import '../explanation_context_selector.dart';
 import '../prompt_builder.dart' show AIContextScope, SpoilerBoundary;
 
 enum AIContextSource {
@@ -27,6 +28,7 @@ class AIContextSnapshot {
     this.spoilerBoundary,
     this.sourceLanguage = 'en',
     this.outputLanguage = 'zh',
+    this.contextBundle,
   }) : scope = scope ?? defaultScopeFor(source);
 
   final AIContextSource source;
@@ -45,6 +47,7 @@ class AIContextSnapshot {
   final SpoilerBoundary? spoilerBoundary;
   final String sourceLanguage;
   final String outputLanguage;
+  final ExplanationContextBundle? contextBundle;
 
   static AIContextScope defaultScopeFor(AIContextSource source) {
     return switch (source) {

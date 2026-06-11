@@ -1,5 +1,6 @@
 import 'ai_summary.dart';
 import 'ai_text_analysis.dart';
+import 'paragraph_insight.dart';
 import 'word_analysis.dart';
 
 sealed class AIActionResult {
@@ -77,6 +78,12 @@ class AIArticleQAResult extends AIActionResult {
   const AIArticleQAResult({required this.answer});
 
   final String answer;
+}
+
+class AIParagraphInsightResult extends AIActionResult {
+  const AIParagraphInsightResult({required this.insight});
+
+  final ParagraphInsight insight;
 }
 
 class AIStreamingProgress extends AIActionResult {

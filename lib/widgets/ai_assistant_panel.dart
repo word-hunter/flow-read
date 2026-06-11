@@ -361,6 +361,8 @@ class _ActionStrip extends StatelessWidget {
         return '词汇';
       case AIAssistantActionType.articleQA:
         return '问答';
+      case AIAssistantActionType.paragraphInsight:
+        return '段落洞察';
     }
   }
 
@@ -382,6 +384,8 @@ class _ActionStrip extends StatelessWidget {
         return Icons.spellcheck_outlined;
       case AIAssistantActionType.articleQA:
         return Icons.chat_outlined;
+      case AIAssistantActionType.paragraphInsight:
+        return Icons.format_align_left;
     }
   }
 }
@@ -561,6 +565,9 @@ class _ResultArea extends HookWidget {
     if (result is AIArticleQAResult) {
       return _ArticleQAView(answer: result.answer);
     }
+    if (result is AIParagraphInsightResult) {
+      return _ParagraphInsightView(insight: result.insight);
+    }
     return const SizedBox.shrink();
   }
 
@@ -582,6 +589,8 @@ class _ResultArea extends HookWidget {
         return '正在分析词汇...';
       case AIAssistantActionType.articleQA:
         return '正在生成回答...';
+      case AIAssistantActionType.paragraphInsight:
+        return '正在分析段落...';
       case null:
         return '处理中...';
     }
@@ -1401,6 +1410,94 @@ class _BuildStreamingResult extends StatelessWidget {
           Text(chunk, style: theme.textTheme.bodySmall),
         ],
       ),
+    );
+  }
+}
+
+class _ParagraphInsightView extends StatelessWidget {
+  const _ParagraphInsightView({required this.insight});
+
+  final ParagraphInsight insight;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSection(theme, '概要', insight.gist, Icons.text_snippet),
+          if (insight.narrativeFunction != null &&
+              insight.narrativeFunction!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildSection(
+              theme,
+              '叙事功能',
+              insight.narrativeFunction!,
+              Icons.account_tree_outlined,
+            ),
+          ],
+          if (insight.hasMoodShift) ...[
+            const SizedBox(height: 8),
+            _buildSection(theme, '情绪变化', '这段文本存在情绪或气氛的转变',
+                Icons.emoji_emotions_outlined),
+          ],
+          if (insight.keyReferences.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildSection(
+              theme,
+              '指代解析',
+              insight.keyReferences.join('\n'),
+              Icons.link,
+            ),
+          ],
+          if (insight.difficultLanguage.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildSection(
+              theme,
+              '语言难点',
+              insight.difficultLanguage.join('\n'),
+              Icons.translate_outlined,
+            ),
+          ],
+          if (insight.whyItMattersNow != null &&
+              insight.whyItMattersNow!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildSection(
+              theme,
+              '当前意义',
+              insight.whyItMattersNow!,
+              Icons.lightbulb_outline,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSection(ThemeData theme, String title, String body, IconData icon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: theme.colorScheme.primary),
+            const SizedBox(width: 6),
+            Text(title, style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            )),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Padding(
+          padding: const EdgeInsets.only(left: 20),
+          child: Text(body, style: theme.textTheme.bodySmall?.copyWith(
+            height: 1.45,
+          )),
+        ),
+      ],
     );
   }
 }

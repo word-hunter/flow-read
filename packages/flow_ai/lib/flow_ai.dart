@@ -10,6 +10,8 @@ export 'src/reading_assistant_agent.dart';
 export 'src/ai_assistant_controller.dart';
 export 'src/ai_assistant_action_registry.dart';
 export 'src/book_insight_aggregator.dart';
+export 'src/explanation_context_selector.dart';
+export 'src/character_alias_matcher.dart';
 
 // Models
 export 'src/models/ai_summary.dart';
@@ -27,3 +29,4 @@ export 'src/models/reading_insight_profile.dart';
 export 'src/models/json_helpers.dart';
 export 'src/models/character_registry_entry.dart';
 export 'src/models/book_insight.dart';
+export 'src/models/paragraph_insight.dart';

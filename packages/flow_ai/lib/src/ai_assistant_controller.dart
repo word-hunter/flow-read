@@ -9,6 +9,7 @@ import 'models/ai_automation_settings.dart';
 import 'models/ai_context_snapshot.dart';
 import 'models/ai_summary.dart';
 import 'models/ai_text_analysis.dart';
+import 'models/paragraph_insight.dart';
 import 'models/reading_insight_profile.dart';
 import 'models/word_analysis.dart';
 import 'ai_assistant_action_registry.dart';
@@ -207,6 +208,11 @@ class AIActionController extends ChangeNotifier {
       ),
       AIAssistantActionType.questionGeneration => AIExplainResult(
         explanation: trimmed,
+      ),
+      AIAssistantActionType.paragraphInsight => AIParagraphInsightResult(
+        insight:
+            _parseJson(trimmed, ParagraphInsight.fromJson) ??
+            ParagraphInsight.fallback(trimmed),
       ),
     };
   }

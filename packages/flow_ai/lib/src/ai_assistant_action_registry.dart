@@ -2,6 +2,7 @@ import 'models/ai_assistant_action.dart';
 import 'models/ai_context_snapshot.dart';
 import 'models/character_registry_entry.dart';
 import 'models/reading_insight_profile.dart';
+import 'explanation_context_selector.dart';
 import 'prompt_builder.dart';
 
 class AIAssistantActionRegistry {
@@ -9,11 +10,13 @@ class AIAssistantActionRegistry {
     required this.promptBuilder,
     this.characterRegistry = const [],
     this.insightProfile,
+    this.contextSelector,
   });
 
   final PromptBuilder promptBuilder;
   final List<CharacterRegistryEntry> characterRegistry;
   final ReadingInsightProfile? insightProfile;
+  final ExplanationContextSelector? contextSelector;
 
   List<AIAssistantActionType> availableActions(AIContextSnapshot context) {
     return AIAssistantActionType.values
@@ -89,13 +92,26 @@ class AIAssistantActionRegistry {
           spoilerBoundary: spoilerBoundary,
         ),
       ),
+      AIAssistantActionType.paragraphInsight => promptBuilder
+          .buildParagraphInsight(
+        ParagraphInsightPromptRequest(
+          paragraphText: context.surroundingPassage ??
+              context.selectedText ??
+              '',
+          sourceLanguage: sourceLanguage,
+          outputLanguage: outputLanguage,
+          spoilerBoundary: spoilerBoundary,
+          contextBundle: context.contextBundle?.formatForPrompt(),
+        ),
+      ),
     };
   }
 
   AIContextScope defaultScope(AIAssistantActionType action) {
     return switch (action) {
       AIAssistantActionType.summary ||
-      AIAssistantActionType.questionGeneration => AIContextScope.currentChapter,
+      AIAssistantActionType.questionGeneration ||
+      AIAssistantActionType.paragraphInsight => AIContextScope.currentChapter,
       _ => AIContextScope.currentPassage,
     };
   }
@@ -110,6 +126,7 @@ class AIAssistantActionRegistry {
       AIAssistantActionType.summary ||
       AIAssistantActionType.questionGeneration => const ['chapterContent'],
       AIAssistantActionType.articleQA => const ['articleContent'],
+      AIAssistantActionType.paragraphInsight => const ['surroundingPassage'],
     };
   }
 
@@ -124,10 +141,17 @@ class AIAssistantActionRegistry {
 
     return switch (context.source) {
       AIContextSource.readerSelectedText =>
-        hasSelectedText && action == AIAssistantActionType.explain,
+        hasSelectedText &&
+            {
+              AIAssistantActionType.explain,
+              AIAssistantActionType.paragraphInsight,
+            }.contains(action),
       AIContextSource.readerParagraph =>
         _hasText(context.surroundingPassage) &&
-            action == AIAssistantActionType.explain,
+            {
+              AIAssistantActionType.explain,
+              AIAssistantActionType.paragraphInsight,
+            }.contains(action),
       AIContextSource.readerWord =>
         hasWord && action == AIAssistantActionType.wordAnalysis,
       AIContextSource.readerChapter =>
