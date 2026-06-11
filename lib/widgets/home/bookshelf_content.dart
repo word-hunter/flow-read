@@ -432,17 +432,41 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   }
 
   Widget _buildSortMenu(ThemeData theme, BookshelfNotifier notifier) {
-    return PopupMenuButton<_BookSortMode>(
+    return FlowMenuButton<_BookSortMode>(
       tooltip: '排序',
-      initialValue: _sortMode,
-      onSelected: (value) => _onSortSelected(notifier, value),
-      itemBuilder: (context) => [
-        _sortMenuItem(_BookSortMode.recent, '最近阅读', Icons.schedule),
-        _sortMenuItem(_BookSortMode.title, '书名 A-Z', Icons.sort_by_alpha),
-        _sortMenuItem(_BookSortMode.author, '作者 A-Z', Icons.person_outline),
-        _sortMenuItem(_BookSortMode.progress, '阅读进度', Icons.trending_up),
-        _sortMenuItem(_BookSortMode.difficulty, '难易度', Icons.speed_outlined),
+      entries: [
+        FlowMenuItem(
+          value: _BookSortMode.recent,
+          label: '最近阅读',
+          icon: Icons.schedule,
+          selected: _sortMode == _BookSortMode.recent,
+        ),
+        FlowMenuItem(
+          value: _BookSortMode.title,
+          label: '书名 A-Z',
+          icon: Icons.sort_by_alpha,
+          selected: _sortMode == _BookSortMode.title,
+        ),
+        FlowMenuItem(
+          value: _BookSortMode.author,
+          label: '作者 A-Z',
+          icon: Icons.person_outline,
+          selected: _sortMode == _BookSortMode.author,
+        ),
+        FlowMenuItem(
+          value: _BookSortMode.progress,
+          label: '阅读进度',
+          icon: Icons.trending_up,
+          selected: _sortMode == _BookSortMode.progress,
+        ),
+        FlowMenuItem(
+          value: _BookSortMode.difficulty,
+          label: '难易度',
+          icon: Icons.speed_outlined,
+          selected: _sortMode == _BookSortMode.difficulty,
+        ),
       ],
+      onSelected: (value) => _onSortSelected(notifier, value),
       child: HomeHoverSurface(
         height: 40,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -485,24 +509,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     if (value == _BookSortMode.difficulty) {
       unawaited(notifier.ensureBookDifficulties(notifier.allBooks));
     }
-  }
-
-  PopupMenuItem<_BookSortMode> _sortMenuItem(
-    _BookSortMode value,
-    String label,
-    IconData icon,
-  ) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          Icon(icon, size: 18),
-          const SizedBox(width: 10),
-          Expanded(child: Text(label)),
-          if (_sortMode == value) const Icon(Icons.check, size: 18),
-        ],
-      ),
-    );
   }
 
   String _sortLabel(_BookSortMode mode) {

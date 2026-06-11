@@ -466,43 +466,25 @@ class RssFeedSidebar extends StatelessWidget {
                     ],
                   ),
                 ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, size: 16),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 24,
-                    minHeight: 24,
-                  ),
+                FlowMenuButton<String>(
+                  entries: const [
+                    FlowMenuItem(
+                      value: 'edit',
+                      label: '编辑',
+                      icon: Icons.edit_outlined,
+                    ),
+                    FlowMenuItem(
+                      value: 'delete',
+                      label: '取消订阅',
+                      icon: Icons.delete_outline,
+                      destructive: true,
+                    ),
+                  ],
                   onSelected: (value) {
                     if (value == 'edit') onEditFeed(sub);
                     if (value == 'delete') onRemoveFeed(sub.url);
                   },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit_outlined, size: 18),
-                          SizedBox(width: 8),
-                          Text('编辑'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.delete_outline,
-                            size: 18,
-                            color: Colors.red,
-                          ),
-                          SizedBox(width: 8),
-                          Text('取消订阅', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
+                  child: const Icon(Icons.more_vert, size: 16),
                 ),
               ],
             ),
