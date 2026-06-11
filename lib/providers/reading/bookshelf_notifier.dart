@@ -221,7 +221,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     if (bookId == state.activeBookId && state.book != null) return true;
 
     final bookService = ref.read(bookServiceProvider);
-    _saveCurrentProgress();
+    await _saveCurrentProgress();
 
     final meta = bookService.books.where((b) => b.id == bookId).firstOrNull;
     if (meta == null) {
@@ -547,20 +547,27 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
 
   // ---- Internal: Book management ----
 
-  void _saveCurrentProgress() {
+  Future<BookMetadata?> persistReadingProgress(
+    CurrentBookState progressState,
+  ) async {
     final bookId = state.activeBookId;
-    if (bookId == null || state.book == null) return;
-    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
-    final readingProgress = ref
-        .read(currentBookNotifierProvider)
-        .readingProgress;
-    ref
+    if (bookId == null || state.book == null) return null;
+    final updated = await ref
         .read(bookServiceProvider)
         .updateProgress(
           bookId,
-          currentChapter,
-          readingProgress,
+          progressState.currentChapter,
+          progressState.readingProgress,
+          chapterScrollOffset: progressState.readingScrollOffset,
         );
+    if (updated != null && ref.mounted) {
+      state = state.copyWith(books: ref.read(bookServiceProvider).books);
+    }
+    return updated;
+  }
+
+  Future<void> _saveCurrentProgress() async {
+    await persistReadingProgress(ref.read(currentBookNotifierProvider));
   }
 
   int _clampChapterIndex(int index, int chapterCount) {

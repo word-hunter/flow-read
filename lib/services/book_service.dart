@@ -223,14 +223,14 @@ class BookService {
     );
   }
 
-  Future<void> updateProgress(
+  Future<BookMetadata?> updateProgress(
     String id,
     int currentChapter,
     double chapterProgress, {
     double? chapterScrollOffset,
   }) async {
     final meta = _repository.get(id);
-    if (meta == null) return;
+    if (meta == null) return null;
 
     final updated = meta.copyWith(
       currentChapter: currentChapter,
@@ -244,7 +244,9 @@ class BookService {
         ? ((currentChapter + chapterProgress) / chapters).clamp(0.0, 1.0)
         : 0.0;
 
-    await _repository.put(id, updated.copyWith(globalProgress: globalProg));
+    final persisted = updated.copyWith(globalProgress: globalProg);
+    await _repository.put(id, persisted);
+    return persisted;
   }
 
   void removeCover(String bookId) {

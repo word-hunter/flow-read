@@ -7,7 +7,6 @@ import '../../models/book.dart';
 import '../../models/book_difficulty.dart';
 import '../../models/book_metadata.dart';
 import '../../services/analysis_service.dart';
-import '../../services/book_service.dart';
 import 'package:flow_language/flow_language.dart';
 import '../../services/reading_time_service.dart';
 import '../settings_provider.dart';
@@ -97,7 +96,6 @@ class CurrentBookState {
 }
 
 class CurrentBookNotifier extends Notifier<CurrentBookState> {
-  BookService get _bookService => ref.read(bookServiceProvider);
   ReadingTimeService? get _readingTime => ref.read(readingTimeServiceProvider);
 
   final Map<int, AnalysisResult> _chapterAnalysisCache = {};
@@ -166,7 +164,7 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
       clearDifficulty: true,
     );
     if (!sameChapter) {
-      _saveCurrentProgress();
+      await _saveCurrentProgress();
     }
 
     ref.read(readingSearchNotifierProvider.notifier).clearSourceHighlight();
@@ -192,9 +190,10 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
     state = state.copyWith(isReading: true, hasBeenOpened: true);
   }
 
-  void exitReader() {
-    _readingTime?.stop();
-    _saveCurrentProgress();
+  Future<void> exitReader() async {
+    await _readingTime?.stop();
+    await _saveCurrentProgress();
+    if (!ref.mounted) return;
     state = state.copyWith(isReading: false);
   }
 
@@ -215,16 +214,10 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
 
   // ---- Internal ----
 
-  void _saveCurrentProgress() {
-    final bookId = activeBookId;
-    final shelfBook = ref.read(bookshelfNotifierProvider).book;
-    if (bookId == null || shelfBook == null) return;
-    _bookService.updateProgress(
-      bookId,
-      state.currentChapter,
-      state.readingProgress,
-      chapterScrollOffset: state.readingScrollOffset,
-    );
+  Future<void> _saveCurrentProgress() async {
+    await ref
+        .read(bookshelfNotifierProvider.notifier)
+        .persistReadingProgress(state);
   }
 
   Future<void> _analyzeCurrentChapter() async {

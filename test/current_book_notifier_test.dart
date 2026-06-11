@@ -13,6 +13,7 @@ import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/storage/database/dao/settings_dao.dart';
+import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
 import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
 import 'package:flow_read/storage/repositories/word_level_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -168,6 +169,64 @@ void main() {
       'New Chapter',
     );
   });
+
+  test(
+    'exitReader refreshes bookshelf books with latest read metadata',
+    () async {
+      final clock = _MutableClock(DateTime.utc(2026, 6, 11, 9));
+      final repository = _MemoryBookMetadataRepository([
+        _metadata(
+          id: 'book-1',
+          title: 'Old Book',
+          lastReadAt: DateTime.utc(2026, 6, 10, 20),
+        ),
+        _metadata(
+          id: 'book-2',
+          title: 'New Book',
+          lastReadAt: DateTime.utc(2026, 6, 10, 19),
+        ),
+      ]);
+      final bookService = BookService(
+        repository: repository,
+        clock: clock.now,
+      );
+      final bookshelf = _FakeBookshelfNotifier(
+        _book(
+          title: 'New Book',
+          chapterTitle: 'Chapter One',
+          text: 'New text.',
+        ),
+        initialBookId: 'book-2',
+        initialBooks: bookService.books,
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          bookshelfNotifierProvider.overrideWith(() => bookshelf),
+          bookServiceProvider.overrideWithValue(bookService),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(currentBookNotifierProvider.notifier);
+      notifier.updateReadingProgress(0.4, scrollOffset: 180);
+      await notifier.exitReader();
+
+      final books = container.read(bookshelfNotifierProvider).books;
+      final sortedByRecent = [...books]
+        ..sort(
+          (a, b) => (b.lastReadAt?.millisecondsSinceEpoch ?? 0).compareTo(
+            a.lastReadAt?.millisecondsSinceEpoch ?? 0,
+          ),
+        );
+      final updated = repository.get('book-2');
+
+      expect(sortedByRecent.first.id, 'book-2');
+      expect(updated?.lastReadAt, clock.now());
+      expect(updated?.chapterProgress, 0.4);
+      expect(updated?.chapterScrollOffset, 180);
+    },
+  );
 }
 
 Future<void> _pumpUntilAnalysisReady(
@@ -198,24 +257,40 @@ Book _book({
   );
 }
 
-BookMetadata _metadata({required String id, required String title}) {
+BookMetadata _metadata({
+  required String id,
+  required String title,
+  DateTime? lastReadAt,
+}) {
   return BookMetadata(
     id: id,
     title: title,
     author: 'Author',
     sourcePath: '',
     sourceLanguage: 'zh',
+    totalChapters: 2,
+    lastReadAt: lastReadAt,
   );
 }
 
 class _FakeBookshelfNotifier extends BookshelfNotifier {
-  _FakeBookshelfNotifier(this._initialBook);
+  _FakeBookshelfNotifier(
+    this._initialBook, {
+    this.initialBookId = 'book-1',
+    this.initialBooks = const [],
+  });
 
   final Book _initialBook;
+  final String initialBookId;
+  final List<BookMetadata> initialBooks;
 
   @override
   BookshelfState build() {
-    return BookshelfState(activeBookId: 'book-1', book: _initialBook);
+    return BookshelfState(
+      activeBookId: initialBookId,
+      book: _initialBook,
+      books: initialBooks,
+    );
   }
 
   void setBook(Book book, {required String bookId}) {
@@ -232,12 +307,54 @@ class _NoopBookService extends BookService {
   List<BookMetadata> get books => _books;
 
   @override
-  Future<void> updateProgress(
+  Future<BookMetadata?> updateProgress(
     String id,
     int currentChapter,
     double chapterProgress, {
     double? chapterScrollOffset,
-  }) async {}
+  }) async {
+    return null;
+  }
+}
+
+class _MemoryBookMetadataRepository implements BookMetadataRepository {
+  _MemoryBookMetadataRepository(Iterable<BookMetadata> books) {
+    for (final book in books) {
+      _books[book.id] = book;
+    }
+  }
+
+  final Map<String, BookMetadata> _books = {};
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  Iterable<BookMetadata> get values => _books.values;
+
+  @override
+  BookMetadata? get(String id) => _books[id];
+
+  @override
+  Future<void> put(String id, BookMetadata metadata) async {
+    _books[id] = metadata;
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _books.remove(id);
+  }
+
+  @override
+  Future<void> close() async {}
+}
+
+class _MutableClock {
+  _MutableClock(this.value);
+
+  DateTime value;
+
+  DateTime now() => value;
 }
 
 class _MemoryUserVocabularyRepository implements UserVocabularyRepository {
