@@ -18,6 +18,7 @@ import 'package:flow_read/services/learning_item_service.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/screens/reading_desk_screen.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_context_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
@@ -60,8 +61,67 @@ void main() {
 
       expect(find.byType(ReaderRightAssistantPanel), findsOneWidget);
       expect(find.byType(ReaderWordSidebar), findsOneWidget);
+      expect(find.text('词汇'), findsWidgets);
       expect(find.text('词典'), findsWidgets);
       expect(find.text('river'), findsWidgets);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      debugDefaultTargetPlatformOverride = null;
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    }
+  });
+
+  testWidgets('reading desk omits the old four-way bottom navigation', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 900);
+    try {
+      await _pumpWorkspaceReader(
+        tester,
+        bookshelf: () => _ReaderTestBookshelfNotifier(_bookWithToc()),
+        home: const ReadingDeskScreen(),
+      );
+
+      expect(find.byType(ReaderPage), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.text('阅读'), findsNothing);
+      expect(find.text('训练'), findsNothing);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      debugDefaultTargetPlatformOverride = null;
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    }
+  });
+
+  testWidgets('desktop workspace opens stats panel from the more menu', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 900);
+    try {
+      await _pumpWorkspaceReader(
+        tester,
+        bookshelf: () => _ReaderTestBookshelfNotifier(_bookWithToc()),
+      );
+
+      expect(find.byType(ReaderRightAssistantPanel), findsNothing);
+
+      await tester.tap(find.byTooltip('更多'));
+      await tester.pump();
+      expect(find.text('阅读统计'), findsOneWidget);
+
+      await tester.tap(find.text('阅读统计'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(find.byType(ReaderRightAssistantPanel), findsOneWidget);
+      expect(find.text('统计'), findsWidgets);
+      expect(find.text('本章统计'), findsOneWidget);
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
       debugDefaultTargetPlatformOverride = null;
@@ -151,6 +211,7 @@ Future<void> _pumpWorkspaceReader(
   WidgetTester tester, {
   required BookshelfNotifier Function() bookshelf,
   AnalysisResult? analysis,
+  Widget? home,
 }) async {
   final settings = SettingsService(_MemorySettingsDao());
   await settings.init();
@@ -199,7 +260,7 @@ Future<void> _pumpWorkspaceReader(
       ],
       child: MaterialApp(
         theme: ThemeData(useMaterial3: true),
-        home: const ReaderPage(),
+        home: home ?? const ReaderPage(),
       ),
     ),
   );

@@ -32,7 +32,9 @@ import '../widgets/bookmark_sheet.dart';
 import '../widgets/flow/flow_components.dart';
 import '../widgets/font_settings_sheet.dart';
 import '../widgets/reader/reader_nav_bar.dart';
+import '../widgets/reader/reader_learning_stats_panel.dart';
 import '../widgets/reader/reader_search_panel.dart';
+import '../widgets/reader/reader_vocabulary_panel.dart';
 import '../widgets/reader/reader_word_sidebar.dart';
 import '../widgets/reader_shell/desktop_reader_workspace_shell.dart';
 import '../widgets/reader_shell/reader_core_view.dart';
@@ -278,6 +280,94 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   void _exitReader() {
     _flushPendingScrollProgress();
     ref.read(currentBookNotifierProvider.notifier).exitReader();
+  }
+
+  void _openVocabularyPanel() {
+    _hideReadingReminder();
+    ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
+    switch (_actionPanelHost) {
+      case ReaderActionPanelHost.workspaceRightPanel:
+        _workspaceController.openRightPanel(ReaderRightPanelTab.dictionary);
+        setState(() {
+          _sidebarMode = _ReaderSidebarMode.word;
+        });
+      case ReaderActionPanelHost.wideSidebar:
+        setState(() {
+          _sidebarMode = _ReaderSidebarMode.word;
+          _sidebarOpen = true;
+        });
+      case ReaderActionPanelHost.bottomSheet:
+        showFlowSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => DraggableScrollableSheet(
+            initialChildSize: 0.78,
+            minChildSize: 0.4,
+            maxChildSize: 0.94,
+            expand: false,
+            builder: (_, _) => ReaderVocabularyPanel(
+              onVocabularySelected: _openVocabularyLookup,
+              onOpenAssistant: () =>
+                  _openAssistantPanel(ref.read(aiAssistantControllerProvider)),
+            ),
+          ),
+        );
+    }
+  }
+
+  void _openVocabularyLookup(Vocabulary vocabulary) {
+    _hideReadingReminder();
+    unawaited(
+      ref
+          .read(wordLookupNotifierProvider.notifier)
+          .lookupWord(
+            vocabulary.word,
+            contextText: vocabulary.context,
+            trackReadingLookup: true,
+          ),
+    );
+    switch (_actionPanelHost) {
+      case ReaderActionPanelHost.workspaceRightPanel:
+        _workspaceController.openRightPanel(ReaderRightPanelTab.dictionary);
+        setState(() {
+          _sidebarMode = _ReaderSidebarMode.word;
+        });
+      case ReaderActionPanelHost.wideSidebar:
+        setState(() {
+          _sidebarMode = _ReaderSidebarMode.word;
+          _sidebarOpen = true;
+        });
+      case ReaderActionPanelHost.bottomSheet:
+        break;
+    }
+  }
+
+  void _openStatsPanel() {
+    _hideReadingReminder();
+    switch (_actionPanelHost) {
+      case ReaderActionPanelHost.workspaceRightPanel:
+        _workspaceController.openRightPanel(ReaderRightPanelTab.chapter);
+      case ReaderActionPanelHost.wideSidebar:
+      case ReaderActionPanelHost.bottomSheet:
+        showFlowSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => DraggableScrollableSheet(
+            initialChildSize: 0.72,
+            minChildSize: 0.36,
+            maxChildSize: 0.92,
+            expand: false,
+            builder: (_, _) => ReaderLearningStatsPanel(
+              onStartTraining: _startChapterTraining,
+            ),
+          ),
+        );
+    }
+  }
+
+  void _startChapterTraining() {
+    _hideReadingReminder();
+    Navigator.of(context).pushNamed('/practice');
   }
 
   @override
@@ -676,6 +766,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               onSearchTap: () => unawaited(_showSearchSheet()),
               onBookmarkTap: _onBookmarkTap,
               onBookmarkHistoryTap: _showBookmarkHistory,
+              onOpenVocabularyPanel: _openVocabularyPanel,
+              onStartChapterTraining: _startChapterTraining,
+              onOpenStatsPanel: _openStatsPanel,
             );
           }
 
@@ -702,7 +795,6 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
             child: Column(
               children: [
                 buildToolbar(),
-                _buildReadingProgressLine(theme, _displayProgressNotifier),
                 _buildReadingReminder(theme),
                 Expanded(
                   child: _buildReadingBodyOverlay(
@@ -727,6 +819,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
                         : buildContent(),
                   ),
                 ),
+                _buildReadingProgressLine(theme, _displayProgressNotifier),
               ],
             ),
           );
@@ -837,22 +930,12 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       return const SizedBox.shrink();
     }
 
-    Widget? wordContent;
     Widget? textContent;
     Widget? aiContent;
 
     switch (_sidebarMode) {
       case _ReaderSidebarMode.word:
-        wordContent = ReaderWordSidebar(
-          onClose: () {
-            ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
-            _workspaceController.closeRightPanel();
-          },
-          onOpenAssistant: () {
-            _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
-            setState(() => _sidebarMode = _ReaderSidebarMode.assistant);
-          },
-        );
+        break;
       case _ReaderSidebarMode.textAnalysis:
         if (_sidebarSelectedText.isNotEmpty) {
           textContent = SelectedTextSheet(
@@ -869,13 +952,27 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           embedded: true,
           onClose: () => _workspaceController.closeRightPanel(),
         );
+        break;
     }
 
     return ReaderRightAssistantPanel(
       workspaceController: _workspaceController,
-      dictionaryContent: wordContent ?? const SizedBox.shrink(),
+      dictionaryContent: ReaderVocabularyPanel(
+        onVocabularySelected: _openVocabularyLookup,
+        onClose: () {
+          ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
+          _workspaceController.closeRightPanel();
+        },
+        onOpenAssistant: () {
+          _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
+          setState(() => _sidebarMode = _ReaderSidebarMode.assistant);
+        },
+      ),
       selectedTextContent: textContent ?? const SizedBox.shrink(),
       aiContent: aiContent ?? const SizedBox.shrink(),
+      chapterContent: ReaderLearningStatsPanel(
+        onStartTraining: _startChapterTraining,
+      ),
     );
   }
 }

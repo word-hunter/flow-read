@@ -193,9 +193,9 @@ class _WorkspaceCenterFrame extends StatelessWidget {
         child: Column(
           children: [
             toolbar,
-            ?readingProgressLine,
             ?readingReminder,
             Expanded(child: child),
+            ?readingProgressLine,
           ],
         ),
       ),

@@ -15,8 +15,8 @@ class ReaderRightAssistantPanel extends StatelessWidget {
     super.key,
     required this.workspaceController,
     this.dictionaryContent = const _EmptyState(
-      icon: Icons.touch_app_outlined,
-      message: '点击正文中的单词查看释义',
+      icon: Icons.text_fields_outlined,
+      message: '本章词汇和单词释义会显示在这里',
     ),
     this.selectedTextContent = const _EmptyState(
       icon: Icons.text_fields_outlined,
@@ -27,7 +27,7 @@ class ReaderRightAssistantPanel extends StatelessWidget {
       message: '针对当前章节提问，或使用工具栏触发总结/解释',
     ),
     this.chapterContent = const _EmptyState(
-      icon: Icons.menu_book_outlined,
+      icon: Icons.insights_outlined,
       message: '当前章节进度、词汇与阅读状态会显示在这里',
     ),
     this.currentContent,
@@ -57,10 +57,10 @@ class ReaderRightAssistantPanel extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context, ThemeData theme) {
     final tabs = [
-      (ReaderRightPanelTab.dictionary, Icons.menu_book_outlined, '词典'),
+      (ReaderRightPanelTab.dictionary, Icons.text_fields_outlined, '词汇'),
       (ReaderRightPanelTab.selectedText, Icons.text_fields_outlined, '选中'),
       (ReaderRightPanelTab.ai, Icons.auto_awesome_outlined, 'AI'),
-      (ReaderRightPanelTab.chapter, Icons.insights_outlined, '章节'),
+      (ReaderRightPanelTab.chapter, Icons.insights_outlined, '统计'),
     ];
 
     return Padding(

@@ -44,6 +44,9 @@ class ReaderNavBar extends StatelessWidget {
   final VoidCallback onSearchTap;
   final VoidCallback onBookmarkTap;
   final VoidCallback onBookmarkHistoryTap;
+  final VoidCallback onOpenVocabularyPanel;
+  final VoidCallback onStartChapterTraining;
+  final VoidCallback onOpenStatsPanel;
 
   const ReaderNavBar({
     super.key,
@@ -73,6 +76,9 @@ class ReaderNavBar extends StatelessWidget {
     required this.onSearchTap,
     required this.onBookmarkTap,
     required this.onBookmarkHistoryTap,
+    required this.onOpenVocabularyPanel,
+    required this.onStartChapterTraining,
+    required this.onOpenStatsPanel,
   });
 
   @override
@@ -269,6 +275,15 @@ class ReaderNavBar extends StatelessWidget {
                     case 'bookmarks':
                       onBookmarkHistoryTap();
                       break;
+                    case 'vocabulary':
+                      onOpenVocabularyPanel();
+                      break;
+                    case 'training':
+                      onStartChapterTraining();
+                      break;
+                    case 'stats':
+                      onOpenStatsPanel();
+                      break;
                   }
                 },
                 entries: [
@@ -298,6 +313,22 @@ class ReaderNavBar extends StatelessWidget {
                     value: 'bookmarks',
                     icon: Icons.bookmarks_outlined,
                     label: '历史书签',
+                  ),
+                  const FlowMenuDivider(),
+                  const FlowMenuItem(
+                    value: 'vocabulary',
+                    icon: Icons.text_fields_outlined,
+                    label: '本章词汇',
+                  ),
+                  const FlowMenuItem(
+                    value: 'training',
+                    icon: Icons.fitness_center_outlined,
+                    label: '本章训练',
+                  ),
+                  const FlowMenuItem(
+                    value: 'stats',
+                    icon: Icons.insights_outlined,
+                    label: '阅读统计',
                   ),
                 ],
                 builder: (context, isOpen, toggle) => _compactIconButton(
