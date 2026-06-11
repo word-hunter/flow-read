@@ -9,7 +9,6 @@ enum ReaderRightPanelTab { dictionary, ai, chapter }
 class ReaderWorkspaceController extends ChangeNotifier {
   bool _isLeftPanelOpen;
   bool _isRightPanelOpen;
-  bool _isRightPanelPinned;
   ReaderLeftPanelTab _leftTab;
   ReaderRightPanelTab _rightTab;
   double _leftPanelWidth;
@@ -20,12 +19,10 @@ class ReaderWorkspaceController extends ChangeNotifier {
     ReaderLeftPanelTab leftTab = ReaderLeftPanelTab.toc,
     double leftPanelWidth = ReaderPanelWidths.leftPanelDefault,
     bool rightPanelOpen = false,
-    bool rightPanelPinned = false,
     ReaderRightPanelTab rightTab = ReaderRightPanelTab.dictionary,
     double rightPanelWidth = ReaderPanelWidths.rightPanelDefault,
   }) : _isLeftPanelOpen = leftPanelOpen,
        _isRightPanelOpen = rightPanelOpen,
-       _isRightPanelPinned = rightPanelPinned,
        _leftTab = leftTab,
        _rightTab = rightTab,
        _leftPanelWidth = leftPanelWidth,
@@ -33,7 +30,6 @@ class ReaderWorkspaceController extends ChangeNotifier {
 
   bool get isLeftPanelOpen => _isLeftPanelOpen;
   bool get isRightPanelOpen => _isRightPanelOpen;
-  bool get isRightPanelPinned => _isRightPanelPinned;
   ReaderLeftPanelTab get leftTab => _leftTab;
   ReaderRightPanelTab get rightTab => _rightTab;
   double get leftPanelWidth => _leftPanelWidth;
@@ -87,7 +83,6 @@ class ReaderWorkspaceController extends ChangeNotifier {
   }
 
   void closeRightPanel() {
-    if (_isRightPanelPinned) return;
     if (!_isRightPanelOpen) return;
     _isRightPanelOpen = false;
     notifyListeners();
@@ -101,12 +96,6 @@ class ReaderWorkspaceController extends ChangeNotifier {
   void setRightTab(ReaderRightPanelTab tab) {
     if (_rightTab == tab) return;
     _rightTab = tab;
-    notifyListeners();
-  }
-
-  void setRightPanelPinned(bool pinned) {
-    if (_isRightPanelPinned == pinned) return;
-    _isRightPanelPinned = pinned;
     notifyListeners();
   }
 

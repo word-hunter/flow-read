@@ -12,7 +12,6 @@ void main() {
     test('default state', () {
       expect(controller.isLeftPanelOpen, true);
       expect(controller.isRightPanelOpen, false);
-      expect(controller.isRightPanelPinned, false);
       expect(controller.leftTab, ReaderLeftPanelTab.toc);
       expect(controller.rightTab, ReaderRightPanelTab.dictionary);
     });
@@ -63,17 +62,10 @@ void main() {
       expect(controller.rightTab, ReaderRightPanelTab.ai);
     });
 
-    test('close right panel when not pinned', () {
+    test('close right panel', () {
       controller.openRightPanel(ReaderRightPanelTab.dictionary);
       controller.closeRightPanel();
       expect(controller.isRightPanelOpen, false);
-    });
-
-    test('close right panel ignored when pinned', () {
-      controller.openRightPanel(ReaderRightPanelTab.dictionary);
-      controller.setRightPanelPinned(true);
-      controller.closeRightPanel();
-      expect(controller.isRightPanelOpen, true);
     });
 
     test('toggle right panel', () {
@@ -93,11 +85,6 @@ void main() {
 
       controller.setRightPanelWidth(600);
       expect(controller.rightPanelWidth, 460);
-    });
-
-    test('set right panel pinned', () {
-      controller.setRightPanelPinned(true);
-      expect(controller.isRightPanelPinned, true);
     });
 
     test('enter immersive closes all panels', () {

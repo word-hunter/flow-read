@@ -77,15 +77,6 @@ class ReaderRightAssistantPanel extends StatelessWidget {
             ),
           ),
           _IconAction(
-            icon: workspaceController.isRightPanelPinned
-                ? Icons.push_pin
-                : Icons.push_pin_outlined,
-            tooltip: workspaceController.isRightPanelPinned ? '取消固定面板' : '固定面板',
-            onTap: () => workspaceController.setRightPanelPinned(
-              !workspaceController.isRightPanelPinned,
-            ),
-          ),
-          _IconAction(
             icon: Icons.close,
             tooltip: '关闭面板',
             onTap: () => workspaceController.closeRightPanel(),
