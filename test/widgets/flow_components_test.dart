@@ -27,6 +27,80 @@ void main() {
       expect(shape.borderRadius, BorderRadius.circular(4));
     });
 
+    testWidgets('FlowButton uses roomy macOS button tokens', (tester) async {
+      await tester.pumpWidget(
+        _ShellHost(
+          shellId: ShellId.macosStandard,
+          child: FlowButton.primary(
+            onPressed: () {},
+            child: const Text('继续阅读'),
+          ),
+        ),
+      );
+
+      final button = tester.widget<FilledButton>(find.byType(FilledButton));
+      final style = button.style!;
+      final minimumSize = style.minimumSize!.resolve(<WidgetState>{});
+      final padding = style.padding!.resolve(<WidgetState>{})!;
+      final overlayColor = style.overlayColor!.resolve({
+        WidgetState.hovered,
+      });
+
+      expect(minimumSize, const Size(84, 40));
+      expect(padding, const EdgeInsets.symmetric(horizontal: 20, vertical: 10));
+      expect(overlayColor?.a, greaterThan(0));
+    });
+
+    testWidgets('FlowMenuButton renders desktop menu on macOS shell', (
+      tester,
+    ) async {
+      String? selected;
+      await tester.pumpWidget(
+        _ShellHost(
+          shellId: ShellId.macosStandard,
+          child: FlowMenuButton<String>(
+            tooltip: '更多',
+            entries: const [
+              FlowMenuItem(
+                value: 'rename',
+                icon: Icons.drive_file_rename_outline,
+                label: '重命名',
+              ),
+              FlowMenuDivider(),
+              FlowMenuItem(
+                value: 'remove',
+                icon: Icons.remove_circle_outline,
+                label: '移出书架',
+                destructive: true,
+              ),
+            ],
+            onSelected: (value) => selected = value,
+            child: const Text('更多'),
+          ),
+        ),
+      );
+
+      expect(find.byType(PopupMenuButton<String>), findsNothing);
+
+      await tester.tap(find.text('更多'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('flow-menu-surface')), findsOneWidget);
+      expect(find.text('重命名'), findsOneWidget);
+      expect(find.text('移出书架'), findsOneWidget);
+      final surface = tester.widget<Material>(
+        find.byKey(const ValueKey('flow-menu-surface')),
+      );
+      final shape = surface.shape! as RoundedRectangleBorder;
+      expect(surface.elevation, 12);
+      expect(shape.side.width, 1);
+
+      await tester.tap(find.text('重命名'));
+      await tester.pumpAndSettle();
+
+      expect(selected, 'rename');
+    });
+
     testWidgets('FlowTextField renders Cupertino input on iOS shell', (
       tester,
     ) async {

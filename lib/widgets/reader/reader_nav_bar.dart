@@ -6,6 +6,7 @@ import '../../providers/reading/bookmark_notifier.dart';
 import '../../providers/reading/current_book_notifier.dart';
 import '../../providers/reading/reading_config_notifier.dart';
 import '../../theme/app_surface_tokens.dart';
+import '../flow/flow_components.dart';
 import '../font_settings_sheet.dart';
 import '../reader_shell/reader_toc_panel.dart';
 import '../toc_bottom_sheet.dart';
@@ -79,8 +80,6 @@ class ReaderNavBar extends StatelessWidget {
     final theme = Theme.of(context);
     final tokens = AppSurfaceTokens.of(context);
     final cityPreset = CityThemeScope.maybeOf(context)?.preset;
-    final isDark = _isDarkReadingTheme(config);
-    final useDarkToolbar = isDark || cityPreset?.phase == CityTimePhase.night;
     final borderColor =
         cityPreset?.outline.withValues(alpha: 0.72) ??
         tokens.readerPageBorderColor;
@@ -178,7 +177,7 @@ class ReaderNavBar extends StatelessWidget {
                         icon: Icons.chevron_left,
                         tooltip: '上一个目录项',
                         onPressed: canGoPreviousChapter
-                            ? () => onGoToChapter(previousChapterTarget!)
+                            ? () => onGoToChapter(previousChapterTarget)
                             : null,
                       ),
                       const SizedBox(width: _toolbarIconGap),
@@ -213,7 +212,7 @@ class ReaderNavBar extends StatelessWidget {
                         icon: Icons.chevron_right,
                         tooltip: '下一个目录项',
                         onPressed: canGoNextChapter
-                            ? () => onGoToChapter(nextChapterTarget!)
+                            ? () => onGoToChapter(nextChapterTarget)
                             : null,
                       ),
                     ],
@@ -249,26 +248,9 @@ class ReaderNavBar extends StatelessWidget {
                 tooltip: '书签',
                 onPressed: onBookmarkTap,
               ),
-              PopupMenuButton<String>(
-                position: PopupMenuPosition.under,
-                tooltip: '更多',
-                icon: const Icon(Icons.more_vert, size: 20),
-                padding: EdgeInsets.zero,
-                style:
-                    _toolbarIconButtonStyle(
-                      theme,
-                      darkReader: useDarkToolbar,
-                    ).copyWith(
-                      fixedSize: const WidgetStatePropertyAll(
-                        Size(_toolbarButtonWidth, _toolbarButtonHeight),
-                      ),
-                      minimumSize: const WidgetStatePropertyAll(
-                        Size(_toolbarButtonWidth, _toolbarButtonHeight),
-                      ),
-                      maximumSize: const WidgetStatePropertyAll(
-                        Size(_toolbarButtonWidth, _toolbarButtonHeight),
-                      ),
-                    ),
+              FlowMenuButton<String>(
+                alignmentOffset: const Offset(-140, 8),
+                minWidth: 176,
                 onSelected: (value) {
                   switch (value) {
                     case 'search':
@@ -276,12 +258,12 @@ class ReaderNavBar extends StatelessWidget {
                       break;
                     case 'prevChapter':
                       if (canGoPreviousChapter) {
-                        onGoToChapter(previousChapterTarget!);
+                        onGoToChapter(previousChapterTarget);
                       }
                       break;
                     case 'nextChapter':
                       if (canGoNextChapter) {
-                        onGoToChapter(nextChapterTarget!);
+                        onGoToChapter(nextChapterTarget);
                       }
                       break;
                     case 'bookmarks':
@@ -289,25 +271,42 @@ class ReaderNavBar extends StatelessWidget {
                       break;
                   }
                 },
-                itemBuilder: (context) => [
+                entries: [
                   if (!showSearch)
-                    const PopupMenuItem(value: 'search', child: Text('搜索')),
-                  if (!showSearch) const PopupMenuDivider(),
+                    const FlowMenuItem(
+                      value: 'search',
+                      icon: Icons.search,
+                      label: '搜索',
+                    ),
+                  if (!showSearch) const FlowMenuDivider(),
                   if (currentBook.hasBook && visibleNavigationCount > 1) ...[
-                    PopupMenuItem(
+                    FlowMenuItem(
                       value: 'prevChapter',
                       enabled: canGoPreviousChapter,
-                      child: const Text('上一个目录项'),
+                      icon: Icons.keyboard_arrow_up,
+                      label: '上一个目录项',
                     ),
-                    PopupMenuItem(
+                    FlowMenuItem(
                       value: 'nextChapter',
                       enabled: canGoNextChapter,
-                      child: const Text('下一个目录项'),
+                      icon: Icons.keyboard_arrow_down,
+                      label: '下一个目录项',
                     ),
-                    const PopupMenuDivider(),
+                    const FlowMenuDivider(),
                   ],
-                  const PopupMenuItem(value: 'bookmarks', child: Text('历史书签')),
+                  const FlowMenuItem(
+                    value: 'bookmarks',
+                    icon: Icons.bookmarks_outlined,
+                    label: '历史书签',
+                  ),
                 ],
+                builder: (context, isOpen, toggle) => _compactIconButton(
+                  context,
+                  icon: Icons.more_vert,
+                  tooltip: '更多',
+                  selected: isOpen,
+                  onPressed: toggle,
+                ),
               ),
             ],
           ),

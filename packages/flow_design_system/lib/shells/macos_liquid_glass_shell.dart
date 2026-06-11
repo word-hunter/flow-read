@@ -121,7 +121,7 @@ class MacOsLiquidGlassShell implements Shell {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_buttonRadius),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           textStyle: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -133,6 +133,7 @@ class MacOsLiquidGlassShell implements Shell {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_buttonRadius),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           side: BorderSide(color: glassStroke),
         ),
       ),
@@ -142,7 +143,7 @@ class MacOsLiquidGlassShell implements Shell {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_buttonRadius),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           textStyle: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,

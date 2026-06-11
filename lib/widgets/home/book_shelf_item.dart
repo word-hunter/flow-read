@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/book_difficulty.dart';
 import '../book_difficulty_chip.dart';
+import '../flow/flow_components.dart';
 import 'book_cover_view.dart';
 import 'home_hover_surface.dart';
 
@@ -149,42 +150,34 @@ class _BookShelfItemState extends State<BookShelfItem> {
   }
 
   Future<void> _showContextMenu(BuildContext context, Offset position) async {
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final selected = await showMenu<BookShelfAction>(
+    final selected = await showFlowMenuAt<BookShelfAction>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromPoints(position, position),
-        Offset.zero & overlay.size,
-      ),
-      items: _buildMenuItems(context),
+      position: position,
+      entries: _buildMenuEntries(),
     );
     if (selected != null) _handleAction(selected);
   }
 
-  List<PopupMenuEntry<BookShelfAction>> _buildMenuItems(BuildContext context) {
-    final theme = Theme.of(context);
+  List<FlowMenuEntry<BookShelfAction>> _buildMenuEntries() {
     return [
-      const PopupMenuItem(
+      const FlowMenuItem(
         value: BookShelfAction.open,
-        child: _BookMenuItem(icon: Icons.menu_book_outlined, label: '继续阅读'),
+        icon: Icons.menu_book_outlined,
+        label: '继续阅读',
       ),
       if (widget.onRename != null)
-        const PopupMenuItem(
+        const FlowMenuItem(
           value: BookShelfAction.rename,
-          child: _BookMenuItem(
-            icon: Icons.drive_file_rename_outline,
-            label: '重命名',
-          ),
+          icon: Icons.drive_file_rename_outline,
+          label: '重命名',
         ),
-      if (widget.onRemove != null) const PopupMenuDivider(),
+      if (widget.onRemove != null) const FlowMenuDivider(),
       if (widget.onRemove != null)
-        PopupMenuItem(
+        const FlowMenuItem(
           value: BookShelfAction.remove,
-          child: _BookMenuItem(
-            icon: Icons.remove_circle_outline,
-            label: '移出书架',
-            color: theme.colorScheme.error,
-          ),
+          icon: Icons.remove_circle_outline,
+          label: '移出书架',
+          destructive: true,
         ),
     ];
   }
@@ -219,31 +212,28 @@ class _BookActionsButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return PopupMenuButton<BookShelfAction>(
+    return FlowMenuButton<BookShelfAction>(
       tooltip: '书籍操作',
       onSelected: onSelected,
-      itemBuilder: (context) => [
-        const PopupMenuItem(
+      entries: [
+        const FlowMenuItem(
           value: BookShelfAction.open,
-          child: _BookMenuItem(icon: Icons.menu_book_outlined, label: '继续阅读'),
+          icon: Icons.menu_book_outlined,
+          label: '继续阅读',
         ),
         if (canRename)
-          const PopupMenuItem(
+          const FlowMenuItem(
             value: BookShelfAction.rename,
-            child: _BookMenuItem(
-              icon: Icons.drive_file_rename_outline,
-              label: '重命名',
-            ),
+            icon: Icons.drive_file_rename_outline,
+            label: '重命名',
           ),
-        if (canRemove) const PopupMenuDivider(),
+        if (canRemove) const FlowMenuDivider(),
         if (canRemove)
-          PopupMenuItem(
+          const FlowMenuItem(
             value: BookShelfAction.remove,
-            child: _BookMenuItem(
-              icon: Icons.remove_circle_outline,
-              label: '移出书架',
-              color: theme.colorScheme.error,
-            ),
+            icon: Icons.remove_circle_outline,
+            label: '移出书架',
+            destructive: true,
           ),
       ],
       child: HomeHoverSurface(
@@ -278,33 +268,6 @@ class _BookActionsButton extends StatelessWidget {
               : theme.colorScheme.onSurface,
         ),
       ),
-    );
-  }
-}
-
-class _BookMenuItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color? color;
-
-  const _BookMenuItem({required this.icon, required this.label, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final foreground = color ?? theme.colorScheme.onSurface;
-
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: foreground),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(color: foreground),
-          ),
-        ),
-      ],
     );
   }
 }

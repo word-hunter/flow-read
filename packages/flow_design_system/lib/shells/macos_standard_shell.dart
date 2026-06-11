@@ -17,15 +17,15 @@ class _MacosButtonTokens implements ButtonTokens {
   BorderRadius get borderRadius => BorderRadius.circular(6);
   @override
   EdgeInsets get paddingSmall =>
-      const EdgeInsets.symmetric(horizontal: 10, vertical: 4);
+      const EdgeInsets.symmetric(horizontal: 14, vertical: 7);
   @override
   EdgeInsets get paddingMedium =>
-      const EdgeInsets.symmetric(horizontal: 14, vertical: 6);
+      const EdgeInsets.symmetric(horizontal: 20, vertical: 10);
   @override
   EdgeInsets get paddingLarge =>
-      const EdgeInsets.symmetric(horizontal: 18, vertical: 8);
+      const EdgeInsets.symmetric(horizontal: 24, vertical: 12);
   @override
-  double get minHeight => 28;
+  double get minHeight => 40;
   @override
   Duration get animationDuration => const Duration(milliseconds: 200);
 }
@@ -153,7 +153,7 @@ class MacOsStandardShell implements Shell {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_buttonRadius),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           textStyle: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -165,7 +165,7 @@ class MacOsStandardShell implements Shell {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_buttonRadius),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -174,7 +174,7 @@ class MacOsStandardShell implements Shell {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_buttonRadius),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           textStyle: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -200,8 +200,7 @@ class MacOsStandardShell implements Shell {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(_buttonRadius),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         isDense: true,
       ),
     );

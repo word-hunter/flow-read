@@ -101,15 +101,47 @@ class FlowButton extends StatelessWidget {
       FlowButtonSize.large => tokens.paddingLarge,
     };
 
+    final flowTheme = FlowThemeData.of(context);
+    final isMac =
+        flowTheme?.shellId == ShellId.macosStandard ||
+        flowTheme?.shellId == ShellId.macosLiquidGlass;
+    final minWidth = isMac
+        ? switch (size) {
+            FlowButtonSize.small => 60.0,
+            FlowButtonSize.medium => 84.0,
+            FlowButtonSize.large => 108.0,
+          }
+        : 0.0;
+
     return ButtonStyle(
       animationDuration: tokens.animationDuration,
-      minimumSize: WidgetStatePropertyAll(Size(0, tokens.minHeight)),
+      minimumSize: WidgetStatePropertyAll(Size(minWidth, tokens.minHeight)),
       padding: WidgetStatePropertyAll(padding),
+      mouseCursor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return SystemMouseCursors.basic;
+        }
+        return SystemMouseCursors.click;
+      }),
+      overlayColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) {
+          return Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.12);
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.08);
+        }
+        return Colors.transparent;
+      }),
       shape: WidgetStatePropertyAll(
         RoundedRectangleBorder(borderRadius: tokens.borderRadius),
       ),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
+      visualDensity: isMac ? VisualDensity.standard : VisualDensity.compact,
     );
   }
 

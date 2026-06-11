@@ -199,43 +199,41 @@ class FeaturedBookCard extends StatelessWidget {
             FlowButton.primary(
               onPressed: onContinueReading,
               icon: const Icon(Icons.menu_book, size: 18),
+              size: FlowButtonSize.large,
               child: const Text('继续阅读'),
             ),
             if (onRename != null || onRemove != null)
-              PopupMenuButton<FeaturedBookAction>(
+              FlowMenuButton<FeaturedBookAction>(
                 tooltip: '更多操作',
-                onSelected: _handleAction,
-                itemBuilder: (context) => [
+                entries: [
                   if (onRename != null)
-                    const PopupMenuItem(
+                    const FlowMenuItem(
                       value: FeaturedBookAction.rename,
-                      child: _FeaturedMenuItem(
-                        icon: Icons.drive_file_rename_outline,
-                        label: '重命名',
-                      ),
+                      icon: Icons.drive_file_rename_outline,
+                      label: '重命名',
                     ),
-                  if (onRemove != null) const PopupMenuDivider(),
+                  if (onRename != null && onRemove != null)
+                    const FlowMenuDivider(),
                   if (onRemove != null)
-                    PopupMenuItem(
+                    const FlowMenuItem(
                       value: FeaturedBookAction.remove,
-                      child: _FeaturedMenuItem(
-                        icon: Icons.remove_circle_outline,
-                        label: '移出书架',
-                        color: theme.colorScheme.error,
-                      ),
+                      icon: Icons.remove_circle_outline,
+                      label: '移出书架',
+                      destructive: true,
                     ),
                 ],
+                onSelected: _handleAction,
                 child: HomeHoverSurface(
                   height: 40,
                   width: 48,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                   backgroundColor: Colors.transparent,
                   hoverBackgroundColor: theme.colorScheme.primary.withValues(
-                    alpha: 0.07,
+                    alpha: 0.10,
                   ),
                   borderColor: theme.colorScheme.outlineVariant,
                   hoverBorderColor: theme.colorScheme.primary.withValues(
-                    alpha: 0.46,
+                    alpha: 0.58,
                   ),
                   builder: (context, isHovering) => Icon(
                     Icons.more_horiz,
@@ -397,37 +395,6 @@ class _FeaturedMetric extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _FeaturedMenuItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color? color;
-
-  const _FeaturedMenuItem({
-    required this.icon,
-    required this.label,
-    this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final foreground = color ?? theme.colorScheme.onSurface;
-
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: foreground),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(color: foreground),
-          ),
-        ),
-      ],
     );
   }
 }
