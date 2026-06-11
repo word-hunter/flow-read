@@ -745,14 +745,14 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               displayProgressListenable: _displayProgressNotifier,
               showSidebarToggle: useWorkspace || isWide,
               sidebarOpen: useWorkspace
-                  ? _workspaceController.isLeftPanelOpen
+                  ? _workspaceController.isRightPanelOpen
                   : _sidebarOpen,
               useWorkspaceTocPanel: useWorkspace,
               tocMenuOpen: _tocMenuOpen,
               tocMenuController: _tocMenuController,
               fontSettingsMenuController: _fontSettingsMenuController,
               onSidebarToggle: useWorkspace
-                  ? _workspaceController.toggleLeftPanel
+                  ? _workspaceController.toggleRightPanel
                   : _toggleSidebar,
               onShowWorkspaceToc: _workspaceController.openToc,
               onShowTocSheet: _showTocSheet,

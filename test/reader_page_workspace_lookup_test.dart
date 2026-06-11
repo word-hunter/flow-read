@@ -169,6 +169,46 @@ void main() {
   );
 
   testWidgets(
+    'desktop workspace sidebar toggle controls the right panel',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1440, 900);
+      try {
+        await _pumpWorkspaceReader(
+          tester,
+          bookshelf: () => _ReaderTestBookshelfNotifier(_bookWithToc()),
+        );
+
+        final leftPanel = find.byType(ReaderLeftWorkspacePanel);
+        expect(tester.getSize(leftPanel).width, greaterThan(0));
+        expect(find.byType(ReaderRightAssistantPanel), findsNothing);
+        expect(find.byTooltip('展开侧栏'), findsOneWidget);
+
+        await tester.tap(find.byTooltip('展开侧栏'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 260));
+
+        expect(tester.getSize(leftPanel).width, greaterThan(0));
+        expect(find.byType(ReaderRightAssistantPanel), findsOneWidget);
+        expect(find.byTooltip('收起侧栏'), findsOneWidget);
+
+        await tester.tap(find.byTooltip('收起侧栏'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 260));
+
+        expect(tester.getSize(leftPanel).width, greaterThan(0));
+        expect(find.byType(ReaderRightAssistantPanel), findsNothing);
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      }
+    },
+  );
+
+  testWidgets(
     'desktop workspace keeps side panels during uncached chapter load',
     (
       tester,
