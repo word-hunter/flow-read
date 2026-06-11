@@ -1,5 +1,6 @@
 import 'package:flow_design_system/flow_design_system.dart';
 import 'package:flutter/material.dart';
+import 'flow_sidebar_macos.dart';
 
 enum FlowSidebarVariant { auto, vertical, bottom }
 
@@ -98,6 +99,19 @@ class _BottomFlowSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final shellId = FlowThemeData.of(context)?.shellId;
+    final isMacOs = shellId == ShellId.macosStandard ||
+        shellId == ShellId.macosLiquidGlass;
+
+    if (isMacOs) {
+      return buildMacOsBottomBar(
+        destinations: destinations,
+        selectedIndex: selectedIndex,
+        onDestinationSelected: onDestinationSelected,
+        backgroundColor: backgroundColor,
+      );
+    }
+
     return NavigationBar(
       backgroundColor: backgroundColor,
       selectedIndex: selectedIndex,

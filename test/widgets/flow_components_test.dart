@@ -167,6 +167,48 @@ void main() {
       expect(selectedIndex, 1);
     });
 
+    testWidgets('FlowSidebar bottom uses macOS tab bar on macOS shell', (
+      tester,
+    ) async {
+      var selectedIndex = 0;
+      await tester.pumpWidget(
+        _ShellHost(
+          shellId: ShellId.macosStandard,
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return Scaffold(
+                bottomNavigationBar: FlowSidebar.bottom(
+                  selectedIndex: selectedIndex,
+                  onDestinationSelected: (index) {
+                    setState(() => selectedIndex = index);
+                  },
+                  destinations: const [
+                    FlowSidebarDestination(
+                      icon: Icon(Icons.menu_book_outlined),
+                      selectedIcon: Icon(Icons.menu_book),
+                      label: '阅读',
+                    ),
+                    FlowSidebarDestination(
+                      icon: Icon(Icons.text_fields_outlined),
+                      selectedIcon: Icon(Icons.text_fields),
+                      label: '词汇',
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      );
+
+      expect(find.byType(NavigationBar), findsNothing);
+
+      await tester.tap(find.text('词汇'));
+      await tester.pumpAndSettle();
+
+      expect(selectedIndex, 1);
+    });
+
     testWidgets('FlowToolbar follows macOS compact toolbar height', (
       tester,
     ) async {
