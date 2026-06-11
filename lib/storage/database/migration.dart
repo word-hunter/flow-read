@@ -252,15 +252,21 @@ final class HiveToDriftMigration {
 
     final box = Hive.box<String>(boxName);
     if (box.isEmpty) return;
+    final existingRows = await (_db.select(
+      _db.readingConfig,
+    )..where((row) => row.language.equals(lang))).get();
+    final existingKeys = existingRows.map((row) => row.key).toSet();
 
     await _db.batch((b) {
       for (final key in box.keys) {
+        final stringKey = key.toString();
+        if (existingKeys.contains(stringKey)) continue;
         final value = box.get(key);
         if (value != null) {
           b.insert(
             _db.readingConfig,
             ReadingConfigCompanion.insert(
-              key: key.toString(),
+              key: stringKey,
               language: Value(lang),
               value: Value(value),
             ),

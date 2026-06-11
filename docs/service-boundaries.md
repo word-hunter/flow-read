@@ -14,7 +14,7 @@ Last updated: 2026-06-06
 | `EpubService` | EPUB core parser 结果到 app `Book` 的映射、章节提取、图片提取 | `epub_reader_core` |
 | `EpubParseWorker` | EPUB 文件/字节后台 isolate 解析入口，支持导入解析进度回调与任务取消，避免 UI isolate 执行 ZIP/XML/HTML/CSS 解析 | `Isolate.spawn`, `EpubService` |
 | `BookmarkService` | 阅读书签 + 单词书签管理 | `word_bookmarks_{lang}`, `reading_bookmarks_{lang}` |
-| `ReadingConfigService` | 字体、字号、行高、边距、主题持久化 | `reading_config_{lang}` |
+| `ReadingConfigService` | 字体、字号、行高、边距、主题持久化 | Drift `reading_config`（由 Hive `reading_config_{lang}` 迁移） |
 | `ReadingTimeService` | 阅读时长跟踪、每日目标检测 | `reading_time_{lang}` |
 | `ReadingSearchService` | 全文搜索、搜索结果偏移定位 | `BookService`（获取章节文本） |
 

@@ -2,19 +2,54 @@ import '../models/reader_font.dart';
 import '../storage/repositories/reading_config_repository.dart';
 
 class ReadingConfigService {
-  ReadingConfigService({ReadingConfigRepository? repository})
-    : _repository = repository ?? HiveReadingConfigRepository();
+  ReadingConfigService({
+    ReadingConfigRepository? repository,
+    bool loadImmediately = false,
+  }) : _repository = repository ?? HiveReadingConfigRepository() {
+    if (loadImmediately) {
+      _load();
+    }
+  }
 
   final ReadingConfigRepository _repository;
+  Future<void>? _initFuture;
+  bool _initialized = false;
 
   double fontSize = 16.0;
   String fontFamily = ReaderFonts.defaultFamily;
   double lineHeight = 2.0;
   String theme = 'light';
 
-  Future<void> init() async {
-    await _repository.init();
-    _load();
+  static double normalizeFontSize(double value) {
+    return value.clamp(12.0, 24.0).toDouble();
+  }
+
+  static double normalizeLineHeight(double value) {
+    return value.clamp(1.4, 2.8).toDouble();
+  }
+
+  static String normalizeFontFamily(String value) {
+    return ReaderFonts.normalizeFamily(value);
+  }
+
+  Future<void> init() {
+    if (_initialized) return Future.value();
+    final pending = _initFuture;
+    if (pending != null) return pending;
+    final future = _init();
+    _initFuture = future;
+    return future;
+  }
+
+  Future<void> _init() async {
+    try {
+      await _repository.init();
+      _load();
+      _initialized = true;
+    } catch (_) {
+      _initFuture = null;
+      rethrow;
+    }
   }
 
   void _load() {
@@ -23,7 +58,7 @@ class ReadingConfigService {
           _repository.getString('fontSize', defaultValue: '16.0'),
         ) ??
         16.0;
-    fontFamily = ReaderFonts.normalizeFamily(
+    fontFamily = normalizeFontFamily(
       _repository.getString(
         'fontFamily',
         defaultValue: ReaderFonts.defaultFamily,
@@ -38,21 +73,25 @@ class ReadingConfigService {
   }
 
   Future<void> setFontSize(double value) async {
-    fontSize = value.clamp(12.0, 24.0);
+    await init();
+    fontSize = normalizeFontSize(value);
     await _repository.putString('fontSize', fontSize.toString());
   }
 
   Future<void> setFontFamily(String value) async {
-    fontFamily = ReaderFonts.normalizeFamily(value);
+    await init();
+    fontFamily = normalizeFontFamily(value);
     await _repository.putString('fontFamily', fontFamily);
   }
 
   Future<void> setLineHeight(double value) async {
-    lineHeight = value.clamp(1.4, 2.8);
+    await init();
+    lineHeight = normalizeLineHeight(value);
     await _repository.putString('lineHeight', lineHeight.toString());
   }
 
   Future<void> setTheme(String value) async {
+    await init();
     theme = value;
     await _repository.putString('theme', value);
   }

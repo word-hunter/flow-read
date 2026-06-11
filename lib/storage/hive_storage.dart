@@ -18,8 +18,14 @@ import 'hive_type_ids.dart';
 import 'storage_migrations.dart';
 
 AppDatabase? _appDatabase;
+String _bootstrappedReadingConfigLanguage = HiveBoxNames.defaultLanguageCode;
+Map<String, String> _bootstrappedReadingConfigValues = const {};
 
 AppDatabase? get appDatabase => _appDatabase;
+String get bootstrappedReadingConfigLanguage =>
+    _bootstrappedReadingConfigLanguage;
+Map<String, String> get bootstrappedReadingConfigValues =>
+    Map.unmodifiable(_bootstrappedReadingConfigValues);
 
 Future<void> bootstrapStorage() async {
   await Hive.initFlutter();
@@ -31,27 +37,50 @@ Future<void> bootstrapStorage() async {
 }
 
 Future<void> _bootstrapDatabase() async {
+  AppDatabase? db;
+  var activeLang = HiveBoxNames.defaultLanguageCode;
   try {
-    final db = await AppDatabase.create();
+    db = await AppDatabase.create();
     _appDatabase = db;
 
-    final activeLang = _activeSourceLanguageCode();
+    activeLang = _activeSourceLanguageCode();
     final migration = HiveToDriftMigration(db);
-    await migration.migrateAll(activeLang);
+    try {
+      await migration.migrateAll(activeLang);
+      AppLogger.instance.event(
+        'database.migration_succeeded',
+        source: 'storage',
+      );
+    } catch (error, stackTrace) {
+      AppLogger.instance.event(
+        'database.migration_failed',
+        level: AppLogLevel.warning,
+        source: 'storage',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
 
-    AppLogger.instance.event(
-      'database.migration_succeeded',
-      source: 'storage',
-    );
+    await _cacheBootstrappedReadingConfig(db, activeLang);
   } catch (error, stackTrace) {
     AppLogger.instance.event(
-      'database.migration_failed',
+      'database.bootstrap_failed',
       level: AppLogLevel.warning,
       source: 'storage',
       error: error,
       stackTrace: stackTrace,
     );
   }
+}
+
+Future<void> _cacheBootstrappedReadingConfig(
+  AppDatabase db,
+  String languageCode,
+) async {
+  _bootstrappedReadingConfigLanguage = languageCode;
+  _bootstrappedReadingConfigValues = await db.readingConfigDao.allValues(
+    languageCode,
+  );
 }
 
 void registerFlowReadHiveAdapters() {

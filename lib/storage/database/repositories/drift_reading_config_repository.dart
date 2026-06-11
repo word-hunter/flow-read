@@ -1,9 +1,34 @@
 import '../dao/reading_config_dao.dart';
+import '../../repositories/hive_repository_box.dart';
+import '../../repositories/reading_config_repository.dart';
 
-final class DriftReadingConfigRepository {
+final class DriftReadingConfigRepository implements ReadingConfigRepository {
+  DriftReadingConfigRepository(
+    this._dao, {
+    String? languageCode,
+    Map<String, String>? initialValues,
+  }) : _languageCode = activeHiveLanguageCode(languageCode),
+       _cache = Map<String, String>.of(initialValues ?? const {});
+
   final ReadingConfigDao _dao;
+  final String _languageCode;
+  Map<String, String> _cache;
 
-  DriftReadingConfigRepository(this._dao);
+  @override
+  Future<void> init() async {
+    _cache = await _dao.allValues(_languageCode);
+  }
+
+  @override
+  String getString(String key, {required String defaultValue}) {
+    return _cache[key] ?? defaultValue;
+  }
+
+  @override
+  Future<void> putString(String key, String value) async {
+    _cache[key] = value;
+    await _dao.putValue(key, _languageCode, value);
+  }
 
   Future<String> valueFor(String key, String language) =>
       _dao.valueFor(key, language);
@@ -16,4 +41,7 @@ final class DriftReadingConfigRepository {
 
   Future<void> clearForLanguage(String language) =>
       _dao.clearForLanguage(language);
+
+  @override
+  Future<void> close() async {}
 }

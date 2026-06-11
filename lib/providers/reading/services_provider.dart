@@ -23,6 +23,7 @@ import '../../services/word_context_service.dart';
 import '../../services/word_level_service.dart';
 import '../../storage/database/app_database.dart';
 import '../../storage/database/dao/book_glossary_dao.dart';
+import '../../storage/database/repositories/drift_reading_config_repository.dart';
 import '../../storage/hive_storage.dart';
 import '../settings_provider.dart';
 
@@ -35,7 +36,19 @@ final bookmarkServiceProvider = Provider<BookmarkService>((ref) {
 });
 
 final readingConfigServiceProvider = Provider<ReadingConfigService>((ref) {
-  return ReadingConfigService();
+  final db = appDatabase;
+  final service = db == null
+      ? ReadingConfigService()
+      : ReadingConfigService(
+          repository: DriftReadingConfigRepository(
+            db.readingConfigDao,
+            languageCode: bootstrappedReadingConfigLanguage,
+            initialValues: bootstrappedReadingConfigValues,
+          ),
+          loadImmediately: true,
+        );
+  unawaited(service.init());
+  return service;
 });
 
 final readingTimeServiceProvider = Provider<ReadingTimeService>((ref) {

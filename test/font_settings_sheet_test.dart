@@ -255,6 +255,9 @@ class _FakeReadingConfigService extends ReadingConfigService {
   String get theme => _readingTheme;
 
   @override
+  Future<void> init() async {}
+
+  @override
   Future<void> setFontSize(double size) async {
     _fontSize = size;
   }

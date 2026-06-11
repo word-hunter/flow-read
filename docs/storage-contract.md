@@ -18,7 +18,7 @@ Drift 数据库文件：`flow_read.db`，位于应用文档目录。WAL 模式�
 | `user_vocabulary` | UserVocabularyDao | 用户词汇状态 |
 | `word_bookmarks` | WordBookmarksDao | 单词书签 |
 | `reading_bookmarks` | ReadingBookmarksDao | 阅读书签 |
-| `reading_config` | ReadingConfigDao | 阅读配置 |
+| `reading_config` | ReadingConfigDao | 阅读配置（运行时 source of truth） |
 | `reading_time` | ReadingTimeDao | 阅读时长 |
 | `dictionary_cache` | DictionaryCacheDao | 词典缓存 |
 | `word_contexts` | WordContextDao | 单词例句 |
@@ -54,7 +54,7 @@ Drift 数据库文件：`flow_read.db`，位于应用文档目录。WAL 模式�
 | `user_vocabulary_{lang}` | 用户词汇状态 | `${lang}_${canonical}` → `UserVocabularyEntry` JSON |
 | `word_bookmarks_{lang}` | 单词书签 | `BookmarkedWord` (1) |
 | `reading_bookmarks_{lang}` | 阅读书签 | `ReadingBookmark` (2) |
-| `reading_config_{lang}` | 阅读器配置 | `ReadingConfig` (3) |
+| `reading_config_{lang}` | 旧版阅读器配置，作为 Drift 迁移来源保留 | `ReadingConfig` (3) |
 | `reading_time_{lang}` | 阅读时长记录 | 结构化 key |
 | `dictionary_cache_{lang}` | 词典缓存 | `{source}_{word}` → 缓存内容 |
 | `word_contexts_{lang}` | 单词上下文 | 结构化 key |
@@ -70,6 +70,7 @@ bootstrapStorage() {
   registerLanguageModules();   // EnglishLanguageModule → LanguageRegistry
   openBoxes();                 // settings + en-boxes × 10 + word_levels + rss_subscriptions + book_glossary
   runMigrations();             // v1 → v2 迁移
+  bootstrapDatabase();         // HiveToDriftMigration + reading_config 启动快照
 }
 ```
 

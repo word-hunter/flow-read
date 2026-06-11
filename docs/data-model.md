@@ -11,7 +11,7 @@ Last updated: 2026-06-06
 | 0 | `BookMetadata` | `books_{lang}` | id, title, author, sourcePath, coverPath, totalChapters, globalProgress, currentChapter, chapterProgress, lastReadAt, difficultyStudyWords, difficultyRatingJson, chapterScrollOffset, **sourceLanguage(15)**, **sourceLanguageOverride(16)**, **languageConfidence(17)**, **targetExplanationLanguage(18)** |
 | 1 | `BookmarkedWord` | `word_bookmarks_{lang}` | word, bookId, chapterIndex, context, note, createdAt |
 | 2 | `ReadingBookmark` | `reading_bookmarks_{lang}` | chapterIndex, characterOffset, note, label, createdAt |
-| 3 | `ReadingConfig` | `reading_config_{lang}` | fontSize, fontFamily, lineHeight, themeMode, pageMargins |
+| 3 | `ReadingConfig` | `reading_config_{lang}`（旧版迁移来源；运行时使用 Drift `reading_config`） | fontSize, fontFamily, lineHeight, themeMode, pageMargins |
 | 4 | `WordLevelInfo` | `word_levels` (global) | word, level (enum), origins |
 | 10 | `RssFeedSubscription` | `rss_subscriptions` (global) | url, title, description, imageUrl, lastFetchedAt |
 | 11 | `LearningItem` | `learning_items_{lang}` | id, type, prompt, answer, note, studyGoal, source, sourceContext, familiarity, createdAt, lastReviewedAt |

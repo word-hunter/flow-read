@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -48,48 +50,85 @@ class ReadingConfigState {
 }
 
 class ReadingConfigNotifier extends Notifier<ReadingConfigState> {
+  int _mutationGeneration = 0;
+
   ReadingConfigService get _config => ref.read(readingConfigServiceProvider);
 
   @override
   ReadingConfigState build() {
-    final initial = _config;
+    final config = _config;
+    unawaited(_refreshFromStorage(config, _mutationGeneration));
+    return _stateFrom(config);
+  }
+
+  ReadingConfigState _stateFrom(ReadingConfigService config) {
     return ReadingConfigState(
-      fontSize: initial.fontSize,
-      fontFamily: initial.fontFamily,
-      lineHeight: initial.lineHeight,
-      readingTheme: initial.theme,
+      fontSize: config.fontSize,
+      fontFamily: config.fontFamily,
+      lineHeight: config.lineHeight,
+      readingTheme: config.theme,
     );
   }
 
+  Future<void> _refreshFromStorage(
+    ReadingConfigService config,
+    int generation,
+  ) async {
+    await config.init();
+    if (!ref.mounted || generation != _mutationGeneration) return;
+    state = _stateFrom(config);
+  }
+
   void setFontSize(double size) {
-    _config.setFontSize(size);
-    state = state.copyWith(fontSize: size);
+    _mutationGeneration++;
+    state = state.copyWith(
+      fontSize: ReadingConfigService.normalizeFontSize(size),
+    );
+    unawaited(_config.setFontSize(size));
   }
 
   void setFontFamily(String family) {
-    _config.setFontFamily(family);
-    state = state.copyWith(fontFamily: family);
+    _mutationGeneration++;
+    state = state.copyWith(
+      fontFamily: ReadingConfigService.normalizeFontFamily(family),
+    );
+    unawaited(_config.setFontFamily(family));
   }
 
   void setLineHeight(double height) {
-    _config.setLineHeight(height);
-    state = state.copyWith(lineHeight: height);
+    _mutationGeneration++;
+    state = state.copyWith(
+      lineHeight: ReadingConfigService.normalizeLineHeight(height),
+    );
+    unawaited(_config.setLineHeight(height));
   }
 
   void setReadingTheme(String theme) {
-    _config.setTheme(theme);
+    _mutationGeneration++;
     state = state.copyWith(readingTheme: theme);
+    unawaited(_config.setTheme(theme));
   }
 
   void restoreDefaults() {
-    setFontSize(16);
-    setLineHeight(2.0);
-    setFontFamily(ReaderFonts.defaultFamily);
-    setReadingTheme('light');
+    _mutationGeneration++;
+    state = const ReadingConfigState(
+      fontSize: 16,
+      fontFamily: ReaderFonts.defaultFamily,
+      lineHeight: 2.0,
+      readingTheme: 'light',
+    );
+    unawaited(
+      Future.wait([
+        _config.setFontSize(16),
+        _config.setLineHeight(2.0),
+        _config.setFontFamily(ReaderFonts.defaultFamily),
+        _config.setTheme('light'),
+      ]),
+    );
   }
 }
 
 final readingConfigNotifierProvider =
     NotifierProvider<ReadingConfigNotifier, ReadingConfigState>(
-  ReadingConfigNotifier.new,
-);
+      ReadingConfigNotifier.new,
+    );
