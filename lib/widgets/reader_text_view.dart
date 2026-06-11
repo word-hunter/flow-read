@@ -71,18 +71,25 @@ TextSpan buildTappableWordSpan({
   bool isLookupHighlighted = false,
 }) {
   final isSearchMatch = _containsSearchMatch(word, searchQuery);
+  final readableColor = readableReaderAccentColor(
+    color,
+    theme,
+    baseTextColor: textStyle.color,
+  );
   return TextSpan(
     text: word,
     style: textStyle.copyWith(
       fontWeight: FontWeight.w600,
-      color: isSearchMatch ? searchHighlightForegroundFor(theme) : color,
+      color: isSearchMatch
+          ? searchHighlightForegroundFor(theme)
+          : readableColor,
       backgroundColor: isSearchMatch
           ? searchHighlightBackgroundFor(theme)
           : isLookupHighlighted
           ? lookupHighlightBackgroundFor(theme)
           : textStyle.backgroundColor,
       decoration: TextDecoration.underline,
-      decorationColor: color.withValues(alpha: 0.5),
+      decorationColor: readableColor.withValues(alpha: 0.5),
     ),
     mouseCursor: SystemMouseCursors.click,
     recognizer: TapGestureRecognizer()
@@ -214,6 +221,17 @@ Color searchHighlightForegroundFor(ThemeData theme) {
 Color lookupHighlightBackgroundFor(ThemeData theme) {
   final opacity = theme.brightness == Brightness.dark ? 0.52 : 0.58;
   return theme.colorScheme.primaryContainer.withValues(alpha: opacity);
+}
+
+Color readableReaderAccentColor(
+  Color color,
+  ThemeData theme, {
+  Color? baseTextColor,
+}) {
+  if (theme.brightness != Brightness.dark) return color;
+  if (color.computeLuminance() >= 0.35) return color;
+  final target = baseTextColor ?? theme.colorScheme.onSurface;
+  return Color.lerp(color, target, 0.68)!;
 }
 
 InlineSpan buildHighlightedText(

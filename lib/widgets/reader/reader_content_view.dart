@@ -356,11 +356,19 @@ Color _readerTextColor(
   ReadingConfigState config,
   CityThemePreset? cityPreset,
 ) {
+  return resolveReaderTextColor(config, cityPreset);
+}
+
+Color resolveReaderTextColor(
+  ReadingConfigState config,
+  CityThemePreset? cityPreset,
+) {
+  if (config.readingTheme == 'dark') {
+    return const Color(0xFFEAF1FA);
+  }
   if (cityPreset != null) return cityPreset.primaryText;
 
   switch (config.readingTheme) {
-    case 'dark':
-      return const Color(0xFFE8E2D6);
     case 'sepia':
       return const Color(0xFF30281F);
     default:
@@ -372,11 +380,19 @@ Color _readerMutedTextColor(
   ReadingConfigState config,
   CityThemePreset? cityPreset,
 ) {
+  return resolveReaderMutedTextColor(config, cityPreset);
+}
+
+Color resolveReaderMutedTextColor(
+  ReadingConfigState config,
+  CityThemePreset? cityPreset,
+) {
+  if (config.readingTheme == 'dark') {
+    return const Color(0xFFB7C5D6);
+  }
   if (cityPreset != null) return cityPreset.secondaryText;
 
   switch (config.readingTheme) {
-    case 'dark':
-      return const Color(0xFFC8C1B7);
     case 'sepia':
       return const Color(0xFF6F6251);
     default:

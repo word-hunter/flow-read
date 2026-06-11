@@ -3,8 +3,11 @@ import 'dart:typed_data';
 
 import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/content_block.dart';
+import 'package:flow_read/providers/reading/reading_config_notifier.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/widgets/reader/reader_content_view.dart';
 import 'package:flow_read/widgets/reader_text_view.dart';
+import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -103,6 +106,48 @@ void main() {
     expect(_colorFor(tappableTexts, 'known'), isNot(learningColor));
     expect(_colorFor(tappableTexts, 'learning'), learningColor);
     expect(_colorFor(tappableTexts, 'mystery'), unknownColor);
+  });
+
+  testWidgets('dark reader remaps low-contrast vocabulary colors', (
+    tester,
+  ) async {
+    final theme = ThemeData.dark();
+
+    final span = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      theme,
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
+      colorSettings: colorSettings,
+      baseTextColor: const Color(0xFFEAF1FA),
+    );
+
+    final tappableTexts = _tappableTextSpans(span);
+    final learningTextColor = _colorFor(tappableTexts, 'learning')!;
+    final mysteryTextColor = _colorFor(tappableTexts, 'mystery')!;
+
+    expect(learningTextColor, isNot(learningColor));
+    expect(mysteryTextColor, isNot(unknownColor));
+    expect(learningTextColor.computeLuminance(), greaterThan(0.35));
+    expect(mysteryTextColor.computeLuminance(), greaterThan(0.35));
+  });
+
+  test('dark reader text color ignores non-night city preset', () {
+    const config = ReadingConfigState(
+      fontSize: 18,
+      fontFamily: 'Literata',
+      lineHeight: 1.8,
+      readingTheme: 'dark',
+    );
+
+    expect(
+      resolveReaderTextColor(config, CityThemePresets.cityDusk),
+      const Color(0xFFEAF1FA),
+    );
+    expect(
+      resolveReaderMutedTextColor(config, CityThemePresets.cityDusk),
+      const Color(0xFFB7C5D6),
+    );
   });
 
   testWidgets('reader font family is applied to tappable paragraph spans', (
