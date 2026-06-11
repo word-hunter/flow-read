@@ -672,7 +672,7 @@ class _HighlightBuilder {
     final spans = <InlineSpan>[];
     final module = languageModule ?? LanguageRegistry.instance.defaultModule;
     if (module == null) throw StateError('No language module registered');
-    final tokens = module.tokenizeToTokens(paragraph).tokens;
+    final tokens = _readerTokenCache.tokenize(paragraph, module).tokens;
 
     for (final token in tokens) {
       if (token.isBoundary) {
@@ -864,7 +864,7 @@ class _StyledBlockBuilder {
     final spans = <InlineSpan>[];
     final module = languageModule ?? LanguageRegistry.instance.defaultModule;
     if (module == null) throw StateError('No language module registered');
-    final tokens = module.tokenizeToTokens(fullText).tokens;
+    final tokens = _readerTokenCache.tokenize(fullText, module).tokens;
 
     // Build offset-to-style mapping
     final styleRanges = <({int start, int end, InlineStyle style})>[];
@@ -1129,6 +1129,53 @@ class _StyledBlockBuilder {
       fontStyle: style.italic ? FontStyle.italic : null,
     );
   }
+}
+
+final _readerTokenCache = _ReaderTokenCache();
+
+class _ReaderTokenCache {
+  static const _maxEntries = 128;
+
+  final _entries = <_ReaderTokenCacheKey, TokenizedText>{};
+
+  TokenizedText tokenize(String text, LanguageModule module) {
+    final key = _ReaderTokenCacheKey(module, module.languageCode, text);
+    final cached = _entries.remove(key);
+    if (cached != null) {
+      _entries[key] = cached;
+      return cached;
+    }
+
+    final tokenized = module.tokenizeToTokens(text);
+    _entries[key] = tokenized;
+    while (_entries.length > _maxEntries) {
+      _entries.remove(_entries.keys.first);
+    }
+    return tokenized;
+  }
+}
+
+class _ReaderTokenCacheKey {
+  final LanguageModule module;
+  final String languageCode;
+  final String text;
+
+  const _ReaderTokenCacheKey(this.module, this.languageCode, this.text);
+
+  @override
+  bool operator ==(Object other) {
+    return other is _ReaderTokenCacheKey &&
+        identical(module, other.module) &&
+        languageCode == other.languageCode &&
+        text == other.text;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    identityHashCode(module),
+    languageCode,
+    text,
+  );
 }
 
 bool _isCommonContraction(

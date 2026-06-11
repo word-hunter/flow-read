@@ -13,6 +13,8 @@ import 'package:flow_read/widgets/reader/reader_content_view.dart';
 import 'package:flow_read/widgets/reader_text_view.dart';
 import 'package:flow_read/widgets/selected_text_action_toolbar.dart';
 import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
+import 'package:flow_language/english/english.dart';
+import 'package:flow_language/flow_language.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -632,6 +634,35 @@ void main() {
     expect(style?.color, searchHighlightForegroundFor(theme));
   });
 
+  testWidgets('paragraph tokenization is cached across highlight rebuilds', (
+    tester,
+  ) async {
+    final theme = ThemeData();
+    final module = _CountingLanguageModule();
+
+    final plainSpan = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      theme,
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
+      colorSettings: colorSettings,
+      languageModule: module,
+    );
+    final searchedSpan = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      theme,
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
+      colorSettings: colorSettings,
+      searchQuery: 'known',
+      languageModule: module,
+    );
+
+    expect(plainSpan.toPlainText(), 'known learning mystery');
+    expect(_hasHighlightedTextSpan(searchedSpan, 'known'), isTrue);
+    expect(module.tokenizeToTokensCallCount, 1);
+  });
+
   testWidgets('styled blocks apply lookup highlight backgrounds', (
     tester,
   ) async {
@@ -942,6 +973,43 @@ class _ReaderContentTestCurrentBookNotifier extends CurrentBookNotifier {
 
   @override
   AnalysisResult? get result => _result;
+}
+
+class _CountingLanguageModule implements LanguageModule {
+  final _delegate = const EnglishLanguageModule();
+  int tokenizeToTokensCallCount = 0;
+
+  @override
+  String get languageCode => _delegate.languageCode;
+
+  @override
+  String get languageName => _delegate.languageName;
+
+  @override
+  RegExp get wordPattern => _delegate.wordPattern;
+
+  @override
+  List<String> tokenize(String text) => _delegate.tokenize(text);
+
+  @override
+  TokenizedText tokenizeToTokens(String text) {
+    tokenizeToTokensCallCount += 1;
+    return _delegate.tokenizeToTokens(text);
+  }
+
+  @override
+  String canonicalize(String word) => _delegate.canonicalize(word);
+
+  @override
+  bool isCommonWord(String word, {int? maxLength}) {
+    return _delegate.isCommonWord(word, maxLength: maxLength);
+  }
+
+  @override
+  List<String> splitSentences(String text) => _delegate.splitSentences(text);
+
+  @override
+  Set<String> get subordinatingMarkers => _delegate.subordinatingMarkers;
 }
 
 List<_TappableTextProbe> _tappableTextSpans(InlineSpan span) {
