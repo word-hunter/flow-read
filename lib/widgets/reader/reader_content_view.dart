@@ -218,8 +218,12 @@ class ReaderContentView extends StatelessWidget {
       fontSize: config.fontSize,
       lineHeight: config.lineHeight,
       fontFamily: config.fontFamily,
-      baseTextColor: _readerTextColor(config, cityPreset),
-      mutedTextColor: _readerMutedTextColor(config, cityPreset),
+      baseTextColor: _readerTextColor(config, cityPreset, theme.brightness),
+      mutedTextColor: _readerMutedTextColor(
+        config,
+        cityPreset,
+        theme.brightness,
+      ),
       colorSettings: colorSettings,
       searchQuery: searchQuery,
       lookupHighlightWord: lookupHighlightWord,
@@ -239,8 +243,9 @@ class ReaderContentView extends StatelessWidget {
     ReadingConfigState config,
     CityThemePreset? cityPreset,
   ) {
-    final titleColor = _readerTextColor(config, cityPreset);
-    final dividerColor = _isDarkReadingTheme(config)
+    final titleColor = _readerTextColor(config, cityPreset, theme.brightness);
+    final dividerColor =
+        _usesDarkReaderPalette(config, cityPreset, theme.brightness)
         ? const Color(0xFF3A3A3A)
         : cityPreset?.outline ?? const Color(0xFFEEEEEE);
     return Padding(
@@ -296,7 +301,7 @@ class ReaderContentView extends StatelessWidget {
           fontSize: config.fontSize,
           lineHeight: config.lineHeight,
           fontFamily: config.fontFamily,
-          baseTextColor: _readerTextColor(config, cityPreset),
+          baseTextColor: _readerTextColor(config, cityPreset, theme.brightness),
           colorSettings: colorSettings,
           searchQuery: searchQuery,
           lookupHighlightWord: lookupHighlightWord,
@@ -341,7 +346,11 @@ class ReaderContentView extends StatelessWidget {
               fontSize: config.fontSize,
               lineHeight: config.lineHeight,
               fontFamily: config.fontFamily,
-              baseTextColor: _readerTextColor(config, cityPreset),
+              baseTextColor: _readerTextColor(
+                config,
+                cityPreset,
+                theme.brightness,
+              ),
               colorSettings: colorSettings,
               lookupHighlightWord: lookupState.selectedWord,
               wordLevelService: wordLevelService,
@@ -358,15 +367,21 @@ class ReaderContentView extends StatelessWidget {
 Color _readerTextColor(
   ReadingConfigState config,
   CityThemePreset? cityPreset,
+  Brightness appBrightness,
 ) {
-  return resolveReaderTextColor(config, cityPreset);
+  return resolveReaderTextColor(
+    config,
+    cityPreset,
+    appBrightness: appBrightness,
+  );
 }
 
 Color resolveReaderTextColor(
   ReadingConfigState config,
-  CityThemePreset? cityPreset,
-) {
-  if (config.readingTheme == 'dark') {
+  CityThemePreset? cityPreset, {
+  Brightness? appBrightness,
+}) {
+  if (_usesDarkReaderPalette(config, cityPreset, appBrightness)) {
     return const Color(0xFFEAF1FA);
   }
   if (cityPreset != null) return cityPreset.primaryText;
@@ -382,15 +397,21 @@ Color resolveReaderTextColor(
 Color _readerMutedTextColor(
   ReadingConfigState config,
   CityThemePreset? cityPreset,
+  Brightness appBrightness,
 ) {
-  return resolveReaderMutedTextColor(config, cityPreset);
+  return resolveReaderMutedTextColor(
+    config,
+    cityPreset,
+    appBrightness: appBrightness,
+  );
 }
 
 Color resolveReaderMutedTextColor(
   ReadingConfigState config,
-  CityThemePreset? cityPreset,
-) {
-  if (config.readingTheme == 'dark') {
+  CityThemePreset? cityPreset, {
+  Brightness? appBrightness,
+}) {
+  if (_usesDarkReaderPalette(config, cityPreset, appBrightness)) {
     return const Color(0xFFB7C5D6);
   }
   if (cityPreset != null) return cityPreset.secondaryText;
@@ -403,8 +424,14 @@ Color resolveReaderMutedTextColor(
   }
 }
 
-bool _isDarkReadingTheme(ReadingConfigState config) {
-  return config.readingTheme == 'dark';
+bool _usesDarkReaderPalette(
+  ReadingConfigState config,
+  CityThemePreset? cityPreset,
+  Brightness? appBrightness,
+) {
+  if (config.readingTheme == 'dark') return true;
+  if (cityPreset != null) return false;
+  return config.readingTheme == 'light' && appBrightness == Brightness.dark;
 }
 
 TextStyle _buildBaseTextStyle(
@@ -417,6 +444,6 @@ TextStyle _buildBaseTextStyle(
     height: config.lineHeight,
     letterSpacing: 0,
     fontFamily: config.fontFamily,
-    color: _readerTextColor(config, cityPreset),
+    color: _readerTextColor(config, cityPreset, theme.brightness),
   );
 }

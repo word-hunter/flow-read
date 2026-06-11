@@ -157,6 +157,96 @@ void main() {
     );
   });
 
+  test(
+    'dark app theme uses dark reader colors for default light reader theme',
+    () {
+      const config = ReadingConfigState(
+        fontSize: 18,
+        fontFamily: 'Literata',
+        lineHeight: 1.8,
+        readingTheme: 'light',
+      );
+
+      expect(
+        resolveReaderTextColor(config, null, appBrightness: Brightness.dark),
+        const Color(0xFFEAF1FA),
+      );
+      expect(
+        resolveReaderMutedTextColor(
+          config,
+          null,
+          appBrightness: Brightness.dark,
+        ),
+        const Color(0xFFB7C5D6),
+      );
+      expect(
+        resolveReaderTextColor(config, null, appBrightness: Brightness.light),
+        const Color(0xFF20231F),
+      );
+    },
+  );
+
+  testWidgets(
+    'reader content applies dark app text color to default light reader theme',
+    (tester) async {
+      final theme = ThemeData.dark();
+      final selectionAreaKey = GlobalKey<SelectionAreaState>();
+      final actionRegionKey = GlobalKey<SelectedTextActionRegionState>();
+      final scrollController = ScrollController();
+      final contentKeys = [GlobalKey()];
+      addTearDown(scrollController.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: ReaderContentView(
+              paragraphs: const ['known'],
+              blocks: const [],
+              result: result,
+              theme: theme,
+              colorSettings: colorSettings,
+              aiFeaturesEnabled: false,
+              currentBook: _ReaderContentTestCurrentBookNotifier(result),
+              config: const ReadingConfigState(
+                fontSize: 18,
+                fontFamily: 'Literata',
+                lineHeight: 1.8,
+                readingTheme: 'light',
+              ),
+              search: const ReadingSearchState(query: 'absent'),
+              lookupState: const WordLookupState(),
+              wordLevelService: null,
+              activeLanguageModule: null,
+              readerSelectionAreaKey: selectionAreaKey,
+              actionRegionKey: actionRegionKey,
+              scrollController: scrollController,
+              isWideScreen: false,
+              sidebarOpen: false,
+              isSearchPanelVisible: true,
+              contentKeyFor: (index) => contentKeys[index],
+              onVisibleContentCountChanged: (_) {},
+              onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
+              onAnalyzeSelected: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is RichText && widget.text.toPlainText() == 'known',
+        ),
+      );
+
+      expect(
+        _textSpanStyleFor(richText.text, 'known')?.color,
+        const Color(0xFFEAF1FA),
+      );
+    },
+  );
+
   testWidgets('reader font family is applied to tappable paragraph spans', (
     tester,
   ) async {
