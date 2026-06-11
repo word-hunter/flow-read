@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log Inspect — Flow Read</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --border: #e0e0e0;
+  --text: #212121;
+  --text-secondary: #757575;
+  --primary: #1565c0;
+  --primary-hover: #1976d2;
+  --error-bg: #ffebee;
+  --error-text: #c62828;
+  --warn-bg: #fff3e0;
+  --warn-text: #e65100;
+  --info-bg: #e3f2fd;
+  --info-text: #1565c0;
+  --debug-bg: #f3e5f5;
+  --debug-text: #6a1b9a;
+  --fatal-bg: #b71c1c;
+  --fatal-text: #ffffff;
+  --row-hover: #f5f5f5;
+  --badge-bg: #e0e0e0;
+  --shadow: 0 1px 3px rgba(0,0,0,0.12);
+  --radius: 8px;
+}
+
+[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1e1e1e;
+  --border: #333333;
+  --text: #e0e0e0;
+  --text-secondary: #9e9e9e;
+  --primary: #64b5f6;
+  --primary-hover: #42a5f5;
+  --error-bg: #3e1a1a;
+  --error-text: #ef9a9a;
+  --warn-bg: #3e2a0a;
+  --warn-text: #ffcc80;
+  --info-bg: #1a2a3e;
+  --info-text: #90caf9;
+  --debug-bg: #2a1a3e;
+  --debug-text: #ce93d8;
+  --fatal-bg: #650000;
+  --fatal-text: #ffffff;
+  --row-hover: #2a2a2a;
+  --badge-bg: #333333;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+main {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+
+/* Drop zone */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 60px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 24px;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+}
+.drop-zone p { color: var(--text-secondary); font-size: 14px; margin-top: 8px; }
+.drop-zone .icon { font-size: 40px; opacity: 0.5; }
+
+/* Stats bar */
+.stats-bar {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  min-width: 100px;
+  text-align: center;
+}
+.stat .stat-num { font-size: 24px; font-weight: 700; }
+.stat .stat-label { font-size: 12px; color: var(--text-secondary); }
+
+/* Controls */
+.controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.controls input, .controls select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.controls input:focus, .controls select:focus { border-color: var(--primary); }
+.controls input { min-width: 220px; }
+
+/* Table */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--bg) 50%, var(--surface));
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 0;
+}
+
+th:hover { background: var(--row-hover); }
+th .sort-icon { font-size: 10px; margin-left: 4px; opacity: 0.4; }
+th.sorted { color: var(--primary); }
+th.sorted .sort-icon { opacity: 1; }
+
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+tr:hover td { background: var(--row-hover); }
+
+td.expandable {
+  cursor: pointer;
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+/* Level badges */
+.level-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.level-debug { background: var(--debug-bg); color: var(--debug-text); }
+.level-info { background: var(--info-bg); color: var(--info-text); }
+.level-warning { background: var(--warn-bg); color: var(--warn-text); }
+.level-error { background: var(--error-bg); color: var(--error-text); }
+.level-fatal { background: var(--fatal-bg); color: var(--fatal-text); }
+
+/* Expanded row details */
+.expanded-row td {
+  white-space: normal;
+  max-width: none;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-bottom: 2px solid var(--border);
+}
+.expanded-row pre {
+  font-size: 12px;
+  max-height: 300px;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--row-hover); }
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-sm {
+  padding: 3px 10px;
+  font-size: 11px;
+  border-radius: 4px;
+}
+
+/* Theme toggle */
+.theme-toggle {
+  width: 36px; height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  background: var(--surface);
+  color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  flex-wrap: wrap;
+}
+.pagination span { font-size: 13px; color: var(--text-secondary); }
+
+/* Empty state */
+.empty {
+  text-align: center;
+  padding: 80px 24px;
+  color: var(--text-secondary);
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  font-size: 13px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  z-index: 100;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 768px) {
+  header { padding: 12px 16px; }
+  main { padding: 12px 16px; }
+  .stats-bar { gap: 8px; }
+  .stat { min-width: 70px; padding: 8px 12px; }
+  .stat .stat-num { font-size: 18px; }
+  .controls input { min-width: 140px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Log Inspect</h1>
+  <div class="header-actions">
+    <input type="file" id="file-input" accept=".log,.txt,.jsonl" hidden>
+    <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">Open File</button>
+    <button class="btn" id="export-btn" disabled onclick="exportFiltered()">Export</button>
+    <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">☀</button>
+  </div>
+</header>
+
+<main>
+  <div id="drop-zone" class="drop-zone" onclick="document.getElementById('file-input').click()">
+    <div class="icon">📂</div>
+    <p>Click or drag a log file here</p>
+  </div>
+
+  <div id="app-area" style="display:none;">
+    <div class="stats-bar" id="stats-bar"></div>
+
+    <div class="controls">
+      <input type="search" id="search-input" placeholder="Search all fields...">
+      <select id="level-filter">
+        <option value="">All Levels</option>
+        <option value="debug">Debug</option>
+        <option value="info">Info</option>
+        <option value="warning">Warning</option>
+        <option value="error">Error</option>
+        <option value="fatal">Fatal</option>
+      </select>
+      <select id="source-filter">
+        <option value="">All Sources</option>
+      </select>
+      <select id="sort-select">
+        <option value="time-desc">Time (newest)</option>
+        <option value="time-asc">Time (oldest)</option>
+        <option value="level">Level (severity)</option>
+        <option value="source">Source</option>
+        <option value="event">Event</option>
+      </select>
+      <span id="showing-count" style="font-size:12px;color:var(--text-secondary);"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-col="time" style="width:180px">Time <span class="sort-icon">▼</span></th>
+            <th data-col="level" style="width:90px">Level</th>
+            <th data-col="source" style="width:130px">Source</th>
+            <th data-col="event" style="width:180px">Event</th>
+            <th data-col="message">Message</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  "use strict";
+
+  const PAGE_SIZE = 100;
+  let allEntries = [];
+  let currentPage = 1;
+  let expandedRows = new Set();
+  let currentSort = 'time-desc';
+
+  // --- Theme ---
+  const themeBtn = document.getElementById('theme-btn');
+  function setTheme(t) {
+    if (t === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      themeBtn.textContent = '☾';
+    } else if (t === 'light') {
+      document.documentElement.removeAttribute('data-theme');
+      themeBtn.textContent = '☀';
+    } else {
+      const prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setTheme(prefers ? 'dark' : 'light');
+    }
+  }
+  window.toggleTheme = function() {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    localStorage.setItem('log-inspect-theme', next);
+  };
+  const saved = localStorage.getItem('log-inspect-theme');
+  setTheme(saved || 'auto');
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (!localStorage.getItem('log-inspect-theme')) setTheme('auto');
+  });
+
+  // --- File loading ---
+  const dropZone = document.getElementById('drop-zone');
+  const appArea = document.getElementById('app-area');
+  const fileInput = document.getElementById('file-input');
+
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) loadFile(file);
+  });
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (file) loadFile(file);
+    fileInput.value = '';
+  });
+
+  function loadFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        parseEntries(reader.result);
+        dropZone.style.display = 'none';
+        appArea.style.display = 'block';
+        currentPage = 1;
+        expandedRows.clear();
+        document.getElementById('export-btn').disabled = false;
+        showToast(`Loaded ${allEntries.length} entries`);
+        render();
+      } catch (err) {
+        showToast('Parse error: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function parseEntries(text) {
+    allEntries = text.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => {
+        try {
+          const obj = JSON.parse(line);
+          return {
+            time: obj.time || '',
+            level: (obj.level || 'info').toLowerCase(),
+            source: obj.source || 'unknown',
+            event: obj.event || 'unknown',
+            message: obj.message || null,
+            errorType: obj.errorType || null,
+            error: obj.error || null,
+            metadata: obj.metadata || {},
+            stackTrace: obj.stackTrace || null,
+          };
+        } catch {
+          return null;
+        }
+      })
+      .filter(e => e !== null);
+  }
+
+  // --- Filtering & Sorting ---
+  const LEVEL_ORDER = { fatal: 0, error: 1, warning: 2, info: 3, debug: 4 };
+
+  function getFiltered() {
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const levelFilter = document.getElementById('level-filter').value;
+    const sourceFilter = document.getElementById('source-filter').value;
+
+    let filtered = allEntries.filter(entry => {
+      if (levelFilter && entry.level !== levelFilter) return false;
+      if (sourceFilter && entry.source !== sourceFilter) return false;
+      if (searchTerm) {
+        const searchable = JSON.stringify({
+          time: entry.time,
+          level: entry.level,
+          source: entry.source,
+          event: entry.event,
+          message: entry.message || '',
+          errorType: entry.errorType || '',
+          error: entry.error || '',
+          metadata: JSON.stringify(entry.metadata),
+          stackTrace: entry.stackTrace || '',
+        }).toLowerCase();
+        if (!searchable.includes(searchTerm)) return false;
+      }
+      return true;
+    });
+
+    const sortVal = document.getElementById('sort-select').value || currentSort;
+    filtered.sort((a, b) => {
+      switch (sortVal) {
+        case 'time-desc': return b.time.localeCompare(a.time);
+        case 'time-asc': return a.time.localeCompare(b.time);
+        case 'level': return (LEVEL_ORDER[a.level] ?? 99) - (LEVEL_ORDER[b.level] ?? 99);
+        case 'source': return a.source.localeCompare(b.source);
+        case 'event': return a.event.localeCompare(b.event);
+        default: return 0;
+      }
+    });
+    currentSort = sortVal;
+
+    return filtered;
+  }
+
+  // --- Stats ---
+  function computeStats(filtered) {
+    const total = allEntries.length;
+    const errors = allEntries.filter(e => e.level === 'error' || e.level === 'fatal').length;
+    const warnings = allEntries.filter(e => e.level === 'warning').length;
+    const infos = allEntries.filter(e => e.level === 'info').length;
+    const visible = filtered.length;
+    return { total, errors, warnings, infos, visible };
+  }
+
+  // --- Render ---
+  function render() {
+    const filtered = getFiltered();
+    const stats = computeStats(filtered);
+    const totalPages = Math.ceil(stats.visible / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const page = filtered.slice(start, start + PAGE_SIZE);
+
+    // Stats bar
+    document.getElementById('stats-bar').innerHTML = `
+      <div class="stat"><div class="stat-num">${stats.total}</div><div class="stat-label">Total</div></div>
+      <div class="stat" style="--c: var(--error-text);"><div class="stat-num" style="color:var(--error-text)">${stats.errors}</div><div class="stat-label">Errors</div></div>
+      <div class="stat"><div class="stat-num" style="color:var(--warn-text)">${stats.warnings}</div><div class="stat-label">Warnings</div></div>
+      <div class="stat"><div class="stat-num">${stats.infos}</div><div class="stat-label">Info</div></div>
+    `;
+
+    // Showing count
+    document.getElementById('showing-count').textContent =
+      stats.visible === stats.total
+        ? `Showing ${stats.visible} entries`
+        : `Showing ${stats.visible} of ${stats.total} entries`;
+
+    // Table body
+    const tbody = document.getElementById('table-body');
+    if (page.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">No matching entries</td></tr>';
+    } else {
+      tbody.innerHTML = page.map((entry, i) => {
+        const idx = start + i;
+        const expanded = expandedRows.has(idx);
+        const hasDetail = entry.stackTrace || Object.keys(entry.metadata).length > 0 || entry.error;
+        const detailClass = hasDetail ? ' expandable' : '';
+
+        let row = `<tr data-idx="${idx}" class="${detailClass}" onclick="${hasDetail ? `toggleExpand(${idx})` : ''}" style="${hasDetail ? 'cursor:pointer' : ''}">`;
+        row += `<td>${escapeHtml(formatTime(entry.time))}</td>`;
+        row += `<td><span class="level-badge level-${entry.level}">${escapeHtml(entry.level)}</span></td>`;
+        row += `<td>${escapeHtml(entry.source)}</td>`;
+        row += `<td>${escapeHtml(entry.event)}</td>`;
+        row += `<td>${escapeHtml(entry.message || (entry.errorType ? `(${entry.errorType})` : '—'))}</td>`;
+        row += '</tr>';
+
+        if (expanded && hasDetail) {
+          row += `<tr class="expanded-row"><td colspan="5">`;
+          if (entry.errorType) row += `<div><strong>Error:</strong> ${escapeHtml(entry.errorType)} — ${escapeHtml(entry.error || '')}</div>`;
+          if (Object.keys(entry.metadata).length > 0) {
+            row += `<div style="margin-top:8px;"><strong>Metadata:</strong></div>`;
+            row += `<pre>${escapeHtml(JSON.stringify(entry.metadata, null, 2))}</pre>`;
+          }
+          if (entry.stackTrace) {
+            const stId = 'st-' + idx;
+            row += `<div style="margin-top:8px;display:flex;align-items:center;gap:8px;"><strong>Stack Trace:</strong>`;
+            row += `<button class="btn btn-sm" onclick="event.stopPropagation();copyStack('${stId}')">Copy</button></div>`;
+            row += `<pre id="${stId}">${escapeHtml(entry.stackTrace)}</pre>`;
+          }
+          row += '</td></tr>';
+        }
+        return row;
+      }).join('');
+    }
+
+    // Pagination
+    const pag = document.getElementById('pagination');
+    if (totalPages <= 1) {
+      pag.innerHTML = '';
+    } else {
+      let html = '';
+      html += `<button class="btn" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹ Prev</button>`;
+      for (let p = 1; p <= totalPages; p++) {
+        if (totalPages > 10 && p > 2 && p < totalPages - 1 && Math.abs(p - currentPage) > 2) {
+          if (p === 3 || p === totalPages - 2) html += '<span>…</span>';
+          continue;
+        }
+        html += `<button class="btn ${p === currentPage ? 'btn-primary' : ''}" onclick="goPage(${p})">${p}</button>`;
+      }
+      html += `<button class="btn" onclick="goPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next ›</button>`;
+      pag.innerHTML = html;
+    }
+
+    // Populate source filter
+    const sourceSelect = document.getElementById('source-filter');
+    const currentVal = sourceSelect.value;
+    const sources = [...new Set(allEntries.map(e => e.source))].sort();
+    sourceSelect.innerHTML = '<option value="">All Sources</option>' +
+      sources.map(s => `<option value="${escapeHtml(s)}" ${s === currentVal ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('');
+
+    updateSortHeader();
+  }
+
+  function updateSortHeader() {
+    document.querySelectorAll('th').forEach(th => {
+      th.classList.toggle('sorted', th.dataset.col === 'time' && currentSort.startsWith('time'));
+    });
+  }
+
+  window.goPage = function(p) {
+    const filtered = getFiltered();
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+    currentPage = Math.max(1, Math.min(p, totalPages));
+    render();
+    document.querySelector('.table-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  window.toggleExpand = function(idx) {
+    if (expandedRows.has(idx)) {
+      expandedRows.delete(idx);
+    } else {
+      expandedRows.add(idx);
+    }
+    render();
+  };
+
+  window.copyStack = function(elId) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent).then(() => {
+      showToast('Stack trace copied');
+    }).catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = el.textContent;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('Stack trace copied');
+    });
+  };
+
+  // --- Export ---
+  window.exportFiltered = function() {
+    const filtered = getFiltered();
+    const content = filtered.map(e => JSON.stringify({
+      time: e.time, level: e.level, source: e.source, event: e.event,
+      message: e.message, errorType: e.errorType, error: e.error,
+      metadata: e.metadata, stackTrace: e.stackTrace
+    })).join('\n');
+
+    const blob = new Blob([content], { type: 'application/jsonl' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'flow_read-filtered-' + new Date().toISOString().slice(0, 10) + '.log';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${filtered.length} entries`);
+  };
+
+  // --- Event listeners ---
+  document.getElementById('search-input').addEventListener('input', debounce(() => { currentPage = 1; render(); }, 200));
+  document.getElementById('level-filter').addEventListener('change', () => { currentPage = 1; render(); });
+  document.getElementById('source-filter').addEventListener('change', () => { currentPage = 1; render(); });
+  document.getElementById('sort-select').addEventListener('change', () => { currentPage = 1; render(); });
+
+  // Sort by column click
+  document.querySelectorAll('th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (col === 'time') {
+        const cur = document.getElementById('sort-select').value;
+        document.getElementById('sort-select').value = cur === 'time-desc' ? 'time-asc' : 'time-desc';
+      }
+      document.getElementById('sort-select').dispatchEvent(new Event('change'));
+    });
+  });
+
+  // Keyboard shortcut: Ctrl/Cmd+F focuses search
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f' && appArea.style.display !== 'none') {
+      e.preventDefault();
+      document.getElementById('search-input').focus();
+    }
+  });
+
+  // --- Helpers ---
+  function escapeHtml(s) {
+    if (s == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(s);
+    return div.innerHTML;
+  }
+
+  function formatTime(iso) {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString();
+    } catch {
+      return iso;
+    }
+  }
+
+  function debounce(fn, ms) {
+    let timer;
+    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+  }
+
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._timeout);
+    el._timeout = setTimeout(() => el.classList.remove('show'), 2500);
+  }
+})();
+</script>
+</body>
+</html>
