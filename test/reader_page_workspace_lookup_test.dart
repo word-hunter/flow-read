@@ -62,6 +62,7 @@ void main() {
       expect(find.byType(ReaderRightAssistantPanel), findsOneWidget);
       expect(find.byType(ReaderWordSidebar), findsOneWidget);
       expect(find.text('词汇'), findsWidgets);
+      expect(find.text('选中'), findsNothing);
       expect(find.text('词典'), findsWidgets);
       expect(find.text('river'), findsWidgets);
     } finally {

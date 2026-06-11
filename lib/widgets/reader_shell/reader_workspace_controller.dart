@@ -4,7 +4,7 @@ import '../../theme/app_motion_tokens.dart';
 
 enum ReaderLeftPanelTab { toc, bookmarks, search, goals }
 
-enum ReaderRightPanelTab { dictionary, selectedText, ai, chapter }
+enum ReaderRightPanelTab { dictionary, ai, chapter }
 
 class ReaderWorkspaceController extends ChangeNotifier {
   bool _isLeftPanelOpen;
@@ -23,13 +23,13 @@ class ReaderWorkspaceController extends ChangeNotifier {
     bool rightPanelPinned = false,
     ReaderRightPanelTab rightTab = ReaderRightPanelTab.dictionary,
     double rightPanelWidth = ReaderPanelWidths.rightPanelDefault,
-  })  : _isLeftPanelOpen = leftPanelOpen,
-        _isRightPanelOpen = rightPanelOpen,
-        _isRightPanelPinned = rightPanelPinned,
-        _leftTab = leftTab,
-        _rightTab = rightTab,
-        _leftPanelWidth = leftPanelWidth,
-        _rightPanelWidth = rightPanelWidth;
+  }) : _isLeftPanelOpen = leftPanelOpen,
+       _isRightPanelOpen = rightPanelOpen,
+       _isRightPanelPinned = rightPanelPinned,
+       _leftTab = leftTab,
+       _rightTab = rightTab,
+       _leftPanelWidth = leftPanelWidth,
+       _rightPanelWidth = rightPanelWidth;
 
   bool get isLeftPanelOpen => _isLeftPanelOpen;
   bool get isRightPanelOpen => _isRightPanelOpen;

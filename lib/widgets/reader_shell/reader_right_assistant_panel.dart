@@ -6,7 +6,6 @@ import 'reader_workspace_controller.dart';
 class ReaderRightAssistantPanel extends StatelessWidget {
   final ReaderWorkspaceController workspaceController;
   final Widget dictionaryContent;
-  final Widget selectedTextContent;
   final Widget aiContent;
   final Widget chapterContent;
   final Widget? currentContent;
@@ -17,10 +16,6 @@ class ReaderRightAssistantPanel extends StatelessWidget {
     this.dictionaryContent = const _EmptyState(
       icon: Icons.text_fields_outlined,
       message: '本章词汇和单词释义会显示在这里',
-    ),
-    this.selectedTextContent = const _EmptyState(
-      icon: Icons.text_fields_outlined,
-      message: '选中文本后可进行翻译、解释或语法分析',
     ),
     this.aiContent = const _EmptyState(
       icon: Icons.auto_awesome_outlined,
@@ -58,7 +53,6 @@ class ReaderRightAssistantPanel extends StatelessWidget {
   Widget _buildHeader(BuildContext context, ThemeData theme) {
     final tabs = [
       (ReaderRightPanelTab.dictionary, Icons.text_fields_outlined, '词汇'),
-      (ReaderRightPanelTab.selectedText, Icons.text_fields_outlined, '选中'),
       (ReaderRightPanelTab.ai, Icons.auto_awesome_outlined, 'AI'),
       (ReaderRightPanelTab.chapter, Icons.insights_outlined, '统计'),
     ];
@@ -111,7 +105,6 @@ class ReaderRightAssistantPanel extends StatelessWidget {
       index: ReaderRightPanelTab.values.indexOf(workspaceController.rightTab),
       children: [
         dictionaryContent,
-        selectedTextContent,
         aiContent,
         chapterContent,
       ],

@@ -44,7 +44,6 @@ import '../widgets/reader_text_view.dart';
 import '../widgets/surfaces/app_surface.dart';
 import '../widgets/selected_text_action_toolbar.dart'
     show SelectedTextActionRegionState;
-import '../widgets/selected_text_sheet.dart';
 import '../widgets/toc_bottom_sheet.dart';
 import '../widgets/word_bottom_sheet.dart';
 
@@ -52,7 +51,7 @@ part 'reader_daily_goal_mixin.dart';
 part 'reader_keyboard_mixin.dart';
 part 'reader_viewport_mixin.dart';
 
-enum _ReaderSidebarMode { word, textAnalysis, assistant }
+enum _ReaderSidebarMode { word, assistant }
 
 class ReaderPage extends riverpod.ConsumerStatefulWidget {
   const ReaderPage({super.key});
@@ -90,8 +89,6 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   late final ReaderWorkspaceController _workspaceController =
       ReaderWorkspaceController();
 
-  String _sidebarSelectedText = '';
-  final String _sidebarAnalyzerName = 'AI';
   _ReaderSidebarMode _sidebarMode = _ReaderSidebarMode.word;
   bool _sidebarOpen = false;
   @override
@@ -223,12 +220,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         _workspaceController.openRightPanel(ReaderRightPanelTab.ai);
         setState(() {
           _sidebarMode = _ReaderSidebarMode.assistant;
-          _sidebarSelectedText = selectedText;
         });
       case ReaderActionPanelHost.wideSidebar:
         setState(() {
           _sidebarMode = _ReaderSidebarMode.assistant;
-          _sidebarSelectedText = selectedText;
           _sidebarOpen = true;
         });
       case ReaderActionPanelHost.bottomSheet:
@@ -582,7 +577,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
     }
     setState(() {
-      if (!_sidebarOpen && _sidebarSelectedText.isEmpty) {
+      if (!_sidebarOpen && ref.read(aiAssistantControllerProvider).isEmpty) {
         _sidebarMode = _ReaderSidebarMode.word;
       }
       _sidebarOpen = !_sidebarOpen;
@@ -910,13 +905,6 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           setState(() => _sidebarMode = _ReaderSidebarMode.assistant);
         },
       ),
-      _ReaderSidebarMode.textAnalysis => SelectedTextSheet(
-        selectedText: _sidebarSelectedText,
-        analysis: null,
-        analyzerName: _sidebarAnalyzerName,
-        embedded: true,
-        onClose: () => setState(() => _sidebarOpen = false),
-      ),
       _ReaderSidebarMode.assistant => AIAssistantPanel(
         controller: ref.read(aiAssistantControllerProvider),
         embedded: true,
@@ -930,22 +918,11 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       return const SizedBox.shrink();
     }
 
-    Widget? textContent;
     Widget? aiContent;
 
     switch (_sidebarMode) {
       case _ReaderSidebarMode.word:
         break;
-      case _ReaderSidebarMode.textAnalysis:
-        if (_sidebarSelectedText.isNotEmpty) {
-          textContent = SelectedTextSheet(
-            selectedText: _sidebarSelectedText,
-            analysis: null,
-            analyzerName: _sidebarAnalyzerName,
-            embedded: true,
-            onClose: () => _workspaceController.closeRightPanel(),
-          );
-        }
       case _ReaderSidebarMode.assistant:
         aiContent = AIAssistantPanel(
           controller: ref.read(aiAssistantControllerProvider),
@@ -968,7 +945,6 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           setState(() => _sidebarMode = _ReaderSidebarMode.assistant);
         },
       ),
-      selectedTextContent: textContent ?? const SizedBox.shrink(),
       aiContent: aiContent ?? const SizedBox.shrink(),
       chapterContent: ReaderLearningStatsPanel(
         onStartTraining: _startChapterTraining,
