@@ -2,11 +2,16 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flow_read/models/analysis_result.dart';
+import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/content_block.dart';
+import 'package:flow_read/providers/reading/current_book_notifier.dart';
 import 'package:flow_read/providers/reading/reading_config_notifier.dart';
+import 'package:flow_read/providers/reading/reading_search_notifier.dart';
+import 'package:flow_read/providers/reading/word_lookup_notifier.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/reader/reader_content_view.dart';
 import 'package:flow_read/widgets/reader_text_view.dart';
+import 'package:flow_read/widgets/selected_text_action_toolbar.dart';
 import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -608,6 +613,107 @@ void main() {
     );
   });
 
+  testWidgets('reader selection can start in the left gutter before text', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(980, 520);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    const passage =
+        'It was on a Saturday morning that Brendon was caught playing the piano.';
+    final passageResult = AnalysisResult(
+      passageText: passage,
+      title: 'Chapter',
+      vocabulary: const [],
+      knownWords: const {},
+      learningWords: const {},
+      syntaxPatterns: const [],
+      comprehension: const Comprehension(
+        whatHappened: '',
+        whyHappened: '',
+        implicitMeaning: '',
+      ),
+      practice: const [],
+      difficulty: const Difficulty(
+        vocab: 0,
+        syntax: 0,
+        inference: 0,
+        explanation: '',
+      ),
+    );
+    final selectionAreaKey = GlobalKey<SelectionAreaState>();
+    final actionRegionKey = GlobalKey<SelectedTextActionRegionState>();
+    final scrollController = ScrollController();
+    final contentKeys = [GlobalKey()];
+    String? analyzedText;
+    addTearDown(scrollController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.macOS),
+        home: Scaffold(
+          body: ReaderContentView(
+            paragraphs: const [passage],
+            blocks: const [],
+            result: passageResult,
+            theme: ThemeData(),
+            colorSettings: colorSettings,
+            aiFeaturesEnabled: true,
+            currentBook: _ReaderContentTestCurrentBookNotifier(passageResult),
+            config: const ReadingConfigState(
+              fontSize: 24,
+              fontFamily: 'Serif',
+              lineHeight: 1.8,
+              readingTheme: 'light',
+            ),
+            search: const ReadingSearchState(),
+            lookupState: const WordLookupState(),
+            wordLevelService: null,
+            activeLanguageModule: null,
+            readerSelectionAreaKey: selectionAreaKey,
+            actionRegionKey: actionRegionKey,
+            scrollController: scrollController,
+            isWideScreen: true,
+            sidebarOpen: false,
+            isSearchPanelVisible: false,
+            contentKeyFor: (index) => contentKeys[index],
+            onVisibleContentCountChanged: (_) {},
+            onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
+            onAnalyzeSelected: (text) => analyzedText = text,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final firstLetterRect = tester.getRect(find.text('I'));
+    final restText = find.byWidgetPredicate(
+      (widget) =>
+          widget is RichText && widget.text.toPlainText().startsWith('t was'),
+    );
+    final restRect = tester.getRect(restText);
+    final gesture = await tester.startGesture(
+      Offset(firstLetterRect.left - 8, firstLetterRect.center.dy),
+      kind: PointerDeviceKind.mouse,
+    );
+
+    await tester.pump(const Duration(milliseconds: 50));
+    await gesture.moveTo(Offset(restRect.left + 180, restRect.center.dy));
+    await tester.pump(const Duration(milliseconds: 50));
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
+    await tester.pump();
+
+    final selected = analyzedText?.replaceAll(RegExp(r'\s+'), ' ');
+    expect(selected, startsWith('It was'));
+    actionRegionKey.currentState?.hideToolbar();
+  });
+
   testWidgets('highlighted word text spans remain tappable', (tester) async {
     final theme = ThemeData();
     String? tappedWord;
@@ -770,6 +876,30 @@ void main() {
 final Uint8List _transparentGif = Uint8List.fromList(
   base64Decode('R0lGODlhAQABAPAAAP///wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw=='),
 );
+
+class _ReaderContentTestCurrentBookNotifier extends CurrentBookNotifier {
+  _ReaderContentTestCurrentBookNotifier(this._result);
+
+  final AnalysisResult _result;
+
+  @override
+  CurrentBookState build() => CurrentBookState(
+    hasBeenOpened: true,
+    result: _result,
+  );
+
+  @override
+  bool get hasBook => true;
+
+  @override
+  int get chapterCount => 1;
+
+  @override
+  Book? get book => null;
+
+  @override
+  AnalysisResult? get result => _result;
+}
 
 List<_TappableTextProbe> _tappableTextSpans(InlineSpan span) {
   final result = <_TappableTextProbe>[];

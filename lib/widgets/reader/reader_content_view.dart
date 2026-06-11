@@ -100,52 +100,55 @@ class ReaderContentView extends StatelessWidget {
                 : Alignment.topCenter,
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxFrameWidth),
-              child: SelectionContainer.disabled(
-                child: SingleChildScrollView(
-                  key: const ValueKey('reader-scroll-view'),
-                  controller: scrollController,
-                  padding: EdgeInsets.fromLTRB(
-                    leftPadding,
-                    topPadding,
-                    rightPadding,
-                    40,
-                  ),
-                  child: SelectionArea(
-                    key: readerSelectionAreaKey,
-                    onSelectionChanged:
-                        actionRegionKey.currentState?.onSelectionChanged,
-                    contextMenuBuilder:
-                        actionRegionKey.currentState?.buildContextMenu ??
-                        (_, _) => const SizedBox.shrink(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (showTitleBlock)
-                          _buildTitleBlock(result, theme, config, cityPreset),
-                        for (
-                          var contentIndex = 0;
-                          contentIndex < contentCount;
-                          contentIndex += 1
-                        )
-                          KeyedSubtree(
-                            key: contentKeyFor(contentIndex),
-                            child: useBlocks
-                                ? _buildContentBlock(
-                                    blocks[contentIndex],
-                                    isFirstBlock:
-                                        contentIndex == 0 &&
-                                        currentBook.hasBook,
-                                    cityPreset: cityPreset,
-                                  )
-                                : _buildParagraph(
-                                    paragraphs[contentIndex],
-                                    isFirstParagraph:
-                                        contentIndex == 0 &&
-                                        currentBook.hasBook,
-                                    cityPreset: cityPreset,
-                                  ),
-                          ),
-                      ],
+              child: SingleChildScrollView(
+                key: const ValueKey('reader-scroll-view'),
+                controller: scrollController,
+                child: SelectionArea(
+                  key: readerSelectionAreaKey,
+                  onSelectionChanged:
+                      actionRegionKey.currentState?.onSelectionChanged,
+                  contextMenuBuilder:
+                      actionRegionKey.currentState?.buildContextMenu ??
+                      (_, _) => const SizedBox.shrink(),
+                  child: ColoredBox(
+                    color: Colors.transparent,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        leftPadding,
+                        topPadding,
+                        rightPadding,
+                        40,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (showTitleBlock)
+                            _buildTitleBlock(result, theme, config, cityPreset),
+                          for (
+                            var contentIndex = 0;
+                            contentIndex < contentCount;
+                            contentIndex += 1
+                          )
+                            KeyedSubtree(
+                              key: contentKeyFor(contentIndex),
+                              child: useBlocks
+                                  ? _buildContentBlock(
+                                      blocks[contentIndex],
+                                      isFirstBlock:
+                                          contentIndex == 0 &&
+                                          currentBook.hasBook,
+                                      cityPreset: cityPreset,
+                                    )
+                                  : _buildParagraph(
+                                      paragraphs[contentIndex],
+                                      isFirstParagraph:
+                                          contentIndex == 0 &&
+                                          currentBook.hasBook,
+                                      cityPreset: cityPreset,
+                                    ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
