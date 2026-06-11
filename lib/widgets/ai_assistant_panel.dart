@@ -80,7 +80,7 @@ class _EmptyPanel extends StatelessWidget {
   }
 }
 
-class _ActivePanel extends StatelessWidget {
+class _ActivePanel extends HookWidget {
   const _ActivePanel({
     required this.controller,
     required this.snapshot,
@@ -96,7 +96,9 @@ class _ActivePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actionController = controller.actionController;
+    useListenable(actionController);
     final availableActions = controller.availableActions;
+    final showActionStrip = _shouldShowActionStrip(availableActions);
 
     return SizedBox(
       width: embedded ? 360 : null,
@@ -110,7 +112,7 @@ class _ActivePanel extends StatelessWidget {
           ),
           const Divider(height: 1),
           _ContextCard(snapshot: snapshot),
-          if (availableActions.isNotEmpty) ...[
+          if (showActionStrip) ...[
             const Divider(height: 1),
             _ActionStrip(
               availableActions: availableActions,
@@ -143,6 +145,12 @@ class _ActivePanel extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  bool _shouldShowActionStrip(List<AIAssistantActionType> actions) {
+    if (actions.isEmpty) return false;
+    return !(actions.length == 1 &&
+        actions.single == AIAssistantActionType.explain);
   }
 }
 

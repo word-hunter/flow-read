@@ -45,30 +45,35 @@ void main() {
     expect(find.text('选中文字或点击单词开始分析'), findsOneWidget);
   });
 
-  testWidgets('shows header and action strip when context set', (tester) async {
-    final assistant = _buildController(settings);
-    addTearDown(assistant.dispose);
+  testWidgets(
+    'shows header and hides redundant explain action when context set',
+    (
+      tester,
+    ) async {
+      final assistant = _buildController(settings);
+      addTearDown(assistant.dispose);
 
-    assistant.setContext(
-      AIContextSnapshot(
-        source: AIContextSource.readerSelectedText,
-        selectedText: 'The door opened slowly.',
-        surroundingPassage: 'He approached. The door opened slowly.',
-        bookId: 'book-1',
-        chapterTitle: 'Chapter 1',
-      ),
-    );
+      assistant.setContext(
+        AIContextSnapshot(
+          source: AIContextSource.readerSelectedText,
+          selectedText: 'The door opened slowly.',
+          surroundingPassage: 'He approached. The door opened slowly.',
+          bookId: 'book-1',
+          chapterTitle: 'Chapter 1',
+        ),
+      );
 
-    await tester.pumpWidget(_wrap(AIAssistantPanel(controller: assistant)));
-    await tester.pump();
+      await tester.pumpWidget(_wrap(AIAssistantPanel(controller: assistant)));
+      await tester.pump();
 
-    expect(find.text('选中文本'), findsOneWidget);
-    expect(find.text('The door opened slowly.'), findsOneWidget);
-    expect(find.text('解释'), findsOneWidget);
-    expect(find.text('翻译'), findsNothing);
-    expect(find.text('短语'), findsNothing);
-    expect(find.text('指代'), findsNothing);
-  });
+      expect(find.text('选中文本'), findsOneWidget);
+      expect(find.text('The door opened slowly.'), findsOneWidget);
+      expect(find.text('解释'), findsNothing);
+      expect(find.text('翻译'), findsNothing);
+      expect(find.text('短语'), findsNothing);
+      expect(find.text('指代'), findsNothing);
+    },
+  );
 
   testWidgets('shows idle hint when no action executed yet', (tester) async {
     final assistant = _buildController(settings);
@@ -106,6 +111,37 @@ void main() {
     expect(find.text('继续追问...'), findsOneWidget);
     expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
     expect(find.byTooltip('发送追问'), findsOneWidget);
+  });
+
+  testWidgets('follow-up composer exits loading when action completes', (
+    tester,
+  ) async {
+    final assistant = _buildController(
+      settings,
+      responseDelay: const Duration(milliseconds: 30),
+    );
+    addTearDown(assistant.dispose);
+
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.readerSelectedText,
+        selectedText: 'The quick brown fox.',
+        surroundingPassage: 'The quick brown fox jumps.',
+      ),
+    );
+
+    final actionFuture = assistant.executeAction(AIAssistantActionType.explain);
+    await tester.pumpWidget(_wrap(AIAssistantPanel(controller: assistant)));
+    await tester.pump();
+
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+
+    await tester.pump(const Duration(milliseconds: 40));
+    await actionFuture;
+    await tester.pump();
+
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isTrue);
+    expect(find.text('Result text'), findsOneWidget);
   });
 
   testWidgets('executes action and shows result via controller', (
@@ -296,11 +332,15 @@ void main() {
 AIAssistantController _buildController(
   SettingsService settings, {
   String responseContent = 'Result text',
+  Duration responseDelay = Duration.zero,
 }) {
   final aiService = AIService(
     LLMClient(
       () => settings.aiProviderConfig,
       httpClient: MockClient((_) async {
+        if (responseDelay > Duration.zero) {
+          await Future<void>.delayed(responseDelay);
+        }
         return http.Response.bytes(
           utf8.encode(
             jsonEncode({
