@@ -27,7 +27,7 @@ void main() {
       expect(shape.borderRadius, BorderRadius.circular(4));
     });
 
-    testWidgets('FlowButton uses roomy macOS button tokens', (tester) async {
+    testWidgets('FlowButton uses macOS HIG self-drawn button', (tester) async {
       await tester.pumpWidget(
         _ShellHost(
           shellId: ShellId.macosStandard,
@@ -38,17 +38,18 @@ void main() {
         ),
       );
 
-      final button = tester.widget<FilledButton>(find.byType(FilledButton));
-      final style = button.style!;
-      final minimumSize = style.minimumSize!.resolve(<WidgetState>{});
-      final padding = style.padding!.resolve(<WidgetState>{})!;
-      final overlayColor = style.overlayColor!.resolve({
-        WidgetState.hovered,
-      });
+      expect(find.byType(FilledButton), findsNothing);
 
-      expect(minimumSize, const Size(84, 40));
-      expect(padding, const EdgeInsets.symmetric(horizontal: 20, vertical: 10));
-      expect(overlayColor?.a, greaterThan(0));
+      final container = tester.widget<AnimatedContainer>(
+        find.byType(AnimatedContainer),
+      );
+      final constraints = container.constraints!;
+      final decoration = container.decoration! as BoxDecoration;
+
+      expect(constraints.minWidth, 84);
+      expect(decoration.borderRadius, BorderRadius.circular(6));
+      expect(decoration.boxShadow, isNull);
+      expect(find.text('继续阅读'), findsOneWidget);
     });
 
     testWidgets('FlowMenuButton renders desktop menu on macOS shell', (
