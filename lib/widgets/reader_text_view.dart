@@ -378,9 +378,14 @@ Widget buildBlockWidget(
         languageModule: languageModule,
         footnoteMap: footnoteMap,
       );
+      final textSpan = _withParagraphTextIndent(
+        span as TextSpan,
+        block: block,
+        fontSize: effectiveFontSize,
+      );
 
       final richText = Text.rich(
-        span as TextSpan,
+        textSpan,
         textAlign: TextAlign.start,
         style: theme.textTheme.bodyLarge?.copyWith(
           height: lineHeight,
@@ -533,6 +538,41 @@ CrossAxisAlignment _crossAxisAlignmentFor(Alignment alignment) {
   if (alignment.x < 0) return CrossAxisAlignment.start;
   if (alignment.x > 0) return CrossAxisAlignment.end;
   return CrossAxisAlignment.center;
+}
+
+TextSpan _withParagraphTextIndent(
+  TextSpan span, {
+  required TextBlock block,
+  required double fontSize,
+}) {
+  if (block.type != BlockType.paragraph) return span;
+
+  final indent = _resolveParagraphTextIndent(
+    block.style.textIndent,
+    fontSize: fontSize,
+  );
+  if (indent <= 0) return span;
+
+  return TextSpan(
+    children: [
+      WidgetSpan(child: SizedBox(width: indent)),
+      span,
+    ],
+  );
+}
+
+double _resolveParagraphTextIndent(
+  CssLength? length, {
+  required double fontSize,
+}) {
+  final resolved = switch (length) {
+    CssPx(:final value) => value,
+    CssEm(:final value) => value * fontSize,
+    CssRem(:final value) => value * fontSize,
+    _ => null,
+  };
+  if (resolved == null || !resolved.isFinite || resolved <= 0) return 0;
+  return resolved;
 }
 
 class _HighlightBuilder {

@@ -293,22 +293,13 @@ void main() {
     expect(tooltip.triggerMode, isNot(TooltipTriggerMode.tap));
   });
 
-  testWidgets('text blocks ignore EPUB typography CSS in reader rendering', (
+  testWidgets('paragraphs render EPUB text-indent as a first-line spacer', (
     tester,
   ) async {
-    const readerTextColor = Color(0xFF202124);
     final block = TextBlock(
       type: BlockType.paragraph,
       spans: const [StyledText('known learning')],
-      style: const ReaderBlockStyle(
-        textAlign: ReaderTextAlign.center,
-        fontSizeScale: 1.8,
-        lineHeight: 1.0,
-        marginTop: CssEm(2),
-        marginBottom: CssEm(3),
-        paddingLeft: CssPx(48),
-        paddingRight: CssPx(24),
-      ),
+      style: const ReaderBlockStyle(textIndent: CssEm(2)),
     );
 
     await tester.pumpWidget(
@@ -319,9 +310,6 @@ void main() {
             result,
             ThemeData(),
             fontSize: 18,
-            lineHeight: 2.1,
-            fontFamily: 'Literata',
-            baseTextColor: readerTextColor,
             onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
           ),
         ),
@@ -331,30 +319,85 @@ void main() {
     final richText = tester.widget<RichText>(
       find.byWidgetPredicate(
         (widget) =>
-            widget is RichText && widget.text.toPlainText() == 'known learning',
+            widget is RichText &&
+            widget.text.toPlainText(includePlaceholders: false) ==
+                'known learning',
       ),
     );
-    expect(richText.textAlign, TextAlign.start);
-    expect(richText.text.style?.fontSize, 18);
-    expect(richText.text.style?.height, 2.1);
-    expect(richText.text.style?.fontFamily, 'Literata');
-    expect(richText.text.style?.color, readerTextColor);
 
-    final ancestorPaddings = tester
-        .widgetList<Padding>(
-          find.ancestor(
-            of: find.byWidgetPredicate(
-              (widget) =>
-                  widget is RichText &&
-                  widget.text.toPlainText() == 'known learning',
-            ),
-            matching: find.byType(Padding),
-          ),
-        )
-        .map((padding) => padding.padding)
-        .toList();
-    expect(ancestorPaddings, contains(const EdgeInsets.only(bottom: 12)));
+    expect(_firstSizedBoxWidgetSpanWidth(richText.text), 36);
+    expect(
+      _tappableTextSpans(richText.text).map((item) => item.text),
+      containsAll(['known', 'learning']),
+    );
   });
+
+  testWidgets(
+    'text blocks ignore EPUB typography CSS that conflicts with reader settings',
+    (
+      tester,
+    ) async {
+      const readerTextColor = Color(0xFF202124);
+      final block = TextBlock(
+        type: BlockType.paragraph,
+        spans: const [StyledText('known learning')],
+        style: const ReaderBlockStyle(
+          textAlign: ReaderTextAlign.center,
+          fontSizeScale: 1.8,
+          lineHeight: 1.0,
+          marginTop: CssEm(2),
+          marginBottom: CssEm(3),
+          paddingLeft: CssPx(48),
+          paddingRight: CssPx(24),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: buildBlockWidget(
+              block,
+              result,
+              ThemeData(),
+              fontSize: 18,
+              lineHeight: 2.1,
+              fontFamily: 'Literata',
+              baseTextColor: readerTextColor,
+              onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
+            ),
+          ),
+        ),
+      );
+
+      final richText = tester.widget<RichText>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is RichText &&
+              widget.text.toPlainText() == 'known learning',
+        ),
+      );
+      expect(richText.textAlign, TextAlign.start);
+      expect(richText.text.style?.fontSize, 18);
+      expect(richText.text.style?.height, 2.1);
+      expect(richText.text.style?.fontFamily, 'Literata');
+      expect(richText.text.style?.color, readerTextColor);
+
+      final ancestorPaddings = tester
+          .widgetList<Padding>(
+            find.ancestor(
+              of: find.byWidgetPredicate(
+                (widget) =>
+                    widget is RichText &&
+                    widget.text.toPlainText() == 'known learning',
+              ),
+              matching: find.byType(Padding),
+            ),
+          )
+          .map((padding) => padding.padding)
+          .toList();
+      expect(ancestorPaddings, contains(const EdgeInsets.only(bottom: 12)));
+    },
+  );
 
   testWidgets('heading text uses system reader scale over EPUB font-size CSS', (
     tester,
@@ -946,6 +989,27 @@ bool _hasWidgetSpan(InlineSpan span) {
 
   visit(span);
   return found;
+}
+
+double? _firstSizedBoxWidgetSpanWidth(InlineSpan span) {
+  double? width;
+
+  void visit(InlineSpan item) {
+    if (width != null) return;
+    if (item is WidgetSpan) {
+      final child = item.child;
+      if (child is SizedBox) {
+        width = child.width;
+      }
+      return;
+    }
+    if (item is TextSpan) {
+      item.children?.forEach(visit);
+    }
+  }
+
+  visit(span);
+  return width;
 }
 
 bool _hasHighlightedTextSpan(InlineSpan span, String text) {
