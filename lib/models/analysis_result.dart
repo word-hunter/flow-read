@@ -93,11 +93,13 @@ class Comprehension {
 class Practice {
   final String type;
   final String question;
+  final String sourceExcerpt;
   final String expectedReasoning;
 
   const Practice({
     required this.type,
     required this.question,
+    this.sourceExcerpt = '',
     required this.expectedReasoning,
   });
 
@@ -105,6 +107,7 @@ class Practice {
     return Practice(
       type: json.str('type'),
       question: json.str('question'),
+      sourceExcerpt: json.strOrNull('source_excerpt') ?? '',
       expectedReasoning: json.str('expected_reasoning'),
     );
   }
@@ -112,6 +115,7 @@ class Practice {
   Map<String, dynamic> toJson() => {
     'type': type,
     'question': question,
+    'source_excerpt': sourceExcerpt,
     'expected_reasoning': expectedReasoning,
   };
 }

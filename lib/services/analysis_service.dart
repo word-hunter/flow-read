@@ -459,6 +459,7 @@ class AnalysisService {
           question:
               'Look at the word "${v.word}" in the passage. '
               'Based on the context, what do you think it means before looking it up?',
+          sourceExcerpt: v.context,
           expectedReasoning:
               'Context clue: "${v.context}". '
               'Try to infer the meaning from the surrounding words, then use the dictionary to verify.',
@@ -474,6 +475,7 @@ class AnalysisService {
           question:
               'Find the word "${v.word}" in the text. '
               'What part of speech is it, and how does it function in its sentence?',
+          sourceExcerpt: v.context,
           expectedReasoning:
               'Identify if "${v.word}" is a noun, verb, adjective, or adverb based on its '
               'position and ending. Look at the words around it for clues.',
@@ -488,6 +490,7 @@ class AnalysisService {
           question:
               'How many clauses can you identify in this sentence?\n'
               '"${syntax.first.originalSentence}"',
+          sourceExcerpt: syntax.first.originalSentence,
           expectedReasoning:
               'Count the subject-verb pairs. Each independent or dependent clause '
               'has its own subject and verb. Try to separate the clauses mentally.',
@@ -502,6 +505,7 @@ class AnalysisService {
           question:
               'Read the full passage. What is the main idea or theme? '
               'Summarize it in your own words.',
+          sourceExcerpt: sentences.take(2).join(' '),
           expectedReasoning:
               'Identify the key subject matter, the author\'s perspective, and any '
               'emotional tone. Consider what the passage is trying to convey overall.',
@@ -516,6 +520,7 @@ class AnalysisService {
           question:
               'Try to paraphrase a sentence from the passage that contains '
               'one of the vocabulary words, using simpler language.',
+          sourceExcerpt: vocabulary[2].context,
           expectedReasoning:
               'Focus on conveying the same meaning using words you already know well. '
               'Replace difficult words with simpler synonyms while keeping the original meaning.',
