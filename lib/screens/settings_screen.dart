@@ -336,6 +336,9 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
                 obscureKey: _obscureKey,
                 testingConnection: _testingConnection,
                 connectionResult: _connectionResult,
+                aiAutomationMode: settings.aiAutomationMode,
+                onAutomationModeChanged: (mode) =>
+                    settings.setAIAutomationMode(mode),
                 onProviderChanged: (value) {
                   _connectionResult = null;
                   settings.setAIProvider(value);

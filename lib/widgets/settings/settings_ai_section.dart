@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/settings_service.dart';
+import 'package:flow_ai/flow_ai.dart';
 import '../flow/flow_components.dart';
 import 'settings_shared.dart';
 
@@ -24,6 +25,8 @@ class SettingsAISection extends StatelessWidget {
     required this.onClearCache,
     required this.aiCacheEntryCount,
     required this.cacheStatsLoading,
+    required this.aiAutomationMode,
+    required this.onAutomationModeChanged,
   });
 
   final SettingsService settings;
@@ -43,6 +46,8 @@ class SettingsAISection extends StatelessWidget {
   final VoidCallback onClearCache;
   final int? aiCacheEntryCount;
   final bool cacheStatsLoading;
+  final AIAutomationMode aiAutomationMode;
+  final ValueChanged<AIAutomationMode> onAutomationModeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -236,6 +241,48 @@ class SettingsAISection extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          icon: Icons.smart_toy_outlined,
+          title: '自动化',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SettingsStatusLine(
+                icon: Icons.info_outline,
+                text: _automationDescription(aiAutomationMode),
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 12),
+              SegmentedButton<AIAutomationMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: AIAutomationMode.saving,
+                    label: Text('节省'),
+                  ),
+                  ButtonSegment(
+                    value: AIAutomationMode.assisted,
+                    label: Text('辅助'),
+                  ),
+                  ButtonSegment(
+                    value: AIAutomationMode.automatic,
+                    label: Text('自动'),
+                  ),
+                ],
+                selected: {aiAutomationMode},
+                onSelectionChanged: (selected) {
+                  if (selected.isNotEmpty) {
+                    onAutomationModeChanged(selected.first);
+                  }
+                },
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: WidgetStatePropertyAll(theme.textTheme.labelSmall),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -249,5 +296,16 @@ class SettingsAISection extends StatelessWidget {
     if (loading) return '正在统计缓存...';
     if (count == null) return '缓存数量暂无法统计';
     return '$loadedLabel：$count $unit';
+  }
+
+  static String _automationDescription(AIAutomationMode mode) {
+    switch (mode) {
+      case AIAutomationMode.saving:
+        return '所有 AI 调用均需手动触发，不会自动消耗 token';
+      case AIAutomationMode.assisted:
+        return '读完后提示可生成总结，但需手动确认后才调用 AI';
+      case AIAutomationMode.automatic:
+        return '章节读完后自动生成总结（需额外配置条件限制）';
+    }
   }
 }

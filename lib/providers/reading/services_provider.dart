@@ -147,7 +147,8 @@ final aiAssistantControllerProvider = Provider<AIAssistantController>((ref) {
 });
 
 final aiAutomationSettingsProvider = Provider<AIAutomationSettings>((ref) {
-  return const AIAutomationSettings(mode: AIAutomationMode.saving);
+  final settings = ref.watch(settingsProvider);
+  return AIAutomationSettings(mode: settings.aiAutomationMode);
 });
 
 final aiActionRegistryProvider = Provider<AIAssistantActionRegistry>((ref) {

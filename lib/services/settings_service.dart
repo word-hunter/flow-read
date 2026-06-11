@@ -103,6 +103,7 @@ class SettingsService extends ChangeNotifier {
   static const _cityAtmosphereReduceMotionKey = 'city_atmosphere.reduce_motion';
   static const _cityAtmospherePerformanceModeKey =
       'city_atmosphere.performance_mode';
+  static const _aiAutomationModeKey = 'ai_automation_mode';
   static const _themeModeCycle = <ThemeMode>[
     ThemeMode.system,
     ThemeMode.light,
@@ -120,6 +121,7 @@ class SettingsService extends ChangeNotifier {
   Map<String, String> _aiBaseUrls = {};
   Map<String, String> _aiModels = {};
   AIUsageStats _aiUsage = AIUsageStats();
+  AIAutomationMode _aiAutomationMode = AIAutomationMode.saving;
   AppThemeId _appThemeId = AppThemeId.classic;
   ThemeMode _themeMode = ThemeMode.system;
   int _dailyReadingGoalMinutes = defaultDailyReadingGoalMinutes;
@@ -166,6 +168,7 @@ class SettingsService extends ChangeNotifier {
   }
 
   AIUsageStats get aiUsage => _aiUsage;
+  AIAutomationMode get aiAutomationMode => _aiAutomationMode;
   AppThemeId get appThemeId => _appThemeId;
   ThemeMode get themeMode => _themeMode;
   int get dailyReadingGoalMinutes => _dailyReadingGoalMinutes;
@@ -275,6 +278,11 @@ class SettingsService extends ChangeNotifier {
       textAnalysisCount: _readInt('aiTextAnalysisCount', 0),
       practiceCount: _readInt('aiPracticeCount', 0),
       wordAnalysisCount: _readInt('aiWordAnalysisCount', 0),
+    );
+    _aiAutomationMode = _readEnumByName(
+      _aiAutomationModeKey,
+      AIAutomationMode.values,
+      AIAutomationMode.saving,
     );
     final themeModeIndex = _readInt('themeMode', 0);
     _themeMode =
@@ -583,6 +591,12 @@ class SettingsService extends ChangeNotifier {
     final id = AIProviders.byId(providerId ?? _aiProviderId).id;
     _aiModels = {..._aiModels, id: model};
     _writeStringMap('aiModels', _aiModels);
+    notifyListeners();
+  }
+
+  Future<void> setAIAutomationMode(AIAutomationMode mode) async {
+    _aiAutomationMode = mode;
+    _put(_aiAutomationModeKey, mode.name);
     notifyListeners();
   }
 
