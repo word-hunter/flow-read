@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_constants.dart';
 import '../../theme/app_surface_tokens.dart';
+import '../../theme/city_theme_tokens.dart';
 import '../theme_mode_cycle_button.dart';
 import 'reading_stats_ring.dart';
 
@@ -157,27 +158,29 @@ class _HomeSidebarState extends State<HomeSidebar> {
     final theme = Theme.of(context);
     final tokens = AppSurfaceTokens.of(context);
     final cityPreset = CityThemeScope.maybeOf(context)?.preset;
+    final cityTokens = Theme.of(context).extension<CityThemeTokens>();
     final topSpacing = 12 + AppConstants.immersiveTitleBarTopInset;
 
     return Container(
       width: AppConstants.sidebarWidth,
       color:
+          cityTokens?.shellSurface ??
           cityPreset?.surface.withValues(alpha: 0.72) ??
           tokens.leftWorkspaceColor,
       child: Column(
         children: [
           SizedBox(height: topSpacing),
-          _buildBrandHeader(theme),
+          _buildBrandHeader(theme, cityTokens: cityTokens),
           const SizedBox(height: 18),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 16),
               child: Column(
                 children: [
-                  _buildSectionLabel(theme, '导航'),
-                  _buildNavItems(theme, cityPreset),
+                  _buildSectionLabel(theme, '导航', cityTokens: cityTokens),
+                  _buildNavItems(theme, cityPreset, cityTokens: cityTokens),
                   const SizedBox(height: 28),
-                  _buildSectionLabel(theme, '阅读目标'),
+                  _buildSectionLabel(theme, '阅读目标', cityTokens: cityTokens),
                   const SizedBox(height: 10),
                   ReadingStatsRing(
                     key: _readingGoalKey,
@@ -190,14 +193,18 @@ class _HomeSidebarState extends State<HomeSidebar> {
               ),
             ),
           ),
-          _buildBottomActions(theme),
+          _buildBottomActions(theme, cityTokens: cityTokens),
           const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  Widget _buildNavItems(ThemeData theme, CityThemePreset? cityPreset) {
+  Widget _buildNavItems(
+    ThemeData theme,
+    CityThemePreset? cityPreset, {
+    CityThemeTokens? cityTokens,
+  }) {
     final navItems = _navItems
         .where((item) => widget.showRss || item.tabIndex != 1)
         .toList(growable: false);
@@ -209,6 +216,7 @@ class _HomeSidebarState extends State<HomeSidebar> {
         return _buildNavItem(
           theme: theme,
           cityPreset: cityPreset,
+          cityTokens: cityTokens,
           icon: isSelected ? item.selectedIcon : item.icon,
           label: item.label,
           isSelected: isSelected,
@@ -221,7 +229,7 @@ class _HomeSidebarState extends State<HomeSidebar> {
     );
   }
 
-  Widget _buildBrandHeader(ThemeData theme) {
+  Widget _buildBrandHeader(ThemeData theme, {CityThemeTokens? cityTokens}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
@@ -232,7 +240,7 @@ class _HomeSidebarState extends State<HomeSidebar> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.primary,
+                color: cityTokens?.textPrimary ?? theme.colorScheme.primary,
                 fontWeight: FontWeight.w800,
                 height: 1,
               ),
@@ -243,7 +251,11 @@ class _HomeSidebarState extends State<HomeSidebar> {
     );
   }
 
-  Widget _buildSectionLabel(ThemeData theme, String label) {
+  Widget _buildSectionLabel(
+    ThemeData theme,
+    String label, {
+    CityThemeTokens? cityTokens,
+  }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 0, 28, 8),
       child: Align(
@@ -251,7 +263,9 @@ class _HomeSidebarState extends State<HomeSidebar> {
         child: Text(
           label,
           style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
+            color:
+                cityTokens?.textSecondary ??
+                theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -262,47 +276,74 @@ class _HomeSidebarState extends State<HomeSidebar> {
   Widget _buildNavItem({
     required ThemeData theme,
     required CityThemePreset? cityPreset,
+    CityThemeTokens? cityTokens,
     required IconData icon,
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final city = cityTokens;
+    final selectedBg = city != null && isSelected
+        ? city.activeBlue
+        : isSelected
+        ? (cityPreset?.surfaceSoft.withValues(alpha: 0.72) ??
+              theme.colorScheme.primaryContainer)
+        : Colors.transparent;
+    final iconColor = city != null
+        ? (isSelected ? city.onActiveBlue : city.textSecondary)
+        : isSelected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
+    final textColor = city != null
+        ? (isSelected ? city.onActiveBlue : city.textPrimary)
+        : isSelected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
+    final labelWeight = city != null
+        ? (isSelected ? FontWeight.w700 : FontWeight.w600)
+        : (isSelected ? FontWeight.w600 : FontWeight.normal);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: Material(
-        color: isSelected
-            ? (cityPreset?.surfaceSoft.withValues(alpha: 0.72) ??
-                  theme.colorScheme.primaryContainer)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: onTap,
-          mouseCursor: SystemMouseCursors.click,
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 22,
-                  color: isSelected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  label,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.normal,
-                    color: isSelected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        height: 56,
+        decoration: BoxDecoration(
+          color: selectedBg,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: city != null && isSelected
+              ? [
+                  BoxShadow(
+                    color: city.activeBlue.withValues(alpha: 0.22),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
                   ),
-                ),
-              ],
+                ]
+              : null,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: onTap,
+            mouseCursor: SystemMouseCursors.click,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Icon(icon, size: 22, color: iconColor),
+                  const SizedBox(width: 14),
+                  Text(
+                    label,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: labelWeight,
+                      color: textColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -310,14 +351,19 @@ class _HomeSidebarState extends State<HomeSidebar> {
     );
   }
 
-  Widget _buildBottomActions(ThemeData theme) {
+  Widget _buildBottomActions(
+    ThemeData theme, {
+    CityThemeTokens? cityTokens,
+  }) {
+    final iconColor =
+        cityTokens?.textSecondary ?? theme.colorScheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            color: theme.colorScheme.onSurfaceVariant,
+            color: iconColor,
             onPressed: () {
               _hideReadingGoalPanel();
               widget.onSettingsTap();
@@ -326,7 +372,7 @@ class _HomeSidebarState extends State<HomeSidebar> {
           ),
           ThemeModeCycleButton(
             nextMode: widget.nextThemeMode,
-            color: theme.colorScheme.onSurfaceVariant,
+            color: iconColor,
             onPressed: widget.onThemeToggle,
           ),
         ],

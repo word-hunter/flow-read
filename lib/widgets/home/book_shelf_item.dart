@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../models/book_difficulty.dart';
+import '../../theme/city_theme_tokens.dart';
 import '../book_difficulty_chip.dart';
 import '../flow/flow_components.dart';
 import 'book_cover_view.dart';
@@ -47,6 +48,7 @@ class _BookShelfItemState extends State<BookShelfItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final city = Theme.of(context).extension<CityThemeTokens>();
 
     return MouseRegion(
       cursor: widget.onTap == null
@@ -75,15 +77,19 @@ class _BookShelfItemState extends State<BookShelfItem> {
                       ),
                       border: Border.all(
                         color: _isHovering
-                            ? theme.colorScheme.primary.withValues(alpha: 0.46)
+                            ? (city?.activeBlue ?? theme.colorScheme.primary)
+                                  .withValues(alpha: 0.46)
                             : Colors.transparent,
                       ),
                       boxShadow: _isHovering
                           ? [
                               BoxShadow(
-                                color: theme.colorScheme.primary.withValues(
-                                  alpha: 0.12,
-                                ),
+                                color:
+                                    (city?.activeBlue ??
+                                            theme.colorScheme.primary)
+                                        .withValues(
+                                          alpha: city == null ? 0.12 : 0.18,
+                                        ),
                                 blurRadius: 16,
                                 offset: const Offset(0, 8),
                               ),
@@ -123,7 +129,7 @@ class _BookShelfItemState extends State<BookShelfItem> {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface,
+                  color: city?.textPrimary ?? theme.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 3),
@@ -132,7 +138,8 @@ class _BookShelfItemState extends State<BookShelfItem> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color:
+                      city?.textSecondary ?? theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               if (widget.difficulty != null || widget.isDifficultyLoading) ...[
@@ -211,6 +218,7 @@ class _BookActionsButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final city = Theme.of(context).extension<CityThemeTokens>();
 
     return FlowMenuButton<BookShelfAction>(
       tooltip: '书籍操作',
@@ -240,12 +248,15 @@ class _BookActionsButton extends StatelessWidget {
         width: 34,
         height: 34,
         borderRadius: BorderRadius.circular(8),
-        backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.9),
-        hoverBackgroundColor: theme.colorScheme.primaryContainer.withValues(
-          alpha: 0.96,
-        ),
-        borderColor: theme.colorScheme.outlineVariant.withValues(alpha: 0.65),
-        hoverBorderColor: theme.colorScheme.primary.withValues(alpha: 0.48),
+        backgroundColor: (city?.cardSurface ?? theme.colorScheme.surface)
+            .withValues(alpha: 0.9),
+        hoverBackgroundColor:
+            city?.panelSurface ??
+            theme.colorScheme.primaryContainer.withValues(alpha: 0.96),
+        borderColor: (city?.warmBorder ?? theme.colorScheme.outlineVariant)
+            .withValues(alpha: city == null ? 0.65 : 1),
+        hoverBorderColor: (city?.activeBlue ?? theme.colorScheme.primary)
+            .withValues(alpha: 0.48),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.2),
@@ -264,8 +275,8 @@ class _BookActionsButton extends StatelessWidget {
           Icons.more_horiz,
           size: 20,
           color: isHovering
-              ? theme.colorScheme.primary
-              : theme.colorScheme.onSurface,
+              ? city?.activeBlue ?? theme.colorScheme.primary
+              : city?.textPrimary ?? theme.colorScheme.onSurface,
         ),
       ),
     );

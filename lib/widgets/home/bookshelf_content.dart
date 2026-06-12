@@ -11,6 +11,7 @@ import '../../providers/reading/reading_time_notifier.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/epub_import_source.dart';
+import '../../theme/city_theme_tokens.dart';
 import '../flow/flow_components.dart';
 import 'book_shelf_row.dart';
 import 'featured_book_card.dart';
@@ -278,15 +279,20 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     ThemeData theme,
     BookshelfNotifier notifier,
   ) {
+    final city = Theme.of(context).extension<CityThemeTokens>();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.42),
+          color:
+              city?.panelSurface ??
+              theme.colorScheme.secondaryContainer.withValues(alpha: 0.42),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+            color:
+                city?.warmBorder ??
+                theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
         child: Row(
@@ -296,7 +302,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: theme.colorScheme.secondary,
+                color: city?.activeBlue ?? theme.colorScheme.secondary,
               ),
             ),
             const SizedBox(width: 10),
@@ -306,7 +312,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface,
+                  color: city?.textPrimary ?? theme.colorScheme.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -318,6 +324,8 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   }
 
   Widget _buildSearchField(ThemeData theme, {double? width}) {
+    final city = Theme.of(context).extension<CityThemeTokens>();
+    final borderColor = city?.warmBorder ?? theme.colorScheme.outlineVariant;
     final field = SizedBox(
       height: 40,
       child: FlowTextField(
@@ -325,20 +333,36 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
         onChanged: _onSearchChanged,
         decoration: InputDecoration(
           hintText: '搜索书籍或作者',
-          prefixIcon: const Icon(Icons.search, size: 20),
+          hintStyle: theme.textTheme.bodyMedium?.copyWith(
+            color: city?.textSecondary ?? theme.colorScheme.onSurfaceVariant,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            size: 20,
+            color: city?.textSecondary,
+          ),
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+            borderSide: BorderSide(color: borderColor),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+            borderSide: BorderSide(color: borderColor),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: city?.activeBlue ?? theme.colorScheme.primary,
+              width: 1.4,
+            ),
           ),
           filled: true,
-          fillColor: theme.colorScheme.surface,
+          fillColor: city?.cardSurface ?? theme.colorScheme.surface,
         ),
-        style: theme.textTheme.bodyMedium,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: city?.textPrimary ?? theme.colorScheme.onSurface,
+        ),
       ),
     );
 
@@ -351,6 +375,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     required String title,
     String? trailing,
   }) {
+    final city = Theme.of(context).extension<CityThemeTokens>();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
@@ -359,7 +384,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
             title,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
-              color: theme.colorScheme.onSurface,
+              color: city?.textPrimary ?? theme.colorScheme.onSurface,
             ),
           ),
           if (trailing != null) ...[
@@ -367,7 +392,8 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
             Text(
               trailing,
               style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color:
+                    city?.textSecondary ?? theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -382,6 +408,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     required int bookCount,
     required bool isDifficultyLoading,
   }) {
+    final city = Theme.of(context).extension<CityThemeTokens>();
     final countText = '$bookCount 本${isDifficultyLoading ? ' · 计算中' : ''}';
     final titleGroup = Row(
       mainAxisSize: MainAxisSize.min,
@@ -390,14 +417,14 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
           '书架',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w800,
-            color: theme.colorScheme.onSurface,
+            color: city?.textPrimary ?? theme.colorScheme.onSurface,
           ),
         ),
         const SizedBox(width: 10),
         Text(
           countText,
           style: theme.textTheme.titleMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+            color: city?.textSecondary ?? theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -432,6 +459,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   }
 
   Widget _buildSortMenu(ThemeData theme, BookshelfNotifier notifier) {
+    final city = Theme.of(context).extension<CityThemeTokens>();
     return FlowMenuButton<_BookSortMode>(
       tooltip: '排序',
       entries: [
@@ -471,25 +499,34 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
         height: 40,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         borderRadius: BorderRadius.circular(12),
-        backgroundColor: Colors.transparent,
-        hoverBackgroundColor: theme.colorScheme.primary.withValues(alpha: 0.06),
-        borderColor: theme.colorScheme.outline,
-        hoverBorderColor: theme.colorScheme.primary.withValues(alpha: 0.46),
+        backgroundColor: city?.cardSurface ?? Colors.transparent,
+        hoverBackgroundColor: (city?.activeBlue ?? theme.colorScheme.primary)
+            .withValues(alpha: city == null ? 0.06 : 0.08),
+        borderColor: city?.warmBorder ?? theme.colorScheme.outline,
+        hoverBorderColor:
+            city?.activeBlue ??
+            theme.colorScheme.primary.withValues(alpha: 0.46),
         hoverBoxShadow: [
           BoxShadow(
-            color: theme.colorScheme.primary.withValues(alpha: 0.08),
+            color: (city?.activeBlue ?? theme.colorScheme.primary).withValues(
+              alpha: 0.08,
+            ),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
         builder: (context, isHovering) {
           final foreground = isHovering
-              ? theme.colorScheme.primary
-              : theme.colorScheme.onSurface;
+              ? city?.activeBlue ?? theme.colorScheme.primary
+              : city?.textPrimary ?? theme.colorScheme.onSurface;
           return Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.sort, size: 18, color: theme.colorScheme.primary),
+              Icon(
+                Icons.sort,
+                size: 18,
+                color: city?.activeBlue ?? theme.colorScheme.primary,
+              ),
               const SizedBox(width: 8),
               Text(
                 _sortLabel(_sortMode),
@@ -527,6 +564,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     BookshelfNotifier notifier,
     ThemeData theme,
   ) {
+    final city = Theme.of(context).extension<CityThemeTokens>();
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -536,7 +574,9 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
             Icon(
               Icons.menu_book,
               size: 80,
-              color: theme.colorScheme.primary.withValues(alpha: 0.5),
+              color: (city?.activeBlue ?? theme.colorScheme.primary).withValues(
+                alpha: 0.5,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
@@ -549,7 +589,8 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
             Text(
               '导入 EPUB 电子书，开始英文阅读训练',
               style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color:
+                    city?.textSecondary ?? theme.colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
@@ -560,7 +601,8 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
               Text(
                 state.importStage,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color:
+                      city?.textSecondary ?? theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ] else

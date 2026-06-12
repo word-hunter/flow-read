@@ -74,45 +74,33 @@ class SettingsAISection extends StatelessWidget {
           title: '模型配置',
           child: ResponsiveSettingsGrid(
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: selectedExplanationLanguage,
-                decoration: const InputDecoration(
-                  labelText: '默认解释语言',
-                  prefixIcon: Icon(Icons.record_voice_over_outlined, size: 20),
-                  border: OutlineInputBorder(),
-                ),
-                items: explanationLanguageOptions
+              SettingsSelectField<String>(
+                label: '默认解释语言',
+                value: selectedExplanationLanguage,
+                icon: Icons.record_voice_over_outlined,
+                options: explanationLanguageOptions
                     .map(
-                      (option) => DropdownMenuItem(
+                      (option) => SettingsSelectOption(
                         value: option.code,
-                        child: Text(option.name),
+                        label: option.name,
                       ),
                     )
                     .toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    settings.setTargetExplanationLanguage(value);
-                  }
-                },
+                onChanged: settings.setTargetExplanationLanguage,
               ),
-              DropdownButtonFormField<String>(
-                initialValue: settings.aiProviderId,
-                decoration: const InputDecoration(
-                  labelText: '服务商',
-                  prefixIcon: Icon(Icons.hub_outlined, size: 20),
-                  border: OutlineInputBorder(),
-                ),
-                items: settings.aiProviders
+              SettingsSelectField<String>(
+                label: '服务商',
+                value: settings.aiProviderId,
+                icon: Icons.hub_outlined,
+                options: settings.aiProviders
                     .map(
-                      (item) => DropdownMenuItem(
+                      (item) => SettingsSelectOption(
                         value: item.id,
-                        child: Text(item.label),
+                        label: item.label,
                       ),
                     )
                     .toList(),
-                onChanged: (value) {
-                  if (value != null) onProviderChanged(value);
-                },
+                onChanged: onProviderChanged,
               ),
               FlowTextField(
                 controller: modelController,

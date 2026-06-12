@@ -57,62 +57,43 @@ class SettingsCityAtmosphereSection extends StatelessWidget {
           ),
           if (enabled && citySettings.themeMode == CityThemeMode.manual) ...[
             const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              initialValue: CityThemePresets.byId(
+            SettingsSelectField<String>(
+              label: '手动主题',
+              value: CityThemePresets.byId(
                 citySettings.manualThemeId,
               ).id,
-              decoration: const InputDecoration(
-                labelText: '手动主题',
-                prefixIcon: Icon(Icons.palette_outlined, size: 20),
-                border: OutlineInputBorder(),
-              ),
-              items: [
+              icon: Icons.palette_outlined,
+              options: [
                 for (final preset in CityThemePresets.all)
-                  DropdownMenuItem(value: preset.id, child: Text(preset.label)),
+                  SettingsSelectOption(value: preset.id, label: preset.label),
               ],
-              onChanged: (value) {
-                if (value == null) return;
-                settings.setManualCityTheme(value);
-              },
+              onChanged: settings.setManualCityTheme,
             ),
           ],
           const SizedBox(height: 16),
-          DropdownButtonFormField<AtmosphereBlendMode>(
-            initialValue: citySettings.blendMode,
-            decoration: const InputDecoration(
-              labelText: '动态背景',
-              prefixIcon: Icon(Icons.auto_awesome_motion_outlined, size: 20),
-              border: OutlineInputBorder(),
-            ),
-            items: [
+          SettingsSelectField<AtmosphereBlendMode>(
+            label: '动态背景',
+            value: citySettings.blendMode,
+            icon: Icons.auto_awesome_motion_outlined,
+            options: [
               for (final mode in AtmosphereBlendMode.values)
-                DropdownMenuItem(value: mode, child: Text(mode.label)),
+                SettingsSelectOption(value: mode, label: mode.label),
             ],
-            onChanged: enabled
-                ? (value) {
-                    if (value == null) return;
-                    settings.setAtmosphereBlendMode(value);
-                  }
-                : null,
+            enabled: enabled,
+            onChanged: enabled ? settings.setAtmosphereBlendMode : null,
           ),
           if (enabled &&
               citySettings.blendMode == AtmosphereBlendMode.manualOverride) ...[
             const SizedBox(height: 14),
-            DropdownButtonFormField<AtmosphereScene>(
-              initialValue: _manualSceneValue(citySettings.manualScene),
-              decoration: const InputDecoration(
-                labelText: '手动氛围',
-                prefixIcon: Icon(Icons.filter_drama_outlined, size: 20),
-                border: OutlineInputBorder(),
-              ),
-              items: [
+            SettingsSelectField<AtmosphereScene>(
+              label: '手动氛围',
+              value: _manualSceneValue(citySettings.manualScene),
+              icon: Icons.filter_drama_outlined,
+              options: [
                 for (final scene in _manualSceneOptions)
-                  DropdownMenuItem(value: scene, child: Text(scene.label)),
+                  SettingsSelectOption(value: scene, label: scene.label),
               ],
-              onChanged: (value) {
-                if (value == null) return;
-                settings.setManualAtmosphereScene(value);
-              },
+              onChanged: settings.setManualAtmosphereScene,
             ),
           ],
           const SizedBox(height: 16),

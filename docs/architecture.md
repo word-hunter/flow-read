@@ -1,6 +1,6 @@
 # Flow Read Architecture
 
-> @source lib/main.dart lib/platform/flow_shell_resolver.dart lib/providers/ lib/storage/hive_storage.dart lib/widgets/flow/flow_components.dart packages/flow_design_system/lib/theme/flow_theme.dart
+> @source lib/main.dart lib/platform/flow_shell_resolver.dart lib/providers/ lib/storage/hive_storage.dart lib/theme/city_theme_tokens.dart lib/widgets/flow/flow_components.dart packages/flow_design_system/lib/theme/flow_theme.dart packages/flow_design_system/lib/palettes/classic.dart
 
 Last updated: 2026-06-10
 
@@ -76,6 +76,7 @@ HomeScreen → ReadingDeskScreen → ReaderPage（正文）
 
 - `AppThemeId` 枚举：classic / ocean / forest / highContrast
 - `MaterialApp` theme/darkTheme 由 `SettingsService.themeMode` 控制
+- `classic` 当前承载 City 视觉：`CityThemeTokens` 提供天空、暖白壳层、卡片、暖边框、实蓝交互态与文字语义色，避免 Home/Reader shell 继续散落硬编码冷蓝色
 - `FlowShellResolver` 按 Flutter `TargetPlatform` 选择设计系统 shell：Android=Material 3、iOS=Cupertino、macOS=HIG、Windows=Fluent
 - Linux 当前显式走 `macosStandard` 桌面 shell 规范，避免 fallback 到 Android Material
 - 业务 UI 入口应优先使用 `FlowButton`、`FlowSidebar`、`FlowDialog`、`FlowSheet`、`FlowTextField`、`FlowToolbar`，由组件适配层按当前 shell 选择 Material/Cupertino/桌面 token

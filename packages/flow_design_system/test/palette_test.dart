@@ -39,7 +39,7 @@ void main() {
 
     test('light semantic colors are non-null and consistent', () {
       final sc = palette.lightSemantic();
-      expect(sc.background, palette.lightColorScheme.surface);
+      expect(sc.background, const Color(0xFFE9F5FB));
       expect(sc.textPrimary, palette.lightColorScheme.onSurface);
       expect(sc.interactivePrimary, palette.lightColorScheme.primary);
       expect((sc.readerSelection.a * 255.0).round(), greaterThan(0));
@@ -57,6 +57,15 @@ void main() {
         palette.lightSemantic().background,
         isNot(palette.darkSemantic().background),
       );
+    });
+
+    test('light semantic colors use warm city surfaces', () {
+      final semantic = palette.lightSemantic();
+
+      expect(semantic.background, const Color(0xFFE9F5FB));
+      expect(semantic.surface, const Color(0xFFFEFCF8));
+      expect(semantic.surfaceGlass, const Color(0xFFFEFAF3));
+      expect(semantic.interactivePrimary, const Color(0xFF0277FE));
     });
   });
 

@@ -51,31 +51,24 @@ class SettingsBackupSection extends StatelessWidget {
                     onChanged: settings.setBackupEnabled,
                   ),
                   const SizedBox(height: 10),
-                  DropdownButtonFormField<int>(
-                    initialValue:
+                  SettingsSelectField<int>(
+                    label: '同步间隔',
+                    value:
                         _backupIntervals.contains(
                           settings.backupIntervalMinutes,
                         )
                         ? settings.backupIntervalMinutes
                         : SettingsService.defaultBackupIntervalMinutes,
-                    decoration: const InputDecoration(
-                      labelText: '同步间隔',
-                      prefixIcon: Icon(Icons.schedule_outlined, size: 20),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _backupIntervals
+                    icon: Icons.schedule_outlined,
+                    options: _backupIntervals
                         .map(
-                          (minutes) => DropdownMenuItem(
+                          (minutes) => SettingsSelectOption(
                             value: minutes,
-                            child: Text(_formatInterval(minutes)),
+                            label: _formatInterval(minutes),
                           ),
                         )
                         .toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        settings.setBackupIntervalMinutes(value);
-                      }
-                    },
+                    onChanged: settings.setBackupIntervalMinutes,
                   ),
                 ],
               ),

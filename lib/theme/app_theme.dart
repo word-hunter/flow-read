@@ -3,6 +3,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 
 import 'app_surface_tokens.dart';
+import 'city_theme_tokens.dart';
 
 @Deprecated('Use PaletteId from package:flow_design_system instead')
 enum AppThemeId { classic, ocean, forest, highContrast }
@@ -109,70 +110,68 @@ class ReaderThemeTokens extends ThemeExtension<ReaderThemeTokens> {
 
 @Deprecated('Use FlowTheme.build() from package:flow_design_system instead')
 class AppTheme {
-  static const _warmBeige = Color(0xFFFFFDF9);
-
   static const _lightColorScheme = ColorScheme(
     brightness: Brightness.light,
-    primary: Color(0xFFC8914A),
+    primary: Color(0xFF0277FE),
     onPrimary: Color(0xFFFFFFFF),
-    primaryContainer: Color(0xFFF5E3CC),
-    onPrimaryContainer: Color(0xFF2E200E),
-    secondary: Color(0xFF6B5E4B),
+    primaryContainer: Color(0xFFD9EBFF),
+    onPrimaryContainer: Color(0xFF001D3A),
+    secondary: Color(0xFF5F6F85),
     onSecondary: Color(0xFFFFFFFF),
-    secondaryContainer: Color(0xFFF1E4CD),
-    onSecondaryContainer: Color(0xFF2A1F0F),
-    tertiary: Color(0xFF5B7A67),
+    secondaryContainer: Color(0xFFE9F0F8),
+    onSecondaryContainer: Color(0xFF141E2B),
+    tertiary: Color(0xFF1E8BFF),
     onTertiary: Color(0xFFFFFFFF),
-    tertiaryContainer: Color(0xFFDEE8E0),
-    onTertiaryContainer: Color(0xFF15261C),
+    tertiaryContainer: Color(0xFFDAEAFF),
+    onTertiaryContainer: Color(0xFF001D3B),
     error: Color(0xFFBA1A1A),
     onError: Color(0xFFFFFFFF),
     errorContainer: Color(0xFFFFDAD6),
     onErrorContainer: Color(0xFF410002),
-    surface: Color(0xFFFFFDF9),
-    onSurface: Color(0xFF3A3226),
+    surface: Color(0xFFFEFCF8),
+    onSurface: Color(0xFF10233B),
     surfaceContainerHighest: Color(0xFFF3EFE5),
-    onSurfaceVariant: Color(0xFF5C5547),
-    outline: Color(0xFF8B8475),
-    outlineVariant: Color(0xFFDDD6C6),
+    onSurfaceVariant: Color(0xFF50647B),
+    outline: Color(0xFFEADBC6),
+    outlineVariant: Color(0xFFF0E8D8),
     shadow: Color(0xFF000000),
     scrim: Color(0xFF000000),
     inverseSurface: Color(0xFF2D261B),
     onInverseSurface: Color(0xFFF5F0E6),
-    inversePrimary: Color(0xFFDDB87D),
-    surfaceTint: Color(0xFFC8914A),
+    inversePrimary: Color(0xFF9BCAFF),
+    surfaceTint: Color(0xFF0277FE),
   );
 
   static const _darkColorScheme = ColorScheme(
     brightness: Brightness.dark,
-    primary: Color(0xFFDDB87D),
-    onPrimary: Color(0xFF402A0C),
-    primaryContainer: Color(0xFF5A3D1A),
-    onPrimaryContainer: Color(0xFFF5E3CC),
-    secondary: Color(0xFFD4C7B2),
-    onSecondary: Color(0xFF362A1A),
-    secondaryContainer: Color(0xFF4E3F2D),
-    onSecondaryContainer: Color(0xFFF1E4CD),
-    tertiary: Color(0xFFC2D2C6),
-    onTertiary: Color(0xFF2D3D31),
-    tertiaryContainer: Color(0xFF435548),
-    onTertiaryContainer: Color(0xFFDEE8E0),
+    primary: Color(0xFF5DB0FF),
+    onPrimary: Color(0xFF001D36),
+    primaryContainer: Color(0xFF0F3B67),
+    onPrimaryContainer: Color(0xFFD9EBFF),
+    secondary: Color(0xFFB8C6D9),
+    onSecondary: Color(0xFF1D2B3D),
+    secondaryContainer: Color(0xFF344256),
+    onSecondaryContainer: Color(0xFFE9F0F8),
+    tertiary: Color(0xFF9BCAFF),
+    onTertiary: Color(0xFF002548),
+    tertiaryContainer: Color(0xFF003A65),
+    onTertiaryContainer: Color(0xFFDAEAFF),
     error: Color(0xFFFFB4AB),
     onError: Color(0xFF690005),
     errorContainer: Color(0xFF93000A),
     onErrorContainer: Color(0xFFFFDAD6),
-    surface: Color(0xFF1C1A15),
-    onSurface: Color(0xFFE8E2D6),
-    surfaceContainerHighest: Color(0xFF2C2A24),
-    onSurfaceVariant: Color(0xFFCCC6B8),
-    outline: Color(0xFF969084),
-    outlineVariant: Color(0xFF4A463C),
+    surface: Color(0xFF121926),
+    onSurface: Color(0xFFE8EDF2),
+    surfaceContainerHighest: Color(0xFF1F2634),
+    onSurfaceVariant: Color(0xFFB7C5D6),
+    outline: Color(0xFF5A5040),
+    outlineVariant: Color(0xFF3A3428),
     shadow: Color(0xFF000000),
     scrim: Color(0xFF000000),
-    inverseSurface: Color(0xFFE8E2D6),
+    inverseSurface: Color(0xFFE8EDF2),
     onInverseSurface: Color(0xFF2D261B),
-    inversePrimary: Color(0xFFC8914A),
-    surfaceTint: Color(0xFFDDB87D),
+    inversePrimary: Color(0xFF0277FE),
+    surfaceTint: Color(0xFF5DB0FF),
   );
 
   static const _oceanLightColorScheme = ColorScheme(
@@ -372,6 +371,7 @@ class AppTheme {
   );
 
   static AppThemeId themeIdFromName(String name) {
+    if (name == 'city') return AppThemeId.classic;
     for (final themeId in AppThemeId.values) {
       if (themeId.name == name) return themeId;
     }
@@ -387,7 +387,8 @@ class AppTheme {
       case AppThemeId.classic:
         return _buildTheme(
           _lightColorScheme,
-          scaffoldBackgroundColor: _warmBeige,
+          surfaceTokens: AppSurfaceTokens.cityLight(),
+          cityTokens: CityThemeTokens.sunny,
         );
       case AppThemeId.ocean:
         return _buildTheme(_oceanLightColorScheme);
@@ -401,7 +402,11 @@ class AppTheme {
   static ThemeData darkThemeFor(AppThemeId id) {
     switch (id) {
       case AppThemeId.classic:
-        return _buildTheme(_darkColorScheme);
+        return _buildTheme(
+          _darkColorScheme,
+          surfaceTokens: AppSurfaceTokens.cityDark(),
+          cityTokens: CityThemeTokens.night,
+        );
       case AppThemeId.ocean:
         return _buildTheme(_oceanDarkColorScheme);
       case AppThemeId.forest:
@@ -414,6 +419,8 @@ class AppTheme {
   static ThemeData _buildTheme(
     ColorScheme colorScheme, {
     Color? scaffoldBackgroundColor,
+    AppSurfaceTokens? surfaceTokens,
+    CityThemeTokens? cityTokens,
   }) {
     final surface = scaffoldBackgroundColor ?? colorScheme.surface;
     final isDark = colorScheme.brightness == Brightness.dark;
@@ -424,7 +431,8 @@ class AppTheme {
       scaffoldBackgroundColor: surface,
       extensions: [
         _readerTokens(colorScheme, surface),
-        _surfaceTokens(colorScheme, surface),
+        surfaceTokens ?? _surfaceTokens(colorScheme, surface),
+        ?cityTokens,
       ],
       appBarTheme: AppBarTheme(
         elevation: 0,

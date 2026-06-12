@@ -194,23 +194,19 @@ class _BookLanguageSection extends StatelessWidget {
         children: [
           ResponsiveSettingsGrid(
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: effectiveLanguage,
-                decoration: const InputDecoration(
-                  labelText: '原文语言',
-                  prefixIcon: Icon(Icons.translate_outlined, size: 20),
-                  border: OutlineInputBorder(),
-                ),
-                items: options
+              SettingsSelectField<String>(
+                label: '原文语言',
+                value: effectiveLanguage,
+                icon: Icons.translate_outlined,
+                options: options
                     .map(
-                      (option) => DropdownMenuItem(
+                      (option) => SettingsSelectOption(
                         value: option.code,
-                        child: Text(option.name),
+                        label: option.name,
                       ),
                     )
                     .toList(),
                 onChanged: (value) {
-                  if (value == null) return;
                   onLanguageChanged(metadata.id, value);
                 },
               ),

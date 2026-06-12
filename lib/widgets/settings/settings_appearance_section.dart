@@ -37,29 +37,20 @@ class SettingsAppearanceSection extends StatelessWidget {
           title: '主题',
           child: ResponsiveSettingsGrid(
             children: [
-              DropdownButtonFormField<AppThemeId>(
-                initialValue: settings.appThemeId,
-                decoration: const InputDecoration(
-                  labelText: '主题',
-                  prefixIcon: Icon(Icons.style_outlined, size: 20),
-                  border: OutlineInputBorder(),
-                ),
-                items: AppThemeId.values
+              SettingsSelectField<AppThemeId>(
+                label: '主题',
+                value: settings.appThemeId,
+                icon: Icons.style_outlined,
+                options: AppThemeId.values
                     .map(
-                      (themeId) => DropdownMenuItem(
+                      (themeId) => SettingsSelectOption(
                         value: themeId,
-                        child: Row(
-                          children: [
-                            Icon(themeId.icon, size: 18),
-                            const SizedBox(width: 8),
-                            Text(themeId.label),
-                          ],
-                        ),
+                        label: themeId.label,
+                        icon: themeId.icon,
                       ),
                     )
                     .toList(),
                 onChanged: (value) {
-                  if (value == null) return;
                   onSwitchTheme(() => settings.setAppThemeId(value));
                 },
               ),
@@ -97,6 +88,7 @@ class SettingsAppearanceSection extends StatelessWidget {
     );
   }
 }
+
 class _ThemeModeControl extends StatelessWidget {
   const _ThemeModeControl({
     required this.settings,
@@ -206,7 +198,6 @@ class _ColorRow extends StatelessWidget {
     );
   }
 }
-
 
 class _ColorOption {
   const _ColorOption(this.name, this.color);

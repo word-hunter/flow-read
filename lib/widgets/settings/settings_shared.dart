@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/city_theme_tokens.dart';
+import '../flow/flow_components.dart';
 import '../theme_transition.dart';
 
 typedef ThemeMutationRunner = Future<void> Function(ThemeMutation mutation);
@@ -78,6 +80,255 @@ class LanguageOption {
 
   final String code;
   final String name;
+}
+
+class SettingsSelectOption<T> {
+  const SettingsSelectOption({
+    required this.value,
+    required this.label,
+    this.icon,
+    this.enabled = true,
+  });
+
+  final T value;
+  final String label;
+  final IconData? icon;
+  final bool enabled;
+}
+
+class SettingsSelectField<T> extends StatelessWidget {
+  const SettingsSelectField({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+    this.icon,
+    this.enabled = true,
+  });
+
+  final String label;
+  final T value;
+  final List<SettingsSelectOption<T>> options;
+  final ValueChanged<T>? onChanged;
+  final IconData? icon;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedOption = _selectedOption();
+    final selectedLabel = selectedOption?.label ?? value.toString();
+    final canSelect = enabled && onChanged != null && options.isNotEmpty;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final menuWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 260.0;
+
+        return FlowMenuButton<T>(
+          minWidth: menuWidth,
+          entries: [
+            for (final option in options)
+              FlowMenuItem<T>(
+                value: option.value,
+                label: option.label,
+                icon: option.icon,
+                enabled: canSelect && option.enabled,
+                selected: option.value == value,
+              ),
+          ],
+          onSelected: (selected) {
+            if (!canSelect) return;
+            onChanged?.call(selected);
+          },
+          builder: (context, isOpen, toggle) {
+            return _SettingsSelectTrigger(
+              label: label,
+              valueLabel: selectedLabel,
+              icon: icon,
+              enabled: canSelect,
+              isOpen: isOpen,
+              onTap: canSelect ? toggle : null,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  SettingsSelectOption<T>? _selectedOption() {
+    for (final option in options) {
+      if (option.value == value) return option;
+    }
+    return null;
+  }
+}
+
+class _SettingsSelectTrigger extends StatefulWidget {
+  const _SettingsSelectTrigger({
+    required this.label,
+    required this.valueLabel,
+    required this.enabled,
+    required this.isOpen,
+    required this.onTap,
+    this.icon,
+  });
+
+  final String label;
+  final String valueLabel;
+  final IconData? icon;
+  final bool enabled;
+  final bool isOpen;
+  final VoidCallback? onTap;
+
+  @override
+  State<_SettingsSelectTrigger> createState() => _SettingsSelectTriggerState();
+}
+
+class _SettingsSelectTriggerState extends State<_SettingsSelectTrigger> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final city = theme.extension<CityThemeTokens>();
+    final isDark = theme.brightness == Brightness.dark;
+    final activeColor = city?.activeBlue ?? colorScheme.primary;
+    final borderColor = city?.warmBorder ?? colorScheme.outlineVariant;
+    final surfaceColor =
+        city?.cardSurface ?? colorScheme.surfaceContainerLowest;
+    final textColor = city?.textPrimary ?? colorScheme.onSurface;
+    final secondaryTextColor =
+        city?.textSecondary ?? colorScheme.onSurfaceVariant;
+    final shadowColor = city?.warmShadow ?? colorScheme.shadow;
+    final disabledOpacity = widget.enabled ? 1.0 : 0.48;
+    final effectiveBorderColor = widget.isOpen
+        ? activeColor
+        : _hovered && widget.enabled
+        ? activeColor.withValues(alpha: 0.48)
+        : borderColor.withValues(alpha: isDark ? 0.76 : 0.92);
+
+    return Semantics(
+      button: true,
+      enabled: widget.enabled,
+      label: '${widget.label}，${widget.valueLabel}',
+      child: MouseRegion(
+        cursor: widget.enabled
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        onEnter: (_) {
+          if (widget.enabled) setState(() => _hovered = true);
+        },
+        onExit: (_) {
+          if (_hovered) setState(() => _hovered = false);
+        },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            constraints: const BoxConstraints(minHeight: 46),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: widget.enabled
+                  ? surfaceColor
+                  : surfaceColor.withValues(alpha: isDark ? 0.36 : 0.62),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: effectiveBorderColor.withValues(alpha: disabledOpacity),
+                width: widget.isOpen ? 1.4 : 1,
+              ),
+              boxShadow: widget.isOpen
+                  ? [
+                      BoxShadow(
+                        color: shadowColor.withValues(
+                          alpha: isDark ? 0.24 : 0.14,
+                        ),
+                        blurRadius: 12,
+                        offset: const Offset(0, 5),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              children: [
+                if (widget.icon != null) ...[
+                  Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: activeColor.withValues(
+                        alpha: widget.enabled ? 0.08 : 0.05,
+                      ),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(
+                      widget.icon,
+                      size: 16,
+                      color: activeColor.withValues(alpha: disabledOpacity),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: secondaryTextColor.withValues(
+                            alpha: disabledOpacity,
+                          ),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          height: 1.05,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.valueLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: textColor.withValues(alpha: disabledOpacity),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          height: 1.1,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                AnimatedRotation(
+                  turns: widget.isOpen ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 140),
+                  curve: Curves.easeOutCubic,
+                  child: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 22,
+                    color: secondaryTextColor.withValues(
+                      alpha: disabledOpacity,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class SettingsSidebarItem extends StatelessWidget {

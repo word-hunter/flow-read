@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../theme/city_theme_tokens.dart';
+
 class ReadingStatsRing extends StatelessWidget {
   final int totalSeconds;
   final int dailyGoalSeconds;
@@ -20,19 +22,24 @@ class ReadingStatsRing extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final city = Theme.of(context).extension<CityThemeTokens>();
     final weeklyGoalSeconds = math.max(dailyGoalSeconds, 1) * 6;
     final progress = (totalSeconds / weeklyGoalSeconds).clamp(0.0, 1.0);
     final percent = (progress * 100).toInt();
     final borderColor = isExpanded
-        ? colorScheme.primary.withValues(alpha: 0.42)
-        : colorScheme.outlineVariant.withValues(alpha: 0.46);
+        ? (city?.activeBlue ?? colorScheme.primary).withValues(alpha: 0.42)
+        : (city?.warmBorder ?? colorScheme.outlineVariant).withValues(
+            alpha: city == null ? 0.46 : 1,
+          );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Tooltip(
         message: '查看阅读目标详情',
         child: Material(
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.52),
+          color:
+              city?.panelSurface ??
+              colorScheme.surfaceContainerHighest.withValues(alpha: 0.52),
           borderRadius: BorderRadius.circular(14),
           child: InkWell(
             onTap: onTap,
@@ -54,7 +61,9 @@ class ReadingStatsRing extends StatelessWidget {
                           child: Text(
                             '本周阅读',
                             style: theme.textTheme.labelLarge?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
+                              color:
+                                  city?.textSecondary ??
+                                  colorScheme.onSurfaceVariant,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -62,9 +71,10 @@ class ReadingStatsRing extends StatelessWidget {
                         Icon(
                           Icons.chevron_right,
                           size: 20,
-                          color: colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.78,
-                          ),
+                          color:
+                              (city?.textSecondary ??
+                                      colorScheme.onSurfaceVariant)
+                                  .withValues(alpha: 0.78),
                         ),
                       ],
                     ),
@@ -73,15 +83,15 @@ class ReadingStatsRing extends StatelessWidget {
                       size: 96,
                       strokeWidth: 8,
                       progress: progress,
-                      trackColor: colorScheme.outlineVariant.withValues(
-                        alpha: 0.42,
-                      ),
-                      progressColor: colorScheme.primary,
+                      trackColor:
+                          (city?.warmBorder ?? colorScheme.outlineVariant)
+                              .withValues(alpha: 0.42),
+                      progressColor: city?.activeBlue ?? colorScheme.primary,
                       child: Text(
                         '$percent%',
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
+                          color: city?.textPrimary ?? colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -90,7 +100,8 @@ class ReadingStatsRing extends StatelessWidget {
                       '${_durationText(totalSeconds)} / ${_durationText(weeklyGoalSeconds)}',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                        color:
+                            city?.textSecondary ?? colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -99,9 +110,10 @@ class ReadingStatsRing extends StatelessWidget {
                       '每日目标 ${_durationText(dailyGoalSeconds)}',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.72,
-                        ),
+                        color:
+                            (city?.textSecondary ??
+                                    colorScheme.onSurfaceVariant)
+                                .withValues(alpha: 0.72),
                       ),
                     ),
                   ],
@@ -151,6 +163,7 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final city = Theme.of(context).extension<CityThemeTokens>();
     final dayGoal = math.max(widget.dailyGoalSeconds, 1);
     final weekSeconds = _normalizedWeekSeconds;
     final monthSeconds = _normalizedMonthSeconds;
@@ -170,21 +183,24 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
           left: -9,
           top: 128,
           child: _AnchorPointer(
-            fillColor: colorScheme.surface,
-            borderColor: colorScheme.outlineVariant.withValues(alpha: 0.58),
+            fillColor: city?.cardSurface ?? colorScheme.surface,
+            borderColor: (city?.warmBorder ?? colorScheme.outlineVariant)
+                .withValues(alpha: city == null ? 0.58 : 1),
           ),
         ),
         Material(
           elevation: 10,
-          shadowColor: colorScheme.shadow.withValues(alpha: 0.14),
-          color: colorScheme.surface,
+          shadowColor:
+              city?.warmShadow ?? colorScheme.shadow.withValues(alpha: 0.14),
+          color: city?.cardSurface ?? colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           clipBehavior: Clip.antiAlias,
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.58),
+                color: (city?.warmBorder ?? colorScheme.outlineVariant)
+                    .withValues(alpha: city == null ? 0.58 : 1),
               ),
             ),
             child: AnimatedSize(
@@ -209,7 +225,9 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
                         percent: percent,
                       ),
                       const SizedBox(height: 16),
-                      Divider(color: colorScheme.outlineVariant),
+                      Divider(
+                        color: city?.warmBorder ?? colorScheme.outlineVariant,
+                      ),
                       const SizedBox(height: 12),
                       if (_period == _ReadingGoalPeriod.week)
                         _buildWeekDetails(theme, weekSeconds)
@@ -228,6 +246,7 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
 
   Widget _buildHeader(ThemeData theme) {
     final colorScheme = theme.colorScheme;
+    final city = Theme.of(context).extension<CityThemeTokens>();
     return Row(
       children: [
         Expanded(
@@ -235,6 +254,7 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
             '阅读目标',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w800,
+              color: city?.textPrimary ?? colorScheme.onSurface,
             ),
           ),
         ),
@@ -250,7 +270,8 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
           constraints: const BoxConstraints.tightFor(width: 32, height: 32),
           icon: const Icon(Icons.close),
           iconSize: 18,
-          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.68),
+          color: (city?.textSecondary ?? colorScheme.onSurfaceVariant)
+              .withValues(alpha: 0.68),
           onPressed: widget.onClose,
         ),
       ],
@@ -265,6 +286,7 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
     required int percent,
   }) {
     final colorScheme = theme.colorScheme;
+    final city = Theme.of(context).extension<CityThemeTokens>();
     final remainingSeconds = math.max(targetSeconds - totalSeconds, 0);
     final title = _period == _ReadingGoalPeriod.week ? '本周总结' : '本月总结';
 
@@ -274,7 +296,7 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
         Text(
           title,
           style: theme.textTheme.labelLarge?.copyWith(
-            color: colorScheme.onSurfaceVariant,
+            color: city?.textSecondary ?? colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -285,8 +307,9 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
               size: 148,
               strokeWidth: 12,
               progress: progress,
-              trackColor: colorScheme.outlineVariant.withValues(alpha: 0.42),
-              progressColor: colorScheme.primary,
+              trackColor: (city?.warmBorder ?? colorScheme.outlineVariant)
+                  .withValues(alpha: 0.42),
+              progressColor: city?.activeBlue ?? colorScheme.primary,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -294,7 +317,7 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
                     '$percent%',
                     style: theme.textTheme.displaySmall?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: colorScheme.onSurface,
+                      color: city?.textPrimary ?? colorScheme.onSurface,
                       height: 0.95,
                     ),
                   ),
@@ -302,7 +325,7 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
                   Text(
                     '已完成',
                     style: theme.textTheme.labelMedium?.copyWith(
-                      color: colorScheme.primary,
+                      color: city?.activeBlue ?? colorScheme.primary,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -598,15 +621,20 @@ class _PeriodToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final city = Theme.of(context).extension<CityThemeTokens>();
 
     return Container(
       height: 32,
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.62),
+        color:
+            city?.panelSurface ??
+            colorScheme.surfaceContainerHighest.withValues(alpha: 0.62),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.72),
+          color: (city?.warmBorder ?? colorScheme.outlineVariant).withValues(
+            alpha: city == null ? 0.72 : 1,
+          ),
         ),
       ),
       child: Row(
@@ -650,21 +678,22 @@ class _PeriodToggleItemState extends State<_PeriodToggleItem> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final city = Theme.of(context).extension<CityThemeTokens>();
     final backgroundColor = widget.selected
-        ? colorScheme.primary
+        ? city?.activeBlue ?? colorScheme.primary
         : _hovered
-        ? colorScheme.primaryContainer.withValues(alpha: 0.48)
+        ? (city?.activeBlue ?? colorScheme.primary).withValues(alpha: 0.12)
         : Colors.transparent;
     final borderColor = widget.selected
-        ? colorScheme.primary
+        ? city?.activeBlue ?? colorScheme.primary
         : _hovered
-        ? colorScheme.primary.withValues(alpha: 0.22)
+        ? (city?.activeBlue ?? colorScheme.primary).withValues(alpha: 0.22)
         : Colors.transparent;
     final textColor = widget.selected
         ? colorScheme.onPrimary
         : _hovered
-        ? colorScheme.primary
-        : colorScheme.onSurfaceVariant;
+        ? city?.activeBlue ?? colorScheme.primary
+        : city?.textSecondary ?? colorScheme.onSurfaceVariant;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 140),
@@ -676,7 +705,9 @@ class _PeriodToggleItemState extends State<_PeriodToggleItem> {
         boxShadow: _hovered
             ? [
                 BoxShadow(
-                  color: colorScheme.primary.withValues(alpha: 0.12),
+                  color: (city?.activeBlue ?? colorScheme.primary).withValues(
+                    alpha: 0.12,
+                  ),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
@@ -691,8 +722,12 @@ class _PeriodToggleItemState extends State<_PeriodToggleItem> {
           mouseCursor: SystemMouseCursors.click,
           borderRadius: BorderRadius.circular(999),
           hoverColor: Colors.transparent,
-          splashColor: colorScheme.primary.withValues(alpha: 0.08),
-          highlightColor: colorScheme.primary.withValues(alpha: 0.06),
+          splashColor: (city?.activeBlue ?? colorScheme.primary).withValues(
+            alpha: 0.08,
+          ),
+          highlightColor: (city?.activeBlue ?? colorScheme.primary).withValues(
+            alpha: 0.06,
+          ),
           child: SizedBox(
             width: 50,
             height: 28,
@@ -833,13 +868,18 @@ class _GoalMetricTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final city = Theme.of(context).extension<CityThemeTokens>();
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.36),
+        color:
+            city?.panelSurface ??
+            colorScheme.surfaceContainerHighest.withValues(alpha: 0.36),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.58),
+          color: (city?.warmBorder ?? colorScheme.outlineVariant).withValues(
+            alpha: city == null ? 0.58 : 1,
+          ),
         ),
       ),
       child: Padding(
@@ -852,7 +892,8 @@ class _GoalMetricTable extends StatelessWidget {
               if (index != rows.length - 1)
                 Divider(
                   height: 16,
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                  color: (city?.warmBorder ?? colorScheme.outlineVariant)
+                      .withValues(alpha: city == null ? 0.6 : 1),
                 ),
             ],
           ],
@@ -871,6 +912,7 @@ class _GoalMetricTextRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final city = Theme.of(context).extension<CityThemeTokens>();
 
     return Row(
       children: [
@@ -879,7 +921,7 @@ class _GoalMetricTextRow extends StatelessWidget {
           child: Text(
             row.label,
             style: theme.textTheme.labelMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: city?.textSecondary ?? colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -890,7 +932,7 @@ class _GoalMetricTextRow extends StatelessWidget {
             row.value,
             textAlign: TextAlign.right,
             style: theme.textTheme.titleSmall?.copyWith(
-              color: colorScheme.onSurface,
+              color: city?.textPrimary ?? colorScheme.onSurface,
               fontWeight: FontWeight.w800,
             ),
           ),

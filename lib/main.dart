@@ -21,6 +21,7 @@ import 'services/app_logger.dart';
 import 'storage/hive_storage.dart';
 import 'theme/app_surface_tokens.dart';
 import 'theme/app_theme.dart';
+import 'theme/city_theme_tokens.dart';
 import 'widgets/epub_drop_importer.dart';
 import 'widgets/flow/flow_components.dart';
 import 'widgets/release_notes_gate.dart';
@@ -332,16 +333,27 @@ PaletteId _toPaletteId(AppThemeId id) {
 ThemeData _withFlowReadThemeExtensions(
   ThemeData theme, {
   required Brightness brightness,
+  PaletteId? paletteId,
 }) {
   final extensions = theme.extensions.values
-      .where((extension) => extension is! AppSurfaceTokens)
+      .where(
+        (extension) =>
+            extension is! AppSurfaceTokens && extension is! CityThemeTokens,
+      )
       .toList(growable: false);
+  final cityPalette = paletteId == PaletteId.classic;
   return theme.copyWith(
     extensions: [
       ...extensions,
-      brightness == Brightness.dark
-          ? AppSurfaceTokens.dark()
-          : AppSurfaceTokens.light(),
+      if (cityPalette)
+        brightness == Brightness.dark
+            ? AppSurfaceTokens.cityDark()
+            : AppSurfaceTokens.cityLight()
+      else
+        brightness == Brightness.dark
+            ? AppSurfaceTokens.dark()
+            : AppSurfaceTokens.light(),
+      if (cityPalette) CityThemeTokens.forBrightness(brightness),
     ],
   );
 }
@@ -447,6 +459,7 @@ class _FlowReadAppState extends State<FlowReadApp> {
                 )
               : AppTheme.lightThemeFor(themeId),
           brightness: Brightness.light,
+          paletteId: _toPaletteId(themeId),
         );
 
         final darkTheme = _withFlowReadThemeExtensions(
@@ -458,6 +471,7 @@ class _FlowReadAppState extends State<FlowReadApp> {
                 )
               : AppTheme.darkThemeFor(themeId),
           brightness: Brightness.dark,
+          paletteId: _toPaletteId(themeId),
         );
 
         return ThemeTransitionHost(
@@ -489,7 +503,6 @@ class _FlowReadAppState extends State<FlowReadApp> {
                       return Theme(
                         data: theme.copyWith(
                           scaffoldBackgroundColor: Colors.transparent,
-                          canvasColor: Colors.transparent,
                         ),
                         child: content,
                       );

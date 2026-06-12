@@ -73,6 +73,42 @@ class AppSurfaceTokens extends ThemeExtension<AppSurfaceTokens> {
     glassOpacity: 0.72,
   );
 
+  static AppSurfaceTokens cityLight() => const AppSurfaceTokens(
+    strategy: SurfaceStrategy.solid,
+    readerWorkspaceBackground: Color(0xFFE9F5FB),
+    readerOpaqueSurface: Color(0xFFFEFCF8),
+    readerControlSurface: Color(0xFFFEF9EF),
+    assistantSurface: Color(0xFFFEF9EF),
+    leftWorkspaceColor: Color(0xFFFEFAF3),
+    panelBorderColor: Color(0xFFEADBC6),
+    panelShadowColor: Color(0x1AE5C99A),
+    readerPageBorderColor: Color(0xFFEADBC6),
+    glassTintColor: Colors.white,
+    glassStrokeColor: Color(0x1AE5C99A),
+    glassHighlightColor: Color(0x0AFFFFFF),
+    glassShadowColor: Color(0x08000000),
+    glassBlurSigma: 0,
+    glassOpacity: 0.78,
+  );
+
+  static AppSurfaceTokens cityDark() => const AppSurfaceTokens(
+    strategy: SurfaceStrategy.solid,
+    readerWorkspaceBackground: Color(0xFF121926),
+    readerOpaqueSurface: Color(0xFF121926),
+    readerControlSurface: Color(0xFF1A2233),
+    assistantSurface: Color(0xFF1A2233),
+    leftWorkspaceColor: Color(0xFF1A2233),
+    panelBorderColor: Color(0xFF5A5040),
+    panelShadowColor: Color(0x66000000),
+    readerPageBorderColor: Color(0xFF5A5040),
+    glassTintColor: Color(0xFF1A2233),
+    glassStrokeColor: Color(0x1AFFFFFF),
+    glassHighlightColor: Color(0x0AFFFFFF),
+    glassShadowColor: Color(0x08000000),
+    glassBlurSigma: 0,
+    glassOpacity: 0.78,
+  );
+
   static AppSurfaceTokens highContrastLight() => const AppSurfaceTokens(
     strategy: SurfaceStrategy.highContrast,
     readerWorkspaceBackground: Colors.white,

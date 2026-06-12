@@ -8,6 +8,7 @@ import 'package:flow_read/services/app_links.dart';
 import 'package:flow_read/services/app_version.dart';
 import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/widgets/settings/settings_shared.dart';
 
 import 'support/hive_test_storage.dart';
 
@@ -64,6 +65,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
     expect(find.text('默认解释语言'), findsOneWidget);
     expect(find.text('服务商'), findsWidgets);
+    expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is SettingsSelectField<String> && widget.label == '默认解释语言',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is SettingsSelectField<String> && widget.label == '服务商',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Base URL'), findsWidgets);
     expect(find.text('模型'), findsWidgets);
     expect(find.text('API Key'), findsWidgets);
