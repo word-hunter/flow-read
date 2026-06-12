@@ -65,7 +65,10 @@ class LogFolderOpener {
           error: error,
           stackTrace: stackTrace,
         );
-        throw LogFolderOpenException(error.message ?? '打开日志文件夹失败');
+        throw LogFolderOpenException(
+          error.message ?? '打开日志文件夹失败',
+          path: path,
+        );
       }
     }
 
@@ -79,7 +82,7 @@ class LogFolderOpener {
       return;
     }
 
-    throw const LogFolderOpenException('当前平台不支持打开日志文件夹');
+    throw LogFolderOpenException('当前平台不支持打开日志文件夹', path: path);
   }
 
   Future<void> _openWithPlatformCommand(
@@ -96,7 +99,8 @@ class LogFolderOpener {
         );
         return;
       }
-      throw LogFolderOpenException('打开日志文件夹失败：$executable');
+      final path = arguments.isEmpty ? null : arguments.first;
+      throw LogFolderOpenException('打开日志文件夹失败：$executable', path: path);
     } on ProcessException catch (error, stackTrace) {
       _logger.event(
         'logs_folder.open_failed',
@@ -106,7 +110,11 @@ class LogFolderOpener {
         error: error,
         stackTrace: stackTrace,
       );
-      throw LogFolderOpenException('打开日志文件夹失败：${error.message}');
+      final path = arguments.isEmpty ? null : arguments.first;
+      throw LogFolderOpenException(
+        '打开日志文件夹失败：${error.message}',
+        path: path,
+      );
     }
   }
 
@@ -119,10 +127,11 @@ class LogFolderOpener {
 }
 
 class LogFolderOpenException implements Exception {
-  const LogFolderOpenException(this.message);
+  const LogFolderOpenException(this.message, {this.path});
 
   final String message;
+  final String? path;
 
   @override
-  String toString() => message;
+  String toString() => path == null ? message : '$message ($path)';
 }

@@ -63,4 +63,22 @@ void main() {
 
     expect(opener.openLogsFolder, throwsA(isA<LogFolderOpenException>()));
   });
+
+  test('includes log folder path when the platform command fails', () async {
+    final opener = LogFolderOpener(
+      logger: logger,
+      platform: LogFolderOpenPlatform.linux,
+      isWeb: false,
+      processRunner: (_, _) async => ProcessResult(123, 1, '', 'failed'),
+    );
+
+    await expectLater(
+      opener.openLogsFolder(),
+      throwsA(
+        isA<LogFolderOpenException>()
+            .having((error) => error.message, 'message', contains('xdg-open'))
+            .having((error) => error.path, 'path', tempDir.path),
+      ),
+    );
+  });
 }

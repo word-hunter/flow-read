@@ -4,12 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:flow_ai/flow_ai.dart';
+import '../../models/book.dart';
+import '../../services/app_logger.dart';
 import '../../services/book_cache.dart';
 import '../../services/book_glossary_service.dart';
 import '../../services/book_service.dart';
 import '../../services/bookmark_service.dart';
 import '../../services/character_registry.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
+import '../../services/epub_parse_worker.dart';
 import '../../services/learning_analytics_service.dart';
 import '../../services/learning_item_service.dart';
 import '../../services/pronunciation_service.dart';
@@ -33,6 +36,14 @@ import '../settings_provider.dart';
 import 'bookshelf_notifier.dart';
 
 final bookCacheProvider = Provider<BookCache>((ref) => BookCache());
+
+final appLoggerProvider = Provider<AppLogger>((ref) => AppLogger.instance);
+
+typedef EpubBookParser = Future<Book> Function(String filePath);
+
+final epubBookParserProvider = Provider<EpubBookParser>((ref) {
+  return EpubParseWorker.parseInIsolate;
+});
 
 final bookServiceProvider = Provider<BookService>((ref) {
   final db = appDatabase;

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/book.dart';
 import '../../models/book_difficulty.dart';
 import '../../models/book_metadata.dart';
+import '../../services/app_logger.dart';
 import '../../services/epub_import_source.dart';
 import '../../services/epub_parse_worker.dart';
 import 'package:flow_language/flow_language.dart';
@@ -233,23 +234,14 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
 
     final cachedBook = ref.read(bookCacheProvider).get(bookId);
     if (cachedBook != null) {
-      final currentChapter = meta.currentChapter.clamp(
-        0,
-        cachedBook.chapters.length - 1,
-      );
-      state = state.copyWith(
+      _activateBook(
+        bookId: bookId,
         book: cachedBook,
-        activeBookId: bookId,
-        importStage: '',
-        isLoading: false,
+        currentChapter: _clampChapterIndex(
+          meta.currentChapter,
+          cachedBook.chapters.length,
+        ),
       );
-      ref
-          .read(currentBookNotifierProvider.notifier)
-          .invalidateChapterAnalysisCache();
-      ref
-          .read(currentBookNotifierProvider.notifier)
-          .goToChapter(currentChapter);
-      ref.read(aiAssistantControllerProvider).clear();
       return true;
     }
 
@@ -259,38 +251,51 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
       importStage: '正在解析 EPUB...',
     );
 
+    late final Book book;
     try {
-      final book = await EpubParseWorker.parseInIsolate(meta.sourcePath);
-      ref.read(bookCacheProvider).put(bookId, book);
-      final currentChapter = meta.currentChapter.clamp(
-        0,
-        book.chapters.length - 1,
+      book = await ref.read(epubBookParserProvider)(meta.sourcePath);
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[Bookshelf] open book failed: '
+        'bookId=$bookId sourcePath=${meta.sourcePath} error=$e',
       );
-
-      state = state.copyWith(
-        book: book,
-        activeBookId: bookId,
-        importStage: '',
-        isLoading: false,
+      debugPrintStack(
+        label: '[Bookshelf] open book stack',
+        stackTrace: stackTrace,
       );
-
       ref
-          .read(currentBookNotifierProvider.notifier)
-          .invalidateChapterAnalysisCache();
-      ref
-          .read(currentBookNotifierProvider.notifier)
-          .goToChapter(currentChapter);
-      ref.read(aiAssistantControllerProvider).clear();
-
-      return true;
-    } catch (e) {
+          .read(appLoggerProvider)
+          .event(
+            'book.open_failed',
+            level: AppLogLevel.error,
+            source: 'bookshelf_notifier',
+            metadata: {
+              'bookId': bookId,
+              'sourcePathDiagnostics': _sourcePathDiagnostics(meta.sourcePath),
+              'currentChapter': meta.currentChapter,
+              'totalChapters': meta.totalChapters,
+            },
+            error: e,
+            stackTrace: stackTrace,
+          );
       state = state.copyWith(
-        errorMessage: '打开书籍失败：无法读取书籍文件。',
+        errorMessage: '打开书籍失败：无法读取书籍文件。详情已写入诊断日志。',
         isLoading: false,
         importStage: '',
       );
       return false;
     }
+
+    ref.read(bookCacheProvider).put(bookId, book);
+    _activateBook(
+      bookId: bookId,
+      book: book,
+      currentChapter: _clampChapterIndex(
+        meta.currentChapter,
+        book.chapters.length,
+      ),
+    );
+    return true;
   }
 
   void enterReader() {
@@ -568,6 +573,48 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
 
   Future<void> _saveCurrentProgress() async {
     await persistReadingProgress(ref.read(currentBookNotifierProvider));
+  }
+
+  Map<String, Object?> _sourcePathDiagnostics(String path) {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) {
+      return const {'present': false, 'reason': 'empty'};
+    }
+
+    final file = File(trimmed);
+    try {
+      final exists = file.existsSync();
+      return {
+        'present': true,
+        'exists': exists,
+        if (exists) 'sizeBytes': file.lengthSync(),
+      };
+    } on FileSystemException {
+      return const {
+        'present': true,
+        'exists': false,
+        'accessError': true,
+      };
+    }
+  }
+
+  void _activateBook({
+    required String bookId,
+    required Book book,
+    required int currentChapter,
+  }) {
+    state = state.copyWith(
+      book: book,
+      activeBookId: bookId,
+      importStage: '',
+      isLoading: false,
+      clearError: true,
+    );
+
+    final currentBook = ref.read(currentBookNotifierProvider.notifier);
+    currentBook.invalidateChapterAnalysisCache();
+    unawaited(currentBook.goToChapter(currentChapter));
+    ref.invalidate(aiAssistantControllerProvider);
   }
 
   int _clampChapterIndex(int index, int chapterCount) {

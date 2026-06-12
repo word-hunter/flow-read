@@ -969,7 +969,12 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
       debugPrint('[Settings] open logs folder failed: $error');
       if (!mounted) return;
       if (error is LogFolderOpenException) {
-        _showSnackBar(error.message);
+        final path = error.path;
+        _showSnackBar(
+          path == null || path.trim().isEmpty
+              ? error.message
+              : '${error.message}。日志位置：$path',
+        );
         return;
       }
       _showSnackBar('打开日志文件夹失败');
