@@ -8,4 +8,5 @@ enum AIAssistantActionType {
   wordAnalysis,
   articleQA,
   paragraphInsight,
+  chat,
 }

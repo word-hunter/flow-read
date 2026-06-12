@@ -12,10 +12,16 @@ void main() {
       ),
     );
 
-    expect(actions, [AIAssistantActionType.explain]);
+    expect(actions, [
+      AIAssistantActionType.explain,
+      AIAssistantActionType.translate,
+      AIAssistantActionType.phraseExtraction,
+      AIAssistantActionType.pronounReference,
+      AIAssistantActionType.paragraphInsight,
+    ]);
   });
 
-  test('returns only explain for paragraph contexts', () {
+  test('returns reader actions for paragraph contexts', () {
     final actions = registry.availableActions(
       AIContextSnapshot(
         source: AIContextSource.readerParagraph,
@@ -23,7 +29,13 @@ void main() {
       ),
     );
 
-    expect(actions, [AIAssistantActionType.explain]);
+    expect(actions, [
+      AIAssistantActionType.explain,
+      AIAssistantActionType.translate,
+      AIAssistantActionType.phraseExtraction,
+      AIAssistantActionType.pronounReference,
+      AIAssistantActionType.paragraphInsight,
+    ]);
   });
 
   test('returns available actions for chapter and article contexts', () {
@@ -87,6 +99,22 @@ void main() {
 
     expect(prompt.userPrompt, contains('News'));
     expect(prompt.userPrompt, contains('What changed?'));
+  });
+
+  test('builds chat prompts for reader follow-up questions', () {
+    final prompt = registry.buildPrompt(
+      AIAssistantActionType.chat,
+      AIContextSnapshot(
+        source: AIContextSource.readerSelectedText,
+        selectedText: 'The old road ran north.',
+        surroundingPassage: 'The old road ran north toward the hills.',
+      ),
+      followUpQuestion: 'Why north?',
+    );
+
+    expect(prompt.userPrompt, contains('Reader Selection'));
+    expect(prompt.userPrompt, contains('The old road ran north.'));
+    expect(prompt.userPrompt, contains('Why north?'));
   });
 
   test('throws when action is not available for context', () {

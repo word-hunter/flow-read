@@ -131,6 +131,7 @@ void main() {
         ),
       );
 
+      expect(assistant.recentSessions, isEmpty);
       expect(
         assistant.availableActions,
         contains(AIAssistantActionType.explain),
@@ -144,8 +145,49 @@ void main() {
       final analysis = (result as AITextAnalysisResult).analysis;
       expect(analysis.translation, '译文');
       expect(analysis.structureNotes.single.role, 'main clause');
+      expect(assistant.currentSession?.messages, hasLength(1));
+      expect(
+        assistant.currentSession?.messages.single.citations.single.label,
+        '选中文本',
+      );
     },
   );
+
+  test('AIAssistantController appends follow-up messages to session', () async {
+    final service = _service(settings, (_) async => _chatResponse('answer'));
+    final actionController = AIActionController(aiService: service);
+    final assistant = AIAssistantController(
+      registry: const AIAssistantActionRegistry(
+        promptBuilder: PromptBuilder(),
+      ),
+      automationSettings: const AIAutomationSettings(),
+      insightProfile: const ReadingInsightProfile(),
+      actionController: actionController,
+    );
+    addTearDown(actionController.dispose);
+    addTearDown(assistant.dispose);
+
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.readerSelectedText,
+        selectedText: 'The door opened.',
+        surroundingPassage: 'The door opened slowly.',
+      ),
+    );
+
+    await assistant.executeAction(
+      AIAssistantActionType.chat,
+      followUpQuestion: 'Why slowly?',
+    );
+
+    final messages = assistant.currentSession?.messages;
+    expect(messages, hasLength(2));
+    expect(messages?.first.role, AIChatMessageRole.user);
+    expect(messages?.first.content, 'Why slowly?');
+    expect(messages?.last.role, AIChatMessageRole.assistant);
+    expect(messages?.last.content, 'answer');
+    expect(assistant.recentSessions, hasLength(1));
+  });
 
   test('AIActionController maps client errors to retryable result', () async {
     final service = _service(

@@ -1,8 +1,8 @@
 # Flow Read Service Boundaries
 
-> @source lib/services/ lib/providers/ packages/flow_read_atmosphere/
+> @source lib/services/ lib/providers/ packages/flow_ai/ packages/flow_dictionary/ packages/flow_language/ packages/flow_read_atmosphere/
 
-Last updated: 2026-06-06
+Last updated: 2026-06-12
 
 ## 服务分类
 

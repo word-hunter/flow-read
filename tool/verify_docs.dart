@@ -9,7 +9,7 @@
 //   1. @source file paths in docs exist in the repo
 //   2. Hive type IDs referenced in docs/data-model.md match hive_type_ids.dart
 //   3. Box names referenced in docs/storage-contract.md match hive_box_names.dart
-//   4. Key service classes referenced in docs exist under lib/services/
+//   4. Key service classes referenced in docs exist in service package roots
 //
 // This is not a CI gate. It is a quick sanity check.
 // Exit code 0 = all checks pass. Non-zero = issue found.
@@ -21,7 +21,12 @@ final _docsDir = Directory('$_repoRoot/docs');
 final _libDir = '$_repoRoot/lib';
 final _hiveTypeIdsFile = File('$_libDir/storage/hive_type_ids.dart');
 final _hiveBoxNamesFile = File('$_libDir/storage/hive_box_names.dart');
-final _servicesDir = Directory('$_libDir/services');
+final _serviceDirs = [
+  Directory('$_libDir/services'),
+  Directory('$_repoRoot/packages/flow_ai/lib/src'),
+  Directory('$_repoRoot/packages/flow_dictionary/lib/src'),
+  Directory('$_repoRoot/packages/flow_language/lib'),
+];
 
 void main(List<String> args) {
   var allOk = true;
@@ -58,7 +63,8 @@ void main(List<String> args) {
           final trimmed = relPath.trim();
           if (trimmed.isEmpty) continue;
           final fullPath = '$_repoRoot/$trimmed';
-          if (!File(fullPath).existsSync() && !Directory(fullPath).existsSync()) {
+          if (!File(fullPath).existsSync() &&
+              !Directory(fullPath).existsSync()) {
             stderr.writeln(
               '  [FAIL] ${doc.path.replaceFirst(_repoRoot, '')}:${i + 1} '
               '@source "$trimmed" not found',
@@ -87,8 +93,9 @@ void main(List<String> args) {
         .replaceAll(RegExp(r'1\.6\.0.*待新增.*', dotAll: true), '');
     final docTypeIds = <int>{};
     final docTypeNames = <int, String>{};
-    for (final m
-        in RegExp(r'\|\s*(\d+)\s*\|\s*`(\w+)`').allMatches(docContentClean)) {
+    for (final m in RegExp(
+      r'\|\s*(\d+)\s*\|\s*`(\w+)`',
+    ).allMatches(docContentClean)) {
       final id = int.parse(m.group(1)!);
       final name = m.group(2)!;
       // Skip empty/placeholder entries
@@ -100,8 +107,9 @@ void main(List<String> args) {
 
     // Extract type IDs from hive_type_ids.dart
     final hiveTypeIds = <int, String>{};
-    for (final m in RegExp(r'static const (\w+)\s*=\s*(\d+);')
-        .allMatches(hiveTypesCode)) {
+    for (final m in RegExp(
+      r'static const (\w+)\s*=\s*(\d+);',
+    ).allMatches(hiveTypesCode)) {
       final name = m.group(1)!;
       if (name == 'reserved') continue;
       final id = int.parse(m.group(2)!);
@@ -131,12 +139,17 @@ void main(List<String> args) {
 
     // Check reserved set size
     final reservedCount =
-        RegExp(r'static const reserved', multiLine: true).hasMatch(hiveTypesCode)
-            ? RegExp(
-                r'(\d+),',
-              ).allMatches(hiveTypesCode.split('static const reserved').last).length +
-                1
-            : 0;
+        RegExp(
+          r'static const reserved',
+          multiLine: true,
+        ).hasMatch(hiveTypesCode)
+        ? RegExp(
+                    r'(\d+),',
+                  )
+                  .allMatches(hiveTypesCode.split('static const reserved').last)
+                  .length +
+              1
+        : 0;
     stdout.writeln(
       '  data-model.md: ${docTypeIds.length} types documented, '
       'hive_type_ids.dart: ${hiveTypeIds.length} types in code, '
@@ -160,16 +173,23 @@ void main(List<String> args) {
     final docBoxNames = <String>{};
     for (final m in RegExp(r'`(\w+)`').allMatches(docContent)) {
       final name = m.group(1)!;
-      if (name.endsWith('_{lang}') || name.startsWith('word_') || name == 'settings' || name == 'rss_subscriptions' || name == 'word_levels' || name == 'books_en' || name.endsWith('_en') || name == 'user_vocabulary_en') {
+      if (name.endsWith('_{lang}') ||
+          name.startsWith('word_') ||
+          name == 'settings' ||
+          name == 'rss_subscriptions' ||
+          name == 'word_levels' ||
+          name == 'books_en' ||
+          name.endsWith('_en') ||
+          name == 'user_vocabulary_en') {
         docBoxNames.add(name);
       }
     }
 
     // Extract box names from hive_box_names.dart (no explicit type)
     final codeBoxNames = <String>{};
-    for (final m
-        in RegExp(r"static const (\w+)\s*=\s*'([^']+)'")
-            .allMatches(boxNamesCode)) {
+    for (final m in RegExp(
+      r"static const (\w+)\s*=\s*'([^']+)'",
+    ).allMatches(boxNamesCode)) {
       final name = m.group(1)!;
       if (name != 'defaultLanguageCode' && name != 'activeSourceLanguageKey') {
         codeBoxNames.add(m.group(2)!);
@@ -183,8 +203,9 @@ void main(List<String> args) {
     );
 
     // Only check names that appear to be concrete box names (not _{lang} patterns)
-    final concreteDocNames =
-        docBoxNames.where((n) => !n.contains('{lang}')).toSet();
+    final concreteDocNames = docBoxNames
+        .where((n) => !n.contains('{lang}'))
+        .toSet();
     for (final name in concreteDocNames) {
       if (!codeBoxNames.contains(name)) {
         // Allow known patterns like `books_en`, `user_vocabulary_en` which are generated
@@ -204,18 +225,31 @@ void main(List<String> args) {
   stdout.writeln('');
   stdout.writeln('── Service class existence check ──');
   final keyServices = <String>{
-    'DictionaryManagerService', 'BookService', 'EpubService',
-    'AIService', 'AICacheService', 'PromptBuilder', 'ChapterAIJob',
-    'SettingsService', 'BackupService', 'ReadingSearchService',
-    'UserVocabularyService', 'WordLevelService', 'LearningAnalyticsService',
-    'CompoundWordAnalyzer', 'LanguageRegistry', 'EnglishLanguageModule',
+    'DictionaryManagerService',
+    'BookService',
+    'EpubService',
+    'AIService',
+    'AICacheService',
+    'PromptBuilder',
+    'ChapterAIJob',
+    'SettingsService',
+    'BackupService',
+    'ReadingSearchService',
+    'UserVocabularyService',
+    'WordLevelService',
+    'LearningAnalyticsService',
+    'CompoundWordAnalyzer',
+    'LanguageRegistry',
+    'EnglishLanguageModule',
     'ReadingAssistantAgent',
   };
 
   for (final className in keyServices) {
-    final result = _grep('class $className', _servicesDir);
+    final result = _grepAny('class $className', _serviceDirs);
     if (result.isEmpty) {
-      stderr.writeln('  [FAIL] Class "$className" not found in lib/services/');
+      stderr.writeln(
+        '  [FAIL] Class "$className" not found in service package roots',
+      );
       allOk = false;
     }
   }
@@ -233,6 +267,14 @@ void main(List<String> args) {
     );
     exit(1);
   }
+}
+
+String _grepAny(String pattern, List<Directory> dirs) {
+  for (final dir in dirs) {
+    final result = _grep(pattern, dir);
+    if (result.isNotEmpty) return result;
+  }
+  return '';
 }
 
 /// Simple recursive grep for a pattern in a directory.

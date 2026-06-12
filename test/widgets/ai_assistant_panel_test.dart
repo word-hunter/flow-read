@@ -46,7 +46,7 @@ void main() {
   });
 
   testWidgets(
-    'shows header and hides redundant explain action when context set',
+    'shows chat header and reader action launchers when context set',
     (
       tester,
     ) async {
@@ -66,12 +66,14 @@ void main() {
       await tester.pumpWidget(_wrap(AIAssistantPanel(controller: assistant)));
       await tester.pump();
 
-      expect(find.text('选中文本'), findsOneWidget);
+      expect(find.text('单句分析'), findsOneWidget);
       expect(find.text('The door opened slowly.'), findsOneWidget);
-      expect(find.text('解释'), findsNothing);
-      expect(find.text('翻译'), findsNothing);
-      expect(find.text('短语'), findsNothing);
-      expect(find.text('指代'), findsNothing);
+      expect(find.text('解释'), findsOneWidget);
+      expect(find.text('翻译'), findsOneWidget);
+      expect(find.text('短语'), findsOneWidget);
+      expect(find.text('指代'), findsOneWidget);
+      expect(find.text('锁定'), findsNothing);
+      expect(find.text('已锁定'), findsNothing);
     },
   );
 
@@ -90,7 +92,7 @@ void main() {
     await tester.pumpWidget(_wrap(AIAssistantPanel(controller: assistant)));
     await tester.pump();
 
-    expect(find.text('选择一个操作开始'), findsOneWidget);
+    expect(find.text('选择一个入口开始'), findsOneWidget);
   });
 
   testWidgets('renders compact follow-up composer', (tester) async {
@@ -109,8 +111,45 @@ void main() {
     await tester.pump();
 
     expect(find.text('继续追问...'), findsOneWidget);
-    expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
+    expect(find.text('基于当前内容'), findsOneWidget);
     expect(find.byTooltip('发送追问'), findsOneWidget);
+    expect(find.byType(Scrollbar), findsOneWidget);
+  });
+
+  testWidgets('renders assistant chat markdown without raw markers', (
+    tester,
+  ) async {
+    final assistant = _buildController(
+      settings,
+      responseContent: 'This is **bold** text.\n- `item`',
+    );
+    addTearDown(assistant.dispose);
+
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.readerSelectedText,
+        selectedText: 'Sample text.',
+        surroundingPassage: 'Sample text.',
+      ),
+    );
+
+    await tester.pumpWidget(_wrap(AIAssistantPanel(controller: assistant)));
+    await tester.pump();
+
+    await assistant.executeAction(
+      AIAssistantActionType.chat,
+      followUpQuestion: 'Explain this.',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('**bold**'), findsNothing);
+    expect(find.textContaining('`item`'), findsNothing);
+    final richText = tester
+        .widgetList<RichText>(find.byType(RichText))
+        .map((widget) => widget.text.toPlainText())
+        .join('\n');
+    expect(richText, contains('This is bold text.'));
+    expect(richText, contains('item'));
   });
 
   testWidgets('follow-up composer exits loading when action completes', (
@@ -142,6 +181,7 @@ void main() {
 
     expect(tester.widget<TextField>(find.byType(TextField)).enabled, isTrue);
     expect(find.text('Result text'), findsOneWidget);
+    expect(find.text('引用 1'), findsOneWidget);
   });
 
   testWidgets('executes action and shows result via controller', (
@@ -304,7 +344,7 @@ void main() {
     await tester.pumpWidget(_wrap(AIAssistantPanel(controller: assistant)));
     await tester.pump();
 
-    expect(find.text('章节分析'), findsOneWidget);
+    expect(find.text('章节助手'), findsOneWidget);
     expect(find.text('总结'), findsOneWidget);
   });
 

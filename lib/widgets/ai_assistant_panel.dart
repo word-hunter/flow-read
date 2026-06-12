@@ -99,19 +99,20 @@ class _ActivePanel extends HookWidget {
     useListenable(actionController);
     final availableActions = controller.availableActions;
     final showActionStrip = _shouldShowActionStrip(availableActions);
+    final session = controller.currentSession;
 
     return SizedBox(
       width: embedded ? 360 : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _PanelHeader(
-            snapshot: snapshot,
+          _SessionToolbar(
+            controller: controller,
             embedded: embedded,
             onClose: onClose,
           ),
           const Divider(height: 1),
-          _ContextCard(snapshot: snapshot),
+          _ContextCard(controller: controller, snapshot: snapshot),
           if (showActionStrip) ...[
             const Divider(height: 1),
             _ActionStrip(
@@ -124,21 +125,30 @@ class _ActivePanel extends HookWidget {
           ],
           const Divider(height: 1),
           Expanded(
-            child: _ResultArea(
+            child: _ConversationArea(
+              session: session,
               actionController: actionController,
+              snapshot: snapshot,
               onRetry: () => actionController.retry(),
+            ),
+          ),
+          _QuickQuestionStrip(
+            busy: actionController.isBusy,
+            onSubmit: (question) => controller.executeAction(
+              AIAssistantActionType.chat,
+              followUpQuestion: question,
             ),
           ),
           const Divider(height: 1),
           _FollowUpInput(
             busy: actionController.isBusy,
+            scope: snapshot.scope,
+            onScopeChanged: controller.setScope,
             onSubmit: (question) {
-              if (actionController.currentAction != null) {
-                controller.executeAction(
-                  actionController.currentAction!,
-                  followUpQuestion: question,
-                );
-              }
+              controller.executeAction(
+                AIAssistantActionType.chat,
+                followUpQuestion: question,
+              );
             },
           ),
           _ScopeIndicator(snapshot: snapshot),
@@ -154,68 +164,113 @@ class _ActivePanel extends HookWidget {
   }
 }
 
-class _PanelHeader extends StatelessWidget {
-  const _PanelHeader({
-    required this.snapshot,
+class _SessionToolbar extends StatelessWidget {
+  const _SessionToolbar({
+    required this.controller,
     required this.embedded,
     this.onClose,
   });
 
-  final AIContextSnapshot snapshot;
+  final AIAssistantController controller;
   final bool embedded;
   final VoidCallback? onClose;
 
+  AIContextSnapshot? get snapshot => controller.currentContext;
+
   String get _sourceLabel {
-    switch (snapshot.source) {
+    switch (snapshot?.source) {
       case AIContextSource.readerSelectedText:
-        return '选中文本';
       case AIContextSource.readerParagraph:
-        return '当前段落';
+        return '单句分析';
       case AIContextSource.readerWord:
         return '单词分析';
       case AIContextSource.readerChapter:
-        return '章节分析';
+        return '章节助手';
       case AIContextSource.rssArticle:
-        return '文章分析';
+        return '文章助手';
       case AIContextSource.internalWeb:
-        return '页面分析';
+        return '网页助手';
+      case null:
+        return 'AI 助手';
     }
   }
 
   IconData get _sourceIcon {
-    switch (snapshot.source) {
+    switch (snapshot?.source) {
       case AIContextSource.readerSelectedText:
-        return Icons.text_fields;
       case AIContextSource.readerParagraph:
-        return Icons.format_align_left;
+        return Icons.auto_awesome_outlined;
       case AIContextSource.readerWord:
-        return Icons.spellcheck;
+        return Icons.spellcheck_outlined;
       case AIContextSource.readerChapter:
-        return Icons.menu_book;
+        return Icons.menu_book_outlined;
       case AIContextSource.rssArticle:
-        return Icons.article;
+        return Icons.article_outlined;
       case AIContextSource.internalWeb:
-        return Icons.language;
+        return Icons.language_outlined;
+      case null:
+        return Icons.auto_awesome_outlined;
     }
+  }
+
+  String get _historyTooltip {
+    final count = controller.recentSessions.length;
+    return count == 0 ? '历史' : '历史 · $count';
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    final sessions = controller.recentSessions;
+    return SizedBox(
+      height: 48,
       child: Row(
         children: [
+          const SizedBox(width: 12),
           Icon(_sourceIcon, size: 18, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
-          Text(
-            _sourceLabel,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: theme.colorScheme.primary,
+          Expanded(
+            child: Text(
+              _sourceLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const Spacer(),
-          if (onClose != null)
+          PopupMenuButton<AIAssistantSession>(
+            tooltip: _historyTooltip,
+            icon: const Icon(Icons.history_rounded, size: 20),
+            onSelected: controller.openSession,
+            itemBuilder: (context) {
+              if (sessions.isEmpty) {
+                return [
+                  const PopupMenuItem<AIAssistantSession>(
+                    enabled: false,
+                    child: Text('暂无历史会话'),
+                  ),
+                ];
+              }
+              return sessions
+                  .map(
+                    (session) => PopupMenuItem<AIAssistantSession>(
+                      value: session,
+                      child: _HistorySessionItem(session: session),
+                    ),
+                  )
+                  .toList(growable: false);
+            },
+          ),
+          TextButton.icon(
+            onPressed: controller.currentContext == null
+                ? null
+                : controller.startNewSession,
+            icon: const Icon(Icons.add_comment_outlined, size: 16),
+            label: const Text('新会话'),
+          ),
+          if (!embedded && onClose != null)
             IconButton(
               icon: const Icon(Icons.close, size: 20),
               onPressed: onClose,
@@ -227,9 +282,45 @@ class _PanelHeader extends StatelessWidget {
   }
 }
 
-class _ContextCard extends StatelessWidget {
-  const _ContextCard({required this.snapshot});
+class _HistorySessionItem extends StatelessWidget {
+  const _HistorySessionItem({required this.session});
 
+  final AIAssistantSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 220,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            session.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${_scopeLabel(session.scope)} · ${session.messages.length} 条消息',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContextCard extends StatelessWidget {
+  const _ContextCard({required this.controller, required this.snapshot});
+
+  final AIAssistantController controller;
   final AIContextSnapshot snapshot;
 
   String get _preview {
@@ -258,26 +349,40 @@ class _ContextCard extends StatelessWidget {
     if (preview.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (snapshot.bookId != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
+                  Text(
+                    '当前上下文',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
                   if (snapshot.chapterTitle != null)
                     Flexible(
                       child: Text(
                         snapshot.chapterTitle!,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.outline,
+                          fontWeight: FontWeight.w600,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Text(
                     snapshot.sourceLanguage.toUpperCase(),
                     style: theme.textTheme.labelSmall?.copyWith(
@@ -287,17 +392,127 @@ class _ContextCard extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          Text(
-            preview,
-            style: theme.textTheme.bodySmall,
-            maxLines: _maxLines,
-            overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 8),
+              Text(
+                preview,
+                style: theme.textTheme.bodySmall?.copyWith(height: 1.45),
+                maxLines: _maxLines,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 10),
+              _ContextScopeControls(
+                snapshot: snapshot,
+                onScopeChanged: controller.setScope,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+}
+
+class _ContextScopeControls extends StatelessWidget {
+  const _ContextScopeControls({
+    required this.snapshot,
+    required this.onScopeChanged,
+  });
+
+  final AIContextSnapshot snapshot;
+  final ValueChanged<AIContextScope> onScopeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final choices = _scopeChoices(snapshot);
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final choice in choices)
+          ChoiceChip(
+            label: Text(choice.label),
+            selected: snapshot.scope == choice.scope,
+            onSelected: choice.enabled
+                ? (_) => onScopeChanged(choice.scope)
+                : null,
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+      ],
+    );
+  }
+}
+
+class _ScopeChoice {
+  const _ScopeChoice({
+    required this.scope,
+    required this.label,
+    this.enabled = true,
+  });
+
+  final AIContextScope scope;
+  final String label;
+  final bool enabled;
+}
+
+List<_ScopeChoice> _scopeChoices(AIContextSnapshot snapshot) {
+  final passageLabel = switch (snapshot.source) {
+    AIContextSource.readerWord => '当前词',
+    AIContextSource.readerSelectedText => '当前句子',
+    AIContextSource.readerParagraph => '当前段落',
+    _ => '当前内容',
+  };
+  return [
+    _ScopeChoice(scope: AIContextScope.currentPassage, label: passageLabel),
+    const _ScopeChoice(scope: AIContextScope.currentChapter, label: '本章'),
+    const _ScopeChoice(
+      scope: AIContextScope.fullBook,
+      label: '全书摘要',
+      enabled: false,
+    ),
+  ];
+}
+
+String _scopeLabel(AIContextScope? scope) {
+  return switch (scope) {
+    AIContextScope.currentPassage => '当前内容',
+    AIContextScope.currentChapter => '本章',
+    AIContextScope.readSoFar => '已读部分',
+    AIContextScope.fullBook => '全书摘要',
+    null => '当前上下文',
+  };
+}
+
+String _actionLabel(AIAssistantActionType? action) {
+  return switch (action) {
+    AIAssistantActionType.explain => '解释',
+    AIAssistantActionType.translate => '翻译',
+    AIAssistantActionType.phraseExtraction => '短语',
+    AIAssistantActionType.pronounReference => '指代',
+    AIAssistantActionType.questionGeneration => '出题',
+    AIAssistantActionType.summary => '总结',
+    AIAssistantActionType.wordAnalysis => '词汇',
+    AIAssistantActionType.articleQA => '问答',
+    AIAssistantActionType.paragraphInsight => '段落洞察',
+    AIAssistantActionType.chat => '继续追问',
+    null => 'AI',
+  };
+}
+
+String _busyLabel(AIAssistantActionType? action) {
+  return switch (action) {
+    AIAssistantActionType.explain => '正在分析...',
+    AIAssistantActionType.translate => '正在翻译...',
+    AIAssistantActionType.phraseExtraction => '正在提取短语...',
+    AIAssistantActionType.pronounReference => '正在分析指代...',
+    AIAssistantActionType.questionGeneration => '正在生成题目...',
+    AIAssistantActionType.summary => '正在生成总结...',
+    AIAssistantActionType.wordAnalysis => '正在分析词汇...',
+    AIAssistantActionType.articleQA || AIAssistantActionType.chat => '正在回答...',
+    AIAssistantActionType.paragraphInsight => '正在分析段落...',
+    null => '处理中...',
+  };
 }
 
 class _ActionStrip extends StatelessWidget {
@@ -363,6 +578,8 @@ class _ActionStrip extends StatelessWidget {
         return '问答';
       case AIAssistantActionType.paragraphInsight:
         return '段落洞察';
+      case AIAssistantActionType.chat:
+        return '追问';
     }
   }
 
@@ -386,87 +603,125 @@ class _ActionStrip extends StatelessWidget {
         return Icons.chat_outlined;
       case AIAssistantActionType.paragraphInsight:
         return Icons.format_align_left;
+      case AIAssistantActionType.chat:
+        return Icons.chat_bubble_outline_rounded;
     }
   }
 }
 
-class _ResultArea extends HookWidget {
-  const _ResultArea({
+class _ConversationArea extends HookWidget {
+  const _ConversationArea({
+    required this.session,
     required this.actionController,
+    required this.snapshot,
     this.onRetry,
   });
 
+  final AIAssistantSession? session;
   final AIActionController actionController;
+  final AIContextSnapshot snapshot;
   final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     useListenable(actionController);
-
-    if (actionController.isBusy) {
-      final stream = actionController.stream;
-      if (stream != null) {
-        return _buildStreaming(context, stream);
-      }
-      return _buildLoading(context);
-    }
-    final result = actionController.lastResult;
-    if (result == null) {
-      return _buildIdle(context);
-    }
-    if (result is AIErrorResult) {
-      return _buildError(context, result);
-    }
-    return _buildResult(context, result);
-  }
-
-  Widget _buildStreaming(BuildContext context, Stream<String> stream) {
-    final chunks = useState(<String>[]);
-
-    useEffect(() {
-      final subscription = stream.listen((chunk) {
-        chunks.value = [...chunks.value, chunk];
-      });
-      return subscription.cancel;
-    }, [stream]);
-
+    final messages = session?.messages ?? const <AIChatMessage>[];
+    final error = actionController.lastResult is AIErrorResult
+        ? actionController.lastResult as AIErrorResult
+        : null;
+    final latestResult = actionController.lastResult;
     final theme = Theme.of(context);
-    final text = chunks.value.join();
-    if (text.isEmpty) {
-      return _buildLoading(context);
+
+    if (messages.isEmpty && !actionController.isBusy && error == null) {
+      return _ConversationIdle(snapshot: snapshot);
     }
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _actionLabel(actionController.currentAction),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-            ],
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+      children: [
+        for (var i = 0; i < messages.length; i += 1)
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: i == messages.length - 1 ? 0 : 12,
+            ),
+            child: _ChatMessageBubble(
+              message: messages[i],
+              result: _isLatestAssistantMessage(messages, i)
+                  ? latestResult
+                  : null,
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(text, style: theme.textTheme.bodySmall),
+        if (actionController.isBusy) ...[
+          if (messages.isNotEmpty) const SizedBox(height: 12),
+          _PendingAssistantBubble(action: actionController.currentAction),
         ],
-      ),
+        if (error != null && !actionController.isBusy) ...[
+          if (messages.isNotEmpty) const SizedBox(height: 12),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.errorContainer.withValues(alpha: 0.28),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: theme.colorScheme.error.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 16,
+                        color: theme.colorScheme.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '回答失败',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.error,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(error.message, style: theme.textTheme.bodySmall),
+                  if (error.isRetryable && onRetry != null) ...[
+                    const SizedBox(height: 10),
+                    FlowButton.secondary(
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh, size: 16),
+                      child: const Text('重试'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
-  Widget _buildLoading(BuildContext context) {
+  bool _isLatestAssistantMessage(List<AIChatMessage> messages, int index) {
+    if (messages[index].role != AIChatMessageRole.assistant) return false;
+    for (var i = index + 1; i < messages.length; i += 1) {
+      if (messages[i].role == AIChatMessageRole.assistant) return false;
+    }
+    return true;
+  }
+}
+
+class _ConversationIdle extends StatelessWidget {
+  const _ConversationIdle({required this.snapshot});
+
+  final AIContextSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Center(
       child: Padding(
@@ -474,11 +729,22 @@ class _ResultArea extends HookWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
+            Icon(
+              Icons.auto_awesome_outlined,
+              size: 36,
+              color: theme.colorScheme.primary.withValues(alpha: 0.7),
+            ),
+            const SizedBox(height: 12),
             Text(
-              _actionLabel(actionController.currentAction),
-              style: theme.textTheme.bodyMedium?.copyWith(
+              '选择一个入口开始',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '基于${_scopeLabel(snapshot.scope)}回答',
+              style: theme.textTheme.labelSmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),
             ),
@@ -487,287 +753,456 @@ class _ResultArea extends HookWidget {
       ),
     );
   }
+}
 
-  Widget _buildIdle(BuildContext context) {
+class _PendingAssistantBubble extends StatelessWidget {
+  const _PendingAssistantBubble({required this.action});
+
+  final AIAssistantActionType? action;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(
-          '选择一个操作开始',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.42,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _busyLabel(action),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildError(BuildContext context, AIErrorResult error) {
+class _ChatMessageBubble extends HookWidget {
+  const _ChatMessageBubble({required this.message, this.result});
+
+  final AIChatMessage message;
+  final AIActionResult? result;
+
+  @override
+  Widget build(BuildContext context) {
+    final expanded = useState(false);
     final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 36, color: theme.colorScheme.error),
-            const SizedBox(height: 12),
-            Text(
-              error.message,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-              textAlign: TextAlign.center,
+    final isUser = message.role == AIChatMessageRole.user;
+    final colorScheme = theme.colorScheme;
+    final bubbleColor = isUser
+        ? colorScheme.primaryContainer.withValues(alpha: 0.55)
+        : colorScheme.surfaceContainerHighest.withValues(alpha: 0.42);
+    final borderColor = isUser
+        ? colorScheme.primary.withValues(alpha: 0.22)
+        : colorScheme.outlineVariant;
+    final content = _InlineMessageContent(message: message, result: result);
+
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 320),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: bubbleColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!isUser) ...[
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.auto_awesome_outlined,
+                        size: 15,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          '${_actionLabel(message.actionType)} · 基于${_scopeLabel(message.scope)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                content,
+                if (message.citations.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (var i = 0; i < message.citations.length; i += 1)
+                        ActionChip(
+                          label: Text('引用 ${i + 1}'),
+                          avatar: const Icon(Icons.format_quote, size: 15),
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          onPressed: () => expanded.value = !expanded.value,
+                        ),
+                    ],
+                  ),
+                  if (expanded.value) ...[
+                    const SizedBox(height: 8),
+                    _CitationPanel(citations: message.citations),
+                  ],
+                ],
+              ],
             ),
-            if (error.isRetryable && onRetry != null) ...[
-              const SizedBox(height: 12),
-              FlowButton.secondary(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh, size: 16),
-                child: const Text('重试'),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineMessageContent extends StatelessWidget {
+  const _InlineMessageContent({required this.message, this.result});
+
+  final AIChatMessage message;
+  final AIActionResult? result;
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = result;
+    if (latest is AITextAnalysisResult) {
+      return _TextAnalysisContent(analysis: latest.analysis);
+    }
+    return _MarkdownMessage(text: message.content);
+  }
+}
+
+class _MarkdownMessage extends StatelessWidget {
+  const _MarkdownMessage({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseStyle = theme.textTheme.bodySmall?.copyWith(height: 1.55);
+    final blocks = _markdownBlocks(text.trim());
+    if (blocks.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (blocks.length == 1 && blocks.single is _MarkdownParagraphBlock) {
+      final paragraph = blocks.single as _MarkdownParagraphBlock;
+      if (!_hasMarkdownInline(paragraph.text)) {
+        return Text(paragraph.text, style: baseStyle);
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < blocks.length; i += 1) ...[
+          if (i > 0) const SizedBox(height: 10),
+          _MarkdownBlockView(block: blocks[i], baseStyle: baseStyle),
+        ],
+      ],
+    );
+  }
+}
+
+class _MarkdownBlockView extends StatelessWidget {
+  const _MarkdownBlockView({required this.block, required this.baseStyle});
+
+  final _MarkdownBlock block;
+  final TextStyle? baseStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final current = block;
+    if (current is _MarkdownHeadingBlock) {
+      final style = theme.textTheme.labelLarge?.copyWith(
+        fontWeight: FontWeight.w800,
+        height: 1.35,
+      );
+      return _MarkdownInlineText(text: current.text, style: style);
+    }
+    if (current is _MarkdownListBlock) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final item in current.items)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 18,
+                    child: Text(
+                      item.marker,
+                      style: baseStyle?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: _MarkdownInlineText(
+                      text: item.text,
+                      style: baseStyle,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
+        ],
+      );
+    }
+    if (current is _MarkdownParagraphBlock) {
+      return _MarkdownInlineText(text: current.text, style: baseStyle);
+    }
+    return const SizedBox.shrink();
+  }
+}
+
+class _MarkdownInlineText extends StatelessWidget {
+  const _MarkdownInlineText({required this.text, required this.style});
+
+  final String text;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_hasMarkdownInline(text)) {
+      return Text(text, style: style);
+    }
+    return Text.rich(
+      TextSpan(
+        style: style,
+        children: _inlineMarkdownSpans(context, text, style),
+      ),
+    );
+  }
+}
+
+sealed class _MarkdownBlock {
+  const _MarkdownBlock();
+}
+
+class _MarkdownParagraphBlock extends _MarkdownBlock {
+  const _MarkdownParagraphBlock(this.text);
+
+  final String text;
+}
+
+class _MarkdownHeadingBlock extends _MarkdownBlock {
+  const _MarkdownHeadingBlock(this.text);
+
+  final String text;
+}
+
+class _MarkdownListBlock extends _MarkdownBlock {
+  const _MarkdownListBlock(this.items);
+
+  final List<_MarkdownListItem> items;
+}
+
+class _MarkdownListItem {
+  const _MarkdownListItem({required this.marker, required this.text});
+
+  final String marker;
+  final String text;
+}
+
+List<_MarkdownBlock> _markdownBlocks(String source) {
+  if (source.isEmpty) return const [];
+  final lines = source.replaceAll('\r\n', '\n').split('\n');
+  final blocks = <_MarkdownBlock>[];
+  final paragraph = <String>[];
+  final listItems = <_MarkdownListItem>[];
+
+  void flushParagraph() {
+    if (paragraph.isEmpty) return;
+    blocks.add(_MarkdownParagraphBlock(paragraph.join('\n').trim()));
+    paragraph.clear();
+  }
+
+  void flushList() {
+    if (listItems.isEmpty) return;
+    blocks.add(_MarkdownListBlock(List.unmodifiable(listItems)));
+    listItems.clear();
+  }
+
+  for (final rawLine in lines) {
+    final line = rawLine.trimRight();
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    final heading = RegExp(r'^(#{1,6})\s+(.+)$').firstMatch(trimmed);
+    if (heading != null) {
+      flushParagraph();
+      flushList();
+      blocks.add(_MarkdownHeadingBlock(heading.group(2)!.trim()));
+      continue;
+    }
+
+    final listMatch = RegExp(
+      r'^((?:[-*•])|(?:\d+\.))\s+(.+)$',
+    ).firstMatch(trimmed);
+    if (listMatch != null) {
+      flushParagraph();
+      listItems.add(
+        _MarkdownListItem(
+          marker: listMatch.group(1)!.contains('.') ? listMatch.group(1)! : '•',
+          text: listMatch.group(2)!.trim(),
+        ),
+      );
+      continue;
+    }
+
+    flushList();
+    paragraph.add(trimmed);
+  }
+
+  flushParagraph();
+  flushList();
+  return blocks;
+}
+
+bool _hasMarkdownInline(String value) {
+  return value.contains('**') || value.contains('`') || value.contains('*');
+}
+
+List<TextSpan> _inlineMarkdownSpans(
+  BuildContext context,
+  String source,
+  TextStyle? baseStyle,
+) {
+  final theme = Theme.of(context);
+  final spans = <TextSpan>[];
+  final pattern = RegExp(r'(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)');
+  var cursor = 0;
+
+  for (final match in pattern.allMatches(source)) {
+    if (match.start > cursor) {
+      spans.add(TextSpan(text: source.substring(cursor, match.start)));
+    }
+    final token = match.group(0)!;
+    if (token.startsWith('**')) {
+      spans.add(
+        TextSpan(
+          text: token.substring(2, token.length - 2),
+          style: baseStyle?.copyWith(fontWeight: FontWeight.w800),
+        ),
+      );
+    } else if (token.startsWith('`')) {
+      spans.add(
+        TextSpan(
+          text: token.substring(1, token.length - 1),
+          style: baseStyle?.copyWith(
+            fontFamily: 'monospace',
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+          ),
+        ),
+      );
+    } else {
+      spans.add(
+        TextSpan(
+          text: token.substring(1, token.length - 1),
+          style: baseStyle?.copyWith(fontStyle: FontStyle.italic),
+        ),
+      );
+    }
+    cursor = match.end;
+  }
+
+  if (cursor < source.length) {
+    spans.add(TextSpan(text: source.substring(cursor)));
+  }
+  return spans;
+}
+
+class _CitationPanel extends StatelessWidget {
+  const _CitationPanel({required this.citations});
+
+  final List<AIAssistantCitation> citations;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '引用与定位',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (final citation in citations)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  citation.quote ?? citation.label,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(height: 1.45),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
-
-  Widget _buildResult(BuildContext context, AIActionResult result) {
-    if (result is AIStreamingProgress) {
-      return _BuildStreamingResult(
-        chunk: result.chunk,
-        progress: result.progress,
-      );
-    }
-    if (result is AISummaryResult) {
-      return _SummaryView(summary: result.summary);
-    }
-    if (result is AIWordAnalysisResult) {
-      return _WordAnalysisView(analysis: result.analysis);
-    }
-    if (result is AITranslateResult) {
-      return _TranslateView(translation: result.translation);
-    }
-    if (result is AITextAnalysisResult) {
-      return _TextAnalysisView(analysis: result.analysis);
-    }
-    if (result is AIExplainResult) {
-      return _ExplainView(explanation: result.explanation);
-    }
-    if (result is AIPhraseExtractionResult) {
-      return _PhraseView(phrases: result.phrases);
-    }
-    if (result is AIQuestionGenerationResult) {
-      return _QuestionView(questions: result.questions);
-    }
-    if (result is AIArticleQAResult) {
-      return _ArticleQAView(answer: result.answer);
-    }
-    if (result is AIParagraphInsightResult) {
-      return _ParagraphInsightView(insight: result.insight);
-    }
-    return const SizedBox.shrink();
-  }
-
-  static String _actionLabel(AIAssistantActionType? action) {
-    switch (action) {
-      case AIAssistantActionType.explain:
-        return '正在分析...';
-      case AIAssistantActionType.translate:
-        return '正在翻译...';
-      case AIAssistantActionType.phraseExtraction:
-        return '正在提取短语...';
-      case AIAssistantActionType.pronounReference:
-        return '正在分析指代...';
-      case AIAssistantActionType.questionGeneration:
-        return '正在生成题目...';
-      case AIAssistantActionType.summary:
-        return '正在生成总结...';
-      case AIAssistantActionType.wordAnalysis:
-        return '正在分析词汇...';
-      case AIAssistantActionType.articleQA:
-        return '正在生成回答...';
-      case AIAssistantActionType.paragraphInsight:
-        return '正在分析段落...';
-      case null:
-        return '处理中...';
-    }
-  }
 }
 
-class _SummaryView extends StatelessWidget {
-  const _SummaryView({required this.summary});
-
-  final AISummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (summary.events.isNotEmpty) ...[
-            Text('事件', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 6),
-            ...summary.events.map(
-              (e) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      e.description,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (e.significance.isNotEmpty)
-                      Text(e.significance, style: theme.textTheme.bodySmall),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (summary.characterDevelopments.isNotEmpty) ...[
-            Text('角色发展', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 6),
-            ...summary.characterDevelopments.map(
-              (c) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      c.character,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (c.change.isNotEmpty)
-                      Text(c.change, style: theme.textTheme.bodySmall),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (summary.keyVocabulary.isNotEmpty) ...[
-            Text('关键词汇', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 6),
-            ...summary.keyVocabulary.map(
-              (v) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${v.word} ',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        v.meaningInContext,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (summary.readingGuidance.isNotEmpty) ...[
-            Text('阅读指导', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Text(summary.readingGuidance, style: theme.textTheme.bodySmall),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _WordAnalysisView extends StatelessWidget {
-  const _WordAnalysisView({required this.analysis});
-
-  final WordAnalysis analysis;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (analysis.pronunciation.isNotEmpty) ...[
-            Text('发音', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Text(analysis.pronunciation, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 12),
-          ],
-          if (analysis.meanings.isNotEmpty) ...[
-            Text('释义', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 6),
-            ...analysis.meanings.map(
-              (m) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      m.meaning,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (m.explanation.isNotEmpty)
-                      Text(m.explanation, style: theme.textTheme.bodySmall),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (analysis.usageTips.isNotEmpty) ...[
-            Text('用法提示', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            ...analysis.usageTips.map(
-              (tip) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('• '),
-                    Expanded(
-                      child: Text(tip, style: theme.textTheme.bodySmall),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (analysis.memoryTip.isNotEmpty) ...[
-            Text('记忆技巧', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
-            Text(analysis.memoryTip, style: theme.textTheme.bodySmall),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _TextAnalysisView extends StatelessWidget {
-  const _TextAnalysisView({required this.analysis});
+class _TextAnalysisContent extends StatelessWidget {
+  const _TextAnalysisContent({required this.analysis});
 
   final AITextAnalysis analysis;
 
@@ -871,12 +1306,16 @@ class _TextAnalysisView extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: sections,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: sections.isEmpty
+          ? [
+              Text(
+                '已完成分析。',
+                style: theme.textTheme.bodySmall?.copyWith(height: 1.5),
+              ),
+            ]
+          : sections,
     );
   }
 }
@@ -1128,124 +1567,62 @@ class _MetaPill extends StatelessWidget {
   }
 }
 
-class _TranslateView extends StatelessWidget {
-  const _TranslateView({required this.translation});
+class _QuickQuestionStrip extends HookWidget {
+  const _QuickQuestionStrip({required this.busy, required this.onSubmit});
 
-  final String translation;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Text(translation, style: theme.textTheme.bodyMedium),
-    );
-  }
-}
-
-class _ExplainView extends StatelessWidget {
-  const _ExplainView({required this.explanation});
-
-  final String explanation;
+  final bool busy;
+  final ValueChanged<String> onSubmit;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Text(explanation, style: theme.textTheme.bodyMedium),
-    );
-  }
-}
-
-class _PhraseView extends StatelessWidget {
-  const _PhraseView({required this.phrases});
-
-  final List<AIExtractedPhrase> phrases;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ListView.separated(
-      padding: const EdgeInsets.all(12),
-      itemCount: phrases.length,
-      separatorBuilder: (_, _) => const Divider(height: 16),
-      itemBuilder: (context, index) {
-        final phrase = phrases[index];
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              phrase.phrase,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(phrase.explanation, style: theme.textTheme.bodySmall),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _QuestionView extends StatelessWidget {
-  const _QuestionView({required this.questions});
-
-  final List<AIGeneratedQuestion> questions;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ListView.separated(
-      padding: const EdgeInsets.all(12),
-      itemCount: questions.length,
-      separatorBuilder: (_, _) => const Divider(height: 16),
-      itemBuilder: (context, index) {
-        final question = questions[index];
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${index + 1}. ${question.question}',
-              style: theme.textTheme.bodyMedium,
-            ),
-            if (question.answer.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                '答案: ${question.answer}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.primary,
+    final scrollController = useScrollController();
+    final prompts = const [
+      '这句话什么意思？',
+      '换成简单英文',
+      '列出难词',
+      '不要剧透',
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Scrollbar(
+        controller: scrollController,
+        thumbVisibility: true,
+        trackVisibility: true,
+        interactive: true,
+        child: SingleChildScrollView(
+          controller: scrollController,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              for (var i = 0; i < prompts.length; i += 1) ...[
+                if (i > 0) const SizedBox(width: 6),
+                ActionChip(
+                  label: Text(prompts[i]),
+                  onPressed: busy ? null : () => onSubmit(prompts[i]),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-              ),
+              ],
             ],
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _ArticleQAView extends StatelessWidget {
-  const _ArticleQAView({required this.answer});
-
-  final String answer;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Text(answer, style: theme.textTheme.bodyMedium),
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _FollowUpInput extends HookWidget {
-  const _FollowUpInput({required this.busy, this.onSubmit});
+  const _FollowUpInput({
+    required this.busy,
+    required this.scope,
+    required this.onScopeChanged,
+    this.onSubmit,
+  });
 
   final bool busy;
+  final AIContextScope scope;
+  final ValueChanged<AIContextScope> onScopeChanged;
   final ValueChanged<String>? onSubmit;
 
   @override
@@ -1293,15 +1670,47 @@ class _FollowUpInput extends HookWidget {
         ),
         child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 12, right: 8),
-              child: Icon(
-                Icons.chat_bubble_outline_rounded,
-                size: 17,
-                color: canSubmit
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.72),
+            PopupMenuButton<AIContextScope>(
+              tooltip: '选择追问范围',
+              enabled: !busy,
+              initialValue: scope,
+              onSelected: onScopeChanged,
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: AIContextScope.currentPassage,
+                  child: Text('基于当前内容'),
+                ),
+                PopupMenuItem(
+                  value: AIContextScope.currentChapter,
+                  child: Text('基于本章'),
+                ),
+              ],
+              child: Padding(
+                padding: const EdgeInsets.only(left: 10, right: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '基于${_scopeLabel(scope)}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
               ),
+            ),
+            Container(
+              width: 1,
+              height: 24,
+              color: colorScheme.outlineVariant.withValues(alpha: 0.75),
             ),
             Expanded(
               child: FlowTextField(
@@ -1387,117 +1796,6 @@ class _ScopeIndicator extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _BuildStreamingResult extends StatelessWidget {
-  const _BuildStreamingResult({required this.chunk, required this.progress});
-
-  final String chunk;
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LinearProgressIndicator(value: progress.clamp(0.0, 1.0)),
-          const SizedBox(height: 8),
-          Text(chunk, style: theme.textTheme.bodySmall),
-        ],
-      ),
-    );
-  }
-}
-
-class _ParagraphInsightView extends StatelessWidget {
-  const _ParagraphInsightView({required this.insight});
-
-  final ParagraphInsight insight;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSection(theme, '概要', insight.gist, Icons.text_snippet),
-          if (insight.narrativeFunction != null &&
-              insight.narrativeFunction!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _buildSection(
-              theme,
-              '叙事功能',
-              insight.narrativeFunction!,
-              Icons.account_tree_outlined,
-            ),
-          ],
-          if (insight.hasMoodShift) ...[
-            const SizedBox(height: 8),
-            _buildSection(theme, '情绪变化', '这段文本存在情绪或气氛的转变',
-                Icons.emoji_emotions_outlined),
-          ],
-          if (insight.keyReferences.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _buildSection(
-              theme,
-              '指代解析',
-              insight.keyReferences.join('\n'),
-              Icons.link,
-            ),
-          ],
-          if (insight.difficultLanguage.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _buildSection(
-              theme,
-              '语言难点',
-              insight.difficultLanguage.join('\n'),
-              Icons.translate_outlined,
-            ),
-          ],
-          if (insight.whyItMattersNow != null &&
-              insight.whyItMattersNow!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _buildSection(
-              theme,
-              '当前意义',
-              insight.whyItMattersNow!,
-              Icons.lightbulb_outline,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSection(ThemeData theme, String title, String body, IconData icon) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 14, color: theme.colorScheme.primary),
-            const SizedBox(width: 6),
-            Text(title, style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            )),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Padding(
-          padding: const EdgeInsets.only(left: 20),
-          child: Text(body, style: theme.textTheme.bodySmall?.copyWith(
-            height: 1.45,
-          )),
-        ),
-      ],
     );
   }
 }

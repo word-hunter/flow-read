@@ -73,4 +73,44 @@ class AIContextSnapshot {
         articleContent != null && articleContent!.trim().isNotEmpty,
     };
   }
+
+  AIContextSnapshot copyWith({
+    AIContextSource? source,
+    String? bookId,
+    int? chapterIndex,
+    String? chapterTitle,
+    String? selectedText,
+    String? surroundingPassage,
+    String? word,
+    String? wordSentence,
+    String? chapterContent,
+    String? articleTitle,
+    String? articleContent,
+    String? articleUrl,
+    AIContextScope? scope,
+    SpoilerBoundary? spoilerBoundary,
+    String? sourceLanguage,
+    String? outputLanguage,
+    ExplanationContextBundle? contextBundle,
+  }) {
+    return AIContextSnapshot(
+      source: source ?? this.source,
+      bookId: bookId ?? this.bookId,
+      chapterIndex: chapterIndex ?? this.chapterIndex,
+      chapterTitle: chapterTitle ?? this.chapterTitle,
+      selectedText: selectedText ?? this.selectedText,
+      surroundingPassage: surroundingPassage ?? this.surroundingPassage,
+      word: word ?? this.word,
+      wordSentence: wordSentence ?? this.wordSentence,
+      chapterContent: chapterContent ?? this.chapterContent,
+      articleTitle: articleTitle ?? this.articleTitle,
+      articleContent: articleContent ?? this.articleContent,
+      articleUrl: articleUrl ?? this.articleUrl,
+      scope: scope ?? this.scope,
+      spoilerBoundary: spoilerBoundary ?? this.spoilerBoundary,
+      sourceLanguage: sourceLanguage ?? this.sourceLanguage,
+      outputLanguage: outputLanguage ?? this.outputLanguage,
+      contextBundle: contextBundle ?? this.contextBundle,
+    );
+  }
 }

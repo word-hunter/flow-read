@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'models/ai_action_result.dart';
 import 'models/ai_assistant_action.dart';
 import 'models/ai_automation_settings.dart';
+import 'models/ai_chat_session.dart';
 import 'models/ai_context_snapshot.dart';
 import 'models/ai_summary.dart';
 import 'models/ai_text_analysis.dart';
@@ -26,9 +27,18 @@ class AIAssistantController extends ChangeNotifier {
     required this.actionController,
   });
 
+  static const int maxRecentSessions = 20;
+
   AIContextSnapshot? _currentContext;
+  AIAssistantSession? _currentSession;
+  List<AIAssistantSession> _recentSessions = const [];
+  bool _contextLocked = false;
+  int _idSeed = 0;
 
   AIContextSnapshot? get currentContext => _currentContext;
+  AIAssistantSession? get currentSession => _currentSession;
+  List<AIAssistantSession> get recentSessions => _recentSessions;
+  bool get contextLocked => _contextLocked;
   final AIAssistantActionRegistry registry;
   final AIAutomationSettings automationSettings;
   final ReadingInsightProfile insightProfile;
@@ -42,9 +52,51 @@ class AIAssistantController extends ChangeNotifier {
 
   bool get isEmpty => _currentContext == null;
 
-  void setContext(AIContextSnapshot context) {
+  void setContext(AIContextSnapshot context, {bool force = false}) {
+    if (_contextLocked && _currentContext != null && !force) return;
     _currentContext = context;
+    _currentSession = _createSession(context);
     actionController.clearResult();
+    notifyListeners();
+  }
+
+  void startNewSession() {
+    final context = _currentContext;
+    if (context == null) return;
+    _contextLocked = false;
+    _currentSession = _createSession(context);
+    actionController.clearResult();
+    notifyListeners();
+  }
+
+  void openSession(AIAssistantSession session) {
+    _currentContext = session.anchor;
+    _currentSession = session;
+    _recentSessions = _putRecentSession(_recentSessions, session);
+    actionController.clearResult();
+    notifyListeners();
+  }
+
+  void setScope(AIContextScope scope) {
+    final context = _currentContext;
+    final session = _currentSession;
+    if (context == null || session == null || context.scope == scope) return;
+    final nextContext = context.copyWith(scope: scope);
+    final nextSession = session.copyWith(
+      scope: scope,
+      anchor: nextContext,
+      updatedAt: DateTime.now(),
+    );
+    _currentContext = nextContext;
+    _currentSession = nextSession;
+    if (nextSession.messages.isNotEmpty) {
+      _recentSessions = _putRecentSession(_recentSessions, nextSession);
+    }
+    notifyListeners();
+  }
+
+  void toggleContextLock() {
+    _contextLocked = !_contextLocked;
     notifyListeners();
   }
 
@@ -54,18 +106,222 @@ class AIAssistantController extends ChangeNotifier {
   }) async {
     final context = _currentContext;
     if (context == null) return;
+    _currentSession ??= _createSession(context);
+    final question = followUpQuestion?.trim();
+    final isFollowUp = question != null && question.isNotEmpty;
+    if (isFollowUp) {
+      _appendMessage(
+        AIChatMessageRole.user,
+        question,
+        action: AIAssistantActionType.chat,
+        context: context,
+      );
+    }
+    final targetAction = isFollowUp ? AIAssistantActionType.chat : action;
     final prompt = registry.buildPrompt(
-      action,
+      targetAction,
       context,
-      followUpQuestion: followUpQuestion,
+      followUpQuestion: question,
     );
-    await actionController.enqueue(prompt, action);
+    await actionController.enqueue(prompt, targetAction);
+    final result = actionController.lastResult;
+    if (result == null || result is AIErrorResult) return;
+    _appendMessage(
+      AIChatMessageRole.assistant,
+      _messageContentFor(result),
+      action: targetAction,
+      context: context,
+    );
   }
 
   void clear() {
     _currentContext = null;
+    _currentSession = null;
+    _contextLocked = false;
     actionController.clearResult();
     notifyListeners();
+  }
+
+  AIAssistantSession _createSession(AIContextSnapshot context) {
+    final now = DateTime.now();
+    return AIAssistantSession(
+      id: _nextId('session'),
+      bookId: context.bookId,
+      chapterIndex: context.chapterIndex,
+      title: _sessionTitle(context),
+      scope: context.scope,
+      anchor: context,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  void _appendMessage(
+    AIChatMessageRole role,
+    String content, {
+    required AIAssistantActionType action,
+    required AIContextSnapshot context,
+  }) {
+    final session = _currentSession ?? _createSession(context);
+    final now = DateTime.now();
+    final message = AIChatMessage(
+      id: _nextId('message'),
+      role: role,
+      content: content.trim(),
+      actionType: action,
+      scope: context.scope,
+      citations: role == AIChatMessageRole.assistant
+          ? _citationsFor(context)
+          : const [],
+      createdAt: now,
+    );
+    final nextSession = session.copyWith(
+      messages: [...session.messages, message],
+      updatedAt: now,
+    );
+    _currentSession = nextSession;
+    _recentSessions = _putRecentSession(_recentSessions, nextSession);
+    notifyListeners();
+  }
+
+  List<AIAssistantSession> _putRecentSession(
+    List<AIAssistantSession> sessions,
+    AIAssistantSession next,
+  ) {
+    final merged = [
+      next,
+      ...sessions.where((session) => session.id != next.id),
+    ];
+    if (merged.length <= maxRecentSessions) return merged;
+    return merged.take(maxRecentSessions).toList(growable: false);
+  }
+
+  List<AIAssistantCitation> _citationsFor(AIContextSnapshot context) {
+    final quote = _citationQuote(context);
+    if (quote == null || quote.isEmpty) return const [];
+    return [
+      AIAssistantCitation(
+        sourceType: _citationSourceType(context),
+        label: _citationLabel(context),
+        bookId: context.bookId,
+        chapterIndex: context.chapterIndex,
+        quote: quote,
+      ),
+    ];
+  }
+
+  String? _citationQuote(AIContextSnapshot context) {
+    return switch (context.source) {
+      AIContextSource.readerSelectedText => context.selectedText,
+      AIContextSource.readerParagraph => context.surroundingPassage,
+      AIContextSource.readerWord => context.wordSentence ?? context.word,
+      AIContextSource.readerChapter => context.chapterTitle,
+      AIContextSource.rssArticle || AIContextSource.internalWeb =>
+        context.articleTitle ?? context.articleContent,
+    };
+  }
+
+  String _citationSourceType(AIContextSnapshot context) {
+    return switch (context.source) {
+      AIContextSource.readerSelectedText => 'selection',
+      AIContextSource.readerParagraph => 'paragraph',
+      AIContextSource.readerWord => 'word',
+      AIContextSource.readerChapter => 'chapter',
+      AIContextSource.rssArticle || AIContextSource.internalWeb => 'article',
+    };
+  }
+
+  String _citationLabel(AIContextSnapshot context) {
+    return switch (context.source) {
+      AIContextSource.readerSelectedText => '选中文本',
+      AIContextSource.readerParagraph => '当前段落',
+      AIContextSource.readerWord => '当前词',
+      AIContextSource.readerChapter => '本章',
+      AIContextSource.rssArticle || AIContextSource.internalWeb => '当前文章',
+    };
+  }
+
+  String _sessionTitle(AIContextSnapshot context) {
+    final title =
+        context.word ??
+        context.chapterTitle ??
+        context.articleTitle ??
+        context.selectedText ??
+        context.surroundingPassage ??
+        'AI 会话';
+    final normalized = title.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.length <= 24) return normalized;
+    return '${normalized.substring(0, 24)}...';
+  }
+
+  String _messageContentFor(AIActionResult result) {
+    if (result is AITranslateResult) return result.translation;
+    if (result is AIArticleQAResult) return result.answer;
+    if (result is AIExplainResult) return result.explanation;
+    if (result is AITextAnalysisResult) {
+      final analysis = result.analysis;
+      final parts = <String>[
+        if (analysis.translation.trim().isNotEmpty) analysis.translation,
+        ...analysis.structureNotes.map((note) => note.explanation),
+        ...analysis.grammarPoints.map((point) => point.explanation),
+        ...analysis.vocabularyNotes.map((note) => note.contextMeaning),
+        ...analysis.expressionNotes.map((note) => note.meaning),
+        if (analysis.readingTip.trim().isNotEmpty) analysis.readingTip,
+      ].where((part) => part.trim().isNotEmpty).toList(growable: false);
+      return parts.isEmpty ? '已完成分析。' : parts.join('\n\n');
+    }
+    if (result is AIWordAnalysisResult) {
+      final analysis = result.analysis;
+      final meanings = analysis.meanings
+          .map((meaning) {
+            final explanation = meaning.explanation.trim();
+            if (explanation.isEmpty) return meaning.meaning;
+            return '${meaning.meaning}: $explanation';
+          })
+          .where((line) => line.trim().isNotEmpty)
+          .join('\n');
+      return [
+        if (analysis.pronunciation.trim().isNotEmpty)
+          '发音: ${analysis.pronunciation}',
+        if (meanings.isNotEmpty) meanings,
+        ...analysis.usageTips,
+        if (analysis.memoryTip.trim().isNotEmpty) analysis.memoryTip,
+      ].join('\n\n');
+    }
+    if (result is AISummaryResult) {
+      final summary = result.summary;
+      final events = summary.events
+          .map((event) => event.description)
+          .where((event) => event.trim().isNotEmpty);
+      final characters = summary.characterDevelopments
+          .map((character) => '${character.character}: ${character.change}')
+          .where((line) => line.trim().isNotEmpty);
+      return [
+        ...events,
+        ...characters,
+        if (summary.readingGuidance.trim().isNotEmpty) summary.readingGuidance,
+      ].join('\n\n');
+    }
+    if (result is AIParagraphInsightResult) {
+      return result.insight.gist;
+    }
+    if (result is AIPhraseExtractionResult) {
+      return result.phrases
+          .map((phrase) => '${phrase.phrase}: ${phrase.explanation}')
+          .join('\n');
+    }
+    if (result is AIQuestionGenerationResult) {
+      return result.questions
+          .map((question) => '${question.question}\n答案: ${question.answer}')
+          .join('\n\n');
+    }
+    if (result is AIStreamingProgress) return result.chunk;
+    return '';
+  }
+
+  String _nextId(String prefix) {
+    _idSeed += 1;
+    return '$prefix-${DateTime.now().microsecondsSinceEpoch}-$_idSeed';
   }
 
   @override
@@ -177,7 +433,8 @@ class AIActionController extends ChangeNotifier {
   bool _prefersJsonMode(AIAssistantActionType action) {
     return switch (action) {
       AIAssistantActionType.translate ||
-      AIAssistantActionType.articleQA => false,
+      AIAssistantActionType.articleQA ||
+      AIAssistantActionType.chat => false,
       _ => true,
     };
   }
@@ -188,7 +445,8 @@ class AIActionController extends ChangeNotifier {
       AIAssistantActionType.translate => AITranslateResult(
         translation: trimmed,
       ),
-      AIAssistantActionType.articleQA => AIArticleQAResult(answer: trimmed),
+      AIAssistantActionType.articleQA ||
+      AIAssistantActionType.chat => AIArticleQAResult(answer: trimmed),
       AIAssistantActionType.summary => AISummaryResult(
         summary:
             _parseJson(trimmed, AISummary.fromJson) ??

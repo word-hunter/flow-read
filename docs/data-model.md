@@ -1,8 +1,8 @@
 # Flow Read Data Model
 
-> @source lib/storage/hive_type_ids.dart lib/models/
+> @source lib/storage/hive_type_ids.dart lib/models/ packages/flow_ai/lib/src/models/
 
-Last updated: 2026-06-06
+Last updated: 2026-06-12
 
 ## Hive 持久化模型（8 个）
 
@@ -48,6 +48,9 @@ Last updated: 2026-06-06
 | `AIContextSnapshot` | 统一 AI 助手上下文快照 |
 | `AIAssistantActionType` | 统一 AI 助手动作枚举 |
 | `AIActionResult` | 统一 AI 动作结果 sealed class |
+| `AIAssistantSession` | AI 助手轻量会话（当前上下文、消息、更新时间） |
+| `AIChatMessage` | AI 助手会话消息（user/assistant、动作、范围、引用） |
+| `AIAssistantCitation` | AI 回答引用锚点（来源类型、章节、quote） |
 | `AIAutomationSettings` | AI 自动化模式设置 |
 | `ReadingInsightProfile` | 运行时阅读画像 |
 | `CharacterRegistryEntry` | 人物注册表条目 |

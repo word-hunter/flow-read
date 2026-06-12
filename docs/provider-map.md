@@ -1,8 +1,8 @@
 # Flow Read Provider Map
 
-> @source lib/providers/reading/services_provider.dart lib/providers/settings_provider.dart lib/providers/reading/ai_notifier.dart lib/services/ai_assistant_action_registry.dart lib/services/ai_assistant_controller.dart
+> @source lib/providers/reading/services_provider.dart lib/providers/settings_provider.dart lib/providers/reading/ai_notifier.dart packages/flow_ai/lib/src/ai_assistant_action_registry.dart packages/flow_ai/lib/src/ai_assistant_controller.dart
 
-Last updated: 2026-06-06
+Last updated: 2026-06-12
 
 ## Provider 层级
 
@@ -50,7 +50,7 @@ ProviderScope
 ### 1.7.0 迁移目标
 
 已新增 `AIAssistantActionRegistry`，负责根据 `AIContextSnapshot` 判断动作可用性，并把统一动作路由到现有 `PromptBuilder` 方法。
-已新增 `AIAssistantController` / `AIActionController` 生命周期基础类；旧阅读器入口尚未迁移，仍按下表逐步收敛。
+已新增 `AIAssistantController` / `AIActionController` 生命周期基础类；阅读器右侧 `AIAssistantPanel` 已开始使用轻量 session/message 状态承载动作结果和连续追问。旧 `ReadingProvider` 中的 AI 字段仍按下表逐步收敛。
 
 以下 AI 状态将从 `ReadingProvider` 中迁出至 `AIActionController`：
 

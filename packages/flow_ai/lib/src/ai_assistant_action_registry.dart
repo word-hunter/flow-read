@@ -20,6 +20,7 @@ class AIAssistantActionRegistry {
 
   List<AIAssistantActionType> availableActions(AIContextSnapshot context) {
     return AIAssistantActionType.values
+        .where((action) => action != AIAssistantActionType.chat)
         .where((action) => _isAvailable(action, context))
         .toList(growable: false);
   }
@@ -92,18 +93,24 @@ class AIAssistantActionRegistry {
           spoilerBoundary: spoilerBoundary,
         ),
       ),
-      AIAssistantActionType.paragraphInsight => promptBuilder
-          .buildParagraphInsight(
-        ParagraphInsightPromptRequest(
-          paragraphText: context.surroundingPassage ??
-              context.selectedText ??
-              '',
-          sourceLanguage: sourceLanguage,
-          outputLanguage: outputLanguage,
-          spoilerBoundary: spoilerBoundary,
-          contextBundle: context.contextBundle?.formatForPrompt(),
-        ),
+      AIAssistantActionType.chat => _buildChatPrompt(
+        context,
+        followUpQuestion,
+        sourceLanguage,
+        outputLanguage,
+        spoilerBoundary,
       ),
+      AIAssistantActionType.paragraphInsight =>
+        promptBuilder.buildParagraphInsight(
+          ParagraphInsightPromptRequest(
+            paragraphText:
+                context.surroundingPassage ?? context.selectedText ?? '',
+            sourceLanguage: sourceLanguage,
+            outputLanguage: outputLanguage,
+            spoilerBoundary: spoilerBoundary,
+            contextBundle: context.contextBundle?.formatForPrompt(),
+          ),
+        ),
     };
   }
 
@@ -112,6 +119,7 @@ class AIAssistantActionRegistry {
       AIAssistantActionType.summary ||
       AIAssistantActionType.questionGeneration ||
       AIAssistantActionType.paragraphInsight => AIContextScope.currentChapter,
+      AIAssistantActionType.chat => AIContextScope.currentPassage,
       _ => AIContextScope.currentPassage,
     };
   }
@@ -127,6 +135,7 @@ class AIAssistantActionRegistry {
       AIAssistantActionType.questionGeneration => const ['chapterContent'],
       AIAssistantActionType.articleQA => const ['articleContent'],
       AIAssistantActionType.paragraphInsight => const ['surroundingPassage'],
+      AIAssistantActionType.chat => const ['context'],
     };
   }
 
@@ -144,21 +153,34 @@ class AIAssistantActionRegistry {
         hasSelectedText &&
             {
               AIAssistantActionType.explain,
+              AIAssistantActionType.translate,
+              AIAssistantActionType.phraseExtraction,
+              AIAssistantActionType.pronounReference,
               AIAssistantActionType.paragraphInsight,
+              AIAssistantActionType.chat,
             }.contains(action),
       AIContextSource.readerParagraph =>
         _hasText(context.surroundingPassage) &&
             {
               AIAssistantActionType.explain,
+              AIAssistantActionType.translate,
+              AIAssistantActionType.phraseExtraction,
+              AIAssistantActionType.pronounReference,
               AIAssistantActionType.paragraphInsight,
+              AIAssistantActionType.chat,
             }.contains(action),
       AIContextSource.readerWord =>
-        hasWord && action == AIAssistantActionType.wordAnalysis,
+        hasWord &&
+            {
+              AIAssistantActionType.wordAnalysis,
+              AIAssistantActionType.chat,
+            }.contains(action),
       AIContextSource.readerChapter =>
         hasChapter &&
             {
               AIAssistantActionType.questionGeneration,
               AIAssistantActionType.summary,
+              AIAssistantActionType.chat,
             }.contains(action),
       AIContextSource.rssArticle =>
         hasArticle &&
@@ -167,6 +189,7 @@ class AIAssistantActionRegistry {
               AIAssistantActionType.questionGeneration,
               AIAssistantActionType.summary,
               AIAssistantActionType.articleQA,
+              AIAssistantActionType.chat,
             }.contains(action),
       AIContextSource.internalWeb =>
         hasArticle &&
@@ -174,8 +197,29 @@ class AIAssistantActionRegistry {
               AIAssistantActionType.explain,
               AIAssistantActionType.translate,
               AIAssistantActionType.summary,
+              AIAssistantActionType.chat,
             }.contains(action),
     };
+  }
+
+  PromptBuildResult _buildChatPrompt(
+    AIContextSnapshot context,
+    String? followUpQuestion,
+    SourceLanguage sourceLanguage,
+    OutputLanguage outputLanguage,
+    SpoilerBoundary spoilerBoundary,
+  ) {
+    return promptBuilder.buildArticleAnswer(
+      ArticlePromptRequest(
+        surfaceLabel: _chatSurfaceLabel(context),
+        title: _chatTitle(context),
+        text: _chatContextText(context),
+        question: followUpQuestion ?? '',
+        sourceLanguage: sourceLanguage,
+        outputLanguage: outputLanguage,
+        spoilerBoundary: spoilerBoundary,
+      ),
+    );
   }
 
   PromptBuildResult _buildQuestionPrompt(
@@ -276,6 +320,47 @@ class AIAssistantActionRegistry {
     return context.source == AIContextSource.internalWeb
         ? 'Internal Web'
         : 'RSS Article';
+  }
+
+  String _chatSurfaceLabel(AIContextSnapshot context) {
+    return switch (context.source) {
+      AIContextSource.readerSelectedText => 'Reader Selection',
+      AIContextSource.readerParagraph => 'Reader Paragraph',
+      AIContextSource.readerWord => 'Reader Word',
+      AIContextSource.readerChapter => 'Reader Chapter',
+      AIContextSource.rssArticle => 'RSS Article',
+      AIContextSource.internalWeb => 'Internal Web',
+    };
+  }
+
+  String _chatTitle(AIContextSnapshot context) {
+    return context.chapterTitle ??
+        context.articleTitle ??
+        context.word ??
+        context.source.name;
+  }
+
+  String _chatContextText(AIContextSnapshot context) {
+    final parts = <String>[];
+    if (_hasText(context.word)) {
+      parts.add('Word: ${context.word}');
+    }
+    if (_hasText(context.selectedText)) {
+      parts.add('Selected Text: ${context.selectedText}');
+    }
+    if (_hasText(context.wordSentence)) {
+      parts.add('Sentence: ${context.wordSentence}');
+    }
+    if (_hasText(context.surroundingPassage)) {
+      parts.add('Current Passage: ${context.surroundingPassage}');
+    }
+    if (_hasText(context.chapterContent)) {
+      parts.add('Chapter Content: ${context.chapterContent}');
+    }
+    if (_hasText(context.articleContent)) {
+      parts.add('Article Content: ${context.articleContent}');
+    }
+    return parts.join('\n\n');
   }
 
   bool _hasText(String? value) => value != null && value.trim().isNotEmpty;

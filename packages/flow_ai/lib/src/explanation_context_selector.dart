@@ -48,7 +48,7 @@ class ExplanationContextBundle {
       for (final ch in mentionedCharacters) {
         final lines = <String>['  · ${ch.name}'];
         for (final dev in ch.developments.take(3)) {
-          lines.add('      - ${dev}');
+          lines.add('      - $dev');
         }
         parts.addAll(lines);
       }

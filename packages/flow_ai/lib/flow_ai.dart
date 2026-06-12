@@ -23,6 +23,7 @@ export 'src/models/chapter_ai_coverage.dart';
 export 'src/models/chapter_ai_status.dart';
 export 'src/models/ai_action_result.dart';
 export 'src/models/ai_assistant_action.dart';
+export 'src/models/ai_chat_session.dart';
 export 'src/models/ai_context_snapshot.dart';
 export 'src/models/ai_automation_settings.dart';
 export 'src/models/reading_insight_profile.dart';
