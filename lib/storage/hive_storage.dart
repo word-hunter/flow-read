@@ -13,6 +13,7 @@ import 'package:flow_language/english/english.dart';
 import 'package:flow_language/flow_language.dart';
 import 'database/app_database.dart';
 import 'database/migration.dart';
+import 'database/repositories/drift_book_repository.dart';
 import 'hive_box_names.dart';
 import 'hive_type_ids.dart';
 import 'storage_migrations.dart';
@@ -20,12 +21,18 @@ import 'storage_migrations.dart';
 AppDatabase? _appDatabase;
 String _bootstrappedReadingConfigLanguage = HiveBoxNames.defaultLanguageCode;
 Map<String, String> _bootstrappedReadingConfigValues = const {};
+String _bootstrappedBookMetadataLanguage = HiveBoxNames.defaultLanguageCode;
+List<BookMetadata> _bootstrappedBookMetadataValues = const [];
 
 AppDatabase? get appDatabase => _appDatabase;
 String get bootstrappedReadingConfigLanguage =>
     _bootstrappedReadingConfigLanguage;
 Map<String, String> get bootstrappedReadingConfigValues =>
     Map.unmodifiable(_bootstrappedReadingConfigValues);
+String get bootstrappedBookMetadataLanguage =>
+    _bootstrappedBookMetadataLanguage;
+List<BookMetadata> get bootstrappedBookMetadataValues =>
+    List.unmodifiable(_bootstrappedBookMetadataValues);
 
 Future<void> bootstrapStorage() async {
   await Hive.initFlutter();
@@ -66,6 +73,7 @@ Future<void> _bootstrapDatabase() async {
       );
     }
 
+    await _cacheBootstrappedBookMetadata(db, activeLang);
     await _cacheBootstrappedReadingConfig(db, activeLang);
   } catch (error, stackTrace) {
     AppLogger.instance.event(
@@ -76,6 +84,17 @@ Future<void> _bootstrapDatabase() async {
       stackTrace: stackTrace,
     );
   }
+}
+
+Future<void> _cacheBootstrappedBookMetadata(
+  AppDatabase db,
+  String languageCode,
+) async {
+  _bootstrappedBookMetadataLanguage = languageCode;
+  final entries = await db.bookDao.allBooks(languageCode);
+  _bootstrappedBookMetadataValues = entries
+      .map(DriftBookRepository.metadataFromEntry)
+      .toList(growable: false);
 }
 
 Future<void> _cacheBootstrappedReadingConfig(

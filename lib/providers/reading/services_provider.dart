@@ -24,6 +24,7 @@ import '../../services/word_context_service.dart';
 import '../../services/word_level_service.dart';
 import '../../storage/database/app_database.dart';
 import '../../storage/database/dao/book_glossary_dao.dart';
+import '../../storage/database/repositories/drift_book_repository.dart';
 import '../../storage/database/repositories/drift_reading_config_repository.dart';
 import '../../storage/hive_storage.dart';
 import '../book_insight_provider.dart';
@@ -32,7 +33,23 @@ import 'bookshelf_notifier.dart';
 
 final bookCacheProvider = Provider<BookCache>((ref) => BookCache());
 
-final bookServiceProvider = Provider<BookService>((ref) => BookService());
+final bookServiceProvider = Provider<BookService>((ref) {
+  final db = appDatabase;
+  if (db == null) return BookService();
+
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = BookService(
+    repository: DriftBookRepository(
+      db.bookDao,
+      languageCode: languageCode,
+      initialValues: languageCode == bootstrappedBookMetadataLanguage
+          ? bootstrappedBookMetadataValues
+          : const [],
+    ),
+  );
+  unawaited(service.init());
+  return service;
+});
 
 final bookmarkServiceProvider = Provider<BookmarkService>((ref) {
   return BookmarkService();

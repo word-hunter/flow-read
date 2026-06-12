@@ -9,6 +9,7 @@ import '../../models/learning_item.dart';
 import 'package:flow_rss/flow_rss.dart';
 import '../../models/user_vocabulary.dart';
 import '../../models/word_level.dart';
+import 'repositories/drift_book_repository.dart';
 import '../hive_box_names.dart';
 import '../storage_migrations.dart';
 import 'app_database.dart';
@@ -97,35 +98,9 @@ final class HiveToDriftMigration {
       for (final meta in box.values) {
         b.insert(
           _db.bookEntries,
-          BookEntriesCompanion.insert(
-            id: meta.id,
-            title: meta.title,
-            sourcePath: meta.sourcePath,
-            language: Value(meta.effectiveSourceLanguage),
-            author: Value(meta.author),
-            coverPath: Value(meta.coverPath),
-            totalChapters: Value(meta.totalChapters),
-            globalProgress: Value(meta.globalProgress),
-            currentChapter: Value(meta.currentChapter),
-            chapterProgress: Value(meta.chapterProgress),
-            lastReadAt: Value(_dt(meta.lastReadAt)),
-            chapterScrollOffset: Value(meta.chapterScrollOffset),
-            sourceLanguage: Value(meta.sourceLanguage ?? lang),
-            sourceLanguageOverride: Value(meta.sourceLanguageOverride),
-            languageConfidence: Value(meta.languageConfidence),
-            targetExplanationLanguage: Value(
-              meta.targetExplanationLanguage,
-            ),
-            difficultyStudyWords: Value(
-              meta.difficultyStudyWords?.let(jsonEncode),
-            ),
-            difficultyRatingJson: Value(
-              meta.difficultyRatingJson?.let(jsonEncode),
-            ),
-            difficultyVocabularySignature: Value(
-              meta.difficultyVocabularySignature,
-            ),
-            difficultyComputedAt: Value(_dt(meta.difficultyComputedAt)),
+          DriftBookRepository.companionFromMetadata(
+            meta,
+            languageCode: lang,
           ),
           mode: InsertMode.insertOrIgnore,
         );
@@ -738,10 +713,6 @@ class _RssIdStatus {
   bool isRead = false;
   bool isFavorite = false;
   bool isReadLater = false;
-}
-
-extension _Let<T> on T {
-  R let<R>(R Function(T it) transform) => transform(this);
 }
 
 final class HiveToDriftMigrationResult {
