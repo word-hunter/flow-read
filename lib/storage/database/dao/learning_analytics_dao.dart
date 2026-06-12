@@ -27,9 +27,16 @@ class LearningAnalyticsDao extends DatabaseAccessor<AppDatabase>
       );
 
   Future<List<LearningAnalyticsEntry>> allForLanguage(String language) =>
-      (select(learningAnalytics)
-            ..where((r) => r.language.equals(language)))
-          .get();
+      (select(
+        learningAnalytics,
+      )..where((r) => r.language.equals(language))).get();
+
+  Future<Map<String, int>> allValues(String language) async {
+    final rows = await allForLanguage(language);
+    return {
+      for (final row in rows) row.key: row.value,
+    };
+  }
 
   @override
   Future<void> close() async {}

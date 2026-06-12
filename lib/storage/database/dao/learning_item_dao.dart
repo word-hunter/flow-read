@@ -10,13 +10,18 @@ class LearningItemDao extends DatabaseAccessor<AppDatabase>
     with _$LearningItemDaoMixin {
   LearningItemDao(super.db);
 
-  Future<List<LearningItemEntry>> allForLanguage(String language,
-          {int? limit}) =>
-      (select(learningItems)
-            ..where((r) => r.language.equals(language))
-            ..orderBy([(r) => OrderingTerm.desc(r.updatedAt)])
-            ..limit(limit ?? 0))
-          .get();
+  Future<List<LearningItemEntry>> allForLanguage(
+    String language, {
+    int? limit,
+  }) {
+    final query = select(learningItems)
+      ..where((r) => r.language.equals(language))
+      ..orderBy([(r) => OrderingTerm.desc(r.updatedAt)]);
+    if (limit != null) {
+      query.limit(limit);
+    }
+    return query.get();
+  }
 
   Future<LearningItemEntry?> getById(String id) {
     final q = select(learningItems)..where((r) => r.id.equals(id));
@@ -51,7 +56,8 @@ class LearningItemDao extends DatabaseAccessor<AppDatabase>
     return (select(learningItems)
           ..where(
             (r) =>
-                r.language.equals(language) & r.nextReviewAt.isSmallerOrEqualValue(cutoff),
+                r.language.equals(language) &
+                r.nextReviewAt.isSmallerOrEqualValue(cutoff),
           )
           ..orderBy([(r) => OrderingTerm.asc(r.nextReviewAt)]))
         .get();

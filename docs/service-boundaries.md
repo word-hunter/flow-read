@@ -66,11 +66,11 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 
 | Service | 职责 |
 |---------|------|
-| `UserVocabularyService` | 用户已知/学习中的单词管理 |
+| `UserVocabularyService` | 用户已知/学习中的单词管理（Drift `user_vocabulary`） |
 | `WordLevelService` | 单词等级查询（小学/中学/CET4/6/雅思/托福） |
 | `WordContextService` | 单词在书中出现位置的上下文（Drift `word_contexts`） |
-| `LearningItemService` | 学习条目持久化 |
-| `LearningAnalyticsService` | 查词频率分析、章节报告、周报 |
+| `LearningItemService` | 学习条目持久化（Drift `learning_items`） |
+| `LearningAnalyticsService` | 查词频率分析、章节报告、周报（Drift `learning_analytics`） |
 | `ReviewScheduleService` | 间隔重复调度 |
 | `ReviewService` | 复习题目生成 |
 

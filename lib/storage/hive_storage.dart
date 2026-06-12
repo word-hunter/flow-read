@@ -6,6 +6,7 @@ import '../models/bookmarked_word.dart';
 import '../models/learning_item.dart';
 import '../models/reading_bookmark.dart';
 import '../models/reading_config.dart';
+import '../models/user_vocabulary.dart';
 import 'package:flow_rss/flow_rss.dart';
 import '../models/word_level.dart';
 import '../services/app_logger.dart';
@@ -14,6 +15,7 @@ import 'package:flow_language/flow_language.dart';
 import 'database/app_database.dart';
 import 'database/migration.dart';
 import 'database/repositories/drift_book_repository.dart';
+import 'database/repositories/drift_learning_item_repository.dart';
 import 'hive_box_names.dart';
 import 'hive_type_ids.dart';
 import 'storage_migrations.dart';
@@ -27,6 +29,13 @@ String _bootstrappedReadingTimeLanguage = HiveBoxNames.defaultLanguageCode;
 Map<String, int> _bootstrappedReadingTimeValues = const {};
 String _bootstrappedWordContextLanguage = HiveBoxNames.defaultLanguageCode;
 Map<String, String> _bootstrappedWordContextValues = const {};
+String _bootstrappedUserVocabularyLanguage = HiveBoxNames.defaultLanguageCode;
+Map<String, UserWordStatus> _bootstrappedUserVocabularyValues = const {};
+String _bootstrappedLearningItemLanguage = HiveBoxNames.defaultLanguageCode;
+List<LearningItem> _bootstrappedLearningItemValues = const [];
+String _bootstrappedLearningAnalyticsLanguage =
+    HiveBoxNames.defaultLanguageCode;
+Map<String, int> _bootstrappedLearningAnalyticsValues = const {};
 
 AppDatabase? get appDatabase => _appDatabase;
 String get bootstrappedReadingConfigLanguage =>
@@ -43,6 +52,18 @@ Map<String, int> get bootstrappedReadingTimeValues =>
 String get bootstrappedWordContextLanguage => _bootstrappedWordContextLanguage;
 Map<String, String> get bootstrappedWordContextValues =>
     Map.unmodifiable(_bootstrappedWordContextValues);
+String get bootstrappedUserVocabularyLanguage =>
+    _bootstrappedUserVocabularyLanguage;
+Map<String, UserWordStatus> get bootstrappedUserVocabularyValues =>
+    Map.unmodifiable(_bootstrappedUserVocabularyValues);
+String get bootstrappedLearningItemLanguage =>
+    _bootstrappedLearningItemLanguage;
+List<LearningItem> get bootstrappedLearningItemValues =>
+    List.unmodifiable(_bootstrappedLearningItemValues);
+String get bootstrappedLearningAnalyticsLanguage =>
+    _bootstrappedLearningAnalyticsLanguage;
+Map<String, int> get bootstrappedLearningAnalyticsValues =>
+    Map.unmodifiable(_bootstrappedLearningAnalyticsValues);
 
 Future<void> bootstrapStorage() async {
   await Hive.initFlutter();
@@ -87,6 +108,9 @@ Future<void> _bootstrapDatabase() async {
     await _cacheBootstrappedReadingConfig(db, activeLang);
     await _cacheBootstrappedReadingTime(db, activeLang);
     await _cacheBootstrappedWordContexts(db, activeLang);
+    await _cacheBootstrappedUserVocabulary(db, activeLang);
+    await _cacheBootstrappedLearningItems(db, activeLang);
+    await _cacheBootstrappedLearningAnalytics(db, activeLang);
   } catch (error, stackTrace) {
     AppLogger.instance.event(
       'database.bootstrap_failed',
@@ -137,6 +161,42 @@ Future<void> _cacheBootstrappedWordContexts(
   _bootstrappedWordContextValues = await db.wordContextDao.allValues(
     languageCode,
   );
+}
+
+Future<void> _cacheBootstrappedUserVocabulary(
+  AppDatabase db,
+  String languageCode,
+) async {
+  _bootstrappedUserVocabularyLanguage = languageCode;
+  final values = await db.userVocabularyDao.allWords(languageCode);
+  _bootstrappedUserVocabularyValues = values.map(
+    (word, status) => MapEntry(
+      word,
+      status == UserWordStatus.learning.name
+          ? UserWordStatus.learning
+          : UserWordStatus.known,
+    ),
+  );
+}
+
+Future<void> _cacheBootstrappedLearningItems(
+  AppDatabase db,
+  String languageCode,
+) async {
+  _bootstrappedLearningItemLanguage = languageCode;
+  final entries = await db.learningItemDao.allForLanguage(languageCode);
+  _bootstrappedLearningItemValues = entries
+      .map(DriftLearningItemRepository.itemFromEntry)
+      .toList(growable: false);
+}
+
+Future<void> _cacheBootstrappedLearningAnalytics(
+  AppDatabase db,
+  String languageCode,
+) async {
+  _bootstrappedLearningAnalyticsLanguage = languageCode;
+  _bootstrappedLearningAnalyticsValues = await db.learningAnalyticsDao
+      .allValues(languageCode);
 }
 
 void registerFlowReadHiveAdapters() {

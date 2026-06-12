@@ -1,32 +1,152 @@
+import 'dart:convert';
+
+import 'package:drift/drift.dart';
+
+import '../../../models/learning_item.dart' as models;
 import '../app_database.dart';
 import '../dao/learning_item_dao.dart';
+import '../../repositories/hive_repository_box.dart';
+import '../../repositories/learning_item_repository.dart';
 
-final class DriftLearningItemRepository {
+final class DriftLearningItemRepository implements LearningItemRepository {
+  DriftLearningItemRepository(
+    this._dao, {
+    required String languageCode,
+    Iterable<models.LearningItem> initialValues = const [],
+  }) : _languageCode = activeHiveLanguageCode(languageCode) {
+    for (final item in initialValues) {
+      _cache[item.id] = item;
+    }
+  }
+
   final LearningItemDao _dao;
+  final String _languageCode;
+  final Map<String, models.LearningItem> _cache = {};
 
-  DriftLearningItemRepository(this._dao);
+  @override
+  Future<void> init() async {
+    final rows = await _dao.allForLanguage(_languageCode);
+    _cache
+      ..clear()
+      ..addEntries(
+        rows.map((entry) {
+          final item = itemFromEntry(entry);
+          return MapEntry(item.id, item);
+        }),
+      );
+  }
 
-  Future<List<LearningItemEntry>> allForLanguage(String language,
-          {int? limit}) =>
-      _dao.allForLanguage(language, limit: limit);
+  @override
+  Iterable<models.LearningItem> get values => _cache.values;
 
-  Future<LearningItemEntry?> getById(String id) => _dao.getById(id);
+  @override
+  Iterable<dynamic> get keys => _cache.keys;
 
-  Future<void> upsert(LearningItemsCompanion entry) => _dao.upsert(entry);
+  @override
+  int get length => _cache.length;
 
-  Future<void> deleteById(String id) => _dao.deleteById(id);
+  @override
+  models.LearningItem? get(dynamic key) => _cache[key?.toString()];
 
-  Future<void> deleteByIds(Set<String> ids) => _dao.deleteByIds(ids);
+  @override
+  Future<void> put(String id, models.LearningItem item) async {
+    await _dao.upsert(companionFromItem(item, languageCode: _languageCode));
+    _cache[id] = item;
+  }
 
-  Future<void> clearForLanguage(String language) =>
-      _dao.clearForLanguage(language);
+  @override
+  Future<void> delete(String id) async {
+    await _dao.deleteById(id);
+    _cache.remove(id);
+  }
 
-  Future<int> countForLanguage(String language) =>
-      _dao.countForLanguage(language);
+  @override
+  Future<void> deleteAll(Iterable<dynamic> keys) async {
+    final ids = keys.map((key) => key.toString()).toSet();
+    if (ids.isEmpty) return;
+    await _dao.deleteByIds(ids);
+    for (final id in ids) {
+      _cache.remove(id);
+    }
+  }
 
-  Future<List<LearningItemEntry>> dueForReview(
-    String language,
-    DateTime before,
-  ) =>
-      _dao.dueForReview(language, before);
+  @override
+  Future<void> clear() async {
+    await _dao.clearForLanguage(_languageCode);
+    _cache.clear();
+  }
+
+  @override
+  Future<void> close() async {}
+
+  static models.LearningItem itemFromEntry(LearningItemEntry entry) {
+    final createdAt = _parseDate(entry.createdAt);
+    return models.LearningItem(
+      id: entry.id,
+      type: models.learningItemTypeFromName(entry.type),
+      canonicalKey: entry.canonicalKey,
+      title: entry.title,
+      content: entry.content,
+      answer: entry.answer,
+      note: entry.note,
+      sourceText: entry.sourceText,
+      bookId: entry.bookId,
+      chapterIndex: entry.chapterIndex,
+      chapterTitle: entry.chapterTitle,
+      createdAt: createdAt,
+      updatedAt: _parseDate(entry.updatedAt),
+      tags: _decodeStringList(entry.tags),
+      metadata: _decodeStringMap(entry.metadata),
+      nextReviewAt: _parseDate(entry.nextReviewAt),
+      reviewCount: entry.reviewCount,
+      lastResult: models.learningReviewResultFromName(entry.lastResult),
+    );
+  }
+
+  static LearningItemsCompanion companionFromItem(
+    models.LearningItem item, {
+    required String languageCode,
+  }) {
+    return LearningItemsCompanion.insert(
+      id: item.id,
+      type: item.type.name,
+      nextReviewAt: _dateString(item.nextReviewAt),
+      language: Value(languageCode),
+      canonicalKey: Value(item.canonicalKey),
+      title: Value(item.title),
+      content: Value(item.content),
+      answer: Value(item.answer),
+      note: Value(item.note),
+      sourceText: Value(item.sourceText),
+      bookId: Value(item.bookId),
+      chapterIndex: Value(item.chapterIndex),
+      chapterTitle: Value(item.chapterTitle),
+      tags: Value(jsonEncode(item.tags)),
+      metadata: Value(jsonEncode(item.metadata)),
+      reviewCount: Value(item.reviewCount),
+      lastResult: Value(item.lastResult.name),
+      createdAt: Value(_dateString(item.createdAt)),
+      updatedAt: Value(_dateString(item.updatedAt)),
+    );
+  }
+
+  static DateTime _parseDate(String value) {
+    return DateTime.tryParse(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  static String _dateString(DateTime value) => value.toUtc().toIso8601String();
+
+  static List<String> _decodeStringList(String value) {
+    final decoded = jsonDecode(value);
+    if (decoded is! Iterable) return const [];
+    return decoded.map((item) => item.toString()).toList(growable: false);
+  }
+
+  static Map<String, String> _decodeStringMap(String value) {
+    final decoded = jsonDecode(value);
+    if (decoded is! Map) return const {};
+    return decoded.map(
+      (key, value) => MapEntry(key.toString(), value.toString()),
+    );
+  }
 }

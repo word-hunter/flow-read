@@ -28,8 +28,11 @@ import '../../services/word_level_service.dart';
 import '../../storage/database/app_database.dart';
 import '../../storage/database/dao/book_glossary_dao.dart';
 import '../../storage/database/repositories/drift_book_repository.dart';
+import '../../storage/database/repositories/drift_learning_analytics_repository.dart';
+import '../../storage/database/repositories/drift_learning_item_repository.dart';
 import '../../storage/database/repositories/drift_reading_config_repository.dart';
 import '../../storage/database/repositories/drift_reading_time_repository.dart';
+import '../../storage/database/repositories/drift_user_vocabulary_repository.dart';
 import '../../storage/database/repositories/drift_word_context_repository.dart';
 import '../../storage/hive_storage.dart';
 import '../book_insight_provider.dart';
@@ -106,7 +109,22 @@ final readingTimeServiceProvider = Provider<ReadingTimeService>((ref) {
 });
 
 final userVocabularyServiceProvider = Provider<UserVocabularyService>((ref) {
-  return UserVocabularyService();
+  final db = appDatabase;
+  if (db == null) return UserVocabularyService();
+
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = UserVocabularyService(
+    repository: DriftUserVocabularyRepository(
+      db.userVocabularyDao,
+      languageCode: languageCode,
+      initialValues: languageCode == bootstrappedUserVocabularyLanguage
+          ? bootstrappedUserVocabularyValues
+          : const {},
+    ),
+    languageCode: languageCode,
+  );
+  unawaited(service.init());
+  return service;
 });
 
 final dictionarySourceRegistryProvider = Provider<DictionarySourceRegistry>((
@@ -151,13 +169,41 @@ final wordContextServiceProvider = Provider<WordContextService>((ref) {
 });
 
 final learningItemServiceProvider = Provider<LearningItemService>((ref) {
-  return LearningItemService();
+  final db = appDatabase;
+  if (db == null) return LearningItemService();
+
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = LearningItemService(
+    repository: DriftLearningItemRepository(
+      db.learningItemDao,
+      languageCode: languageCode,
+      initialValues: languageCode == bootstrappedLearningItemLanguage
+          ? bootstrappedLearningItemValues
+          : const [],
+    ),
+  );
+  unawaited(service.init());
+  return service;
 });
 
 final learningAnalyticsServiceProvider = Provider<LearningAnalyticsService>((
   ref,
 ) {
-  return LearningAnalyticsService();
+  final db = appDatabase;
+  if (db == null) return LearningAnalyticsService();
+
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = LearningAnalyticsService(
+    repository: DriftLearningAnalyticsRepository(
+      db.learningAnalyticsDao,
+      languageCode: languageCode,
+      initialValues: languageCode == bootstrappedLearningAnalyticsLanguage
+          ? bootstrappedLearningAnalyticsValues
+          : const {},
+    ),
+  );
+  unawaited(service.init());
+  return service;
 });
 
 final reviewScheduleServiceProvider = Provider<ReviewScheduleService>((ref) {
