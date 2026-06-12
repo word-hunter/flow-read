@@ -30,6 +30,7 @@ import '../../storage/database/dao/book_glossary_dao.dart';
 import '../../storage/database/repositories/drift_book_repository.dart';
 import '../../storage/database/repositories/drift_reading_config_repository.dart';
 import '../../storage/database/repositories/drift_reading_time_repository.dart';
+import '../../storage/database/repositories/drift_word_context_repository.dart';
 import '../../storage/hive_storage.dart';
 import '../book_insight_provider.dart';
 import '../settings_provider.dart';
@@ -132,7 +133,21 @@ final wordLevelServiceProvider = Provider<WordLevelService>((ref) {
 });
 
 final wordContextServiceProvider = Provider<WordContextService>((ref) {
-  return WordContextService();
+  final db = appDatabase;
+  if (db == null) return WordContextService();
+
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = WordContextService(
+    repository: DriftWordContextRepository(
+      db.wordContextDao,
+      languageCode: languageCode,
+      initialValues: languageCode == bootstrappedWordContextLanguage
+          ? bootstrappedWordContextValues
+          : const {},
+    ),
+  );
+  unawaited(service.init());
+  return service;
 });
 
 final learningItemServiceProvider = Provider<LearningItemService>((ref) {

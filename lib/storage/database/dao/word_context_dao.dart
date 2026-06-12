@@ -16,6 +16,15 @@ class WordContextDao extends DatabaseAccessor<AppDatabase>
     return q.map((r) => r.data).getSingleOrNull();
   }
 
+  Future<Map<String, String>> allValues(String language) async {
+    final rows = await (select(
+      wordContexts,
+    )..where((r) => r.language.equals(language))).get();
+    return {
+      for (final row in rows) row.word: row.data,
+    };
+  }
+
   Future<void> putData(String word, String language, String data) =>
       into(wordContexts).insertOnConflictUpdate(
         WordContextsCompanion.insert(
@@ -26,10 +35,9 @@ class WordContextDao extends DatabaseAccessor<AppDatabase>
       );
 
   Future<void> deleteByWord(String word, String language) =>
-      (delete(wordContexts)
-            ..where(
-              (r) => r.word.equals(word) & r.language.equals(language),
-            ))
+      (delete(wordContexts)..where(
+            (r) => r.word.equals(word) & r.language.equals(language),
+          ))
           .go();
 
   Future<void> clearForLanguage(String language) =>
