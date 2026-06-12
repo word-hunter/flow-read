@@ -36,6 +36,7 @@ import '../../storage/database/repositories/drift_reading_config_repository.dart
 import '../../storage/database/repositories/drift_reading_time_repository.dart';
 import '../../storage/database/repositories/drift_user_vocabulary_repository.dart';
 import '../../storage/database/repositories/drift_word_context_repository.dart';
+import '../../storage/database/repositories/drift_word_level_repository.dart';
 import '../../storage/hive_storage.dart';
 import '../book_insight_provider.dart';
 import '../settings_provider.dart';
@@ -185,7 +186,15 @@ final wordRepositoryProvider = Provider<WordRepository>((ref) {
 });
 
 final wordLevelServiceProvider = Provider<WordLevelService>((ref) {
-  final service = WordLevelService();
+  final db = appDatabase;
+  final service = db == null
+      ? WordLevelService()
+      : WordLevelService(
+          repository: DriftWordLevelRepository(
+            db.wordLevelDao,
+            db.settingsDao,
+          ),
+        );
   unawaited(service.init());
   return service;
 });
