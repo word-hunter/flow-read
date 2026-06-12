@@ -28,6 +28,8 @@ import '../../services/word_level_service.dart';
 import '../../storage/database/app_database.dart';
 import '../../storage/database/dao/book_glossary_dao.dart';
 import '../../storage/database/repositories/drift_book_repository.dart';
+import '../../storage/database/repositories/drift_bookmark_repository.dart';
+import '../../storage/database/repositories/drift_dictionary_cache_repository.dart';
 import '../../storage/database/repositories/drift_learning_analytics_repository.dart';
 import '../../storage/database/repositories/drift_learning_item_repository.dart';
 import '../../storage/database/repositories/drift_reading_config_repository.dart';
@@ -68,7 +70,24 @@ final bookServiceProvider = Provider<BookService>((ref) {
 });
 
 final bookmarkServiceProvider = Provider<BookmarkService>((ref) {
-  return BookmarkService();
+  final db = appDatabase;
+  if (db == null) return BookmarkService();
+
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = BookmarkService(
+    repository: DriftBookmarkRepository(
+      db.bookmarkDao,
+      languageCode: languageCode,
+      initialWordBookmarks: languageCode == bootstrappedBookmarkLanguage
+          ? bootstrappedWordBookmarkValues
+          : const {},
+      initialReadingBookmarks: languageCode == bootstrappedBookmarkLanguage
+          ? bootstrappedReadingBookmarkValues
+          : const {},
+    ),
+  );
+  unawaited(service.init());
+  return service;
 });
 
 final readingConfigServiceProvider = Provider<ReadingConfigService>((ref) {
@@ -130,9 +149,30 @@ final userVocabularyServiceProvider = Provider<UserVocabularyService>((ref) {
 final dictionarySourceRegistryProvider = Provider<DictionarySourceRegistry>((
   ref,
 ) {
-  final registry = DictionarySourceRegistry();
+  final registry = DictionarySourceRegistry(
+    cache: ref.watch(dictionaryCacheServiceProvider),
+  );
   unawaited(registry.init());
   return registry;
+});
+
+final dictionaryCacheServiceProvider = Provider<DictionaryCacheService>((ref) {
+  final db = appDatabase;
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = db == null
+      ? DictionaryCacheService(languageCode: languageCode)
+      : DictionaryCacheService(
+          repository: DriftDictionaryCacheRepository(
+            db.dictionaryCacheDao,
+            languageCode: languageCode,
+            initialValues: languageCode == bootstrappedDictionaryCacheLanguage
+                ? bootstrappedDictionaryCacheValues
+                : const {},
+          ),
+          languageCode: languageCode,
+        );
+  unawaited(service.init());
+  return service;
 });
 
 final wordRepositoryProvider = Provider<WordRepository>((ref) {

@@ -6,7 +6,8 @@ import '../tables.dart';
 part 'bookmark_dao.g.dart';
 
 @DriftAccessor(tables: [WordBookmarks, ReadingBookmarks])
-class BookmarkDao extends DatabaseAccessor<AppDatabase> with _$BookmarkDaoMixin {
+class BookmarkDao extends DatabaseAccessor<AppDatabase>
+    with _$BookmarkDaoMixin {
   BookmarkDao(super.db);
 
   // ---- Word bookmarks ----
@@ -14,18 +15,33 @@ class BookmarkDao extends DatabaseAccessor<AppDatabase> with _$BookmarkDaoMixin 
   Future<List<WordBookmark>> wordBookmarksForBook(
     String bookId,
     String language,
-  ) =>
-      (select(wordBookmarks)
-            ..where(
-              (b) => b.bookId.equals(bookId) & b.language.equals(language),
-            ))
-          .get();
+  ) {
+    return (select(wordBookmarks)
+          ..where(
+            (b) => b.bookId.equals(bookId) & b.language.equals(language),
+          )
+          ..orderBy([(b) => OrderingTerm.asc(b.addedAt)]))
+        .get();
+  }
+
+  Future<List<WordBookmark>> allWordBookmarksForLanguage(String language) {
+    return (select(wordBookmarks)
+          ..where((b) => b.language.equals(language))
+          ..orderBy([
+            (b) => OrderingTerm.asc(b.bookId),
+            (b) => OrderingTerm.asc(b.addedAt),
+          ]))
+        .get();
+  }
 
   Future<void> insertWordBookmark(WordBookmarksCompanion entry) =>
       into(wordBookmarks).insertOnConflictUpdate(entry);
 
-  Future<void> deleteWordBookmarksByBook(String bookId) =>
-      (delete(wordBookmarks)..where((b) => b.bookId.equals(bookId))).go();
+  Future<void> deleteWordBookmarksByBook(String bookId, String language) =>
+      (delete(wordBookmarks)..where(
+            (b) => b.bookId.equals(bookId) & b.language.equals(language),
+          ))
+          .go();
 
   Future<void> deleteWordBookmark(String id) =>
       (delete(wordBookmarks)..where((b) => b.id.equals(id))).go();
@@ -35,18 +51,35 @@ class BookmarkDao extends DatabaseAccessor<AppDatabase> with _$BookmarkDaoMixin 
   Future<List<ReadingBookmarkEntry>> readingBookmarksForBook(
     String bookId,
     String language,
-  ) =>
-      (select(readingBookmarks)
-            ..where(
-              (b) => b.bookId.equals(bookId) & b.language.equals(language),
-            ))
-          .get();
+  ) {
+    return (select(readingBookmarks)
+          ..where(
+            (b) => b.bookId.equals(bookId) & b.language.equals(language),
+          )
+          ..orderBy([(b) => OrderingTerm.asc(b.createdAt)]))
+        .get();
+  }
+
+  Future<List<ReadingBookmarkEntry>> allReadingBookmarksForLanguage(
+    String language,
+  ) {
+    return (select(readingBookmarks)
+          ..where((b) => b.language.equals(language))
+          ..orderBy([
+            (b) => OrderingTerm.asc(b.bookId),
+            (b) => OrderingTerm.asc(b.createdAt),
+          ]))
+        .get();
+  }
 
   Future<void> insertReadingBookmark(ReadingBookmarksCompanion entry) =>
       into(readingBookmarks).insertOnConflictUpdate(entry);
 
-  Future<void> deleteReadingBookmarksByBook(String bookId) =>
-      (delete(readingBookmarks)..where((b) => b.bookId.equals(bookId))).go();
+  Future<void> deleteReadingBookmarksByBook(String bookId, String language) =>
+      (delete(readingBookmarks)..where(
+            (b) => b.bookId.equals(bookId) & b.language.equals(language),
+          ))
+          .go();
 
   Future<void> deleteReadingBookmark(String id) =>
       (delete(readingBookmarks)..where((b) => b.id.equals(id))).go();

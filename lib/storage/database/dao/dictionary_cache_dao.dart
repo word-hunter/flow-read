@@ -25,36 +25,45 @@ class DictionaryCacheDao extends DatabaseAccessor<AppDatabase>
         ),
       );
 
+  Future<Map<String, String>> allValues(String language) async {
+    final rows =
+        await (select(dictionaryCache)
+              ..where((r) => r.language.equals(language))
+              ..orderBy([(r) => OrderingTerm.asc(r.createdAt)]))
+            .get();
+    return {
+      for (final row in rows) row.key: row.value,
+    };
+  }
+
   Future<bool> containsKey(String key, String language) async {
-    final result = await (selectOnly(dictionaryCache)
-          ..addColumns([dictionaryCache.key])
-          ..where(
-            dictionaryCache.key.equals(key) &
-                dictionaryCache.language.equals(language),
-          ))
-        .map((r) => r.read(dictionaryCache.key))
-        .getSingleOrNull();
+    final result =
+        await (selectOnly(dictionaryCache)
+              ..addColumns([dictionaryCache.key])
+              ..where(
+                dictionaryCache.key.equals(key) &
+                    dictionaryCache.language.equals(language),
+              ))
+            .map((r) => r.read(dictionaryCache.key))
+            .getSingleOrNull();
     return result != null;
   }
 
   Future<int> countForLanguage(String language) {
     return (selectOnly(dictionaryCache)
-            ..addColumns([dictionaryCache.key])
-            ..where(dictionaryCache.language.equals(language)))
+          ..addColumns([dictionaryCache.key])
+          ..where(dictionaryCache.language.equals(language)))
         .map((r) => r.read(dictionaryCache.key))
         .get()
         .then((rows) => rows.length);
   }
 
   Future<void> deleteByKey(String key, String language) =>
-      (delete(dictionaryCache)
-            ..where(
-              (r) => r.key.equals(key) & r.language.equals(language),
-            ))
+      (delete(dictionaryCache)..where(
+            (r) => r.key.equals(key) & r.language.equals(language),
+          ))
           .go();
 
   Future<void> clearForLanguage(String language) =>
-      (delete(dictionaryCache)
-            ..where((r) => r.language.equals(language)))
-          .go();
+      (delete(dictionaryCache)..where((r) => r.language.equals(language))).go();
 }

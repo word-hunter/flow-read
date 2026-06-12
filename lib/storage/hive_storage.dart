@@ -15,6 +15,7 @@ import 'package:flow_language/flow_language.dart';
 import 'database/app_database.dart';
 import 'database/migration.dart';
 import 'database/repositories/drift_book_repository.dart';
+import 'database/repositories/drift_bookmark_repository.dart';
 import 'database/repositories/drift_learning_item_repository.dart';
 import 'hive_box_names.dart';
 import 'hive_type_ids.dart';
@@ -29,6 +30,11 @@ String _bootstrappedReadingTimeLanguage = HiveBoxNames.defaultLanguageCode;
 Map<String, int> _bootstrappedReadingTimeValues = const {};
 String _bootstrappedWordContextLanguage = HiveBoxNames.defaultLanguageCode;
 Map<String, String> _bootstrappedWordContextValues = const {};
+String _bootstrappedBookmarkLanguage = HiveBoxNames.defaultLanguageCode;
+Map<String, String> _bootstrappedWordBookmarkValues = const {};
+Map<String, String> _bootstrappedReadingBookmarkValues = const {};
+String _bootstrappedDictionaryCacheLanguage = HiveBoxNames.defaultLanguageCode;
+Map<String, String> _bootstrappedDictionaryCacheValues = const {};
 String _bootstrappedUserVocabularyLanguage = HiveBoxNames.defaultLanguageCode;
 Map<String, UserWordStatus> _bootstrappedUserVocabularyValues = const {};
 String _bootstrappedLearningItemLanguage = HiveBoxNames.defaultLanguageCode;
@@ -52,6 +58,15 @@ Map<String, int> get bootstrappedReadingTimeValues =>
 String get bootstrappedWordContextLanguage => _bootstrappedWordContextLanguage;
 Map<String, String> get bootstrappedWordContextValues =>
     Map.unmodifiable(_bootstrappedWordContextValues);
+String get bootstrappedBookmarkLanguage => _bootstrappedBookmarkLanguage;
+Map<String, String> get bootstrappedWordBookmarkValues =>
+    Map.unmodifiable(_bootstrappedWordBookmarkValues);
+Map<String, String> get bootstrappedReadingBookmarkValues =>
+    Map.unmodifiable(_bootstrappedReadingBookmarkValues);
+String get bootstrappedDictionaryCacheLanguage =>
+    _bootstrappedDictionaryCacheLanguage;
+Map<String, String> get bootstrappedDictionaryCacheValues =>
+    Map.unmodifiable(_bootstrappedDictionaryCacheValues);
 String get bootstrappedUserVocabularyLanguage =>
     _bootstrappedUserVocabularyLanguage;
 Map<String, UserWordStatus> get bootstrappedUserVocabularyValues =>
@@ -108,6 +123,8 @@ Future<void> _bootstrapDatabase() async {
     await _cacheBootstrappedReadingConfig(db, activeLang);
     await _cacheBootstrappedReadingTime(db, activeLang);
     await _cacheBootstrappedWordContexts(db, activeLang);
+    await _cacheBootstrappedBookmarks(db, activeLang);
+    await _cacheBootstrappedDictionaryCache(db, activeLang);
     await _cacheBootstrappedUserVocabulary(db, activeLang);
     await _cacheBootstrappedLearningItems(db, activeLang);
     await _cacheBootstrappedLearningAnalytics(db, activeLang);
@@ -159,6 +176,33 @@ Future<void> _cacheBootstrappedWordContexts(
 ) async {
   _bootstrappedWordContextLanguage = languageCode;
   _bootstrappedWordContextValues = await db.wordContextDao.allValues(
+    languageCode,
+  );
+}
+
+Future<void> _cacheBootstrappedBookmarks(
+  AppDatabase db,
+  String languageCode,
+) async {
+  _bootstrappedBookmarkLanguage = languageCode;
+  final wordRows = await db.bookmarkDao.allWordBookmarksForLanguage(
+    languageCode,
+  );
+  final readingRows = await db.bookmarkDao.allReadingBookmarksForLanguage(
+    languageCode,
+  );
+  _bootstrappedWordBookmarkValues =
+      DriftBookmarkRepository.encodedWordBookmarksByBook(wordRows);
+  _bootstrappedReadingBookmarkValues =
+      DriftBookmarkRepository.encodedReadingBookmarksByBook(readingRows);
+}
+
+Future<void> _cacheBootstrappedDictionaryCache(
+  AppDatabase db,
+  String languageCode,
+) async {
+  _bootstrappedDictionaryCacheLanguage = languageCode;
+  _bootstrappedDictionaryCacheValues = await db.dictionaryCacheDao.allValues(
     languageCode,
   );
 }

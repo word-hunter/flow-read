@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../providers/backup_provider.dart';
 import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/bookshelf_notifier.dart';
+import '../providers/reading/services_provider.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../providers/settings_provider.dart';
 import 'package:flow_ai/flow_ai.dart';
@@ -492,7 +493,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     }
 
     try {
-      final dictionaryCache = DictionaryCacheService();
+      final dictionaryCache = ref.read(dictionaryCacheServiceProvider);
       await dictionaryCache.init();
       dictionaryCacheCount = dictionaryCache.entryCount;
     } catch (_) {
@@ -595,7 +596,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
         false;
     if (!confirmed || !mounted) return;
 
-    final cache = DictionaryCacheService();
+    final cache = ref.read(dictionaryCacheServiceProvider);
     await cache.init();
     await cache.clear();
     await _refreshCacheStats();

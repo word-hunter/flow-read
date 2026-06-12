@@ -2,7 +2,7 @@
 
 > @source lib/services/ lib/providers/ packages/flow_ai/ packages/flow_dictionary/ packages/flow_language/ packages/flow_read_atmosphere/
 
-Last updated: 2026-06-12
+Last updated: 2026-06-13
 
 ## 服务分类
 
@@ -13,7 +13,7 @@ Last updated: 2026-06-12
 | `BookService` | 书籍 CRUD、封面提取、书籍列表 | Drift `books`（由 Hive `books_{lang}` 迁移） |
 | `EpubService` | EPUB core parser 结果到 app `Book` 的映射、章节提取、图片提取 | `epub_reader_core` |
 | `EpubParseWorker` | EPUB 文件/字节后台 isolate 解析入口，支持导入解析进度回调与任务取消，避免 UI isolate 执行 ZIP/XML/HTML/CSS 解析 | `Isolate.spawn`, `EpubService` |
-| `BookmarkService` | 阅读书签 + 单词书签管理 | `word_bookmarks_{lang}`, `reading_bookmarks_{lang}` |
+| `BookmarkService` | 阅读书签 + 单词书签管理 | Drift `word_bookmarks`, `reading_bookmarks`（由 Hive `word_bookmarks_{lang}` / `reading_bookmarks_{lang}` 迁移） |
 | `ReadingConfigService` | 字体、字号、行高、边距、主题持久化 | Drift `reading_config`（由 Hive `reading_config_{lang}` 迁移） |
 | `ReadingTimeService` | 阅读时长跟踪、每日目标检测 | Drift `reading_time`（由 Hive `reading_time_{lang}` 迁移） |
 | `ReadingSearchService` | 全文搜索、搜索结果偏移定位 | `BookService`（获取章节文本） |
@@ -28,7 +28,7 @@ Last updated: 2026-06-12
 | `LongmanRepository` | 在线 Longman（HTML 解析） | Adapter (online) |
 | `DictionaryRepository` | 在线 DictionaryAPI.dev | Adapter (online) |
 | `DictionarySourceRegistry` | 创建全部适配器实例 | Factory |
-| `DictionaryCacheService` | 查词结果缓存（Hive, 500 条上限） | Cache |
+| `DictionaryCacheService` | 查词结果缓存（Drift, 500 条上限） | Cache |
 | `DictionarySourceTestService` | 来源连通性测试 | Diagnostics |
 | `CompoundWordAnalyzer` | 复合词拆分（`godswood → gods + wood`） | NLP |
 
