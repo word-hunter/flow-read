@@ -29,6 +29,7 @@ import '../../storage/database/app_database.dart';
 import '../../storage/database/dao/book_glossary_dao.dart';
 import '../../storage/database/repositories/drift_book_repository.dart';
 import '../../storage/database/repositories/drift_bookmark_repository.dart';
+import '../../storage/database/repositories/drift_character_registry_repository.dart';
 import '../../storage/database/repositories/drift_dictionary_cache_repository.dart';
 import '../../storage/database/repositories/drift_learning_analytics_repository.dart';
 import '../../storage/database/repositories/drift_learning_item_repository.dart';
@@ -281,7 +282,17 @@ final bookGlossaryServiceProvider = Provider<BookGlossaryService>((ref) {
 });
 
 final characterRegistryProvider = Provider<CharacterRegistry>((ref) {
-  return CharacterRegistry();
+  final db = appDatabase;
+  final registry = db == null
+      ? CharacterRegistry()
+      : CharacterRegistry(
+          repository: DriftCharacterRegistryRepository(
+            db.characterRegistryDao,
+            initialValues: bootstrappedCharacterRegistryValues,
+          ),
+        );
+  unawaited(registry.init());
+  return registry;
 });
 
 final readingInsightServiceProvider = Provider<ReadingInsightService>((ref) {

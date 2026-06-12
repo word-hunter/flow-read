@@ -1,15 +1,18 @@
 import 'dart:convert';
 
-import 'package:hive/hive.dart';
-
 import 'package:flow_ai/flow_ai.dart';
-import '../storage/hive_box_names.dart';
+import '../storage/repositories/character_registry_repository.dart';
 
 class CharacterRegistry {
-  Box<String> get _box => Hive.box<String>(HiveBoxNames.characterRegistry);
+  CharacterRegistry({CharacterRegistryRepository? repository})
+    : _repository = repository ?? HiveCharacterRegistryRepository();
+
+  final CharacterRegistryRepository _repository;
+
+  Future<void> init() => _repository.init();
 
   List<CharacterRegistryEntry> getAll(String bookId) {
-    return _decode(_box.get(bookId));
+    return _decode(_repository.valueFor(bookId));
   }
 
   String? matchCanonical(String bookId, String name) {
@@ -30,7 +33,8 @@ class CharacterRegistry {
         canonicalName: entry.canonicalName,
         aliases: {...entries[existing].aliases, ...entry.aliases},
         userOverrides: entries[existing].userOverrides,
-        firstAppearanceChapter: entry.firstAppearanceChapter ??
+        firstAppearanceChapter:
+            entry.firstAppearanceChapter ??
             entries[existing].firstAppearanceChapter,
         updatedAt: DateTime.now(),
       );
@@ -105,7 +109,7 @@ class CharacterRegistry {
   }
 
   Future<void> clearForBook(String bookId) async {
-    await _box.delete(bookId);
+    await _repository.delete(bookId);
   }
 
   Future<void> _save(
@@ -113,10 +117,10 @@ class CharacterRegistry {
     List<CharacterRegistryEntry> entries,
   ) async {
     if (entries.isEmpty) {
-      await _box.delete(bookId);
+      await _repository.delete(bookId);
       return;
     }
-    await _box.put(
+    await _repository.putValue(
       bookId,
       jsonEncode(entries.map((e) => e.toJson()).toList()),
     );
@@ -128,9 +132,11 @@ class CharacterRegistry {
       final decoded = jsonDecode(source) as List<dynamic>;
       return decoded
           .whereType<Map>()
-          .map((e) => CharacterRegistryEntry.fromJson(
-                e.map((k, v) => MapEntry(k.toString(), v)),
-              ))
+          .map(
+            (e) => CharacterRegistryEntry.fromJson(
+              e.map((k, v) => MapEntry(k.toString(), v)),
+            ),
+          )
           .toList();
     } catch (_) {
       return [];

@@ -21,6 +21,9 @@ class CharacterRegistryDao extends DatabaseAccessor<AppDatabase>
         CharacterRegistryCompanion.insert(key: key, value: Value(value)),
       );
 
+  Future<void> deleteByKey(String key) =>
+      (delete(characterRegistry)..where((r) => r.key.equals(key))).go();
+
   Future<Map<String, String>> allEntries() async {
     final rows = await select(characterRegistry).get();
     return {for (final r in rows) r.key: r.value};

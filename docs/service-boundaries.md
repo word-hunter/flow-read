@@ -49,6 +49,7 @@ DictionaryManagerService.lookup(word, languageCode)
 | `AIService` | 封装 LLMClient + PromptBuilder，提供 5 种 AI 能力入口 |
 | `PromptBuilder` | 构建 typed system/user prompt，注入 spoiler boundary、language、learningFocus |
 | `AICacheService` | 基于文件的 AI 响应缓存，key 含 contentHash/promptVersion/sourceLanguage/outputLanguage |
+| `CharacterRegistry` | 角色规范名、别名和用户覆盖管理（Drift `character_registry`） |
 | `ChapterAIJob` | 章节级 AI 任务编排（summary/practice），优先读缓存 |
 | `ReadingAssistantAgent` | RSS/EPUB/浏览器 AI 辅助 |
 

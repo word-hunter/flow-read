@@ -35,6 +35,7 @@ Map<String, String> _bootstrappedWordBookmarkValues = const {};
 Map<String, String> _bootstrappedReadingBookmarkValues = const {};
 String _bootstrappedDictionaryCacheLanguage = HiveBoxNames.defaultLanguageCode;
 Map<String, String> _bootstrappedDictionaryCacheValues = const {};
+Map<String, String> _bootstrappedCharacterRegistryValues = const {};
 String _bootstrappedUserVocabularyLanguage = HiveBoxNames.defaultLanguageCode;
 Map<String, UserWordStatus> _bootstrappedUserVocabularyValues = const {};
 String _bootstrappedLearningItemLanguage = HiveBoxNames.defaultLanguageCode;
@@ -67,6 +68,8 @@ String get bootstrappedDictionaryCacheLanguage =>
     _bootstrappedDictionaryCacheLanguage;
 Map<String, String> get bootstrappedDictionaryCacheValues =>
     Map.unmodifiable(_bootstrappedDictionaryCacheValues);
+Map<String, String> get bootstrappedCharacterRegistryValues =>
+    Map.unmodifiable(_bootstrappedCharacterRegistryValues);
 String get bootstrappedUserVocabularyLanguage =>
     _bootstrappedUserVocabularyLanguage;
 Map<String, UserWordStatus> get bootstrappedUserVocabularyValues =>
@@ -125,6 +128,7 @@ Future<void> _bootstrapDatabase() async {
     await _cacheBootstrappedWordContexts(db, activeLang);
     await _cacheBootstrappedBookmarks(db, activeLang);
     await _cacheBootstrappedDictionaryCache(db, activeLang);
+    await _cacheBootstrappedCharacterRegistry(db);
     await _cacheBootstrappedUserVocabulary(db, activeLang);
     await _cacheBootstrappedLearningItems(db, activeLang);
     await _cacheBootstrappedLearningAnalytics(db, activeLang);
@@ -205,6 +209,11 @@ Future<void> _cacheBootstrappedDictionaryCache(
   _bootstrappedDictionaryCacheValues = await db.dictionaryCacheDao.allValues(
     languageCode,
   );
+}
+
+Future<void> _cacheBootstrappedCharacterRegistry(AppDatabase db) async {
+  _bootstrappedCharacterRegistryValues = await db.characterRegistryDao
+      .allEntries();
 }
 
 Future<void> _cacheBootstrappedUserVocabulary(
