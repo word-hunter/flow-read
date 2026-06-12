@@ -46,10 +46,15 @@ Future<void> _bootstrapDatabase() async {
     activeLang = _activeSourceLanguageCode();
     final migration = HiveToDriftMigration(db);
     try {
-      await migration.migrateAll(activeLang);
+      final result = await migration.migrateAll(activeLang);
       AppLogger.instance.event(
         'database.migration_succeeded',
         source: 'storage',
+        metadata: {
+          'skipped': result.skipped,
+          'language': result.languageCode,
+          'scannedRows': result.totalScannedRows,
+        },
       );
     } catch (error, stackTrace) {
       AppLogger.instance.event(

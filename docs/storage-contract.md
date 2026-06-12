@@ -31,7 +31,21 @@ Drift 数据库文件：`flow_read.db`，位于应用文档目录。WAL 模式�
 | `character_registry` | CharacterRegistryDao | 字符注册 |
 | `settings` | SettingsDao | 应用设置 |
 
-启动时通过 `HiveToDriftMigration` 自动从 Hive 迁移数据。
+启动时通过 `HiveToDriftMigration` 自动从 Hive 迁移数据。迁移成功后会在 Drift
+`settings` 表写入 legacy 迁移标记，后续启动默认跳过，避免旧 Hive 数据覆盖新的
+Drift 数据。
+
+### Legacy Hive → Drift 迁移标记
+
+| Key | 内容 |
+|-----|------|
+| `legacy_hive_to_drift_completed_at` | 最近一次完成迁移的 UTC 时间 |
+| `legacy_hive_to_drift_source_schema_version` | 导入时的 Hive schema version |
+| `legacy_hive_to_drift_source_language` | 导入时的语言分区 |
+
+RSS 文章状态的旧 settings ID 集合缺少 `rss_articles.subscription_id` 外键上下文，
+当前迁移只统计扫描量，不写入孤儿 `rss_articles` 行；后续 RSS 仓储切流时需要用完整
+订阅/文章上下文补齐。
 
 ## Hive Box 清单
 
@@ -70,7 +84,7 @@ bootstrapStorage() {
   registerLanguageModules();   // EnglishLanguageModule → LanguageRegistry
   openBoxes();                 // settings + en-boxes × 10 + word_levels + rss_subscriptions + book_glossary
   runMigrations();             // v1 → v2 迁移
-  bootstrapDatabase();         // HiveToDriftMigration + reading_config 启动快照
+  bootstrapDatabase();         // HiveToDriftMigration（带完成标记）+ reading_config 启动快照
 }
 ```
 
