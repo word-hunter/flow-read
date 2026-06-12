@@ -4,17 +4,20 @@ class ReadingTimeService {
   ReadingTimeService({
     ReadingTimeRepository? repository,
     DateTime Function()? clock,
+    int? initialTotalSeconds,
   }) : _repository = repository ?? HiveReadingTimeRepository(),
-       _clock = clock ?? DateTime.now;
+       _clock = clock ?? DateTime.now,
+       _totalSeconds = initialTotalSeconds ?? 0;
 
   static const _globalKey = '_global_';
+  static const globalStorageKey = _globalKey;
   static const _dailyKeyPrefix = '_daily_';
   static const _chapterKeyPrefix = '_chapter_';
 
   final ReadingTimeRepository _repository;
   final DateTime Function() _clock;
 
-  int _totalSeconds = 0;
+  int _totalSeconds;
   DateTime? _startTime;
   String? _activeBookId;
   int? _activeChapterIndex;

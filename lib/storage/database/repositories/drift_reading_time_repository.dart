@@ -1,16 +1,36 @@
 import '../dao/reading_time_dao.dart';
+import '../../repositories/hive_repository_box.dart';
+import '../../repositories/reading_time_repository.dart';
 
-final class DriftReadingTimeRepository {
+final class DriftReadingTimeRepository implements ReadingTimeRepository {
+  DriftReadingTimeRepository(
+    this._dao, {
+    required String languageCode,
+    Map<String, int> initialValues = const {},
+  }) : _languageCode = activeHiveLanguageCode(languageCode),
+       _cache = Map.of(initialValues);
+
   final ReadingTimeDao _dao;
+  final String _languageCode;
+  final Map<String, int> _cache;
 
-  DriftReadingTimeRepository(this._dao);
+  @override
+  Future<void> init() async {
+    final values = await _dao.allValues(_languageCode);
+    _cache
+      ..clear()
+      ..addAll(values);
+  }
 
-  Future<int> secondsFor(String key, String language) =>
-      _dao.secondsFor(key, language);
+  @override
+  int secondsFor(String key) => _cache[key] ?? 0;
 
-  Future<void> putSeconds(String key, String language, int seconds) =>
-      _dao.putSeconds(key, language, seconds);
+  @override
+  Future<void> putSeconds(String key, int seconds) async {
+    await _dao.putSeconds(key, _languageCode, seconds);
+    _cache[key] = seconds;
+  }
 
-  Future<int> totalSeconds(String language) =>
-      _dao.totalSecondsForLanguage(language);
+  @override
+  Future<void> close() async {}
 }

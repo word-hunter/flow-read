@@ -26,6 +26,7 @@ import '../../storage/database/app_database.dart';
 import '../../storage/database/dao/book_glossary_dao.dart';
 import '../../storage/database/repositories/drift_book_repository.dart';
 import '../../storage/database/repositories/drift_reading_config_repository.dart';
+import '../../storage/database/repositories/drift_reading_time_repository.dart';
 import '../../storage/hive_storage.dart';
 import '../book_insight_provider.dart';
 import '../settings_provider.dart';
@@ -72,7 +73,24 @@ final readingConfigServiceProvider = Provider<ReadingConfigService>((ref) {
 });
 
 final readingTimeServiceProvider = Provider<ReadingTimeService>((ref) {
-  return ReadingTimeService();
+  final db = appDatabase;
+  if (db == null) return ReadingTimeService();
+
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final initialValues = languageCode == bootstrappedReadingTimeLanguage
+      ? bootstrappedReadingTimeValues
+      : const <String, int>{};
+  final service = ReadingTimeService(
+    repository: DriftReadingTimeRepository(
+      db.readingTimeDao,
+      languageCode: languageCode,
+      initialValues: initialValues,
+    ),
+    initialTotalSeconds:
+        initialValues[ReadingTimeService.globalStorageKey] ?? 0,
+  );
+  unawaited(service.init());
+  return service;
 });
 
 final userVocabularyServiceProvider = Provider<UserVocabularyService>((ref) {

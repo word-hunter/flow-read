@@ -23,6 +23,8 @@ String _bootstrappedReadingConfigLanguage = HiveBoxNames.defaultLanguageCode;
 Map<String, String> _bootstrappedReadingConfigValues = const {};
 String _bootstrappedBookMetadataLanguage = HiveBoxNames.defaultLanguageCode;
 List<BookMetadata> _bootstrappedBookMetadataValues = const [];
+String _bootstrappedReadingTimeLanguage = HiveBoxNames.defaultLanguageCode;
+Map<String, int> _bootstrappedReadingTimeValues = const {};
 
 AppDatabase? get appDatabase => _appDatabase;
 String get bootstrappedReadingConfigLanguage =>
@@ -33,6 +35,9 @@ String get bootstrappedBookMetadataLanguage =>
     _bootstrappedBookMetadataLanguage;
 List<BookMetadata> get bootstrappedBookMetadataValues =>
     List.unmodifiable(_bootstrappedBookMetadataValues);
+String get bootstrappedReadingTimeLanguage => _bootstrappedReadingTimeLanguage;
+Map<String, int> get bootstrappedReadingTimeValues =>
+    Map.unmodifiable(_bootstrappedReadingTimeValues);
 
 Future<void> bootstrapStorage() async {
   await Hive.initFlutter();
@@ -75,6 +80,7 @@ Future<void> _bootstrapDatabase() async {
 
     await _cacheBootstrappedBookMetadata(db, activeLang);
     await _cacheBootstrappedReadingConfig(db, activeLang);
+    await _cacheBootstrappedReadingTime(db, activeLang);
   } catch (error, stackTrace) {
     AppLogger.instance.event(
       'database.bootstrap_failed',
@@ -103,6 +109,16 @@ Future<void> _cacheBootstrappedReadingConfig(
 ) async {
   _bootstrappedReadingConfigLanguage = languageCode;
   _bootstrappedReadingConfigValues = await db.readingConfigDao.allValues(
+    languageCode,
+  );
+}
+
+Future<void> _cacheBootstrappedReadingTime(
+  AppDatabase db,
+  String languageCode,
+) async {
+  _bootstrappedReadingTimeLanguage = languageCode;
+  _bootstrappedReadingTimeValues = await db.readingTimeDao.allValues(
     languageCode,
   );
 }

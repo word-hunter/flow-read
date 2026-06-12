@@ -17,6 +17,15 @@ class ReadingTimeDao extends DatabaseAccessor<AppDatabase>
     return result ?? 0;
   }
 
+  Future<Map<String, int>> allValues(String language) async {
+    final rows = await (select(
+      readingTime,
+    )..where((r) => r.language.equals(language))).get();
+    return {
+      for (final row in rows) row.key: row.seconds,
+    };
+  }
+
   Future<void> putSeconds(String key, String language, int seconds) =>
       into(readingTime).insertOnConflictUpdate(
         ReadingTimeCompanion.insert(
@@ -27,9 +36,9 @@ class ReadingTimeDao extends DatabaseAccessor<AppDatabase>
       );
 
   Future<int> totalSecondsForLanguage(String language) async {
-    final rows = await (select(readingTime)
-          ..where((r) => r.language.equals(language)))
-        .get();
+    final rows = await (select(
+      readingTime,
+    )..where((r) => r.language.equals(language))).get();
     return rows.fold<int>(0, (sum, r) => sum + r.seconds);
   }
 }
