@@ -6,6 +6,7 @@ import '../../providers/reading/bookmark_notifier.dart';
 import '../../providers/reading/current_book_notifier.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../flow/flow_components.dart';
+import '../reader_shell/reader_toc_panel.dart';
 
 class ReaderLearningStatsPanel extends riverpod.ConsumerWidget {
   const ReaderLearningStatsPanel({
@@ -28,6 +29,20 @@ class ReaderLearningStatsPanel extends riverpod.ConsumerWidget {
     if (report == null) {
       return _EmptyStatsState(theme: theme);
     }
+
+    final book = currentBook.book;
+    final tocItems = book == null
+        ? const <ReaderTocItem>[]
+        : buildReaderTocItems(book);
+    final usingStructuredToc =
+        book != null && book.toc.isNotEmpty && tocItems.isNotEmpty;
+    final locationLabel = usingStructuredToc
+        ? '${selectedReaderTocIndexForChapter(tocItems, report.chapterIndex) + 1}/${tocItems.length}'
+        : '${report.chapterIndex + 1}/${report.chapterCount}';
+    final navigationMetricLabel = usingStructuredToc ? '目录项' : '章节';
+    final navigationMetricValue = usingStructuredToc
+        ? tocItems.length
+        : currentBook.chapterCount;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -54,7 +69,7 @@ class ReaderLearningStatsPanel extends riverpod.ConsumerWidget {
                 ),
               ),
               Text(
-                '${report.chapterIndex + 1}/${report.chapterCount}',
+                locationLabel,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w600,
@@ -102,8 +117,8 @@ class ReaderLearningStatsPanel extends riverpod.ConsumerWidget {
                     ),
                     _MetricData(
                       icon: Icons.auto_stories_outlined,
-                      label: '章节',
-                      value: '${currentBook.chapterCount}',
+                      label: navigationMetricLabel,
+                      value: '$navigationMetricValue',
                     ),
                   ],
                 ),

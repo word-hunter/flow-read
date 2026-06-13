@@ -23,6 +23,9 @@ class StatsPage extends ConsumerWidget {
     final bookDifficulty = vocabState.currentBookDifficulty;
     final chapterReport = vocabularyNotifier.currentChapterLearningReport;
     final weeklySummary = vocabularyNotifier.weeklyLearningSummary;
+    final navigationItemCount =
+        currentBookNotifier.book?.navigationItemCount ??
+        currentBookNotifier.chapterCount;
 
     final knownCount = vocabularyNotifier.knownWordCount;
     final learningCount = vocabularyNotifier.learningWordCount;
@@ -85,9 +88,10 @@ class StatsPage extends ConsumerWidget {
                     _buildStatGrid(
                       context,
                       knownCount: knownCount,
-                      totalVocabularyCount: vocabularyNotifier.totalVocabularyCount,
+                      totalVocabularyCount:
+                          vocabularyNotifier.totalVocabularyCount,
                       bookmarkCount: bookmarks.bookmarkedWords.length,
-                      chapterCount: currentBookNotifier.chapterCount,
+                      chapterCount: navigationItemCount,
                     ),
                   ],
                 ),

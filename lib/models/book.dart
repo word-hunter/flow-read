@@ -20,4 +20,6 @@ class Book {
     this.toc = const [],
     this.footnoteMap = const {},
   });
+
+  int get navigationItemCount => toc.isNotEmpty ? toc.length : chapters.length;
 }

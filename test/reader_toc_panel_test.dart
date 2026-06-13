@@ -93,6 +93,7 @@ void main() {
 
       final items = buildReaderTocItems(book);
 
+      expect(book.navigationItemCount, 2);
       expect(items.map((item) => item.title), ['Chapter One', 'Chapter Two']);
       expect(items.map((item) => item.targetChapterIndex), [0, 2]);
     });
