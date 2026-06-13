@@ -1,0 +1,15 @@
+// Copy this file to LocalSigning.xcconfig and fill in your local Apple team.
+// LocalSigning.xcconfig is ignored by git.
+//
+// Find valid signing identities:
+//   security find-identity -v -p codesigning
+//
+// Local-only testing on your Mac:
+//   CODE_SIGN_IDENTITY = Apple Development
+//
+// Shareable release packages require Developer ID signing and notarization:
+//   CODE_SIGN_IDENTITY = Developer ID Application
+
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = Apple Development

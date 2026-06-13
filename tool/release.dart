@@ -62,6 +62,7 @@ Future<void> _packageLocal(List<String> args) async {
   final skipPubGet = options.has('skip-pub-get');
   final skipTests = options.has('skip-tests');
   final skipArchiveCheck = options.has('skip-archive-check');
+  final allowAdhocSignature = options.has('allow-adhoc-signature');
   final version = _readVersion();
 
   _validateReleaseMetadata(version);
@@ -72,10 +73,10 @@ Future<void> _packageLocal(List<String> args) async {
   stdout.writeln('Version files will not be changed.');
 
   if (!skipPubGet) {
-    await _runCommand('flutter', ['pub', 'get']);
+    await _runFlutterCommand(['pub', 'get']);
   }
   if (!skipTests) {
-    await _runCommand('flutter', ['test']);
+    await _runFlutterCommand(['test']);
   }
 
   await _buildMacosApp(version, configuration);
@@ -90,6 +91,16 @@ Future<void> _packageLocal(List<String> args) async {
     appPath,
   ]);
   _verifyEntitlements(entitlements);
+
+  final signingDetails = await _runCommandCapture('codesign', [
+    '-dv',
+    '--verbose=4',
+    appPath,
+  ]);
+  _verifySigningIdentity(
+    signingDetails,
+    allowAdhocSignature: allowAdhocSignature,
+  );
 
   Directory(outputDir).createSync(recursive: true);
   final zipPath = _joinPath(
@@ -485,7 +496,7 @@ String _macosAppPath(String configuration) {
 }
 
 Future<void> _buildMacosApp(AppVersion version, String configuration) async {
-  await _runCommand('flutter', [
+  await _runFlutterCommand([
     'build',
     'macos',
     '--$configuration',
@@ -613,6 +624,37 @@ void _verifyEntitlements(String output) {
   }
 }
 
+void _verifySigningIdentity(
+  String output, {
+  required bool allowAdhocSignature,
+}) {
+  final isAdhoc =
+      output.contains('Signature=adhoc') ||
+      output.contains('TeamIdentifier=not set');
+  if (!isAdhoc) return;
+  if (allowAdhocSignature) {
+    stdout.writeln(
+      'Warning: package uses ad-hoc signing and may not open on macOS.',
+    );
+    return;
+  }
+
+  throw ReleaseException(
+    'Package is ad-hoc signed and macOS may refuse to open it.\n'
+    'Create a local signing config before packaging:\n'
+    '  cp macos/Runner/Configs/LocalSigning.xcconfig.example '
+    'macos/Runner/Configs/LocalSigning.xcconfig\n'
+    'Then set DEVELOPMENT_TEAM and CODE_SIGN_IDENTITY in '
+    'LocalSigning.xcconfig.\n'
+    'For local testing use CODE_SIGN_IDENTITY = Apple Development. '
+    'For shareable releases use Developer ID Application plus notarization.\n'
+    'Check available identities with:\n'
+    '  security find-identity -v -p codesigning\n'
+    'Use --allow-adhoc-signature only for archive-structure checks; '
+    'the app may still fail to open.',
+  );
+}
+
 Future<void> _verifyArchive(String zipPath, AppVersion version) async {
   final tempDir = Directory.systemTemp.createTempSync(
     'flow_read_package_check_',
@@ -654,6 +696,30 @@ Future<void> _runCommand(String executable, List<String> arguments) async {
       'Failed to run ${_formatCommand(executable, arguments)}: '
       '${error.message}',
     );
+  }
+}
+
+Future<void> _runFlutterCommand(List<String> arguments) async {
+  final command = await _resolveFlutterCommand();
+  await _runCommand(command.executable, [...command.prefixArgs, ...arguments]);
+}
+
+Future<_Command> _resolveFlutterCommand() async {
+  if (await _isExecutableAvailable('fvm', ['--version'])) {
+    return const _Command('fvm', ['flutter']);
+  }
+  return const _Command('flutter', []);
+}
+
+Future<bool> _isExecutableAvailable(
+  String executable,
+  List<String> arguments,
+) async {
+  try {
+    final result = await Process.run(executable, arguments);
+    return result.exitCode == 0;
+  } on ProcessException {
+    return false;
   }
 }
 
@@ -737,8 +803,15 @@ Usage:
   dart run tool/release.dart notes [--version 1.2.3]
   dart run tool/release.dart bump <major|minor|patch> [--build 12] [--channel alpha] [--date YYYY-MM-DD] [--exclude-scope 2.0]
   dart run tool/release.dart verify-macos-app <FlowRead.app> [--version 1.2.3]
-  dart run tool/release.dart package-local [--configuration release|debug] [--output-dir dist] [--skip-pub-get] [--skip-tests] [--skip-archive-check]
+  dart run tool/release.dart package-local [--configuration release|debug] [--output-dir dist] [--skip-pub-get] [--skip-tests] [--skip-archive-check] [--allow-adhoc-signature]
 ''');
+}
+
+class _Command {
+  const _Command(this.executable, this.prefixArgs);
+
+  final String executable;
+  final List<String> prefixArgs;
 }
 
 class AppVersion {

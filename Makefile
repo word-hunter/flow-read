@@ -51,4 +51,4 @@ bench-trend-%:
 	@dart run tool/benchmark.dart trend --bench $* --last 10
 
 package-local:
-	@dart run tool/release.dart package-local --skip-tests $(ARGS)
+	@fvm dart run tool/release.dart package-local --skip-tests $(ARGS)

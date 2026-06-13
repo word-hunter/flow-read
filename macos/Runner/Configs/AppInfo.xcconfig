@@ -12,3 +12,7 @@ PRODUCT_BUNDLE_IDENTIFIER = com.example.flowRead
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
+
+// Optional local signing overrides. Copy LocalSigning.xcconfig.example to
+// LocalSigning.xcconfig and keep the local file untracked.
+#include? "LocalSigning.xcconfig"
