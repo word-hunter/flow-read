@@ -1,19 +1,14 @@
 import '../models/user_vocabulary.dart';
-import '../storage/repositories/hive_repository_box.dart';
 import '../storage/repositories/user_vocabulary_repository.dart';
 
 class UserVocabularyService {
   static const emptyRevisionSignature = '811c9dc5';
 
   UserVocabularyService({
-    UserVocabularyRepository? repository,
+    required UserVocabularyRepository repository,
     String? languageCode,
-  }) : languageCode = activeHiveLanguageCode(languageCode),
-       _repository =
-           repository ??
-           HiveUserVocabularyRepository(
-             languageCode: activeHiveLanguageCode(languageCode),
-           );
+  }) : languageCode = _normalizeLanguageCode(languageCode),
+       _repository = repository;
 
   final String languageCode;
   final UserVocabularyRepository _repository;
@@ -79,5 +74,10 @@ class UserVocabularyService {
 
   Future<void> close() async {
     await _repository.close();
+  }
+
+  static String _normalizeLanguageCode(String? code) {
+    final normalized = code?.trim().toLowerCase() ?? '';
+    return normalized.isEmpty ? 'en' : normalized;
   }
 }

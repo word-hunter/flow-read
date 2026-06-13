@@ -8,12 +8,14 @@ import 'package:flow_read/providers/reading/current_book_notifier.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/book_service.dart';
+import 'package:flow_read/services/reading_time_service.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/storage/database/dao/settings_dao.dart';
 import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
+import 'package:flow_read/storage/repositories/reading_time_repository.dart';
 import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
 import 'package:flow_read/storage/repositories/word_level_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -204,6 +206,9 @@ void main() {
         overrides: [
           bookshelfNotifierProvider.overrideWith(() => bookshelf),
           bookServiceProvider.overrideWithValue(bookService),
+          readingTimeServiceProvider.overrideWithValue(
+            ReadingTimeService(repository: _NoopReadingTimeRepository()),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -299,7 +304,9 @@ class _FakeBookshelfNotifier extends BookshelfNotifier {
 }
 
 class _NoopBookService extends BookService {
-  _NoopBookService({List<BookMetadata> books = const []}) : _books = books;
+  _NoopBookService({List<BookMetadata> books = const []})
+    : _books = books,
+      super(repository: _MemoryBookMetadataRepository(books));
 
   final List<BookMetadata> _books;
 
@@ -344,6 +351,20 @@ class _MemoryBookMetadataRepository implements BookMetadataRepository {
   Future<void> delete(String id) async {
     _books.remove(id);
   }
+
+  @override
+  Future<void> close() async {}
+}
+
+class _NoopReadingTimeRepository implements ReadingTimeRepository {
+  @override
+  Future<void> init() async {}
+
+  @override
+  int secondsFor(String key) => 0;
+
+  @override
+  Future<void> putSeconds(String key, int seconds) async {}
 
   @override
   Future<void> close() async {}

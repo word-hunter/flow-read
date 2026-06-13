@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/services/learning_item_service.dart';
+import 'package:flow_read/storage/repositories/learning_item_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
@@ -20,7 +21,7 @@ void main() {
   setUp(() async {
     tempDir = await initHiveTestStorage('flow_read_learning_item_test_');
     await openFlowReadTestBoxes();
-    service = LearningItemService();
+    service = LearningItemService(repository: HiveLearningItemRepository());
     await service.init();
   });
 

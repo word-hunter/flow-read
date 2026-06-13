@@ -54,9 +54,7 @@ final epubBookParserProvider = Provider<EpubBookParser>((ref) {
 });
 
 final bookServiceProvider = Provider<BookService>((ref) {
-  final db = appDatabase;
-  if (db == null) return BookService();
-
+  final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
   final service = BookService(
     repository: DriftBookRepository(
@@ -72,9 +70,7 @@ final bookServiceProvider = Provider<BookService>((ref) {
 });
 
 final bookmarkServiceProvider = Provider<BookmarkService>((ref) {
-  final db = appDatabase;
-  if (db == null) return BookmarkService();
-
+  final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
   final service = BookmarkService(
     repository: DriftBookmarkRepository(
@@ -93,25 +89,21 @@ final bookmarkServiceProvider = Provider<BookmarkService>((ref) {
 });
 
 final readingConfigServiceProvider = Provider<ReadingConfigService>((ref) {
-  final db = appDatabase;
-  final service = db == null
-      ? ReadingConfigService()
-      : ReadingConfigService(
-          repository: DriftReadingConfigRepository(
-            db.readingConfigDao,
-            languageCode: bootstrappedReadingConfigLanguage,
-            initialValues: bootstrappedReadingConfigValues,
-          ),
-          loadImmediately: true,
-        );
+  final db = _requireAppDatabase();
+  final service = ReadingConfigService(
+    repository: DriftReadingConfigRepository(
+      db.readingConfigDao,
+      languageCode: bootstrappedReadingConfigLanguage,
+      initialValues: bootstrappedReadingConfigValues,
+    ),
+    loadImmediately: true,
+  );
   unawaited(service.init());
   return service;
 });
 
 final readingTimeServiceProvider = Provider<ReadingTimeService>((ref) {
-  final db = appDatabase;
-  if (db == null) return ReadingTimeService();
-
+  final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
   final initialValues = languageCode == bootstrappedReadingTimeLanguage
       ? bootstrappedReadingTimeValues
@@ -130,9 +122,7 @@ final readingTimeServiceProvider = Provider<ReadingTimeService>((ref) {
 });
 
 final userVocabularyServiceProvider = Provider<UserVocabularyService>((ref) {
-  final db = appDatabase;
-  if (db == null) return UserVocabularyService();
-
+  final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
   final service = UserVocabularyService(
     repository: DriftUserVocabularyRepository(
@@ -159,20 +149,18 @@ final dictionarySourceRegistryProvider = Provider<DictionarySourceRegistry>((
 });
 
 final dictionaryCacheServiceProvider = Provider<DictionaryCacheService>((ref) {
-  final db = appDatabase;
+  final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
-  final service = db == null
-      ? DictionaryCacheService(languageCode: languageCode)
-      : DictionaryCacheService(
-          repository: DriftDictionaryCacheRepository(
-            db.dictionaryCacheDao,
-            languageCode: languageCode,
-            initialValues: languageCode == bootstrappedDictionaryCacheLanguage
-                ? bootstrappedDictionaryCacheValues
-                : const {},
-          ),
-          languageCode: languageCode,
-        );
+  final service = DictionaryCacheService(
+    repository: DriftDictionaryCacheRepository(
+      db.dictionaryCacheDao,
+      languageCode: languageCode,
+      initialValues: languageCode == bootstrappedDictionaryCacheLanguage
+          ? bootstrappedDictionaryCacheValues
+          : const {},
+    ),
+    languageCode: languageCode,
+  );
   unawaited(service.init());
   return service;
 });
@@ -187,23 +175,19 @@ final wordRepositoryProvider = Provider<WordRepository>((ref) {
 });
 
 final wordLevelServiceProvider = Provider<WordLevelService>((ref) {
-  final db = appDatabase;
-  final service = db == null
-      ? WordLevelService()
-      : WordLevelService(
-          repository: DriftWordLevelRepository(
-            db.wordLevelDao,
-            db.settingsDao,
-          ),
-        );
+  final db = _requireAppDatabase();
+  final service = WordLevelService(
+    repository: DriftWordLevelRepository(
+      db.wordLevelDao,
+      db.settingsDao,
+    ),
+  );
   unawaited(service.init());
   return service;
 });
 
 final wordContextServiceProvider = Provider<WordContextService>((ref) {
-  final db = appDatabase;
-  if (db == null) return WordContextService();
-
+  final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
   final service = WordContextService(
     repository: DriftWordContextRepository(
@@ -219,9 +203,7 @@ final wordContextServiceProvider = Provider<WordContextService>((ref) {
 });
 
 final learningItemServiceProvider = Provider<LearningItemService>((ref) {
-  final db = appDatabase;
-  if (db == null) return LearningItemService();
-
+  final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
   final service = LearningItemService(
     repository: DriftLearningItemRepository(
@@ -239,9 +221,7 @@ final learningItemServiceProvider = Provider<LearningItemService>((ref) {
 final learningAnalyticsServiceProvider = Provider<LearningAnalyticsService>((
   ref,
 ) {
-  final db = appDatabase;
-  if (db == null) return LearningAnalyticsService();
-
+  final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
   final service = LearningAnalyticsService(
     repository: DriftLearningAnalyticsRepository(
@@ -282,15 +262,13 @@ final bookGlossaryServiceProvider = Provider<BookGlossaryService>((ref) {
 });
 
 final characterRegistryProvider = Provider<CharacterRegistry>((ref) {
-  final db = appDatabase;
-  final registry = db == null
-      ? CharacterRegistry()
-      : CharacterRegistry(
-          repository: DriftCharacterRegistryRepository(
-            db.characterRegistryDao,
-            initialValues: bootstrappedCharacterRegistryValues,
-          ),
-        );
+  final db = _requireAppDatabase();
+  final registry = CharacterRegistry(
+    repository: DriftCharacterRegistryRepository(
+      db.characterRegistryDao,
+      initialValues: bootstrappedCharacterRegistryValues,
+    ),
+  );
   unawaited(registry.init());
   return registry;
 });
@@ -366,3 +344,14 @@ final bookInsightProvider = ChangeNotifierProvider<BookInsightProvider>((ref) {
   ref.onDispose(() => provider.dispose());
   return provider;
 });
+
+AppDatabase _requireAppDatabase() {
+  final db = appDatabase;
+  if (db == null) {
+    throw StateError(
+      'AppDatabase must be initialized by bootstrapStorage() before reading '
+      'runtime storage-backed providers.',
+    );
+  }
+  return db;
+}

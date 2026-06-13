@@ -10,6 +10,7 @@ import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/reading/vocabulary_notifier.dart';
 import 'package:flow_read/services/app_logger.dart';
 import 'package:flow_read/services/book_service.dart';
+import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -162,7 +163,9 @@ BookMetadata _metadata({
 }
 
 class _FakeBookService extends BookService {
-  _FakeBookService(this._books);
+  _FakeBookService(List<BookMetadata> books)
+    : _books = books,
+      super(repository: _FakeBookMetadataRepository(books));
 
   final List<BookMetadata> _books;
 
@@ -178,6 +181,38 @@ class _FakeBookService extends BookService {
   }) async {
     return null;
   }
+}
+
+class _FakeBookMetadataRepository implements BookMetadataRepository {
+  _FakeBookMetadataRepository(Iterable<BookMetadata> books) {
+    for (final book in books) {
+      _books[book.id] = book;
+    }
+  }
+
+  final Map<String, BookMetadata> _books = {};
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  Iterable<BookMetadata> get values => _books.values;
+
+  @override
+  BookMetadata? get(String id) => _books[id];
+
+  @override
+  Future<void> put(String id, BookMetadata metadata) async {
+    _books[id] = metadata;
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _books.remove(id);
+  }
+
+  @override
+  Future<void> close() async {}
 }
 
 class _RecordingCurrentBookNotifier extends CurrentBookNotifier {

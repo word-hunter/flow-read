@@ -7,6 +7,7 @@ import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/screens/profile_screen.dart';
 import 'package:flow_read/services/bookmark_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
+import 'package:flow_read/storage/repositories/bookmark_repository.dart';
 import 'package:flow_read/storage/repositories/reading_time_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
@@ -86,6 +87,9 @@ class _TestProfileBookmarkNotifier extends BookmarkNotifier {
 }
 
 class _ProfileBookmarkService extends BookmarkService {
+  _ProfileBookmarkService()
+    : super(repository: _FakeProfileBookmarkRepository());
+
   @override
   List<BookmarkedWord> loadWordBookmarks(String bookId) => [
     BookmarkedWord(
@@ -103,6 +107,32 @@ class _ProfileBookmarkService extends BookmarkService {
       bookId: 'book-1',
     ),
   ];
+}
+
+class _FakeProfileBookmarkRepository implements BookmarkRepository {
+  @override
+  Future<void> init() async {}
+
+  @override
+  String? getWordBookmarks(String bookId) => null;
+
+  @override
+  Future<void> putWordBookmarks(String bookId, String json) async {}
+
+  @override
+  Future<void> deleteWordBookmarks(String bookId) async {}
+
+  @override
+  String? getReadingBookmarks(String bookId) => null;
+
+  @override
+  Future<void> putReadingBookmarks(String bookId, String json) async {}
+
+  @override
+  Future<void> deleteReadingBookmarks(String bookId) async {}
+
+  @override
+  Future<void> close() async {}
 }
 
 class _ProfileReadingTimeService extends ReadingTimeService {

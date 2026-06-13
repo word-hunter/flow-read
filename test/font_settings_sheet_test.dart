@@ -3,6 +3,7 @@ import 'dart:ui' show PointerDeviceKind;
 import 'package:flow_read/models/reader_font.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/services/reading_config_service.dart';
+import 'package:flow_read/storage/repositories/reading_config_repository.dart';
 import 'package:flow_read/widgets/font_settings_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
@@ -237,6 +238,9 @@ BoxDecoration _cardDecoration(WidgetTester tester, Key key) {
 }
 
 class _FakeReadingConfigService extends ReadingConfigService {
+  _FakeReadingConfigService()
+    : super(repository: _FakeReadingConfigRepository());
+
   double _fontSize = 16;
   double _lineHeight = 2;
   String _fontFamily = ReaderFonts.defaultFamily;
@@ -276,4 +280,18 @@ class _FakeReadingConfigService extends ReadingConfigService {
   Future<void> setTheme(String theme) async {
     _readingTheme = theme;
   }
+}
+
+class _FakeReadingConfigRepository implements ReadingConfigRepository {
+  @override
+  Future<void> init() async {}
+
+  @override
+  String getString(String key, {required String defaultValue}) => defaultValue;
+
+  @override
+  Future<void> putString(String key, String value) async {}
+
+  @override
+  Future<void> close() async {}
 }

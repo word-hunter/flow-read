@@ -5,8 +5,8 @@ import '../models/reading_bookmark.dart';
 import '../storage/repositories/bookmark_repository.dart';
 
 class BookmarkService {
-  BookmarkService({BookmarkRepository? repository})
-    : _repository = repository ?? HiveBookmarkRepository();
+  BookmarkService({required BookmarkRepository repository})
+    : _repository = repository;
 
   final BookmarkRepository _repository;
 

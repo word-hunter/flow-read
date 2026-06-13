@@ -12,6 +12,9 @@ import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/providers/settings_provider.dart';
+import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
+import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
+import 'package:flow_read/storage/repositories/word_level_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,10 +35,14 @@ void main() {
   test('active book difficulty falls back to cached shelf rating', () async {
     final documentsDir = await Directory('${tempDir.path}/documents').create();
     final bookService = BookService(
+      repository: HiveBookMetadataRepository(),
       documentsDirectoryProvider: () async => documentsDir,
     );
     await bookService.init();
-    final wordLevelService = WordLevelService(assetLoader: (_) async => '');
+    final wordLevelService = WordLevelService(
+      repository: HiveWordLevelRepository(),
+      assetLoader: (_) async => '',
+    );
     await wordLevelService.init();
     await bookService.addBook(
       BookMetadata(
@@ -75,9 +82,12 @@ void main() {
     'marking a lemma known refreshes current chapter word highlights',
     () async {
       final settings = await createTestSettingsService();
-      final userVocabulary = UserVocabularyService();
+      final userVocabulary = UserVocabularyService(
+        repository: HiveUserVocabularyRepository(),
+      );
       await userVocabulary.init();
       final wordLevelService = WordLevelService(
+        repository: HiveWordLevelRepository(),
         assetLoader: (_) async =>
             'reassemble\treassemble\to\n'
             'reassembling\treassemble\to\n',
@@ -167,7 +177,9 @@ class _ReaderBookshelfNotifier extends BookshelfNotifier {
 }
 
 class _NoopBookService extends BookService {
-  _NoopBookService({required List<BookMetadata> books}) : _books = books;
+  _NoopBookService({required List<BookMetadata> books})
+    : _books = books,
+      super(repository: HiveBookMetadataRepository());
 
   final List<BookMetadata> _books;
 

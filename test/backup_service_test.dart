@@ -12,10 +12,14 @@ import 'package:flow_read/services/backup_archive.dart' as archive;
 import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
+import 'package:flow_read/services/word_context_service.dart';
+import 'package:flow_read/services/wordhunter_import_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/storage/database/repositories/drift_book_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_learning_item_repository.dart';
 import 'package:flow_read/storage/hive_box_names.dart';
+import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
+import 'package:flow_read/storage/repositories/word_context_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
@@ -45,6 +49,7 @@ void main() {
     backup = BackupService(
       settings,
       documentsDirectoryProvider: () async => documentsDir,
+      wordHunterImportServiceFactory: _hiveWordHunterImportService,
     );
   });
 
@@ -931,7 +936,9 @@ void main() {
       expect(result.learningCount, 2);
       expect(result.exampleCount, 2);
 
-      final vocabulary = UserVocabularyService();
+      final vocabulary = UserVocabularyService(
+        repository: HiveUserVocabularyRepository(),
+      );
       await vocabulary.init();
       expect(vocabulary.isKnown('flow'), isTrue);
       expect(vocabulary.isKnown('the'), isTrue);
@@ -980,7 +987,9 @@ void main() {
     expect(result.learningCount, 1);
     expect(result.exampleCount, 1);
 
-    final vocabulary = UserVocabularyService();
+    final vocabulary = UserVocabularyService(
+      repository: HiveUserVocabularyRepository(),
+    );
     await vocabulary.init();
     expect(vocabulary.isKnown('already'), isTrue);
     expect(vocabulary.isKnown('mastered'), isTrue);
@@ -993,6 +1002,17 @@ void main() {
       'Learning appears in an imported sentence.',
     );
   });
+}
+
+WordHunterImportService _hiveWordHunterImportService() {
+  return WordHunterImportService(
+    vocabularyService: UserVocabularyService(
+      repository: HiveUserVocabularyRepository(),
+    ),
+    wordContextService: WordContextService(
+      repository: HiveWordContextRepository(),
+    ),
+  );
 }
 
 Map<String, dynamic> _decodeBackupBoxes(File file) {

@@ -37,11 +37,11 @@ abstract class RssFeedService {
 
 class RssService implements RssFeedService {
   RssService({
-    RssRepository? repository,
+    required RssRepository repository,
     RssHttpGet? httpGet,
     DateTime Function()? clock,
     RssFeedDocumentParser parser = const RssFeedDocumentParser(),
-  }) : _repository = repository ?? HiveRssRepository(),
+  }) : _repository = repository,
        _httpGet = httpGet ?? http.get,
        _clock = clock ?? DateTime.now,
        _parser = parser;

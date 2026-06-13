@@ -6,6 +6,8 @@ import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/analysis_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
+import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
+import 'package:flow_read/storage/repositories/word_level_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
@@ -61,13 +63,15 @@ void main() {
   });
 
   test('analysis normalizes plural and tense forms like Word Hunter', () async {
-    final vocab = UserVocabularyService();
+    final vocab = UserVocabularyService(
+      repository: HiveUserVocabularyRepository(),
+    );
     await vocab.init();
     await vocab.setKnown('can');
     await vocab.setKnown('partition');
     await vocab.setLearning('migrate');
 
-    final wordLevels = WordLevelService();
+    final wordLevels = WordLevelService(repository: HiveWordLevelRepository());
     await wordLevels.init();
 
     final result = AnalysisService.analyzeChapter(
@@ -136,13 +140,17 @@ void main() {
   test(
     'analysis canonicalizes common verb inflections via WordLevelService',
     () async {
-      final vocab = UserVocabularyService();
+      final vocab = UserVocabularyService(
+        repository: HiveUserVocabularyRepository(),
+      );
       await vocab.init();
       await vocab.setKnown('look');
       await vocab.setKnown('think');
       await vocab.setLearning('answer');
 
-      final wordLevels = WordLevelService();
+      final wordLevels = WordLevelService(
+        repository: HiveWordLevelRepository(),
+      );
       await wordLevels.init();
 
       final result = AnalysisService.analyzeChapter(
@@ -174,12 +182,16 @@ void main() {
   test(
     'known words are recognized in non-lemma forms (past participle, plural)',
     () async {
-      final vocab = UserVocabularyService();
+      final vocab = UserVocabularyService(
+        repository: HiveUserVocabularyRepository(),
+      );
       await vocab.init();
       await vocab.setKnown('speak');
       await vocab.setKnown('year');
 
-      final wordLevels = WordLevelService();
+      final wordLevels = WordLevelService(
+        repository: HiveWordLevelRepository(),
+      );
       await wordLevels.init();
 
       final result = AnalysisService.analyzeChapter(

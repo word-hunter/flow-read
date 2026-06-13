@@ -28,10 +28,10 @@ class WordHunterException implements Exception {
 
 class WordHunterImportService {
   WordHunterImportService({
-    UserVocabularyService? vocabularyService,
-    WordContextService? wordContextService,
-  }) : _vocabularyService = vocabularyService ?? UserVocabularyService(),
-       _wordContextService = wordContextService ?? WordContextService();
+    required UserVocabularyService vocabularyService,
+    required WordContextService wordContextService,
+  }) : _vocabularyService = vocabularyService,
+       _wordContextService = wordContextService;
 
   final UserVocabularyService _vocabularyService;
   final WordContextService _wordContextService;

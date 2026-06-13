@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/services/character_registry.dart';
+import 'package:flow_read/storage/repositories/character_registry_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
@@ -14,7 +15,9 @@ void main() {
   setUp(() async {
     tempDir = await initHiveTestStorage('flow_read_character_test_');
     await openFlowReadTestBoxes();
-    registry = CharacterRegistry();
+    registry = CharacterRegistry(
+      repository: HiveCharacterRegistryRepository(),
+    );
   });
 
   tearDown(() async {

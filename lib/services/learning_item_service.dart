@@ -3,9 +3,9 @@ import '../storage/repositories/learning_item_repository.dart';
 
 class LearningItemService {
   LearningItemService({
-    LearningItemRepository? repository,
+    required LearningItemRepository repository,
     DateTime Function()? clock,
-  }) : _repository = repository ?? HiveLearningItemRepository(),
+  }) : _repository = repository,
        _clock = clock ?? DateTime.now;
 
   final LearningItemRepository _repository;

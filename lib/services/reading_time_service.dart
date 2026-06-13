@@ -2,10 +2,10 @@ import '../storage/repositories/reading_time_repository.dart';
 
 class ReadingTimeService {
   ReadingTimeService({
-    ReadingTimeRepository? repository,
+    required ReadingTimeRepository repository,
     DateTime Function()? clock,
     int? initialTotalSeconds,
-  }) : _repository = repository ?? HiveReadingTimeRepository(),
+  }) : _repository = repository,
        _clock = clock ?? DateTime.now,
        _totalSeconds = initialTotalSeconds ?? 0;
 

@@ -5,6 +5,7 @@ import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/services/analysis_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
+import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
@@ -37,7 +38,9 @@ void main() {
   test(
     'book difficulty compares new words with total mastered vocabulary',
     () async {
-      final vocab = UserVocabularyService();
+      final vocab = UserVocabularyService(
+        repository: HiveUserVocabularyRepository(),
+      );
       await vocab.init();
 
       for (final word in _knownWords(7000)) {
@@ -64,7 +67,9 @@ void main() {
   );
 
   test('book difficulty changes when user vocabulary changes', () async {
-    final vocab = UserVocabularyService();
+    final vocab = UserVocabularyService(
+      repository: HiveUserVocabularyRepository(),
+    );
     await vocab.init();
 
     final words = _studyWords(120);
@@ -86,7 +91,9 @@ void main() {
   test(
     'learning words count as a lighter reading load than unknown words',
     () async {
-      final vocab = UserVocabularyService();
+      final vocab = UserVocabularyService(
+        repository: HiveUserVocabularyRepository(),
+      );
       await vocab.init();
       for (final word in _knownWords(1000)) {
         await vocab.setKnown(word);

@@ -451,7 +451,9 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     }
 
     try {
-      final dictionarySources = DictionarySourceRegistry();
+      final dictionarySources = DictionarySourceRegistry(
+        cache: ref.read(dictionaryCacheServiceProvider),
+      );
       await dictionarySources.init();
       final tester = DictionarySourceTestService(
         repositories: dictionarySources.repositories(),

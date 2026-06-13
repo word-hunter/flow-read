@@ -15,29 +15,33 @@ import 'settings_provider.dart';
 final backupProvider = ChangeNotifierProvider<BackupService>((ref) {
   final settings = ref.read(settingsProvider);
   final db = appDatabase;
+  if (db == null) {
+    throw StateError(
+      'AppDatabase must be initialized by bootstrapStorage() before reading '
+      'backupProvider.',
+    );
+  }
   final service = BackupService(
     settings,
     database: db,
-    wordHunterImportServiceFactory: db == null
-        ? null
-        : () {
-            final languageCode = settings.activeSourceLanguage;
-            return WordHunterImportService(
-              vocabularyService: UserVocabularyService(
-                repository: DriftUserVocabularyRepository(
-                  db.userVocabularyDao,
-                  languageCode: languageCode,
-                ),
-                languageCode: languageCode,
-              ),
-              wordContextService: WordContextService(
-                repository: DriftWordContextRepository(
-                  db.wordContextDao,
-                  languageCode: languageCode,
-                ),
-              ),
-            );
-          },
+    wordHunterImportServiceFactory: () {
+      final languageCode = settings.activeSourceLanguage;
+      return WordHunterImportService(
+        vocabularyService: UserVocabularyService(
+          repository: DriftUserVocabularyRepository(
+            db.userVocabularyDao,
+            languageCode: languageCode,
+          ),
+          languageCode: languageCode,
+        ),
+        wordContextService: WordContextService(
+          repository: DriftWordContextRepository(
+            db.wordContextDao,
+            languageCode: languageCode,
+          ),
+        ),
+      );
+    },
   );
   unawaited(service.init());
   return service;

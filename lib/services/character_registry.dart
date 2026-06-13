@@ -4,8 +4,8 @@ import 'package:flow_ai/flow_ai.dart';
 import '../storage/repositories/character_registry_repository.dart';
 
 class CharacterRegistry {
-  CharacterRegistry({CharacterRegistryRepository? repository})
-    : _repository = repository ?? HiveCharacterRegistryRepository();
+  CharacterRegistry({required CharacterRegistryRepository repository})
+    : _repository = repository;
 
   final CharacterRegistryRepository _repository;
 

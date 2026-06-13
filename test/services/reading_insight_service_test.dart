@@ -4,6 +4,7 @@ import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/services/learning_analytics_service.dart';
 import 'package:flow_read/services/reading_insight_service.dart';
+import 'package:flow_read/storage/repositories/learning_analytics_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/hive_test_storage.dart';
@@ -20,7 +21,9 @@ void main() {
   setUp(() async {
     tempDir = await initHiveTestStorage('flow_read_insight_test_');
     await openFlowReadTestBoxes();
-    analytics = LearningAnalyticsService();
+    analytics = LearningAnalyticsService(
+      repository: HiveLearningAnalyticsRepository(),
+    );
     await analytics.init();
     service = ReadingInsightService(analytics: analytics);
   });

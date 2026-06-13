@@ -4,8 +4,8 @@ import '../models/word_context_example.dart';
 import '../storage/repositories/word_context_repository.dart';
 
 class WordContextService {
-  WordContextService({WordContextRepository? repository})
-    : _repository = repository ?? HiveWordContextRepository();
+  WordContextService({required WordContextRepository repository})
+    : _repository = repository;
 
   final WordContextRepository _repository;
 

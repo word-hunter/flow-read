@@ -10,10 +10,10 @@ import 'epub_import_source.dart';
 
 class BookService {
   BookService({
-    BookMetadataRepository? repository,
+    required BookMetadataRepository repository,
     Future<Directory> Function()? documentsDirectoryProvider,
     DateTime Function()? clock,
-  }) : _repository = repository ?? HiveBookMetadataRepository(),
+  }) : _repository = repository,
        _documentsDirectoryProvider =
            documentsDirectoryProvider ?? getApplicationDocumentsDirectory,
        _clock = clock ?? DateTime.now;

@@ -25,6 +25,7 @@ import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_context_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/storage/database/dao/settings_dao.dart';
+import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
 import 'package:flow_read/storage/repositories/learning_analytics_repository.dart';
 import 'package:flow_read/storage/repositories/learning_item_repository.dart';
 import 'package:flow_read/storage/repositories/reading_config_repository.dart';
@@ -709,6 +710,8 @@ class _EmptyBookshelfNotifier extends BookshelfNotifier {
 }
 
 class _NoopBookService extends BookService {
+  _NoopBookService() : super(repository: _NoopBookMetadataRepository());
+
   @override
   List<BookMetadata> get books => const [];
 
@@ -721,6 +724,26 @@ class _NoopBookService extends BookService {
   }) async {
     return null;
   }
+}
+
+class _NoopBookMetadataRepository implements BookMetadataRepository {
+  @override
+  Future<void> init() async {}
+
+  @override
+  Iterable<BookMetadata> get values => const [];
+
+  @override
+  BookMetadata? get(String id) => null;
+
+  @override
+  Future<void> put(String id, BookMetadata metadata) async {}
+
+  @override
+  Future<void> delete(String id) async {}
+
+  @override
+  Future<void> close() async {}
 }
 
 class _MemoryWordRepository implements WordRepository {

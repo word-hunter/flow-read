@@ -8,8 +8,8 @@ import 'word_repository.dart';
 import 'wordnet_repository.dart';
 
 class DictionarySourceRegistry {
-  DictionarySourceRegistry({DictionaryCacheService? cache})
-    : _cache = cache ?? DictionaryCacheService();
+  DictionarySourceRegistry({required DictionaryCacheService cache})
+    : _cache = cache;
 
   final DictionaryCacheService _cache;
   late final List<DictionarySourceAdapter> _adapters = List.unmodifiable([
@@ -20,25 +20,26 @@ class DictionarySourceRegistry {
       ),
   ]);
 
-  static final List<_DictionarySourceRegistration> _sources =
-      List.unmodifiable([
-        _DictionarySourceRegistration(
-          type: DictionarySourceType.collins,
-          createRepository: (cache) => CollinsRepository(cache),
-        ),
-        _DictionarySourceRegistration(
-          type: DictionarySourceType.wordNet,
-          createRepository: (_) => WordNetRepository(),
-        ),
-        _DictionarySourceRegistration(
-          type: DictionarySourceType.dictionaryApi,
-          createRepository: (_) => DictionaryRepository(),
-        ),
-        _DictionarySourceRegistration(
-          type: DictionarySourceType.longman,
-          createRepository: (cache) => LongmanRepository(cache),
-        ),
-      ]);
+  static final List<_DictionarySourceRegistration> _sources = List.unmodifiable(
+    [
+      _DictionarySourceRegistration(
+        type: DictionarySourceType.collins,
+        createRepository: (cache) => CollinsRepository(cache),
+      ),
+      _DictionarySourceRegistration(
+        type: DictionarySourceType.wordNet,
+        createRepository: (_) => WordNetRepository(),
+      ),
+      _DictionarySourceRegistration(
+        type: DictionarySourceType.dictionaryApi,
+        createRepository: (_) => DictionaryRepository(),
+      ),
+      _DictionarySourceRegistration(
+        type: DictionarySourceType.longman,
+        createRepository: (cache) => LongmanRepository(cache),
+      ),
+    ],
+  );
 
   static final List<DictionarySourceType> sourceTypes = List.unmodifiable([
     for (final source in _sources) source.type,

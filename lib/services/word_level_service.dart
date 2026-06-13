@@ -8,9 +8,9 @@ typedef WordLevelAssetLoader = Future<String> Function(String assetPath);
 
 class WordLevelService {
   WordLevelService({
-    WordLevelRepository? repository,
+    required WordLevelRepository repository,
     WordLevelAssetLoader? assetLoader,
-  }) : _repository = repository ?? HiveWordLevelRepository(),
+  }) : _repository = repository,
        _assetLoader = assetLoader ?? rootBundle.loadString;
 
   final WordLevelRepository _repository;

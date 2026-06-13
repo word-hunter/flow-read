@@ -21,6 +21,13 @@ import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/services/word_context_service.dart';
 import 'package:flow_read/storage/hive_box_names.dart';
+import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
+import 'package:flow_read/storage/repositories/bookmark_repository.dart';
+import 'package:flow_read/storage/repositories/reading_config_repository.dart';
+import 'package:flow_read/storage/repositories/reading_time_repository.dart';
+import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
+import 'package:flow_read/storage/repositories/word_context_repository.dart';
+import 'package:flow_read/storage/repositories/word_level_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
@@ -39,7 +46,9 @@ void main() {
   });
 
   test('user vocabulary persists normalized word status', () async {
-    final service = UserVocabularyService();
+    final service = UserVocabularyService(
+      repository: HiveUserVocabularyRepository(),
+    );
     await service.init();
     final emptySignature = service.revisionSignature;
 
@@ -69,9 +78,15 @@ void main() {
   test('user vocabulary can read and write isolated language boxes', () async {
     await Hive.openBox<String>(HiveBoxNames.userVocabularyFor('ja'));
 
-    final english = UserVocabularyService(languageCode: 'en');
+    final english = UserVocabularyService(
+      repository: HiveUserVocabularyRepository(languageCode: 'en'),
+      languageCode: 'en',
+    );
     await english.init();
-    final japanese = UserVocabularyService(languageCode: 'ja');
+    final japanese = UserVocabularyService(
+      repository: HiveUserVocabularyRepository(languageCode: 'ja'),
+      languageCode: 'ja',
+    );
     await japanese.init();
 
     await english.setKnown('flow');
@@ -90,7 +105,9 @@ void main() {
     await userVocabularyBox().put('flow', 'known');
     await userVocabularyBox().put('migrating', 'learning');
 
-    final service = UserVocabularyService();
+    final service = UserVocabularyService(
+      repository: HiveUserVocabularyRepository(),
+    );
     await service.init();
 
     expect(service.getStatus('flow'), UserWordStatus.known);
@@ -104,7 +121,9 @@ void main() {
   });
 
   test('reading config persists clamped display settings', () async {
-    final service = ReadingConfigService();
+    final service = ReadingConfigService(
+      repository: HiveReadingConfigRepository(),
+    );
     await service.init();
 
     await service.setFontSize(30);
@@ -112,7 +131,9 @@ void main() {
     await service.setFontFamily(ReaderFonts.literata);
     await service.setTheme('sepia');
 
-    final reloaded = ReadingConfigService();
+    final reloaded = ReadingConfigService(
+      repository: HiveReadingConfigRepository(),
+    );
     await reloaded.init();
 
     expect(reloaded.fontSize, 24);
@@ -122,7 +143,9 @@ void main() {
 
     await reloaded.setFontFamily('Unsupported Font');
 
-    final sanitized = ReadingConfigService();
+    final sanitized = ReadingConfigService(
+      repository: HiveReadingConfigRepository(),
+    );
     await sanitized.init();
 
     expect(sanitized.fontFamily, ReaderFonts.defaultFamily);
@@ -132,7 +155,10 @@ void main() {
     'reading time accumulates global, weekly, book, and chapter seconds',
     () async {
       var now = DateTime.utc(2026, 5, 19, 8);
-      final service = ReadingTimeService(clock: () => now);
+      final service = ReadingTimeService(
+        repository: HiveReadingTimeRepository(),
+        clock: () => now,
+      );
       await service.init();
 
       service.start('book-1', 2);
@@ -150,7 +176,10 @@ void main() {
       expect(service.secondsByDayForMonth(now)[18], 125);
       expect(service.displayText, '2 分钟');
 
-      final reloaded = ReadingTimeService(clock: () => now);
+      final reloaded = ReadingTimeService(
+        repository: HiveReadingTimeRepository(),
+        clock: () => now,
+      );
       await reloaded.init();
 
       expect(reloaded.totalSeconds, 125);
@@ -165,7 +194,9 @@ void main() {
   );
 
   test('word context examples are merged and deduplicated', () async {
-    final service = WordContextService();
+    final service = WordContextService(
+      repository: HiveWordContextRepository(),
+    );
     await service.init();
 
     await service.saveExamples(' Flow ', const [
@@ -183,7 +214,9 @@ void main() {
       ),
     ]);
 
-    final reloaded = WordContextService();
+    final reloaded = WordContextService(
+      repository: HiveWordContextRepository(),
+    );
     await reloaded.init();
     final examples = reloaded.examplesFor('flow');
 
@@ -199,6 +232,7 @@ void main() {
       ).create();
       var now = DateTime.utc(2026, 5, 19, 11);
       final service = BookService(
+        repository: HiveBookMetadataRepository(),
         documentsDirectoryProvider: () async => documentsDir,
         clock: () => now,
       );
@@ -247,6 +281,7 @@ void main() {
       await service.updateProgress('book-1', 1, 0.5, chapterScrollOffset: 420);
 
       final reloaded = BookService(
+        repository: HiveBookMetadataRepository(),
         documentsDirectoryProvider: () async {
           return documentsDir;
         },
@@ -280,6 +315,7 @@ void main() {
     final documentsDir = await Directory('${tempDir.path}/documents').create();
     var documentsDirectoryReads = 0;
     final service = BookService(
+      repository: HiveBookMetadataRepository(),
       documentsDirectoryProvider: () async {
         documentsDirectoryReads += 1;
         return documentsDir;
@@ -317,6 +353,7 @@ void main() {
     await legacyCoverFile.writeAsBytes(legacyCoverBytes);
 
     final service = BookService(
+      repository: HiveBookMetadataRepository(),
       documentsDirectoryProvider: () async => documentsDir,
     );
     await service.init();
@@ -334,7 +371,7 @@ void main() {
   });
 
   test('bookmarks persist word and reading bookmark payloads', () async {
-    final service = BookmarkService();
+    final service = BookmarkService(repository: HiveBookmarkRepository());
     await service.init();
 
     await service.saveWordBookmarks('book-1', [
@@ -357,7 +394,7 @@ void main() {
       ),
     ]);
 
-    final reloaded = BookmarkService();
+    final reloaded = BookmarkService(repository: HiveBookmarkRepository());
     await reloaded.init();
 
     expect(reloaded.loadWordBookmarks('book-1').single.word, 'flow');
@@ -373,7 +410,9 @@ void main() {
   test(
     'dictionary cache persists entries and prunes oldest overflow',
     () async {
-      final cache = DictionaryCacheService();
+      final cache = DictionaryCacheService(
+        repository: HiveDictionaryCacheRepository(),
+      );
       await cache.init();
 
       await cache.set('Collins', 'flow', '<html>flow</html>');
@@ -406,7 +445,7 @@ void main() {
     );
     await settingsBox().put('rss_read_articles', jsonEncode(['article-1']));
 
-    final service = RssService();
+    final service = RssService(repository: HiveRssRepository());
     await service.init();
 
     expect(service.subscriptions.map((s) => s.title), ['Alpha', 'Beta']);
@@ -464,6 +503,7 @@ void main() {
     'word levels import built-in dictionary through storage boundary',
     () async {
       final service = WordLevelService(
+        repository: HiveWordLevelRepository(),
         assetLoader: (_) async => 'flow\tflow\t4\nmigrating\tmigrate\t6\n',
       );
       await service.init();
@@ -480,6 +520,7 @@ void main() {
 
   test('word levels normalize contractions with curly apostrophes', () async {
     final service = WordLevelService(
+      repository: HiveWordLevelRepository(),
       assetLoader: (_) async =>
           'did\tdo\tp\nwas\tbe\tp\nhad\thave\tp\nwould\twould\tm\n'
           'should\tshould\tm\nthey\tthey\tp\nwe\twe\tp\nit\tit\tp\n',
@@ -505,7 +546,7 @@ void main() {
         const WordLevelInfo(word: 'running', originForm: 'run', levelIndex: 5),
       );
 
-      final service = WordLevelService();
+      final service = WordLevelService(repository: HiveWordLevelRepository());
       await service.init();
 
       expect(service.canonicalForm('Running'), 'run');

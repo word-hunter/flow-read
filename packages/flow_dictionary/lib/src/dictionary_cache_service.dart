@@ -7,14 +7,10 @@ String _normalizeLanguageCode(String? code) {
 
 class DictionaryCacheService {
   DictionaryCacheService({
-    DictionaryCacheRepository? repository,
+    required DictionaryCacheRepository repository,
     String? languageCode,
   }) : languageCode = _normalizeLanguageCode(languageCode),
-       _repository =
-           repository ??
-           HiveDictionaryCacheRepository(
-             languageCode: _normalizeLanguageCode(languageCode),
-           );
+       _repository = repository;
 
   final String languageCode;
   final DictionaryCacheRepository _repository;

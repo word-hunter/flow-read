@@ -10,7 +10,12 @@ import '../storage/hive_storage.dart';
 
 final rssFeedServiceProvider = Provider<RssFeedService>((ref) {
   final db = appDatabase;
-  if (db == null) return RssService();
+  if (db == null) {
+    throw StateError(
+      'AppDatabase must be initialized by bootstrapStorage() before reading '
+      'rssFeedServiceProvider.',
+    );
+  }
   return RssService(repository: DriftRssRepository(db.rssDao));
 });
 

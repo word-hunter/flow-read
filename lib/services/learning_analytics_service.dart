@@ -9,9 +9,9 @@ import 'user_vocabulary_service.dart';
 
 class LearningAnalyticsService {
   LearningAnalyticsService({
-    LearningAnalyticsRepository? repository,
+    required LearningAnalyticsRepository repository,
     DateTime Function()? clock,
-  }) : _repository = repository ?? HiveLearningAnalyticsRepository(),
+  }) : _repository = repository,
        _clock = clock ?? DateTime.now;
 
   static const _lookupChapterPrefix = 'lookup.chapter';

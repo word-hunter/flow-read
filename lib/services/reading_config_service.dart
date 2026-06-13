@@ -3,9 +3,9 @@ import '../storage/repositories/reading_config_repository.dart';
 
 class ReadingConfigService {
   ReadingConfigService({
-    ReadingConfigRepository? repository,
+    required ReadingConfigRepository repository,
     bool loadImmediately = false,
-  }) : _repository = repository ?? HiveReadingConfigRepository() {
+  }) : _repository = repository {
     if (loadImmediately) {
       _load();
     }

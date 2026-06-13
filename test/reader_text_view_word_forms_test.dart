@@ -4,6 +4,7 @@ import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
+import 'package:flow_read/storage/repositories/word_level_repository.dart';
 import 'package:flow_read/widgets/reader_text_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -37,7 +38,7 @@ void main() {
         levelIndex: 5,
       ),
     ]);
-    wordLevels = WordLevelService();
+    wordLevels = WordLevelService(repository: HiveWordLevelRepository());
     await wordLevels.init();
   });
 

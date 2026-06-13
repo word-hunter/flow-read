@@ -193,7 +193,7 @@ class BackupService extends ChangeNotifier {
   final SettingsService settings;
   final BackupFolderAccess _folderAccess;
   final Future<Directory> Function() _documentsDirectoryProvider;
-  final WordHunterImportServiceFactory _wordHunterImportServiceFactory;
+  final WordHunterImportServiceFactory? _wordHunterImportServiceFactory;
   final drift.AppDatabase? _database;
 
   Timer? _timer;
@@ -209,8 +209,7 @@ class BackupService extends ChangeNotifier {
   }) : _folderAccess = folderAccess ?? const BackupFolderAccess(),
        _documentsDirectoryProvider =
            documentsDirectoryProvider ?? getApplicationDocumentsDirectory,
-       _wordHunterImportServiceFactory =
-           wordHunterImportServiceFactory ?? WordHunterImportService.new,
+       _wordHunterImportServiceFactory = wordHunterImportServiceFactory,
        _database = database ?? appDatabase;
 
   bool get isSyncing => _isSyncing;
@@ -626,7 +625,7 @@ class BackupService extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
     try {
-      final service = _wordHunterImportServiceFactory();
+      final service = _requireWordHunterImportService();
       return await service.importFile(filePath);
     } catch (e) {
       debugPrint('[BackupService] Word Hunter import failed: $e');
@@ -645,7 +644,7 @@ class BackupService extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
     try {
-      final service = _wordHunterImportServiceFactory();
+      final service = _requireWordHunterImportService();
       return await service.importPayload(payload);
     } catch (e) {
       debugPrint('[BackupService] Word Hunter import failed: $e');
@@ -655,6 +654,14 @@ class BackupService extends ChangeNotifier {
       _isSyncing = false;
       notifyListeners();
     }
+  }
+
+  WordHunterImportService _requireWordHunterImportService() {
+    final factory = _wordHunterImportServiceFactory;
+    if (factory == null) {
+      throw const BackupException('Word Hunter 导入服务未配置');
+    }
+    return factory();
   }
 
   Map<String, dynamic> _buildDataPayload(List<_BackupDataSegment> segments) {

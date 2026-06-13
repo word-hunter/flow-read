@@ -97,7 +97,7 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 |---------|------|
 | `SettingsService` | 全局设置持久化（`ChangeNotifier`，Drift `settings`） |
 | `flow_read_atmosphere` package | City 时间主题、天空/草地氛围背景、resolver 与 inherited scope；由 app shell 注入，不持有持久化 |
-| `BackupService` | 备份/恢复/导入（ZIP 打包）；导出优先从 Drift 组装兼容 `boxes` payload，schema v2 导入优先恢复到 Drift，legacy/无数据库场景回退 Hive；WordHunter 导入通过词汇/上下文 service 写当前仓储后端 |
+| `BackupService` | 备份/恢复/导入（ZIP 打包）；runtime provider 必须注入 `AppDatabase` 并从 Drift 组装兼容 `boxes` payload，schema v2 导入优先恢复到 Drift；无数据库 Hive 路径仅保留给 legacy/test 兼容；WordHunter 导入必须显式注入词汇/上下文 service |
 | `AppLogger` | JSONL 文件日志（脱敏） |
 | `DiagnosticExportService` | 诊断报告 ZIP 导出，统计信息优先从 Drift 读取 |
 | `MacPermissionDiagnostics` | macOS 沙盒权限检查 |
@@ -148,7 +148,7 @@ SettingsService（独立）
 
 BackupService（独立）
 ├── AppDatabase / DAO（导出 Drift 快照；schema v2 恢复）
-├── Hive boxes（legacy 恢复 + 无数据库 fallback）
+├── Hive boxes（legacy/test 兼容恢复路径）
 ├── FileSystem
 └── WordHunterImportService → UserVocabularyService / WordContextService
 ```
