@@ -3,7 +3,7 @@ import 'package:drift/drift.dart';
 import '../../../models/user_vocabulary.dart' as models;
 import '../app_database.dart';
 import '../dao/user_vocabulary_dao.dart';
-import '../../repositories/hive_repository_box.dart';
+import '../../repositories/repository_language.dart';
 import '../../repositories/user_vocabulary_repository.dart';
 
 final class DriftUserVocabularyRepository implements UserVocabularyRepository {
@@ -11,7 +11,7 @@ final class DriftUserVocabularyRepository implements UserVocabularyRepository {
     this._dao, {
     required String languageCode,
     Map<String, models.UserWordStatus> initialValues = const {},
-  }) : _languageCode = activeHiveLanguageCode(languageCode),
+  }) : _languageCode = normalizeRepositoryLanguageCode(languageCode),
        _cache = Map.of(initialValues);
 
   final UserVocabularyDao _dao;

@@ -1,6 +1,6 @@
 # Flow Read Storage Contract
 
-> @source lib/storage/hive_box_names.dart lib/storage/hive_type_ids.dart lib/storage/storage_migrations.dart lib/storage/database/app_database.dart lib/storage/database/tables.dart
+> @source lib/storage/hive_box_names.dart lib/storage/hive_type_ids.dart lib/storage/storage_migrations.dart lib/storage/database/app_database.dart lib/storage/database/bootstrap.dart lib/storage/database/tables.dart
 
 Last updated: 2026-06-13
 
@@ -31,9 +31,10 @@ Drift 数据库文件：`flow_read.db`，位于应用文档目录。WAL 模式�
 | `character_registry` | CharacterRegistryDao | 字符注册 |
 | `settings` | SettingsDao | 应用设置 |
 
-启动时通过 `HiveToDriftMigration` 自动从 Hive 迁移数据。迁移成功后会在 Drift
-`settings` 表写入 legacy 迁移标记，后续启动默认跳过，避免旧 Hive 数据覆盖新的
-Drift 数据。
+启动时 `bootstrapStorage()` 先完成 legacy Hive 初始化和 v1 → v2 box 迁移，再通过
+`bootstrapDatabaseStorage()` 创建 `AppDatabase`、执行 `HiveToDriftMigration` 并加载
+provider 启动快照。迁移成功后会在 Drift `settings` 表写入 legacy 迁移标记，后续
+启动默认跳过，避免旧 Hive 数据覆盖新的 Drift 数据。
 
 ### Legacy Hive → Drift 迁移标记
 
@@ -85,7 +86,7 @@ bootstrapStorage() {
   registerLanguageModules();   // EnglishLanguageModule → LanguageRegistry
   openBoxes();                 // settings + en-boxes × 10 + word_levels + rss_subscriptions + book_glossary
   runMigrations();             // v1 → v2 迁移
-  bootstrapDatabase();         // HiveToDriftMigration（带完成标记）+ reading_config 启动快照
+  bootstrapDatabaseStorage();  // AppDatabase + HiveToDriftMigration + provider 启动快照
 }
 ```
 

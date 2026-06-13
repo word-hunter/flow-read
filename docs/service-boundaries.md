@@ -156,6 +156,6 @@ BackupService（独立）
 
 1. **不要继续塞进 `ReadingProvider`**：新 AI 能力用独立 service/provider/use-case
 2. **抽象接口优先**：词典、发音、语言模块都使用 interface + 多实现
-3. **Repository/DAO 模式**：存储访问通过 `lib/storage/repositories/` 或 Drift DAO 封装，UI/provider 不直接操作底层表或 box
+3. **Repository/DAO 模式**：`lib/storage/repositories/` 只保留业务接口，runtime 实现位于 Drift repository/DAO；UI/provider 不直接操作底层表或 legacy Hive box
 4. **显式 Provider 声明**：在 `lib/providers/` 中声明 Riverpod provider，不引入额外 DI 框架
 5. **LanguageModule 约束**：新增语言只需实现 `LanguageModule` 接口并注册

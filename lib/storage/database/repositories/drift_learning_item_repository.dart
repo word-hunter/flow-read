@@ -5,15 +5,15 @@ import 'package:drift/drift.dart';
 import '../../../models/learning_item.dart' as models;
 import '../app_database.dart';
 import '../dao/learning_item_dao.dart';
-import '../../repositories/hive_repository_box.dart';
 import '../../repositories/learning_item_repository.dart';
+import '../../repositories/repository_language.dart';
 
 final class DriftLearningItemRepository implements LearningItemRepository {
   DriftLearningItemRepository(
     this._dao, {
     required String languageCode,
     Iterable<models.LearningItem> initialValues = const [],
-  }) : _languageCode = activeHiveLanguageCode(languageCode) {
+  }) : _languageCode = normalizeRepositoryLanguageCode(languageCode) {
     for (final item in initialValues) {
       _cache[item.id] = item;
     }

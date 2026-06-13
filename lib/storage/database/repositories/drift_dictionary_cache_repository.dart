@@ -1,7 +1,7 @@
 import 'package:flow_dictionary/flow_dictionary.dart';
 
 import '../dao/dictionary_cache_dao.dart';
-import '../../repositories/hive_repository_box.dart';
+import '../../repositories/repository_language.dart';
 
 final class DriftDictionaryCacheRepository
     implements DictionaryCacheRepository {
@@ -9,7 +9,7 @@ final class DriftDictionaryCacheRepository
     this._dao, {
     required String languageCode,
     Map<String, String> initialValues = const {},
-  }) : _languageCode = activeHiveLanguageCode(languageCode),
+  }) : _languageCode = normalizeRepositoryLanguageCode(languageCode),
        _cache = Map.of(initialValues);
 
   final DictionaryCacheDao _dao;

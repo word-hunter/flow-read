@@ -1,5 +1,5 @@
 import '../dao/word_context_dao.dart';
-import '../../repositories/hive_repository_box.dart';
+import '../../repositories/repository_language.dart';
 import '../../repositories/word_context_repository.dart';
 
 final class DriftWordContextRepository implements WordContextRepository {
@@ -7,7 +7,7 @@ final class DriftWordContextRepository implements WordContextRepository {
     this._dao, {
     required String languageCode,
     Map<String, String> initialValues = const {},
-  }) : _languageCode = activeHiveLanguageCode(languageCode),
+  }) : _languageCode = normalizeRepositoryLanguageCode(languageCode),
        _cache = Map.of(initialValues);
 
   final WordContextDao _dao;

@@ -1,8 +1,4 @@
-import 'package:hive/hive.dart';
-
 import '../../models/book_metadata.dart';
-import '../hive_box_names.dart';
-import 'hive_repository_box.dart';
 
 abstract class BookMetadataRepository {
   Future<void> init();
@@ -11,44 +7,4 @@ abstract class BookMetadataRepository {
   Future<void> put(String id, BookMetadata metadata);
   Future<void> delete(String id);
   Future<void> close();
-}
-
-class HiveBookMetadataRepository implements BookMetadataRepository {
-  HiveBookMetadataRepository({Box<BookMetadata>? box, String? languageCode})
-    : _box = box,
-      _languageCode = activeHiveLanguageCode(languageCode);
-
-  Box<BookMetadata>? _box;
-  final String _languageCode;
-
-  Box<BookMetadata> get _storage {
-    return _box ??
-        requireOpenHiveBox<BookMetadata>(HiveBoxNames.booksFor(_languageCode));
-  }
-
-  @override
-  Future<void> init() async {
-    _box ??= requireOpenHiveBox<BookMetadata>(
-      HiveBoxNames.booksFor(_languageCode),
-    );
-  }
-
-  @override
-  Iterable<BookMetadata> get values => _storage.values;
-
-  @override
-  BookMetadata? get(String id) => _storage.get(id);
-
-  @override
-  Future<void> put(String id, BookMetadata metadata) async {
-    await _storage.put(id, metadata);
-  }
-
-  @override
-  Future<void> delete(String id) async {
-    await _storage.delete(id);
-  }
-
-  @override
-  Future<void> close() async {}
 }

@@ -2,18 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/bookmarked_word.dart';
 import 'package:flow_read/models/reader_font.dart';
 import 'package:flow_read/models/reading_bookmark.dart';
-import 'package:flow_rss/flow_rss.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/models/word_context_example.dart';
 import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/bookmark_service.dart';
-import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/services/epub_import_source.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
@@ -21,17 +20,12 @@ import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/services/word_context_service.dart';
 import 'package:flow_read/storage/hive_box_names.dart';
-import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
-import 'package:flow_read/storage/repositories/bookmark_repository.dart';
-import 'package:flow_read/storage/repositories/reading_config_repository.dart';
-import 'package:flow_read/storage/repositories/reading_time_repository.dart';
-import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
-import 'package:flow_read/storage/repositories/word_context_repository.dart';
-import 'package:flow_read/storage/repositories/word_level_repository.dart';
+import 'package:flow_rss/flow_rss.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
 import 'support/hive_test_storage.dart';
+import 'support/legacy_hive_repositories.dart';
 
 void main() {
   late Directory tempDir;

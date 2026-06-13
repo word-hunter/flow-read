@@ -4,13 +4,13 @@ import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
-import 'package:flow_read/storage/repositories/word_level_repository.dart';
 import 'package:flow_read/widgets/reader_text_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
+import 'support/legacy_hive_repositories.dart';
 
 typedef _TappableTextProbe = ({
   String text,

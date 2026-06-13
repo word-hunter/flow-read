@@ -1,8 +1,4 @@
-import 'package:hive/hive.dart';
-
 import '../../models/learning_item.dart';
-import '../hive_box_names.dart';
-import 'hive_repository_box.dart';
 
 abstract class LearningItemRepository {
   Future<void> init();
@@ -15,62 +11,4 @@ abstract class LearningItemRepository {
   Future<void> deleteAll(Iterable<dynamic> keys);
   Future<void> clear();
   Future<void> close();
-}
-
-class HiveLearningItemRepository implements LearningItemRepository {
-  HiveLearningItemRepository({Box<LearningItem>? box, String? languageCode})
-    : _box = box,
-      _languageCode = activeHiveLanguageCode(languageCode);
-
-  Box<LearningItem>? _box;
-  final String _languageCode;
-
-  Box<LearningItem> get _storage {
-    return _box ??
-        requireOpenHiveBox<LearningItem>(
-          HiveBoxNames.learningItemsFor(_languageCode),
-        );
-  }
-
-  @override
-  Future<void> init() async {
-    _box ??= requireOpenHiveBox<LearningItem>(
-      HiveBoxNames.learningItemsFor(_languageCode),
-    );
-  }
-
-  @override
-  Iterable<LearningItem> get values => _storage.values;
-
-  @override
-  Iterable<dynamic> get keys => _storage.keys;
-
-  @override
-  int get length => _storage.length;
-
-  @override
-  LearningItem? get(dynamic key) => _storage.get(key);
-
-  @override
-  Future<void> put(String id, LearningItem item) async {
-    await _storage.put(id, item);
-  }
-
-  @override
-  Future<void> delete(String id) async {
-    await _storage.delete(id);
-  }
-
-  @override
-  Future<void> deleteAll(Iterable<dynamic> keys) async {
-    await _storage.deleteAll(keys);
-  }
-
-  @override
-  Future<void> clear() async {
-    await _storage.clear();
-  }
-
-  @override
-  Future<void> close() async {}
 }

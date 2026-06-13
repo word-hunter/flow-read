@@ -1,13 +1,13 @@
 import '../dao/reading_config_dao.dart';
-import '../../repositories/hive_repository_box.dart';
 import '../../repositories/reading_config_repository.dart';
+import '../../repositories/repository_language.dart';
 
 final class DriftReadingConfigRepository implements ReadingConfigRepository {
   DriftReadingConfigRepository(
     this._dao, {
     String? languageCode,
     Map<String, String>? initialValues,
-  }) : _languageCode = activeHiveLanguageCode(languageCode),
+  }) : _languageCode = normalizeRepositoryLanguageCode(languageCode),
        _cache = Map<String, String>.of(initialValues ?? const {});
 
   final ReadingConfigDao _dao;

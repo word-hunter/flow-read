@@ -1,6 +1,6 @@
 import '../dao/learning_analytics_dao.dart';
-import '../../repositories/hive_repository_box.dart';
 import '../../repositories/learning_analytics_repository.dart';
+import '../../repositories/repository_language.dart';
 
 final class DriftLearningAnalyticsRepository
     implements LearningAnalyticsRepository {
@@ -8,7 +8,7 @@ final class DriftLearningAnalyticsRepository
     this._dao, {
     required String languageCode,
     Map<String, int> initialValues = const {},
-  }) : _languageCode = activeHiveLanguageCode(languageCode),
+  }) : _languageCode = normalizeRepositoryLanguageCode(languageCode),
        _cache = Map.of(initialValues);
 
   final LearningAnalyticsDao _dao;

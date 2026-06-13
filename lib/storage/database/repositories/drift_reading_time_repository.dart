@@ -1,13 +1,13 @@
 import '../dao/reading_time_dao.dart';
-import '../../repositories/hive_repository_box.dart';
 import '../../repositories/reading_time_repository.dart';
+import '../../repositories/repository_language.dart';
 
 final class DriftReadingTimeRepository implements ReadingTimeRepository {
   DriftReadingTimeRepository(
     this._dao, {
     required String languageCode,
     Map<String, int> initialValues = const {},
-  }) : _languageCode = activeHiveLanguageCode(languageCode),
+  }) : _languageCode = normalizeRepositoryLanguageCode(languageCode),
        _cache = Map.of(initialValues);
 
   final ReadingTimeDao _dao;

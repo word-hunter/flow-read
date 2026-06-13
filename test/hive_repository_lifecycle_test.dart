@@ -1,20 +1,11 @@
 import 'dart:io';
 
 import 'package:flow_read/storage/hive_box_names.dart';
-import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
-import 'package:flow_read/storage/repositories/bookmark_repository.dart';
-import 'package:flow_dictionary/flow_dictionary.dart';
-import 'package:flow_read/storage/repositories/learning_item_repository.dart';
-import 'package:flow_read/storage/repositories/reading_config_repository.dart';
-import 'package:flow_read/storage/repositories/reading_time_repository.dart';
-import 'package:flow_rss/flow_rss.dart';
-import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
-import 'package:flow_read/storage/repositories/word_context_repository.dart';
-import 'package:flow_read/storage/repositories/word_level_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
 import 'support/hive_test_storage.dart';
+import 'support/legacy_hive_repositories.dart';
 
 void main() {
   late Directory tempDir;

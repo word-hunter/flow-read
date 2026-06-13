@@ -1,8 +1,8 @@
 # Flow Read Architecture
 
-> @source lib/main.dart lib/platform/flow_shell_resolver.dart lib/providers/ lib/storage/hive_storage.dart lib/theme/city_theme_tokens.dart lib/widgets/flow/flow_components.dart packages/flow_design_system/lib/theme/flow_theme.dart packages/flow_design_system/lib/palettes/classic.dart
+> @source lib/main.dart lib/platform/flow_shell_resolver.dart lib/providers/ lib/storage/hive_storage.dart lib/storage/database/bootstrap.dart lib/theme/city_theme_tokens.dart lib/widgets/flow/flow_components.dart packages/flow_design_system/lib/theme/flow_theme.dart packages/flow_design_system/lib/palettes/classic.dart
 
-Last updated: 2026-06-10
+Last updated: 2026-06-13
 
 ## 分层架构
 
@@ -38,7 +38,8 @@ Last updated: 2026-06-10
 ```
 main()
   → runZonedGuarded (AppLogger)
-  → bootstrapStorage()           // Hive.init, registerAdapters, openBoxes, runMigrations
+  → bootstrapStorage()           // Hive init/open + legacy box migration
+    → bootstrapDatabaseStorage() // AppDatabase + HiveToDriftMigration + startup snapshots
   → ProviderScope                // Riverpod root
   → FlowReadApp                  // MaterialApp, theme, global shortcuts
   → HomeScreen                  // 首屏：书架 + 侧栏
@@ -50,7 +51,8 @@ main()
 |------|------|------|
 | `main.dart:main()` | `lib/main.dart` | 应用入口，bootstrap + 路由 |
 | `providers/` | `lib/providers/` | Riverpod provider 声明与过渡 facade |
-| `hive_storage.dart:bootstrapStorage()` | `lib/storage/hive_storage.dart` | Hive 初始化 |
+| `hive_storage.dart:bootstrapStorage()` | `lib/storage/hive_storage.dart` | legacy Hive 初始化与启动编排 |
+| `database/bootstrap.dart:bootstrapDatabaseStorage()` | `lib/storage/database/bootstrap.dart` | AppDatabase 创建、legacy 导入、provider 启动快照 |
 | `reading_provider.dart:init()` | `lib/providers/reading_provider.dart` | 恢复上次阅读状态 |
 
 ## 路由结构

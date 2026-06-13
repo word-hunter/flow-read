@@ -1,3 +1,6 @@
+import 'package:flow_language/english/english.dart';
+import 'package:flow_language/flow_language.dart';
+import 'package:flow_rss/flow_rss.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/book_metadata.dart';
@@ -7,81 +10,58 @@ import '../models/learning_item.dart';
 import '../models/reading_bookmark.dart';
 import '../models/reading_config.dart';
 import '../models/user_vocabulary.dart';
-import 'package:flow_rss/flow_rss.dart';
 import '../models/word_level.dart';
-import '../services/app_logger.dart';
-import 'package:flow_language/english/english.dart';
-import 'package:flow_language/flow_language.dart';
 import 'database/app_database.dart';
-import 'database/migration.dart';
-import 'database/repositories/drift_book_repository.dart';
-import 'database/repositories/drift_bookmark_repository.dart';
-import 'database/repositories/drift_learning_item_repository.dart';
+import 'database/bootstrap.dart';
 import 'hive_box_names.dart';
 import 'hive_type_ids.dart';
 import 'storage_migrations.dart';
 
 AppDatabase? _appDatabase;
-String _bootstrappedReadingConfigLanguage = HiveBoxNames.defaultLanguageCode;
-Map<String, String> _bootstrappedReadingConfigValues = const {};
-String _bootstrappedBookMetadataLanguage = HiveBoxNames.defaultLanguageCode;
-List<BookMetadata> _bootstrappedBookMetadataValues = const [];
-String _bootstrappedReadingTimeLanguage = HiveBoxNames.defaultLanguageCode;
-Map<String, int> _bootstrappedReadingTimeValues = const {};
-String _bootstrappedWordContextLanguage = HiveBoxNames.defaultLanguageCode;
-Map<String, String> _bootstrappedWordContextValues = const {};
-String _bootstrappedBookmarkLanguage = HiveBoxNames.defaultLanguageCode;
-Map<String, String> _bootstrappedWordBookmarkValues = const {};
-Map<String, String> _bootstrappedReadingBookmarkValues = const {};
-String _bootstrappedDictionaryCacheLanguage = HiveBoxNames.defaultLanguageCode;
-Map<String, String> _bootstrappedDictionaryCacheValues = const {};
-Map<String, String> _bootstrappedCharacterRegistryValues = const {};
-String _bootstrappedUserVocabularyLanguage = HiveBoxNames.defaultLanguageCode;
-Map<String, UserWordStatus> _bootstrappedUserVocabularyValues = const {};
-String _bootstrappedLearningItemLanguage = HiveBoxNames.defaultLanguageCode;
-List<LearningItem> _bootstrappedLearningItemValues = const [];
-String _bootstrappedLearningAnalyticsLanguage =
-    HiveBoxNames.defaultLanguageCode;
-Map<String, int> _bootstrappedLearningAnalyticsValues = const {};
+DatabaseBootstrapSnapshot _bootstrappedSnapshot =
+    const DatabaseBootstrapSnapshot.empty();
 
 AppDatabase? get appDatabase => _appDatabase;
 String get bootstrappedReadingConfigLanguage =>
-    _bootstrappedReadingConfigLanguage;
+    _bootstrappedSnapshot.readingConfigLanguage;
 Map<String, String> get bootstrappedReadingConfigValues =>
-    Map.unmodifiable(_bootstrappedReadingConfigValues);
+    Map.unmodifiable(_bootstrappedSnapshot.readingConfigValues);
 String get bootstrappedBookMetadataLanguage =>
-    _bootstrappedBookMetadataLanguage;
+    _bootstrappedSnapshot.bookMetadataLanguage;
 List<BookMetadata> get bootstrappedBookMetadataValues =>
-    List.unmodifiable(_bootstrappedBookMetadataValues);
-String get bootstrappedReadingTimeLanguage => _bootstrappedReadingTimeLanguage;
+    List.unmodifiable(_bootstrappedSnapshot.bookMetadataValues);
+String get bootstrappedReadingTimeLanguage =>
+    _bootstrappedSnapshot.readingTimeLanguage;
 Map<String, int> get bootstrappedReadingTimeValues =>
-    Map.unmodifiable(_bootstrappedReadingTimeValues);
-String get bootstrappedWordContextLanguage => _bootstrappedWordContextLanguage;
+    Map.unmodifiable(_bootstrappedSnapshot.readingTimeValues);
+String get bootstrappedWordContextLanguage =>
+    _bootstrappedSnapshot.wordContextLanguage;
 Map<String, String> get bootstrappedWordContextValues =>
-    Map.unmodifiable(_bootstrappedWordContextValues);
-String get bootstrappedBookmarkLanguage => _bootstrappedBookmarkLanguage;
+    Map.unmodifiable(_bootstrappedSnapshot.wordContextValues);
+String get bootstrappedBookmarkLanguage =>
+    _bootstrappedSnapshot.bookmarkLanguage;
 Map<String, String> get bootstrappedWordBookmarkValues =>
-    Map.unmodifiable(_bootstrappedWordBookmarkValues);
+    Map.unmodifiable(_bootstrappedSnapshot.wordBookmarkValues);
 Map<String, String> get bootstrappedReadingBookmarkValues =>
-    Map.unmodifiable(_bootstrappedReadingBookmarkValues);
+    Map.unmodifiable(_bootstrappedSnapshot.readingBookmarkValues);
 String get bootstrappedDictionaryCacheLanguage =>
-    _bootstrappedDictionaryCacheLanguage;
+    _bootstrappedSnapshot.dictionaryCacheLanguage;
 Map<String, String> get bootstrappedDictionaryCacheValues =>
-    Map.unmodifiable(_bootstrappedDictionaryCacheValues);
+    Map.unmodifiable(_bootstrappedSnapshot.dictionaryCacheValues);
 Map<String, String> get bootstrappedCharacterRegistryValues =>
-    Map.unmodifiable(_bootstrappedCharacterRegistryValues);
+    Map.unmodifiable(_bootstrappedSnapshot.characterRegistryValues);
 String get bootstrappedUserVocabularyLanguage =>
-    _bootstrappedUserVocabularyLanguage;
+    _bootstrappedSnapshot.userVocabularyLanguage;
 Map<String, UserWordStatus> get bootstrappedUserVocabularyValues =>
-    Map.unmodifiable(_bootstrappedUserVocabularyValues);
+    Map.unmodifiable(_bootstrappedSnapshot.userVocabularyValues);
 String get bootstrappedLearningItemLanguage =>
-    _bootstrappedLearningItemLanguage;
+    _bootstrappedSnapshot.learningItemLanguage;
 List<LearningItem> get bootstrappedLearningItemValues =>
-    List.unmodifiable(_bootstrappedLearningItemValues);
+    List.unmodifiable(_bootstrappedSnapshot.learningItemValues);
 String get bootstrappedLearningAnalyticsLanguage =>
-    _bootstrappedLearningAnalyticsLanguage;
+    _bootstrappedSnapshot.learningAnalyticsLanguage;
 Map<String, int> get bootstrappedLearningAnalyticsValues =>
-    Map.unmodifiable(_bootstrappedLearningAnalyticsValues);
+    Map.unmodifiable(_bootstrappedSnapshot.learningAnalyticsValues);
 
 Future<void> bootstrapStorage() async {
   await Hive.initFlutter();
@@ -93,163 +73,11 @@ Future<void> bootstrapStorage() async {
 }
 
 Future<void> _bootstrapDatabase() async {
-  AppDatabase? db;
-  var activeLang = HiveBoxNames.defaultLanguageCode;
-  try {
-    db = await AppDatabase.create();
-    _appDatabase = db;
-
-    activeLang = _activeSourceLanguageCode();
-    final migration = HiveToDriftMigration(db);
-    try {
-      final result = await migration.migrateAll(activeLang);
-      AppLogger.instance.event(
-        'database.migration_succeeded',
-        source: 'storage',
-        metadata: {
-          'skipped': result.skipped,
-          'language': result.languageCode,
-          'scannedRows': result.totalScannedRows,
-        },
-      );
-    } catch (error, stackTrace) {
-      AppLogger.instance.event(
-        'database.migration_failed',
-        level: AppLogLevel.warning,
-        source: 'storage',
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-
-    await _cacheBootstrappedBookMetadata(db, activeLang);
-    await _cacheBootstrappedReadingConfig(db, activeLang);
-    await _cacheBootstrappedReadingTime(db, activeLang);
-    await _cacheBootstrappedWordContexts(db, activeLang);
-    await _cacheBootstrappedBookmarks(db, activeLang);
-    await _cacheBootstrappedDictionaryCache(db, activeLang);
-    await _cacheBootstrappedCharacterRegistry(db);
-    await _cacheBootstrappedUserVocabulary(db, activeLang);
-    await _cacheBootstrappedLearningItems(db, activeLang);
-    await _cacheBootstrappedLearningAnalytics(db, activeLang);
-  } catch (error, stackTrace) {
-    AppLogger.instance.event(
-      'database.bootstrap_failed',
-      level: AppLogLevel.warning,
-      source: 'storage',
-      error: error,
-      stackTrace: stackTrace,
-    );
-  }
-}
-
-Future<void> _cacheBootstrappedBookMetadata(
-  AppDatabase db,
-  String languageCode,
-) async {
-  _bootstrappedBookMetadataLanguage = languageCode;
-  final entries = await db.bookDao.allBooks(languageCode);
-  _bootstrappedBookMetadataValues = entries
-      .map(DriftBookRepository.metadataFromEntry)
-      .toList(growable: false);
-}
-
-Future<void> _cacheBootstrappedReadingConfig(
-  AppDatabase db,
-  String languageCode,
-) async {
-  _bootstrappedReadingConfigLanguage = languageCode;
-  _bootstrappedReadingConfigValues = await db.readingConfigDao.allValues(
-    languageCode,
-  );
-}
-
-Future<void> _cacheBootstrappedReadingTime(
-  AppDatabase db,
-  String languageCode,
-) async {
-  _bootstrappedReadingTimeLanguage = languageCode;
-  _bootstrappedReadingTimeValues = await db.readingTimeDao.allValues(
-    languageCode,
-  );
-}
-
-Future<void> _cacheBootstrappedWordContexts(
-  AppDatabase db,
-  String languageCode,
-) async {
-  _bootstrappedWordContextLanguage = languageCode;
-  _bootstrappedWordContextValues = await db.wordContextDao.allValues(
-    languageCode,
-  );
-}
-
-Future<void> _cacheBootstrappedBookmarks(
-  AppDatabase db,
-  String languageCode,
-) async {
-  _bootstrappedBookmarkLanguage = languageCode;
-  final wordRows = await db.bookmarkDao.allWordBookmarksForLanguage(
-    languageCode,
-  );
-  final readingRows = await db.bookmarkDao.allReadingBookmarksForLanguage(
-    languageCode,
-  );
-  _bootstrappedWordBookmarkValues =
-      DriftBookmarkRepository.encodedWordBookmarksByBook(wordRows);
-  _bootstrappedReadingBookmarkValues =
-      DriftBookmarkRepository.encodedReadingBookmarksByBook(readingRows);
-}
-
-Future<void> _cacheBootstrappedDictionaryCache(
-  AppDatabase db,
-  String languageCode,
-) async {
-  _bootstrappedDictionaryCacheLanguage = languageCode;
-  _bootstrappedDictionaryCacheValues = await db.dictionaryCacheDao.allValues(
-    languageCode,
-  );
-}
-
-Future<void> _cacheBootstrappedCharacterRegistry(AppDatabase db) async {
-  _bootstrappedCharacterRegistryValues = await db.characterRegistryDao
-      .allEntries();
-}
-
-Future<void> _cacheBootstrappedUserVocabulary(
-  AppDatabase db,
-  String languageCode,
-) async {
-  _bootstrappedUserVocabularyLanguage = languageCode;
-  final values = await db.userVocabularyDao.allWords(languageCode);
-  _bootstrappedUserVocabularyValues = values.map(
-    (word, status) => MapEntry(
-      word,
-      status == UserWordStatus.learning.name
-          ? UserWordStatus.learning
-          : UserWordStatus.known,
-    ),
-  );
-}
-
-Future<void> _cacheBootstrappedLearningItems(
-  AppDatabase db,
-  String languageCode,
-) async {
-  _bootstrappedLearningItemLanguage = languageCode;
-  final entries = await db.learningItemDao.allForLanguage(languageCode);
-  _bootstrappedLearningItemValues = entries
-      .map(DriftLearningItemRepository.itemFromEntry)
-      .toList(growable: false);
-}
-
-Future<void> _cacheBootstrappedLearningAnalytics(
-  AppDatabase db,
-  String languageCode,
-) async {
-  _bootstrappedLearningAnalyticsLanguage = languageCode;
-  _bootstrappedLearningAnalyticsValues = await db.learningAnalyticsDao
-      .allValues(languageCode);
+  final activeLang = _activeSourceLanguageCode();
+  final result = await bootstrapDatabaseStorage(activeLang);
+  if (result == null) return;
+  _appDatabase = result.database;
+  _bootstrappedSnapshot = result.snapshot;
 }
 
 void registerFlowReadHiveAdapters() {

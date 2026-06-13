@@ -2,11 +2,11 @@ import 'dart:io';
 
 import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/services/character_registry.dart';
-import 'package:flow_read/storage/repositories/character_registry_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 
 import '../support/hive_test_storage.dart';
+import '../support/legacy_hive_repositories.dart';
 
 void main() {
   late Directory tempDir;

@@ -1,9 +1,10 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/reader_font.dart';
 import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/bootstrap.dart';
 import 'package:flow_read/storage/database/migration.dart';
 import 'package:flow_read/storage/hive_box_names.dart';
 import 'package:flow_read/storage/storage_migrations.dart';
@@ -53,6 +54,38 @@ void main() {
       StorageSchema.currentVersion.toString(),
     );
   });
+
+  test(
+    'database bootstrap migrates legacy Hive and loads startup snapshot',
+    () async {
+      await booksBox().put(
+        'book-1',
+        const BookMetadata(
+          id: 'book-1',
+          title: 'Hive Book',
+          author: 'Author',
+          sourcePath: '/tmp/book.epub',
+        ),
+      );
+      await readingConfigBox().put('fontSize', '20');
+
+      final result = await bootstrapDatabaseStorage(
+        'en',
+        databaseFactory: createTestAppDatabase,
+      );
+
+      expect(result, isNotNull);
+      final bootstrap = result!;
+      expect(bootstrap.snapshot.bookMetadataValues.single.title, 'Hive Book');
+      expect(bootstrap.snapshot.readingConfigValues['fontSize'], '20');
+      expect(
+        await bootstrap.database.settingsDao.valueFor(
+          HiveToDriftMigration.completedAtKey,
+        ),
+        isNotEmpty,
+      );
+    },
+  );
 
   test(
     'does not overwrite Drift reading config with stale Hive values',

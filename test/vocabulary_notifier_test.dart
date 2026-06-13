@@ -12,13 +12,11 @@ import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/providers/settings_provider.dart';
-import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
-import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
-import 'package:flow_read/storage/repositories/word_level_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
+import 'support/legacy_hive_repositories.dart';
 
 void main() {
   late Directory tempDir;

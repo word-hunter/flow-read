@@ -5,7 +5,7 @@ import 'package:drift/drift.dart';
 import '../app_database.dart';
 import '../dao/bookmark_dao.dart';
 import '../../repositories/bookmark_repository.dart';
-import '../../repositories/hive_repository_box.dart';
+import '../../repositories/repository_language.dart';
 
 final class DriftBookmarkRepository implements BookmarkRepository {
   DriftBookmarkRepository(
@@ -13,7 +13,7 @@ final class DriftBookmarkRepository implements BookmarkRepository {
     required String languageCode,
     Map<String, String> initialWordBookmarks = const {},
     Map<String, String> initialReadingBookmarks = const {},
-  }) : _languageCode = activeHiveLanguageCode(languageCode),
+  }) : _languageCode = normalizeRepositoryLanguageCode(languageCode),
        _wordCache = Map.of(initialWordBookmarks),
        _readingCache = Map.of(initialReadingBookmarks);
 

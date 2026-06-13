@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/services/learning_item_service.dart';
 import 'package:flow_read/services/review_schedule_service.dart';
-import 'package:flow_read/storage/repositories/learning_item_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
+import 'support/legacy_hive_repositories.dart';
 
 void main() {
   late Directory tempDir;

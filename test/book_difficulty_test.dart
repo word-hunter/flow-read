@@ -5,10 +5,10 @@ import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/services/analysis_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
-import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
+import 'support/legacy_hive_repositories.dart';
 
 void main() {
   late Directory tempDir;
