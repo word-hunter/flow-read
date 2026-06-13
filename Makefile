@@ -1,7 +1,13 @@
-.PHONY: run bench bench-open bench-all bench-lock bench-reset bench-trend package-local
+.PHONY: run ai-debug ai-debug-viewer bench bench-open bench-all bench-lock bench-reset bench-trend package-local
 
 run:
 	@fvm dart run tool/run_app.dart $(ARGS)
+
+ai-debug:
+	@fvm dart run tool/run_app.dart --dart-define=FLOW_AI_DEBUG_TRACE=true $(ARGS)
+
+ai-debug-viewer:
+	@open tool/ai_debug_viewer/index.html
 
 bench:
 	@dart run tool/benchmark.dart run

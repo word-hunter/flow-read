@@ -22,11 +22,19 @@ class AIService {
   Future<String> executePrompt(
     PromptBuildResult prompt, {
     bool jsonMode = false,
+    Map<String, Object?> debugMetadata = const {},
   }) {
     return _client.chat(
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: jsonMode,
+      debugMetadata: {
+        'promptVersion': prompt.promptVersion,
+        'sourceLanguage': prompt.sourceLanguage.code,
+        'outputLanguage': prompt.outputLanguage.code,
+        'spoilerBoundary': _spoilerBoundaryTrace(prompt.spoilerBoundary),
+        ...debugMetadata,
+      },
     );
   }
 
@@ -53,6 +61,7 @@ class AIService {
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: true,
+      debugMetadata: _promptTraceMetadata('text_analysis', prompt),
     );
 
     final result = _parseJsonOrFallback(
@@ -84,6 +93,7 @@ class AIService {
     final response = await _client.chat(
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
+      debugMetadata: _promptTraceMetadata('translation', prompt),
     );
 
     return response.trim();
@@ -115,6 +125,7 @@ class AIService {
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: true,
+      debugMetadata: _promptTraceMetadata('chapter_summary', prompt),
     )) {
       buffer.write(chunk);
     }
@@ -155,6 +166,7 @@ class AIService {
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: true,
+      debugMetadata: _promptTraceMetadata('chapter_preview', prompt),
     );
 
     return _parseJsonOrFallback(
@@ -197,6 +209,7 @@ class AIService {
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: true,
+      debugMetadata: _promptTraceMetadata('practice', prompt),
     )) {
       buffer.write(chunk);
     }
@@ -236,6 +249,7 @@ class AIService {
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: true,
+      debugMetadata: _promptTraceMetadata('word_analysis', prompt),
     );
 
     return _parseJsonOrFallback(
@@ -318,6 +332,30 @@ class AIService {
         'originalTextLength': originalText.length,
       },
     );
+  }
+
+  Map<String, Object?> _promptTraceMetadata(
+    String task,
+    PromptBuildResult prompt,
+  ) {
+    return {
+      'task': task,
+      'promptVersion': prompt.promptVersion,
+      'sourceLanguage': prompt.sourceLanguage.code,
+      'outputLanguage': prompt.outputLanguage.code,
+      'spoilerBoundary': _spoilerBoundaryTrace(prompt.spoilerBoundary),
+    };
+  }
+
+  Map<String, Object?> _spoilerBoundaryTrace(SpoilerBoundary boundary) {
+    return {
+      'bookId': boundary.bookId,
+      'currentUnitId': boundary.currentUnitId,
+      'maxReadUnitOrder': boundary.maxReadUnitOrder,
+      'unitType': boundary.unitType,
+      'scope': boundary.scope.promptValue,
+      'allowedUnits': boundary.allowedUnits,
+    };
   }
 
   T _parseJsonOrFallback<T>(

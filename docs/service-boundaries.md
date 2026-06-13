@@ -50,6 +50,7 @@ DictionaryManagerService.lookup(word, languageCode)
 | `PromptBuilder` | 构建 typed system/user prompt，注入 spoiler boundary、language、learningFocus |
 | `AICacheService` | 基于文件的 AI 响应缓存，key 含 contentHash/promptVersion/sourceLanguage/outputLanguage |
 | `CharacterRegistry` | 角色规范名、别名和用户覆盖管理（Drift `character_registry`） |
+| `AIDebugTraceRecorder` | 开发期 AI 请求/缓存 trace JSONL 输出，受 `FLOW_AI_DEBUG_TRACE` 控制 |
 | `ChapterAIJob` | 章节级 AI 任务编排（summary/practice），优先读缓存 |
 | `ReadingAssistantAgent` | RSS/EPUB/浏览器 AI 辅助 |
 

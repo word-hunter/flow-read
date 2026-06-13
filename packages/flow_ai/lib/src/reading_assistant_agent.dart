@@ -88,6 +88,13 @@ class ReadingAssistantAgent {
     return _client.chat(
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
+      debugMetadata: {
+        'task': 'article_summary',
+        'surface': context.surfaceLabel,
+        'promptVersion': prompt.promptVersion,
+        'sourceLanguage': prompt.sourceLanguage.code,
+        'outputLanguage': prompt.outputLanguage.code,
+      },
     );
   }
 
@@ -110,6 +117,13 @@ class ReadingAssistantAgent {
     return _client.chat(
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
+      debugMetadata: {
+        'task': 'article_answer',
+        'surface': context.surfaceLabel,
+        'promptVersion': prompt.promptVersion,
+        'sourceLanguage': prompt.sourceLanguage.code,
+        'outputLanguage': prompt.outputLanguage.code,
+      },
     );
   }
 }

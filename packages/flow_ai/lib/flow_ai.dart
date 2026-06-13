@@ -1,5 +1,6 @@
 // Services
 export 'src/ai_provider_config.dart';
+export 'src/ai_debug_trace_recorder.dart';
 export 'src/llm_client.dart';
 export 'src/prompt_builder.dart';
 export 'src/ai_service.dart';

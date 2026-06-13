@@ -79,4 +79,73 @@ void main() {
       throwsA(isA<AIClientException>()),
     );
   });
+
+  test(
+    'chat writes AI debug trace with full prompt and redacted key',
+    () async {
+      await settings.setAIProvider('openai_compatible');
+      await settings.setAIBaseUrl('https://llm.example.com/v1/');
+      await settings.setAIModel('reader-model');
+      await settings.setApiKey('sk-secret-token-value');
+
+      final traceDir = Directory('${tempDir.path}/ai_debug');
+      final recorder = AIDebugTraceRecorder(
+        enabled: true,
+        directoryProvider: () async => traceDir,
+        clock: () => DateTime(2026, 6, 13, 9, 30),
+      );
+      final client = LLMClient(
+        () => settings.aiProviderConfig,
+        debugRecorder: recorder,
+        httpClient: MockClient((request) async {
+          return http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {'content': '完整响应'},
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }),
+      );
+
+      final response = await client.chat(
+        systemPrompt: 'system prompt',
+        userPrompt: 'user prompt',
+        jsonMode: true,
+        debugMetadata: {'action': 'explain'},
+      );
+      await recorder.drain();
+
+      expect(response, '完整响应');
+      final traceFile = File(
+        '${traceDir.path}/flow_read_ai_trace-2026-06-13.jsonl',
+      );
+      final entry =
+          jsonDecode((await traceFile.readAsLines()).single)
+              as Map<String, dynamic>;
+      final request = entry['request'] as Map<String, dynamic>;
+      final requestHeaders = request['headers'] as Map<String, dynamic>;
+      final requestBody = request['body'] as Map<String, dynamic>;
+      final responseTrace = entry['response'] as Map<String, dynamic>;
+      final metadata = entry['metadata'] as Map<String, dynamic>;
+
+      expect(entry['event'], 'http_interaction');
+      expect(entry['operation'], 'chat');
+      expect(entry['statusCode'], 200);
+      expect(requestHeaders['Authorization'], '<redacted>');
+      expect(jsonEncode(entry), isNot(contains('sk-secret-token-value')));
+      expect(requestBody['model'], 'reader-model');
+      expect(requestBody['messages'], [
+        {'role': 'system', 'content': 'system prompt'},
+        {'role': 'user', 'content': 'user prompt'},
+      ]);
+      expect(responseTrace['body'], contains('完整响应'));
+      expect(metadata['action'], 'explain');
+      expect(metadata['providerId'], 'openai_compatible');
+    },
+  );
 }

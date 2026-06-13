@@ -70,11 +70,18 @@ void main() {
         count += 1;
         return _chatResponse('译文-$count');
       });
+      final traceDir = Directory('${tempDir.path}/ai_debug');
+      final recorder = AIDebugTraceRecorder(
+        enabled: true,
+        directoryProvider: () async => traceDir,
+        clock: () => DateTime(2026, 6, 13, 9, 45),
+      );
       final controller = AIActionController(
         aiService: service,
         cacheService: AICacheService(
           documentsDirectoryProvider: () async => tempDir,
         ),
+        debugRecorder: recorder,
       );
       addTearDown(controller.dispose);
 
@@ -85,6 +92,16 @@ void main() {
       await controller.enqueue(_prompt(), AIAssistantActionType.translate);
       expect(count, 1);
       expect((controller.lastResult as AITranslateResult).translation, '译文-1');
+      await recorder.drain();
+      final traceFile = File(
+        '${traceDir.path}/flow_read_ai_trace-2026-06-13.jsonl',
+      );
+      final entry =
+          jsonDecode((await traceFile.readAsLines()).single)
+              as Map<String, dynamic>;
+      expect(entry['event'], 'cache_hit');
+      expect(entry['action'], 'translate');
+      expect(entry['response'], '译文-1');
 
       await controller.retry();
       expect(count, 2);

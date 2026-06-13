@@ -13,6 +13,7 @@ import 'models/ai_text_analysis.dart';
 import 'models/paragraph_insight.dart';
 import 'models/reading_insight_profile.dart';
 import 'models/word_analysis.dart';
+import 'ai_debug_trace_recorder.dart';
 import 'ai_assistant_action_registry.dart';
 import 'ai_cache_service.dart';
 import 'ai_service.dart';
@@ -336,10 +337,12 @@ class AIActionController extends ChangeNotifier {
   AIActionController({
     required this.aiService,
     this.cacheService,
-  });
+    AIDebugTraceRecorder? debugRecorder,
+  }) : _debugRecorder = debugRecorder ?? AIDebugTraceRecorder.instance;
 
   final AIService aiService;
   final AICacheService? cacheService;
+  final AIDebugTraceRecorder _debugRecorder;
 
   bool _isBusy = false;
   AIAssistantActionType? _currentAction;
@@ -370,6 +373,15 @@ class AIActionController extends ChangeNotifier {
       final cached = await _loadCachedResponse(cacheKey);
       if (generation != _generation) return;
       if (cached != null) {
+        _debugRecorder.recordCacheHit(
+          action: action.name,
+          cacheKey: cacheKey.toTrace(),
+          prompt: _promptTrace(prompt),
+          response: cached,
+          metadata: {
+            'source': 'AIActionController',
+          },
+        );
         _streamController?.add(cached);
         _lastResult = _resultFor(action, cached);
         _isBusy = false;
@@ -387,6 +399,11 @@ class AIActionController extends ChangeNotifier {
       final raw = await aiService.executePrompt(
         prompt,
         jsonMode: _prefersJsonMode(action),
+        debugMetadata: {
+          'action': action.name,
+          'cacheKey': cacheKey.toTrace(),
+          'cacheBypassed': bypassCache,
+        },
       );
       if (generation != _generation) return;
       _streamController?.add(raw);
@@ -501,6 +518,24 @@ class AIActionController extends ChangeNotifier {
     return content.trim();
   }
 
+  Map<String, Object?> _promptTrace(PromptBuildResult prompt) {
+    return {
+      'systemPrompt': prompt.systemPrompt,
+      'userPrompt': prompt.userPrompt,
+      'promptVersion': prompt.promptVersion,
+      'sourceLanguage': prompt.sourceLanguage.code,
+      'outputLanguage': prompt.outputLanguage.code,
+      'spoilerBoundary': {
+        'bookId': prompt.spoilerBoundary.bookId,
+        'currentUnitId': prompt.spoilerBoundary.currentUnitId,
+        'maxReadUnitOrder': prompt.spoilerBoundary.maxReadUnitOrder,
+        'unitType': prompt.spoilerBoundary.unitType,
+        'scope': prompt.spoilerBoundary.scope.promptValue,
+        'allowedUnits': prompt.spoilerBoundary.allowedUnits,
+      },
+    };
+  }
+
   _AssistantActionCacheKey _cacheKeyFor(
     PromptBuildResult prompt,
     AIAssistantActionType action,
@@ -593,4 +628,17 @@ class _AssistantActionCacheKey {
   final String sourceLanguage;
   final String outputLanguage;
   final String modelConfigFingerprint;
+
+  Map<String, Object?> toTrace() {
+    return {
+      'kind': kind,
+      'bookId': bookId,
+      'chapterIndex': chapterIndex,
+      'contentHash': contentHash,
+      'promptVersion': promptVersion,
+      'sourceLanguage': sourceLanguage,
+      'outputLanguage': outputLanguage,
+      'modelConfigFingerprint': modelConfigFingerprint,
+    };
+  }
 }

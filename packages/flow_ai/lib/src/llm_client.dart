@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:http/http.dart' as http;
 
+import 'ai_debug_trace_recorder.dart';
 import 'ai_provider_config.dart';
 
 enum AIClientErrorType {
@@ -28,9 +29,14 @@ class AIClientException implements Exception {
 class LLMClient {
   final AIProviderConfig Function() _configProvider;
   final http.Client _httpClient;
+  final AIDebugTraceRecorder _debugRecorder;
 
-  LLMClient(this._configProvider, {http.Client? httpClient})
-    : _httpClient = httpClient ?? http.Client();
+  LLMClient(
+    this._configProvider, {
+    http.Client? httpClient,
+    AIDebugTraceRecorder? debugRecorder,
+  }) : _httpClient = httpClient ?? http.Client(),
+       _debugRecorder = debugRecorder ?? AIDebugTraceRecorder.instance;
 
   String get modelConfigFingerprint {
     final config = _configProvider();
@@ -45,30 +51,66 @@ class LLMClient {
     String? apiKey,
     AIProviderConfig? config,
   }) async {
+    final stopwatch = Stopwatch()..start();
+    AIProviderConfig? resolved;
+    http.Response? response;
     try {
-      final resolved = (config ?? _configProvider()).copyWith(
+      resolved = (config ?? _configProvider()).copyWith(
         apiKey: apiKey,
       );
       final uri = _chatCompletionsUri(resolved);
-      final response = await _httpClient
+      final body = {
+        'model': resolved.model,
+        'messages': [
+          {'role': 'user', 'content': 'ping'},
+        ],
+        'max_tokens': 5,
+        'temperature': 0.0,
+      };
+      final headers = {
+        'Authorization': 'Bearer ${resolved.apiKey}',
+        'Content-Type': 'application/json',
+      };
+      response = await _httpClient
           .post(
             uri,
-            headers: {
-              'Authorization': 'Bearer ${resolved.apiKey}',
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({
-              'model': resolved.model,
-              'messages': [
-                {'role': 'user', 'content': 'ping'},
-              ],
-              'max_tokens': 5,
-              'temperature': 0.0,
-            }),
+            headers: headers,
+            body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 10));
+      _recordHttpTrace(
+        operation: 'testConnection',
+        config: resolved,
+        uri: uri,
+        headers: headers,
+        body: body,
+        response: response,
+        stopwatch: stopwatch,
+      );
       return response.statusCode == 200;
-    } catch (_) {
+    } catch (error) {
+      if (resolved != null) {
+        _recordHttpTrace(
+          operation: 'testConnection',
+          config: resolved,
+          uri: _chatCompletionsUri(resolved),
+          headers: {
+            'Authorization': 'Bearer ${resolved.apiKey}',
+            'Content-Type': 'application/json',
+          },
+          body: {
+            'model': resolved.model,
+            'messages': [
+              {'role': 'user', 'content': 'ping'},
+            ],
+            'max_tokens': 5,
+            'temperature': 0.0,
+          },
+          response: response,
+          stopwatch: stopwatch,
+          error: error,
+        );
+      }
       return false;
     }
   }
@@ -77,6 +119,7 @@ class LLMClient {
     required String systemPrompt,
     required String userPrompt,
     bool jsonMode = false,
+    Map<String, Object?> debugMetadata = const {},
   }) async {
     final config = _configProvider();
     _ensureApiKey(config);
@@ -87,13 +130,21 @@ class LLMClient {
       userPrompt,
       jsonMode: jsonMode,
     );
-    return _retryRequest(() => _doChat(body, config));
+    return _retryRequest(
+      (attempt) => _doChat(
+        body,
+        config,
+        attempt: attempt,
+        debugMetadata: debugMetadata,
+      ),
+    );
   }
 
   Stream<String> streamChat({
     required String systemPrompt,
     required String userPrompt,
     bool jsonMode = false,
+    Map<String, Object?> debugMetadata = const {},
   }) async* {
     final config = _configProvider();
     _ensureApiKey(config);
@@ -111,14 +162,49 @@ class LLMClient {
     request.headers['Content-Type'] = 'application/json';
     request.body = jsonEncode(body);
 
-    final response = await _httpClient.send(request);
-    await _validateNonStream(response);
+    final stopwatch = Stopwatch()..start();
+    http.StreamedResponse? response;
+    final buffer = StringBuffer();
+    try {
+      response = await _httpClient.send(request);
+      await _validateNonStream(response);
 
-    await for (final chunk
-        in response.stream
-            .transform(utf8.decoder)
-            .transform(const LineSplitter())) {
-      yield* _processStreamChunk(chunk);
+      await for (final chunk
+          in response.stream
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())) {
+        await for (final content in _processStreamChunk(chunk)) {
+          buffer.write(content);
+          yield content;
+        }
+      }
+      _recordHttpTrace(
+        operation: 'streamChat',
+        config: config,
+        uri: uri,
+        headers: request.headers,
+        body: body,
+        streamedResponse: response,
+        responseBody: buffer.toString(),
+        stopwatch: stopwatch,
+        stream: true,
+        debugMetadata: debugMetadata,
+      );
+    } catch (error) {
+      _recordHttpTrace(
+        operation: 'streamChat',
+        config: config,
+        uri: uri,
+        headers: request.headers,
+        body: body,
+        streamedResponse: response,
+        responseBody: buffer.toString(),
+        stopwatch: stopwatch,
+        stream: true,
+        debugMetadata: debugMetadata,
+        error: error,
+      );
+      rethrow;
     }
   }
 
@@ -174,29 +260,68 @@ class LLMClient {
 
   Future<String> _doChat(
     Map<String, dynamic> body,
-    AIProviderConfig config,
-  ) async {
+    AIProviderConfig config, {
+    required int attempt,
+    Map<String, Object?> debugMetadata = const {},
+  }) async {
     final uri = _chatCompletionsUri(config);
-    final response = await _httpClient
-        .post(
-          uri,
-          headers: {
-            'Authorization': 'Bearer ${config.apiKey}',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode(body),
-        )
-        .timeout(const Duration(seconds: 120));
-    return _handleResponse(response);
+    final headers = {
+      'Authorization': 'Bearer ${config.apiKey}',
+      'Content-Type': 'application/json',
+    };
+    final stopwatch = Stopwatch()..start();
+    http.Response? response;
+    try {
+      response = await _httpClient
+          .post(
+            uri,
+            headers: headers,
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 120));
+      final content = _handleResponse(response);
+      _recordHttpTrace(
+        operation: 'chat',
+        config: config,
+        uri: uri,
+        headers: headers,
+        body: body,
+        response: response,
+        stopwatch: stopwatch,
+        debugMetadata: {
+          ...debugMetadata,
+          'attempt': attempt,
+        },
+      );
+      return content;
+    } catch (error) {
+      _recordHttpTrace(
+        operation: 'chat',
+        config: config,
+        uri: uri,
+        headers: headers,
+        body: body,
+        response: response,
+        stopwatch: stopwatch,
+        debugMetadata: {
+          ...debugMetadata,
+          'attempt': attempt,
+        },
+        error: error,
+      );
+      rethrow;
+    }
   }
 
-  Future<String> _retryRequest(Future<String> Function() request) async {
+  Future<String> _retryRequest(
+    Future<String> Function(int attempt) request,
+  ) async {
     var attempts = 0;
     const maxRetries = 3;
 
     while (true) {
       try {
-        return await request();
+        return await request(attempts + 1);
       } on AIClientException catch (e) {
         if (e.type == AIClientErrorType.rateLimited && attempts < maxRetries) {
           attempts++;
@@ -207,6 +332,45 @@ class LLMClient {
         rethrow;
       }
     }
+  }
+
+  void _recordHttpTrace({
+    required String operation,
+    required AIProviderConfig config,
+    required Uri uri,
+    required Map<String, String> headers,
+    required Object? body,
+    http.Response? response,
+    http.StreamedResponse? streamedResponse,
+    Object? responseBody,
+    required Stopwatch stopwatch,
+    bool stream = false,
+    Map<String, Object?> debugMetadata = const {},
+    Object? error,
+  }) {
+    if (!_debugRecorder.enabled) return;
+    stopwatch.stop();
+    _debugRecorder.recordHttpInteraction(
+      operation: operation,
+      method: 'POST',
+      url: uri,
+      requestHeaders: headers,
+      requestBody: body,
+      responseHeaders:
+          response?.headers ?? streamedResponse?.headers ?? const {},
+      responseBody: responseBody ?? response?.body,
+      statusCode: response?.statusCode ?? streamedResponse?.statusCode,
+      durationMs: stopwatch.elapsedMilliseconds,
+      stream: stream,
+      metadata: {
+        'providerId': config.definition.id,
+        'providerLabel': config.definition.label,
+        'model': config.model,
+        'baseUrl': config.normalizedBaseUrl,
+        ...debugMetadata,
+      },
+      error: error,
+    );
   }
 
   String _handleResponse(http.Response response) {

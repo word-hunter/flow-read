@@ -10,7 +10,7 @@ Future<void> main(List<String> args) async {
   if (config.source != 'default') {
     flutterArgs.add('--dart-define=${FlowReadEnv.flowV2Key}=${config.enabled}');
   }
-  flutterArgs.addAll(args);
+  flutterArgs.addAll(_withDefaultDevice(args));
 
   stdout.writeln(
     '[FlowRead] launching with ${FlowReadEnv.flowV2Key}=${config.enabled}'
@@ -26,6 +26,26 @@ Future<void> main(List<String> args) async {
   if (exitCode != 0) {
     exit(exitCode);
   }
+}
+
+List<String> _withDefaultDevice(List<String> args) {
+  if (!Platform.isMacOS || _hasDeviceSelector(args) || _isHelpCommand(args)) {
+    return args;
+  }
+  return [...args, '-d', 'macos'];
+}
+
+bool _hasDeviceSelector(List<String> args) {
+  for (final arg in args) {
+    if (arg == '-d' || arg == '--device-id') return true;
+    if (arg.startsWith('-d') && arg.length > 2) return true;
+    if (arg.startsWith('--device-id=')) return true;
+  }
+  return false;
+}
+
+bool _isHelpCommand(List<String> args) {
+  return args.contains('-h') || args.contains('--help');
 }
 
 Future<_FlutterCommand> _resolveFlutterCommand() async {

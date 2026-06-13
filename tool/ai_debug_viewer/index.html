@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow Read AI Debug Viewer</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-muted: #f0f3f7;
+  --border: #d9e0e8;
+  --text: #1f2933;
+  --muted: #667788;
+  --primary: #1769aa;
+  --primary-strong: #0f4f86;
+  --success: #15835b;
+  --warning: #9a6500;
+  --error: #b3261e;
+  --code-bg: #111827;
+  --code-text: #e5edf5;
+  --shadow: 0 14px 34px rgba(31, 41, 51, 0.08);
+}
+[data-theme="dark"] {
+  --bg: #11161d;
+  --surface: #18212b;
+  --surface-muted: #202b36;
+  --border: #303e4c;
+  --text: #e6edf3;
+  --muted: #9fb0c0;
+  --primary: #6bb6ff;
+  --primary-strong: #9bd0ff;
+  --success: #63d69a;
+  --warning: #f0c36a;
+  --error: #ff918b;
+  --code-bg: #0b1017;
+  --code-text: #e6edf3;
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+}
+html, body { margin: 0; min-height: 100vh; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+button, input, select { font: inherit; letter-spacing: 0; }
+header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+h1 { margin: 0; font-size: 18px; font-weight: 650; }
+.subtitle { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.header-actions, .controls, .button-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.btn {
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--primary); color: var(--primary-strong); }
+.btn.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+.btn.primary:hover { background: var(--primary-strong); color: white; }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+main { padding: 18px 20px 24px; }
+.drop-zone {
+  display: grid;
+  place-items: center;
+  min-height: 280px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: center;
+  padding: 32px;
+}
+.drop-zone.drag-over { border-color: var(--primary); background: var(--surface-muted); }
+.drop-zone strong { display: block; font-size: 18px; margin-bottom: 8px; }
+.drop-zone span { display: block; color: var(--muted); }
+.toolbar {
+  display: none;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.toolbar.active { display: flex; }
+.controls input, .controls select {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 6px 10px;
+}
+.controls input { width: min(380px, 44vw); }
+.stats {
+  display: none;
+  grid-template-columns: repeat(5, minmax(110px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.stats.active { display: grid; }
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.stat b { display: block; font-size: 22px; margin-bottom: 2px; }
+.stat span { color: var(--muted); font-size: 12px; }
+.workspace {
+  display: none;
+  grid-template-columns: minmax(520px, 1fr) minmax(420px, 0.85fr);
+  gap: 14px;
+  align-items: start;
+}
+.workspace.active { display: grid; }
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.table-wrap { overflow: auto; max-height: calc(100vh - 245px); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-muted);
+  font-weight: 650;
+  color: var(--muted);
+  z-index: 1;
+}
+td { white-space: nowrap; }
+tbody tr { cursor: pointer; }
+tbody tr:hover, tbody tr.selected { background: var(--surface-muted); }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 650;
+  background: var(--surface-muted);
+  color: var(--muted);
+}
+.badge.success { color: var(--success); }
+.badge.error { color: var(--error); }
+.badge.warning { color: var(--warning); }
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+.muted { color: var(--muted); }
+.detail-header {
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.detail-title h2 { margin: 0; font-size: 16px; }
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.meta {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px;
+  background: var(--surface-muted);
+  min-width: 0;
+}
+.meta span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 3px;
+}
+.meta b {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.detail-body { max-height: calc(100vh - 210px); overflow: auto; padding: 14px; }
+details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: var(--surface);
+}
+summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  font-weight: 650;
+}
+pre {
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  max-height: 360px;
+  background: var(--code-bg);
+  color: var(--code-text);
+  border-top: 1px solid var(--border);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.empty-detail {
+  padding: 36px 18px;
+  color: var(--muted);
+  text-align: center;
+}
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  max-width: min(420px, calc(100vw - 36px));
+  padding: 11px 14px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 160ms ease, transform 160ms ease;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+@media (max-width: 980px) {
+  header, .toolbar { align-items: flex-start; }
+  .toolbar { flex-direction: column; }
+  .controls input { width: 100%; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workspace { grid-template-columns: 1fr; }
+  .table-wrap, .detail-body { max-height: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Flow Read AI Debug Viewer</h1>
+    <div class="subtitle">读取 FLOW_AI_DEBUG_TRACE 生成的 JSONL trace</div>
+  </div>
+  <div class="header-actions">
+    <input id="file-input" type="file" accept=".jsonl,.log,.txt,.json" hidden>
+    <button class="btn primary" id="open-btn">打开文件</button>
+    <button class="btn" id="theme-btn">切换主题</button>
+  </div>
+</header>
+
+<main>
+  <section class="drop-zone" id="drop-zone">
+    <div>
+      <strong>拖入 AI trace JSONL</strong>
+      <span>或点击此区域选择 flow_read_ai_trace-*.jsonl</span>
+    </div>
+  </section>
+
+  <section class="toolbar" id="toolbar">
+    <div class="controls">
+      <input id="search" type="search" placeholder="搜索 prompt、响应、URL、模型或错误">
+      <select id="event-filter">
+        <option value="">全部类型</option>
+        <option value="http_interaction">HTTP</option>
+        <option value="cache_hit">缓存</option>
+      </select>
+      <select id="status-filter">
+        <option value="">全部状态</option>
+        <option value="success">成功</option>
+        <option value="error">错误</option>
+        <option value="cache">缓存</option>
+      </select>
+      <select id="action-filter">
+        <option value="">全部动作</option>
+      </select>
+    </div>
+    <div class="button-row">
+      <button class="btn" id="copy-selected" disabled>复制当前条目</button>
+      <button class="btn" id="export-filtered" disabled>导出过滤结果</button>
+    </div>
+  </section>
+
+  <section class="stats" id="stats"></section>
+
+  <section class="workspace" id="workspace">
+    <div class="panel table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 160px;">时间</th>
+            <th style="width: 84px;">类型</th>
+            <th style="width: 120px;">动作</th>
+            <th style="width: 150px;">模型</th>
+            <th style="width: 90px;">状态</th>
+            <th>摘要</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <aside class="panel" id="detail">
+      <div class="empty-detail">选择一条 trace 查看完整请求和响应</div>
+    </aside>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  let entries = [];
+  let filteredEntries = [];
+  let selectedId = null;
+
+  const els = {
+    fileInput: document.getElementById("file-input"),
+    openBtn: document.getElementById("open-btn"),
+    themeBtn: document.getElementById("theme-btn"),
+    dropZone: document.getElementById("drop-zone"),
+    toolbar: document.getElementById("toolbar"),
+    stats: document.getElementById("stats"),
+    workspace: document.getElementById("workspace"),
+    rows: document.getElementById("rows"),
+    detail: document.getElementById("detail"),
+    search: document.getElementById("search"),
+    eventFilter: document.getElementById("event-filter"),
+    statusFilter: document.getElementById("status-filter"),
+    actionFilter: document.getElementById("action-filter"),
+    copySelected: document.getElementById("copy-selected"),
+    exportFiltered: document.getElementById("export-filtered"),
+    toast: document.getElementById("toast"),
+  };
+
+  els.openBtn.addEventListener("click", () => els.fileInput.click());
+  els.dropZone.addEventListener("click", () => els.fileInput.click());
+  els.fileInput.addEventListener("change", () => {
+    const file = els.fileInput.files[0];
+    if (file) loadFile(file);
+    els.fileInput.value = "";
+  });
+
+  els.dropZone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    els.dropZone.classList.add("drag-over");
+  });
+  els.dropZone.addEventListener("dragleave", () => {
+    els.dropZone.classList.remove("drag-over");
+  });
+  els.dropZone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    els.dropZone.classList.remove("drag-over");
+    const file = event.dataTransfer.files[0];
+    if (file) loadFile(file);
+  });
+
+  els.themeBtn.addEventListener("click", () => {
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    if (isDark) {
+      document.documentElement.removeAttribute("data-theme");
+      localStorage.setItem("ai-debug-viewer-theme", "light");
+    } else {
+      document.documentElement.setAttribute("data-theme", "dark");
+      localStorage.setItem("ai-debug-viewer-theme", "dark");
+    }
+  });
+
+  if (localStorage.getItem("ai-debug-viewer-theme") === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+
+  [els.search, els.eventFilter, els.statusFilter, els.actionFilter].forEach((el) => {
+    el.addEventListener("input", render);
+    el.addEventListener("change", render);
+  });
+
+  els.copySelected.addEventListener("click", () => {
+    const entry = entries.find((item) => item.__id === selectedId);
+    if (entry) copyText(JSON.stringify(stripInternal(entry), null, 2));
+  });
+
+  els.exportFiltered.addEventListener("click", () => {
+    const text = filteredEntries.map((entry) => JSON.stringify(stripInternal(entry))).join("\n");
+    downloadText(text, "flow_read_ai_trace_filtered.jsonl", "application/jsonl");
+  });
+
+  function loadFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        entries = parseTrace(String(reader.result || ""));
+        selectedId = entries[0]?.__id || null;
+        els.dropZone.style.display = "none";
+        els.toolbar.classList.add("active");
+        els.stats.classList.add("active");
+        els.workspace.classList.add("active");
+        els.exportFiltered.disabled = false;
+        populateActionFilter();
+        render();
+        showToast(`已加载 ${entries.length} 条 trace`);
+      } catch (error) {
+        showToast(`解析失败：${error.message}`);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function parseTrace(text) {
+    const trimmed = text.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[")) {
+      const parsed = JSON.parse(trimmed);
+      if (!Array.isArray(parsed)) throw new Error("JSON 根节点不是数组");
+      return parsed.map(normalizeEntry).filter(Boolean);
+    }
+    return trimmed
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line, index) => {
+        try {
+          return normalizeEntry(JSON.parse(line), index);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  }
+
+  function normalizeEntry(raw, index) {
+    if (!raw || typeof raw !== "object") return null;
+    const metadata = raw.metadata || raw.data?.metadata || {};
+    const request = raw.request || {};
+    const response = raw.response || {};
+    const event = raw.event || "unknown";
+    const action = metadata.action || raw.action || (event === "cache_hit" ? raw.action : "");
+    const model = metadata.model || request.body?.model || "";
+    const statusCode = raw.statusCode || response.statusCode || null;
+    const success = event === "cache_hit" ? true : raw.success === true;
+    return {
+      ...raw,
+      __id: `${raw.time || "no-time"}-${event}-${index ?? 0}`,
+      __event: event,
+      __metadata: metadata,
+      __request: request,
+      __response: response,
+      __action: action || metadata.task || "",
+      __model: model,
+      __statusCode: statusCode,
+      __status: event === "cache_hit" ? "cache" : success ? "success" : "error",
+      __summary: summaryFor(raw, metadata, request, response),
+    };
+  }
+
+  function summaryFor(raw, metadata, request, response) {
+    if (raw.event === "cache_hit") {
+      return `缓存命中 ${raw.action || ""}`.trim();
+    }
+    if (raw.error?.message) return raw.error.message;
+    const url = raw.url || "";
+    const op = raw.operation || metadata.task || "request";
+    const prompt = request.body?.messages?.at?.(-1)?.content || "";
+    const responseText = response.body || "";
+    return [op, url, prompt || responseText].filter(Boolean).join(" · ");
+  }
+
+  function populateActionFilter() {
+    const current = els.actionFilter.value;
+    const actions = [...new Set(entries.map((entry) => entry.__action).filter(Boolean))].sort();
+    els.actionFilter.innerHTML = '<option value="">全部动作</option>' +
+      actions.map((action) => `<option value="${escapeAttr(action)}">${escapeHtml(action)}</option>`).join("");
+    els.actionFilter.value = current;
+  }
+
+  function render() {
+    const search = els.search.value.trim().toLowerCase();
+    const eventFilter = els.eventFilter.value;
+    const statusFilter = els.statusFilter.value;
+    const actionFilter = els.actionFilter.value;
+
+    filteredEntries = entries.filter((entry) => {
+      if (eventFilter && entry.__event !== eventFilter) return false;
+      if (statusFilter && entry.__status !== statusFilter) return false;
+      if (actionFilter && entry.__action !== actionFilter) return false;
+      if (!search) return true;
+      return JSON.stringify(stripInternal(entry)).toLowerCase().includes(search);
+    });
+
+    renderStats();
+    renderRows();
+    renderDetail();
+  }
+
+  function renderStats() {
+    const httpCount = entries.filter((entry) => entry.__event === "http_interaction").length;
+    const cacheCount = entries.filter((entry) => entry.__event === "cache_hit").length;
+    const errorCount = entries.filter((entry) => entry.__status === "error").length;
+    const avgDuration = average(entries
+      .map((entry) => Number(entry.durationMs))
+      .filter((value) => Number.isFinite(value)));
+    els.stats.innerHTML = `
+      <div class="stat"><b>${entries.length}</b><span>全部 trace</span></div>
+      <div class="stat"><b>${httpCount}</b><span>HTTP 请求</span></div>
+      <div class="stat"><b>${cacheCount}</b><span>缓存命中</span></div>
+      <div class="stat"><b>${errorCount}</b><span>错误</span></div>
+      <div class="stat"><b>${avgDuration == null ? "-" : Math.round(avgDuration)}</b><span>平均耗时 ms</span></div>
+    `;
+  }
+
+  function renderRows() {
+    if (filteredEntries.length === 0) {
+      els.rows.innerHTML = '<tr><td colspan="6" class="muted">没有匹配的 trace</td></tr>';
+      return;
+    }
+    els.rows.innerHTML = filteredEntries.map((entry) => {
+      const selected = entry.__id === selectedId ? "selected" : "";
+      return `
+        <tr class="${selected}" data-id="${escapeAttr(entry.__id)}">
+          <td>${escapeHtml(formatTime(entry.time))}</td>
+          <td><span class="badge">${escapeHtml(typeLabel(entry))}</span></td>
+          <td>${escapeHtml(entry.__action || entry.__metadata.task || "-")}</td>
+          <td class="mono">${escapeHtml(entry.__model || "-")}</td>
+          <td>${statusBadge(entry)}</td>
+          <td title="${escapeAttr(entry.__summary)}">${escapeHtml(truncate(entry.__summary, 120))}</td>
+        </tr>
+      `;
+    }).join("");
+    els.rows.querySelectorAll("tr[data-id]").forEach((row) => {
+      row.addEventListener("click", () => {
+        selectedId = row.getAttribute("data-id");
+        render();
+      });
+    });
+  }
+
+  function renderDetail() {
+    const entry = entries.find((item) => item.__id === selectedId);
+    els.copySelected.disabled = !entry;
+    if (!entry) {
+      els.detail.innerHTML = '<div class="empty-detail">选择一条 trace 查看完整请求和响应</div>';
+      return;
+    }
+
+    const requestBody = entry.__request.body || null;
+    const messages = Array.isArray(requestBody?.messages) ? requestBody.messages : [];
+    const systemPrompt = messages.find((message) => message.role === "system")?.content || "";
+    const userPrompt = messages.find((message) => message.role === "user")?.content || "";
+
+    els.detail.innerHTML = `
+      <div class="detail-header">
+        <div class="detail-title">
+          <h2>${escapeHtml(typeLabel(entry))} ${escapeHtml(entry.__action || entry.__metadata.task || "")}</h2>
+          ${statusBadge(entry)}
+        </div>
+        <div class="meta-grid">
+          ${meta("时间", formatTime(entry.time))}
+          ${meta("模型", entry.__model || "-")}
+          ${meta("耗时", entry.durationMs == null ? "-" : `${entry.durationMs} ms`)}
+          ${meta("状态码", entry.__statusCode == null ? "-" : String(entry.__statusCode))}
+          ${meta("任务", entry.__metadata.task || entry.__action || "-")}
+          ${meta("Provider", entry.__metadata.providerId || "-")}
+        </div>
+      </div>
+      <div class="detail-body">
+        ${section("Metadata", entry.__metadata, true)}
+        ${systemPrompt ? section("System Prompt", systemPrompt, true) : ""}
+        ${userPrompt ? section("User Prompt", userPrompt, true) : ""}
+        ${section("Request", entry.__request, true)}
+        ${section("Response", entry.__response, true)}
+        ${entry.error ? section("Error", entry.error, true) : ""}
+        ${entry.event === "cache_hit" ? section("Cached Response", entry.response, true) : ""}
+        ${section("Raw Entry", stripInternal(entry), false)}
+      </div>
+    `;
+  }
+
+  function section(title, value, open) {
+    return `
+      <details ${open ? "open" : ""}>
+        <summary>${escapeHtml(title)}</summary>
+        <pre>${escapeHtml(formatValue(value))}</pre>
+      </details>
+    `;
+  }
+
+  function meta(label, value) {
+    return `<div class="meta"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`;
+  }
+
+  function typeLabel(entry) {
+    if (entry.__event === "cache_hit") return "CACHE";
+    return String(entry.operation || "HTTP").toUpperCase();
+  }
+
+  function statusBadge(entry) {
+    if (entry.__status === "cache") return '<span class="badge warning">cache</span>';
+    if (entry.__status === "success") return '<span class="badge success">success</span>';
+    return '<span class="badge error">error</span>';
+  }
+
+  function stripInternal(entry) {
+    return Object.fromEntries(
+      Object.entries(entry).filter(([key]) => !key.startsWith("__")),
+    );
+  }
+
+  function formatValue(value) {
+    if (typeof value === "string") return value;
+    return JSON.stringify(value ?? null, null, 2);
+  }
+
+  function formatTime(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString();
+  }
+
+  function average(values) {
+    if (values.length === 0) return null;
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+  }
+
+  function truncate(value, max) {
+    const text = String(value || "");
+    return text.length <= max ? text : `${text.slice(0, max)}...`;
+  }
+
+  function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = String(value ?? "");
+    return div.innerHTML;
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replaceAll('"', "&quot;");
+  }
+
+  function copyText(text) {
+    navigator.clipboard.writeText(text).then(
+      () => showToast("已复制"),
+      () => {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        textarea.remove();
+        showToast("已复制");
+      },
+    );
+  }
+
+  function downloadText(text, filename, type) {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    showToast("已导出");
+  }
+
+  function showToast(message) {
+    els.toast.textContent = message;
+    els.toast.classList.add("show");
+    clearTimeout(els.toast._timer);
+    els.toast._timer = setTimeout(() => els.toast.classList.remove("show"), 2200);
+  }
+})();
+</script>
+</body>
+</html>
