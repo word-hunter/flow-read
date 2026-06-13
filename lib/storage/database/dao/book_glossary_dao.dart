@@ -10,6 +10,9 @@ class BookGlossaryDao extends DatabaseAccessor<AppDatabase>
     with _$BookGlossaryDaoMixin {
   BookGlossaryDao(super.db);
 
+  Future<List<BookGlossaryEntry>> allEntries() =>
+      (select(bookGlossary)..orderBy([(r) => OrderingTerm.asc(r.word)])).get();
+
   Future<List<BookGlossaryEntry>> entriesForBook(String bookId) =>
       (select(bookGlossary)
             ..where((r) => r.bookId.equals(bookId))
@@ -22,17 +25,18 @@ class BookGlossaryDao extends DatabaseAccessor<AppDatabase>
   }
 
   Future<List<BookGlossaryEntry>> findByWord(String bookId, String word) =>
-      (select(bookGlossary)
-            ..where((r) => r.bookId.equals(bookId) & r.word.equals(word)))
-          .get();
+      (select(
+        bookGlossary,
+      )..where((r) => r.bookId.equals(bookId) & r.word.equals(word))).get();
 
   Future<void> upsert(BookGlossaryCompanion entry) =>
       into(bookGlossary).insertOnConflictUpdate(entry);
 
   Future<void> updateLastAccessed(String id) {
     final now = DateTime.now().toUtc().toIso8601String();
-    return (update(bookGlossary)..where((r) => r.id.equals(id)))
-        .write(BookGlossaryCompanion(lastAccessedAt: Value(now)));
+    return (update(bookGlossary)..where((r) => r.id.equals(id))).write(
+      BookGlossaryCompanion(lastAccessedAt: Value(now)),
+    );
   }
 
   Future<void> deleteById(String id) =>

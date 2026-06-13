@@ -17,6 +17,7 @@ final backupProvider = ChangeNotifierProvider<BackupService>((ref) {
   final db = appDatabase;
   final service = BackupService(
     settings,
+    database: db,
     wordHunterImportServiceFactory: db == null
         ? null
         : () {

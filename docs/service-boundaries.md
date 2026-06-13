@@ -95,9 +95,9 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 
 | Service | 职责 |
 |---------|------|
-| `SettingsService` | 全局设置持久化（`ChangeNotifier`） |
+| `SettingsService` | 全局设置持久化（`ChangeNotifier`，Drift `settings`） |
 | `flow_read_atmosphere` package | City 时间主题、天空/草地氛围背景、resolver 与 inherited scope；由 app shell 注入，不持有持久化 |
-| `BackupService` | 备份/恢复/导入（ZIP 打包）；WordHunter 导入通过词汇/上下文 service 写当前仓储后端 |
+| `BackupService` | 备份/恢复/导入（ZIP 打包）；导出优先从 Drift 组装兼容 `boxes` payload，恢复保留 legacy box schema；WordHunter 导入通过词汇/上下文 service 写当前仓储后端 |
 | `AppLogger` | JSONL 文件日志（脱敏） |
 | `DiagnosticExportService` | 诊断报告 ZIP 导出，统计信息优先从 Drift 读取 |
 | `MacPermissionDiagnostics` | macOS 沙盒权限检查 |
@@ -144,10 +144,12 @@ RssProvider
 └── WebContentService
 
 SettingsService（独立）
-└── Hive settings box
+└── SettingsDao → settings
 
 BackupService（独立）
-├── Hive boxes + FileSystem
+├── AppDatabase / DAO（导出 Drift 快照）
+├── Hive boxes（恢复 + 无数据库 fallback）
+├── FileSystem
 └── WordHunterImportService → UserVocabularyService / WordContextService
 ```
 
@@ -155,6 +157,6 @@ BackupService（独立）
 
 1. **不要继续塞进 `ReadingProvider`**：新 AI 能力用独立 service/provider/use-case
 2. **抽象接口优先**：词典、发音、语言模块都使用 interface + 多实现
-3. **Repository 模式**：Hive box 操作通过 `lib/storage/repositories/` 封装的 repository 类
+3. **Repository/DAO 模式**：存储访问通过 `lib/storage/repositories/` 或 Drift DAO 封装，UI/provider 不直接操作底层表或 box
 4. **显式 Provider 声明**：在 `lib/providers/` 中声明 Riverpod provider，不引入额外 DI 框架
 5. **LanguageModule 约束**：新增语言只需实现 `LanguageModule` 接口并注册

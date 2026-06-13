@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/learning_item.dart';
@@ -11,6 +12,9 @@ import 'package:flow_read/services/backup_archive.dart' as archive;
 import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_book_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_learning_item_repository.dart';
 import 'package:flow_read/storage/hive_box_names.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -224,6 +228,186 @@ void main() {
     expect(settings.apiKeyFor('openai'), 'secret-key');
     expect(settings.backupFolderPath, '/private/backups');
     expect(settings.backupFolderBookmark, 'bookmark');
+  });
+
+  test('exports Drift data to the legacy backup payload shape', () async {
+    final db = await createTestAppDatabase();
+    final driftBackup = BackupService(
+      settings,
+      database: db,
+      documentsDirectoryProvider: () async => documentsDir,
+    );
+    addTearDown(driftBackup.dispose);
+
+    final epubFile = File('${tempDir.path}/drift.epub');
+    await epubFile.writeAsString('drift epub content');
+
+    final book = BookMetadata(
+      id: 'drift-book',
+      title: 'Drift Book',
+      author: 'Author',
+      sourcePath: epubFile.path,
+      totalChapters: 4,
+      currentChapter: 2,
+      chapterProgress: 0.5,
+      chapterScrollOffset: 240,
+      lastReadAt: DateTime.utc(2026, 6, 12, 8),
+    );
+    await db.bookDao.upsert(
+      DriftBookRepository.companionFromMetadata(
+        book,
+        languageCode: 'en',
+      ),
+    );
+    await db.userVocabularyDao.upsert(
+      UserVocabulariesCompanion.insert(
+        id: 'en:flow',
+        canonical: 'flow',
+        status: 'known',
+        language: const Value('en'),
+      ),
+    );
+    await db.bookmarkDao.insertWordBookmark(
+      WordBookmarksCompanion.insert(
+        id: 'word-bookmark-1',
+        bookId: book.id,
+        word: 'flow',
+        language: const Value('en'),
+        translation: const Value('流动'),
+        context: const Value('A steady flow of ideas.'),
+        addedAt: const Value('2026-06-12T08:00:00.000Z'),
+      ),
+    );
+    await db.bookmarkDao.insertReadingBookmark(
+      ReadingBookmarksCompanion.insert(
+        id: 'reading-bookmark-1',
+        bookId: book.id,
+        chapterIndex: 2,
+        progress: 0.5,
+        language: const Value('en'),
+        chapterTitle: const Value('Chapter 3'),
+        excerpt: const Value('A marked paragraph.'),
+        createdAt: const Value('2026-06-12T08:05:00.000Z'),
+      ),
+    );
+    await db.readingConfigDao.putValue('fontSize', 'en', '19.0');
+    await db.readingTimeDao.putSeconds('_global_', 'en', 300);
+    await db.wordContextDao.putData(
+      'flow',
+      'en',
+      '[{"word":"flow","text":"A steady flow of ideas."}]',
+    );
+    await db.learningItemDao.upsert(
+      DriftLearningItemRepository.companionFromItem(
+        LearningItem(
+          id: 'drift-learning-1',
+          type: LearningItemType.word,
+          canonicalKey: 'flow',
+          title: 'flow',
+          content: 'flow',
+          answer: 'movement',
+          note: '',
+          sourceText: 'A steady flow of ideas.',
+          bookId: book.id,
+          chapterIndex: 2,
+          chapterTitle: 'Chapter 3',
+          createdAt: DateTime.utc(2026, 6, 12, 8, 10),
+          updatedAt: DateTime.utc(2026, 6, 12, 8, 10),
+        ),
+        languageCode: 'en',
+      ),
+    );
+    await db.learningAnalyticsDao.putValue('20260612', 'en', 3);
+    await db.rssDao.insertSubscription(
+      RssSubscriptionsCompanion.insert(
+        id: 'rss-1',
+        url: 'https://example.com/drift.xml',
+        title: const Value('Drift RSS'),
+        lastFetchedAt: const Value('2026-06-12T08:20:00.000Z'),
+      ),
+    );
+    await db.bookGlossaryDao.upsert(
+      BookGlossaryCompanion.insert(
+        id: 'glossary-1',
+        bookId: book.id,
+        word: 'flow',
+        explanation: const Value('movement'),
+        createdAt: const Value('2026-06-12T08:30:00.000Z'),
+      ),
+    );
+    await db.characterRegistryDao.putValue(
+      book.id,
+      '[{"name":"Reader","aliases":[]}]',
+    );
+    await db.settingsDao.putValue('aiProviderId', 'openai');
+    await db.settingsDao.putValue('apiKey', 'secret-key');
+    await db.settingsDao.putValue('backupFolderPath', '/private/backups');
+
+    await userVocabularyBox().put('hive-only', 'known');
+
+    final backupPath = await driftBackup.exportNow(
+      folderPath: '${tempDir.path}/drift_backups',
+    );
+
+    final bakFile = File(backupPath);
+    final boxes = _decodeBackupBoxes(bakFile);
+    expect(boxes.keys, containsAll(BackupService.backupDataBoxNames));
+
+    final bookEntries =
+        boxes[HiveBoxNames.booksFor('en')]['entries'] as List<dynamic>;
+    final bookEntry = bookEntries.single as Map<String, dynamic>;
+    expect(bookEntry['key'], {'type': 'string', 'value': book.id});
+    expect(bookEntry['value']['title'], 'Drift Book');
+    expect(bookEntry['value']['chapterScrollOffset'], 240);
+
+    final vocabEntries =
+        boxes[HiveBoxNames.userVocabularyFor('en')]['entries'] as List<dynamic>;
+    expect(vocabEntries, [
+      {
+        'key': {'type': 'string', 'value': 'flow'},
+        'value': 'known',
+      },
+    ]);
+
+    final wordBookmarkEntries =
+        boxes[HiveBoxNames.wordBookmarksFor('en')]['entries'] as List<dynamic>;
+    expect(wordBookmarkEntries.single['key'], {
+      'type': 'string',
+      'value': book.id,
+    });
+    expect(
+      (jsonDecode(wordBookmarkEntries.single['value'] as String)
+              as List<dynamic>)
+          .single['word'],
+      'flow',
+    );
+
+    final readingTimeEntries =
+        boxes[HiveBoxNames.readingTimeFor('en')]['entries'] as List<dynamic>;
+    expect(readingTimeEntries.single, {
+      'key': {'type': 'string', 'value': '_global_'},
+      'value': 300,
+    });
+
+    final glossaryEntries =
+        boxes[HiveBoxNames.bookGlossary]['entries'] as List<dynamic>;
+    expect(glossaryEntries.single['value']['explanation'], 'movement');
+
+    final settingsEntries =
+        boxes[HiveBoxNames.settings]['entries'] as List<dynamic>;
+    final settingKeys = settingsEntries
+        .map((entry) => entry['key']['value'] as String)
+        .toSet();
+    expect(settingKeys, contains('aiProviderId'));
+    expect(settingKeys, isNot(contains('apiKey')));
+    expect(settingKeys, isNot(contains('backupFolderPath')));
+
+    final zipArchive = ZipDecoder().decodeBytes(await bakFile.readAsBytes());
+    final sourceEntry = zipArchive.findFile(
+      archive.bookSourceEntryPath(book.id),
+    );
+    expect(sourceEntry, isNotNull);
+    expect(utf8.decode(sourceEntry!.content), 'drift epub content');
   });
 
   test('exports and restores book source and cover files', () async {
