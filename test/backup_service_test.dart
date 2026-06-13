@@ -10,6 +10,7 @@ import 'package:flow_rss/flow_rss.dart';
 import 'package:flow_read/services/backup_archive.dart' as archive;
 import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/storage/hive_box_names.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -484,11 +485,14 @@ void main() {
       expect(result.knownCount, 2);
       expect(result.learningCount, 2);
       expect(result.exampleCount, 2);
-      expect(userVocabularyBox().get('flow'), 'known');
-      expect(userVocabularyBox().get('the'), 'known');
-      expect(userVocabularyBox().get('agenda'), 'known');
-      expect(userVocabularyBox().get('migrate'), 'learning');
-      expect(userVocabularyBox().get('partition'), 'learning');
+
+      final vocabulary = UserVocabularyService();
+      await vocabulary.init();
+      expect(vocabulary.isKnown('flow'), isTrue);
+      expect(vocabulary.isKnown('the'), isTrue);
+      expect(vocabulary.isKnown('agenda'), isTrue);
+      expect(vocabulary.isLearning('migrate'), isTrue);
+      expect(vocabulary.isLearning('partition'), isTrue);
 
       final agendaExamples =
           jsonDecode(wordContextsBox().get('agenda')!) as List<dynamic>;
@@ -530,9 +534,12 @@ void main() {
     expect(result.knownCount, 2);
     expect(result.learningCount, 1);
     expect(result.exampleCount, 1);
-    expect(userVocabularyBox().get('already'), 'known');
-    expect(userVocabularyBox().get('mastered'), 'known');
-    expect(userVocabularyBox().get('learning'), 'learning');
+
+    final vocabulary = UserVocabularyService();
+    await vocabulary.init();
+    expect(vocabulary.isKnown('already'), isTrue);
+    expect(vocabulary.isKnown('mastered'), isTrue);
+    expect(vocabulary.isLearning('learning'), isTrue);
 
     final examples =
         jsonDecode(wordContextsBox().get('learning')!) as List<dynamic>;

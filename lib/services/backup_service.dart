@@ -19,6 +19,8 @@ import 'package:flow_language/flow_language.dart';
 import 'settings_service.dart';
 import 'wordhunter_import_service.dart';
 
+typedef WordHunterImportServiceFactory = WordHunterImportService Function();
+
 class BackupException implements Exception {
   final String message;
 
@@ -183,6 +185,7 @@ class BackupService extends ChangeNotifier {
   final SettingsService settings;
   final BackupFolderAccess _folderAccess;
   final Future<Directory> Function() _documentsDirectoryProvider;
+  final WordHunterImportServiceFactory _wordHunterImportServiceFactory;
 
   Timer? _timer;
   bool _isSyncing = false;
@@ -192,9 +195,12 @@ class BackupService extends ChangeNotifier {
     this.settings, {
     BackupFolderAccess? folderAccess,
     Future<Directory> Function()? documentsDirectoryProvider,
+    WordHunterImportServiceFactory? wordHunterImportServiceFactory,
   }) : _folderAccess = folderAccess ?? const BackupFolderAccess(),
        _documentsDirectoryProvider =
-           documentsDirectoryProvider ?? getApplicationDocumentsDirectory;
+           documentsDirectoryProvider ?? getApplicationDocumentsDirectory,
+       _wordHunterImportServiceFactory =
+           wordHunterImportServiceFactory ?? WordHunterImportService.new;
 
   bool get isSyncing => _isSyncing;
   String? get lastError => _lastError;
@@ -310,7 +316,9 @@ class BackupService extends ChangeNotifier {
           updateLastBackup: false,
         );
       } catch (e) {
-        debugPrint('[BackupService] pre-import backup (configured path) failed: $e');
+        debugPrint(
+          '[BackupService] pre-import backup (configured path) failed: $e',
+        );
         configuredError = e;
         // Fallback to documents directory.
       }
@@ -328,7 +336,9 @@ class BackupService extends ChangeNotifier {
         updateLastBackup: false,
       );
     } catch (e) {
-      debugPrint('[BackupService] pre-import backup (documents dir) failed: $e');
+      debugPrint(
+        '[BackupService] pre-import backup (documents dir) failed: $e',
+      );
       final cause = configuredError ?? e;
       throw BackupException('导入前备份失败，当前数据未更改：${_describeExportError(cause)}');
     }
@@ -528,7 +538,7 @@ class BackupService extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
     try {
-      final service = WordHunterImportService();
+      final service = _wordHunterImportServiceFactory();
       return await service.importFile(filePath);
     } catch (e) {
       debugPrint('[BackupService] Word Hunter import failed: $e');
@@ -547,7 +557,7 @@ class BackupService extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
     try {
-      final service = WordHunterImportService();
+      final service = _wordHunterImportServiceFactory();
       return await service.importPayload(payload);
     } catch (e) {
       debugPrint('[BackupService] Word Hunter import failed: $e');
@@ -836,14 +846,18 @@ class BackupService extends ChangeNotifier {
     try {
       await File(partPath).rename(finalPath);
     } catch (_) {
-      debugPrint('[BackupService] backup rename failed, retrying delete+rename');
+      debugPrint(
+        '[BackupService] backup rename failed, retrying delete+rename',
+      );
       try {
         if (await File(finalPath).exists()) {
           await File(finalPath).delete();
         }
         await File(partPath).rename(finalPath);
       } catch (_) {
-        debugPrint('[BackupService] rename retry failed, falling back to copy+delete');
+        debugPrint(
+          '[BackupService] rename retry failed, falling back to copy+delete',
+        );
         await File(partPath).copy(finalPath);
         await File(partPath).delete();
       }
@@ -877,7 +891,9 @@ class BackupService extends ChangeNotifier {
         }
       }
     } catch (_) {
-      debugPrint('[BackupService] stale importing file cleanup failed, continuing');
+      debugPrint(
+        '[BackupService] stale importing file cleanup failed, continuing',
+      );
       // Best-effort cleanup.
     }
   }
@@ -886,7 +902,9 @@ class BackupService extends ChangeNotifier {
     try {
       await source.rename(target.path);
     } catch (_) {
-      debugPrint('[BackupService] staged file rename failed, retrying delete+rename');
+      debugPrint(
+        '[BackupService] staged file rename failed, retrying delete+rename',
+      );
       try {
         if (await target.exists()) {
           await target.delete();

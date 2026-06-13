@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:hive/hive.dart';
 
 import '../models/word_context_example.dart';
-import '../storage/hive_box_names.dart';
+import 'user_vocabulary_service.dart';
+import 'word_context_service.dart';
 
 class WordHunterImportResult {
   final int knownCount;
@@ -27,7 +27,14 @@ class WordHunterException implements Exception {
 }
 
 class WordHunterImportService {
-  static const _defaultLang = 'en';
+  WordHunterImportService({
+    UserVocabularyService? vocabularyService,
+    WordContextService? wordContextService,
+  }) : _vocabularyService = vocabularyService ?? UserVocabularyService(),
+       _wordContextService = wordContextService ?? WordContextService();
+
+  final UserVocabularyService _vocabularyService;
+  final WordContextService _wordContextService;
 
   Future<WordHunterImportResult> importFile(String filePath) async {
     final file = File(filePath);
@@ -69,39 +76,35 @@ class WordHunterImportService {
       throw const WordHunterException('Word Hunter 备份中没有可导入的单词');
     }
 
-    final vocabBox = Hive.box<String>(
-      HiveBoxNames.userVocabularyFor(_defaultLang),
-    );
-    final currentKnown = <String>{
-      for (final key in vocabBox.keys)
-        if (vocabBox.get(key) == 'known') key.toString(),
-    };
+    await Future.wait([
+      _vocabularyService.init(),
+      _wordContextService.init(),
+    ]);
 
-    await vocabBox.putAll({for (final word in knownWords) word: 'known'});
+    final currentKnown = _vocabularyService.knownWords;
+    await Future.wait(knownWords.map(_vocabularyService.setKnown));
     currentKnown.addAll(knownWords);
 
-    final learningUpdates = <String, String>{};
+    final learningUpdates = <String>[];
     for (final word in learningWords) {
       if (!currentKnown.contains(word)) {
-        learningUpdates[word] = 'learning';
+        learningUpdates.add(word);
       }
     }
     if (learningUpdates.isNotEmpty) {
-      await vocabBox.putAll(learningUpdates);
+      await Future.wait(learningUpdates.map(_vocabularyService.setLearning));
     }
 
-    final contextBox = Hive.box<String>(
-      HiveBoxNames.wordContextsFor(_defaultLang),
-    );
     var exampleCount = 0;
     for (final entry in contexts.entries) {
-      final existing = _decodeContextExamples(contextBox.get(entry.key));
+      final existing = _wordContextService.examplesFor(entry.key);
       final merged = _mergeExamples(existing, entry.value);
       if (merged.isEmpty) continue;
       exampleCount += entry.value.length;
-      await contextBox.put(
+      await _wordContextService.saveExamples(
         entry.key,
-        jsonEncode(merged.map((e) => e.toJson()).toList()),
+        merged,
+        merge: false,
       );
     }
 
@@ -131,8 +134,9 @@ Map<String, dynamic> _normalizePayload(Map<String, dynamic> payload) {
     ..._extractWordSet(payload['learningWords']),
     ...contexts.keys,
   };
-  final learningWords =
-      learningWordSet.where((word) => !knownWords.contains(word)).toList();
+  final learningWords = learningWordSet
+      .where((word) => !knownWords.contains(word))
+      .toList();
 
   return {
     'knownWords': knownWords.toList()..sort(),
@@ -223,21 +227,6 @@ DateTime? _parseTimestamp(dynamic value) {
 }
 
 // ---- Shared helpers ----
-
-List<WordContextExample> _decodeContextExamples(String? source) {
-  if (source == null || source.isEmpty) return const [];
-  try {
-    final decoded = jsonDecode(source) as List<dynamic>;
-    return decoded
-        .whereType<Map>()
-        .map((item) => WordContextExample.fromJson(_stringKeyMap(item)))
-        .where((example) => example.text.isNotEmpty)
-        .toList();
-  } catch (_) {
-    debugPrint('[WordHunter] context decode failed, returning empty');
-    return const [];
-  }
-}
 
 List<WordContextExample> _mergeExamples(
   List<WordContextExample> existing,
