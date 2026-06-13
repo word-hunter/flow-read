@@ -38,6 +38,10 @@ class LearningAnalyticsDao extends DatabaseAccessor<AppDatabase>
     };
   }
 
+  Future<void> clearForLanguage(String language) => (delete(
+    learningAnalytics,
+  )..where((r) => r.language.equals(language))).go();
+
   @override
   Future<void> close() async {}
 }

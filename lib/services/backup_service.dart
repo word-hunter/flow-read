@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
@@ -10,11 +11,13 @@ import 'package:path_provider/path_provider.dart';
 import '../models/book_glossary_entry.dart';
 import '../models/book_metadata.dart';
 import '../models/learning_item.dart';
+import '../models/user_vocabulary.dart' as vocabulary;
 import 'package:flow_rss/flow_rss.dart';
 import '../storage/database/app_database.dart' as drift;
 import '../storage/database/repositories/drift_book_repository.dart';
 import '../storage/database/repositories/drift_bookmark_repository.dart';
 import '../storage/database/repositories/drift_learning_item_repository.dart';
+import '../storage/database/repositories/drift_rss_repository.dart';
 import '../storage/hive_box_names.dart';
 import '../storage/hive_storage.dart' show appDatabase;
 import '../storage/storage_migrations.dart';
@@ -461,70 +464,21 @@ class BackupService extends ChangeNotifier {
         stagingPaths[id] = (source: stagingSource, cover: stagingCover);
       }
 
-      if (importedSchemaVersion < 2) {
-        await _clearV1BackupBoxes();
-      }
-
-      final restoreSegments = await _buildRestoreSegments(
-        boxNames: boxes.keys.map((key) => key.toString()).toSet(),
-        importedSchemaVersion: importedSchemaVersion,
-      );
-      for (final segment in restoreSegments) {
-        final boxData = boxes[segment.boxName];
-        if (boxData is Map) {
-          await _restoreSegment(segment, _asStringKeyMap(boxData));
-        }
-      }
-
-      if (importedSchemaVersion < 2) {
-        await _clearLanguageBackupBoxes(_defaultLang);
-        await migrateV1BoxesToLanguageBoxes();
-        await Hive.box<dynamic>(
-          HiveBoxNames.settings,
-        ).put(StorageSchema.versionKey, StorageSchema.currentVersion);
-      }
-
-      final restoredBookBoxNames = _restoredBookBoxNames(
-        boxes,
-        importedSchemaVersion,
-      );
-      for (final id in manifestIds) {
-        final canonicalSource = _bookSourcePath(booksDir, id);
-        final staging = stagingPaths[id]!;
-
-        final sourceFile = File(staging.source);
-        if (await sourceFile.exists()) {
-          final target = File(canonicalSource);
-          await _atomicRename(sourceFile, target);
-        }
-
-        if (staging.cover != null) {
-          final coverFile = File(staging.cover!);
-          if (await coverFile.exists()) {
-            final canonicalCover = _bookCoverPath(booksDir, id);
-            final target = File(canonicalCover);
-            await _atomicRename(coverFile, target);
-          }
-        }
-
-        for (final boxName in restoredBookBoxNames) {
-          if (!Hive.isBoxOpen(boxName)) {
-            await Hive.openBox<BookMetadata>(boxName);
-          }
-          final booksBoxRef = Hive.box<BookMetadata>(boxName);
-          final meta = booksBoxRef.get(id);
-          if (meta != null) {
-            await booksBoxRef.put(
-              id,
-              meta.copyWith(
-                sourcePath: canonicalSource,
-                coverPath: staging.cover != null
-                    ? _bookCoverPath(booksDir, id)
-                    : null,
-              ),
-            );
-          }
-        }
+      final database = _database;
+      if (database != null && importedSchemaVersion >= 2) {
+        await _restoreDriftBackup(
+          database: database,
+          boxes: boxes,
+          stagingPaths: stagingPaths,
+          booksDir: booksDir,
+        );
+      } else {
+        await _restoreHiveBackup(
+          boxes: boxes,
+          importedSchemaVersion: importedSchemaVersion,
+          stagingPaths: stagingPaths,
+          booksDir: booksDir,
+        );
       }
 
       await _cleanupStaleImportingFiles(booksDir);
@@ -536,6 +490,132 @@ class BackupService extends ChangeNotifier {
         '导入失败，当前数据可能已部分更改。\n'
         '如需恢复，请使用上次导入前自动保存的备份。',
       );
+    }
+  }
+
+  Future<void> _restoreHiveBackup({
+    required Map<String, dynamic> boxes,
+    required int importedSchemaVersion,
+    required Map<String, ({String source, String? cover})> stagingPaths,
+    required Directory booksDir,
+  }) async {
+    if (importedSchemaVersion < 2) {
+      await _clearV1BackupBoxes();
+    }
+
+    final restoreSegments = await _buildRestoreSegments(
+      boxNames: boxes.keys.map((key) => key.toString()).toSet(),
+      importedSchemaVersion: importedSchemaVersion,
+    );
+    for (final segment in restoreSegments) {
+      final boxData = boxes[segment.boxName];
+      if (boxData is Map) {
+        await _restoreSegment(segment, _asStringKeyMap(boxData));
+      }
+    }
+
+    if (importedSchemaVersion < 2) {
+      await _clearLanguageBackupBoxes(_defaultLang);
+      await migrateV1BoxesToLanguageBoxes();
+      await Hive.box<dynamic>(
+        HiveBoxNames.settings,
+      ).put(StorageSchema.versionKey, StorageSchema.currentVersion);
+    }
+
+    final restoredBookBoxNames = _restoredBookBoxNames(
+      boxes,
+      importedSchemaVersion,
+    );
+    await _commitStagedBookFiles(
+      stagingPaths: stagingPaths,
+      booksDir: booksDir,
+      updateBook: (id, sourcePath, coverPath) async {
+        for (final boxName in restoredBookBoxNames) {
+          if (!Hive.isBoxOpen(boxName)) {
+            await Hive.openBox<BookMetadata>(boxName);
+          }
+          final booksBoxRef = Hive.box<BookMetadata>(boxName);
+          final meta = booksBoxRef.get(id);
+          if (meta != null) {
+            await booksBoxRef.put(
+              id,
+              meta.copyWith(sourcePath: sourcePath, coverPath: coverPath),
+            );
+          }
+        }
+      },
+    );
+  }
+
+  Future<void> _restoreDriftBackup({
+    required drift.AppDatabase database,
+    required Map<String, dynamic> boxes,
+    required Map<String, ({String source, String? cover})> stagingPaths,
+    required Directory booksDir,
+  }) async {
+    await database.transaction(() async {
+      await _restoreDriftSettings(database, boxes);
+      await _restoreDriftRssSubscriptions(database, boxes);
+      await _restoreDriftCharacterRegistry(database, boxes);
+
+      for (final languageCode in _restoredLanguageCodes(boxes)) {
+        await _restoreDriftLanguageData(database, boxes, languageCode);
+      }
+
+      await _restoreDriftBookGlossary(database, boxes);
+    });
+
+    await _commitStagedBookFiles(
+      stagingPaths: stagingPaths,
+      booksDir: booksDir,
+      updateBook: (id, sourcePath, coverPath) async {
+        final entry = await database.bookDao.getById(id);
+        if (entry == null) return;
+        final metadata = DriftBookRepository.metadataFromEntry(entry).copyWith(
+          sourcePath: sourcePath,
+          coverPath: coverPath,
+        );
+        await database.bookDao.upsert(
+          DriftBookRepository.companionFromMetadata(
+            metadata,
+            languageCode: entry.language,
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _commitStagedBookFiles({
+    required Map<String, ({String source, String? cover})> stagingPaths,
+    required Directory booksDir,
+    required Future<void> Function(
+      String id,
+      String sourcePath,
+      String? coverPath,
+    )
+    updateBook,
+  }) async {
+    for (final id in stagingPaths.keys) {
+      final canonicalSource = _bookSourcePath(booksDir, id);
+      final staging = stagingPaths[id]!;
+
+      final sourceFile = File(staging.source);
+      if (await sourceFile.exists()) {
+        final target = File(canonicalSource);
+        await _atomicRename(sourceFile, target);
+      }
+
+      String? canonicalCover;
+      if (staging.cover != null) {
+        final coverFile = File(staging.cover!);
+        canonicalCover = _bookCoverPath(booksDir, id);
+        if (await coverFile.exists()) {
+          final target = File(canonicalCover);
+          await _atomicRename(coverFile, target);
+        }
+      }
+
+      await updateBook(id, canonicalSource, canonicalCover);
     }
   }
 
@@ -770,6 +850,412 @@ class BackupService extends ChangeNotifier {
         decode: _decodeInt,
       ),
     ];
+  }
+
+  Future<void> _restoreDriftSettings(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+  ) async {
+    final boxData = _boxData(boxes, HiveBoxNames.settings);
+    if (boxData == null) return;
+
+    for (final entry in _boxEntries(boxData)) {
+      final key = _decodeKey(entry['key']);
+      if (_localSettingKeys.contains(key)) continue;
+      await database.settingsDao.putValue(
+        key.toString(),
+        entry['value']?.toString() ?? '',
+      );
+    }
+  }
+
+  Future<void> _restoreDriftRssSubscriptions(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+  ) async {
+    final boxData = _boxData(boxes, HiveBoxNames.rssSubscriptions);
+    if (boxData == null) return;
+
+    await database.rssDao.deleteAllArticles();
+    await database.rssDao.deleteAllSubscriptions();
+    for (final entry in _boxEntries(boxData)) {
+      final value = entry['value'];
+      if (value is! Map) continue;
+      final subscription = _rssSubscriptionFromJson(_asStringKeyMap(value));
+      if (subscription.url.trim().isEmpty) continue;
+      await database.rssDao.insertSubscription(
+        drift.RssSubscriptionsCompanion.insert(
+          id: DriftRssRepository.subscriptionIdForUrl(subscription.url),
+          url: subscription.url,
+          title: Value(subscription.title),
+          description: Value(subscription.description),
+          imageUrl: Value(subscription.imageUrl),
+          lastFetchedAt: Value(
+            subscription.lastFetchedAt?.toUtc().toIso8601String(),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _restoreDriftCharacterRegistry(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+  ) async {
+    final boxData = _boxData(boxes, HiveBoxNames.characterRegistry);
+    if (boxData == null) return;
+
+    await database.characterRegistryDao.clear();
+    for (final entry in _boxEntries(boxData)) {
+      await database.characterRegistryDao.putValue(
+        _decodeKey(entry['key']).toString(),
+        entry['value']?.toString() ?? '',
+      );
+    }
+  }
+
+  Future<void> _restoreDriftBookGlossary(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+  ) async {
+    final boxData = _boxData(boxes, HiveBoxNames.bookGlossary);
+    if (boxData == null) return;
+
+    await database.bookGlossaryDao.deleteAll();
+    for (final entry in _boxEntries(boxData)) {
+      final value = entry['value'];
+      if (value is! Map) continue;
+      final glossary = BookGlossaryEntry.fromJson(_asStringKeyMap(value));
+      if (glossary.id.isEmpty || glossary.bookId.isEmpty) continue;
+      await database.bookGlossaryDao.upsert(
+        drift.BookGlossaryCompanion.insert(
+          id: glossary.id,
+          bookId: glossary.bookId,
+          word: glossary.word,
+          canonicalForm: Value(glossary.canonicalForm),
+          explanation: Value(glossary.explanation),
+          sourceContext: Value(glossary.sourceContext),
+          createdAt: Value(glossary.createdAt.toUtc().toIso8601String()),
+          lastAccessedAt: Value(
+            glossary.lastAccessedAt?.toUtc().toIso8601String(),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _restoreDriftLanguageData(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+    String languageCode,
+  ) async {
+    await _restoreDriftBooks(database, boxes, languageCode);
+    await _restoreDriftUserVocabulary(database, boxes, languageCode);
+    await _restoreDriftWordBookmarks(database, boxes, languageCode);
+    await _restoreDriftReadingBookmarks(database, boxes, languageCode);
+    await _restoreDriftReadingConfig(database, boxes, languageCode);
+    await _restoreDriftReadingTime(database, boxes, languageCode);
+    await _restoreDriftWordContexts(database, boxes, languageCode);
+    await _restoreDriftLearningItems(database, boxes, languageCode);
+    await _restoreDriftLearningAnalytics(database, boxes, languageCode);
+  }
+
+  Future<void> _restoreDriftBooks(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+    String languageCode,
+  ) async {
+    final boxData = _boxData(boxes, HiveBoxNames.booksFor(languageCode));
+    if (boxData == null) return;
+
+    await database.bookDao.deleteAllForLanguage(languageCode);
+    for (final entry in _boxEntries(boxData)) {
+      final value = entry['value'];
+      if (value is! Map) continue;
+      var metadata = BookMetadata.fromJson(_asStringKeyMap(value));
+      final key = _decodeKey(entry['key']).toString();
+      if (metadata.id.isEmpty && key.isNotEmpty) {
+        metadata = metadata.copyWith(id: key);
+      }
+      if (metadata.id.isEmpty) continue;
+      await database.bookDao.upsert(
+        DriftBookRepository.companionFromMetadata(
+          metadata,
+          languageCode: languageCode,
+        ),
+      );
+    }
+  }
+
+  Future<void> _restoreDriftUserVocabulary(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+    String languageCode,
+  ) async {
+    final boxData = _boxData(
+      boxes,
+      HiveBoxNames.userVocabularyFor(languageCode),
+    );
+    if (boxData == null) return;
+
+    await database.userVocabularyDao.clearForLanguage(languageCode);
+    for (final entry in _boxEntries(boxData)) {
+      final parsed = _vocabularyBackupEntry(
+        key: _decodeKey(entry['key']),
+        value: entry['value'],
+        languageCode: languageCode,
+      );
+      if (parsed == null) continue;
+      await database.userVocabularyDao.upsert(
+        drift.UserVocabulariesCompanion.insert(
+          id: vocabulary.UserVocabularyKey(
+            languageId: languageCode,
+            canonical: parsed.canonical,
+          ).storageKey,
+          canonical: parsed.canonical,
+          status: parsed.status,
+          language: Value(languageCode),
+        ),
+      );
+    }
+  }
+
+  Future<void> _restoreDriftWordBookmarks(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+    String languageCode,
+  ) async {
+    final boxData = _boxData(
+      boxes,
+      HiveBoxNames.wordBookmarksFor(languageCode),
+    );
+    if (boxData == null) return;
+
+    await database.bookmarkDao.deleteWordBookmarksForLanguage(languageCode);
+    final repository = DriftBookmarkRepository(
+      database.bookmarkDao,
+      languageCode: languageCode,
+    );
+    for (final entry in _boxEntries(boxData)) {
+      final bookId = _decodeKey(entry['key']).toString();
+      final encoded = entry['value']?.toString() ?? '[]';
+      await repository.putWordBookmarks(bookId, encoded);
+    }
+  }
+
+  Future<void> _restoreDriftReadingBookmarks(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+    String languageCode,
+  ) async {
+    final boxData = _boxData(
+      boxes,
+      HiveBoxNames.readingBookmarksFor(languageCode),
+    );
+    if (boxData == null) return;
+
+    await database.bookmarkDao.deleteReadingBookmarksForLanguage(languageCode);
+    final repository = DriftBookmarkRepository(
+      database.bookmarkDao,
+      languageCode: languageCode,
+    );
+    for (final entry in _boxEntries(boxData)) {
+      final bookId = _decodeKey(entry['key']).toString();
+      final encoded = entry['value']?.toString() ?? '[]';
+      await repository.putReadingBookmarks(bookId, encoded);
+    }
+  }
+
+  Future<void> _restoreDriftReadingConfig(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+    String languageCode,
+  ) async {
+    final boxData = _boxData(
+      boxes,
+      HiveBoxNames.readingConfigFor(languageCode),
+    );
+    if (boxData == null) return;
+
+    await database.readingConfigDao.clearForLanguage(languageCode);
+    for (final entry in _boxEntries(boxData)) {
+      await database.readingConfigDao.putValue(
+        _decodeKey(entry['key']).toString(),
+        languageCode,
+        entry['value']?.toString() ?? '',
+      );
+    }
+  }
+
+  Future<void> _restoreDriftReadingTime(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+    String languageCode,
+  ) async {
+    final boxData = _boxData(boxes, HiveBoxNames.readingTimeFor(languageCode));
+    if (boxData == null) return;
+
+    await database.readingTimeDao.clearForLanguage(languageCode);
+    for (final entry in _boxEntries(boxData)) {
+      await database.readingTimeDao.putSeconds(
+        _decodeKey(entry['key']).toString(),
+        languageCode,
+        _decodeInt(entry['value']),
+      );
+    }
+  }
+
+  Future<void> _restoreDriftWordContexts(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+    String languageCode,
+  ) async {
+    final boxData = _boxData(boxes, HiveBoxNames.wordContextsFor(languageCode));
+    if (boxData == null) return;
+
+    await database.wordContextDao.clearForLanguage(languageCode);
+    for (final entry in _boxEntries(boxData)) {
+      await database.wordContextDao.putData(
+        _decodeKey(entry['key']).toString(),
+        languageCode,
+        entry['value']?.toString() ?? '',
+      );
+    }
+  }
+
+  Future<void> _restoreDriftLearningItems(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+    String languageCode,
+  ) async {
+    final boxData = _boxData(
+      boxes,
+      HiveBoxNames.learningItemsFor(languageCode),
+    );
+    if (boxData == null) return;
+
+    await database.learningItemDao.clearForLanguage(languageCode);
+    for (final entry in _boxEntries(boxData)) {
+      final value = entry['value'];
+      if (value is! Map) continue;
+      var item = LearningItem.fromJson(_asStringKeyMap(value));
+      final key = _decodeKey(entry['key']).toString();
+      if (item.id.isEmpty && key.isNotEmpty) {
+        item = item.copyWith(id: key);
+      }
+      if (item.id.isEmpty) continue;
+      await database.learningItemDao.upsert(
+        DriftLearningItemRepository.companionFromItem(
+          item,
+          languageCode: languageCode,
+        ),
+      );
+    }
+  }
+
+  Future<void> _restoreDriftLearningAnalytics(
+    drift.AppDatabase database,
+    Map<String, dynamic> boxes,
+    String languageCode,
+  ) async {
+    final boxData = _boxData(
+      boxes,
+      HiveBoxNames.learningAnalyticsFor(languageCode),
+    );
+    if (boxData == null) return;
+
+    await database.learningAnalyticsDao.clearForLanguage(languageCode);
+    for (final entry in _boxEntries(boxData)) {
+      await database.learningAnalyticsDao.putValue(
+        _decodeKey(entry['key']).toString(),
+        languageCode,
+        _decodeInt(entry['value']),
+      );
+    }
+  }
+
+  Map<String, dynamic>? _boxData(
+    Map<String, dynamic> boxes,
+    String boxName,
+  ) {
+    final data = boxes[boxName];
+    if (data is! Map) return null;
+    return _asStringKeyMap(data);
+  }
+
+  Set<String> _restoredLanguageCodes(Map<String, dynamic> boxes) {
+    const languageBoxPrefixes = [
+      HiveBoxNames.books,
+      HiveBoxNames.userVocabulary,
+      HiveBoxNames.wordBookmarks,
+      HiveBoxNames.readingBookmarks,
+      HiveBoxNames.readingConfig,
+      HiveBoxNames.readingTime,
+      HiveBoxNames.wordContexts,
+      HiveBoxNames.learningItems,
+      HiveBoxNames.learningAnalytics,
+    ];
+    final languageCodes = <String>{};
+    for (final boxName in boxes.keys.map((key) => key.toString())) {
+      for (final prefix in languageBoxPrefixes) {
+        final code = _languageCodeFromBoxName(boxName, prefix);
+        if (code != null) {
+          languageCodes.add(code);
+        }
+      }
+    }
+    return languageCodes;
+  }
+
+  String? _languageCodeFromBoxName(String boxName, String prefix) {
+    final languagePrefix = '${prefix}_';
+    if (!boxName.startsWith(languagePrefix)) return null;
+    final languageCode = boxName.substring(languagePrefix.length);
+    return languageCode.trim().isEmpty ? null : languageCode;
+  }
+
+  ({String canonical, String status})? _vocabularyBackupEntry({
+    required dynamic key,
+    required dynamic value,
+    required String languageCode,
+  }) {
+    final fallbackKey = vocabulary.UserVocabularyKey.fromStorageKey(
+      key.toString(),
+      fallbackLanguageId: languageCode,
+    );
+    if (value is Map) {
+      final entry = vocabulary.UserVocabularyEntry.fromJson(
+        _asStringKeyMap(value),
+      );
+      final canonical = entry.key.canonical.trim().toLowerCase();
+      return (
+        canonical: canonical.isEmpty
+            ? fallbackKey.canonical.trim().toLowerCase()
+            : canonical,
+        status: entry.status.name,
+      );
+    }
+    if (value is String && value.trimLeft().startsWith('{')) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map) {
+          return _vocabularyBackupEntry(
+            key: key,
+            value: decoded,
+            languageCode: languageCode,
+          );
+        }
+      } catch (_) {
+        // Fall back to the legacy `word -> status` string shape.
+      }
+    }
+
+    final canonical = fallbackKey.canonical.trim().toLowerCase();
+    if (canonical.isEmpty) return null;
+    final status = value?.toString() == vocabulary.UserWordStatus.learning.name
+        ? vocabulary.UserWordStatus.learning.name
+        : vocabulary.UserWordStatus.known.name;
+    return (canonical: canonical, status: status);
   }
 
   Set<String> _backupLanguageCodes() {

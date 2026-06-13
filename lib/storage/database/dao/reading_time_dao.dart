@@ -35,6 +35,9 @@ class ReadingTimeDao extends DatabaseAccessor<AppDatabase>
         ),
       );
 
+  Future<void> clearForLanguage(String language) =>
+      (delete(readingTime)..where((r) => r.language.equals(language))).go();
+
   Future<int> totalSecondsForLanguage(String language) async {
     final rows = await (select(
       readingTime,

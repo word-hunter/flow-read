@@ -44,4 +44,6 @@ class BookGlossaryDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> deleteAllForBook(String bookId) =>
       (delete(bookGlossary)..where((r) => r.bookId.equals(bookId))).go();
+
+  Future<void> deleteAll() => delete(bookGlossary).go();
 }

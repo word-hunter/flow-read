@@ -28,4 +28,6 @@ class CharacterRegistryDao extends DatabaseAccessor<AppDatabase>
     final rows = await select(characterRegistry).get();
     return {for (final r in rows) r.key: r.value};
   }
+
+  Future<void> clear() => delete(characterRegistry).go();
 }

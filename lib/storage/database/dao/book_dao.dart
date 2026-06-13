@@ -36,6 +36,9 @@ class BookDao extends DatabaseAccessor<AppDatabase> with _$BookDaoMixin {
   Future<void> deleteById(String id) =>
       (delete(bookEntries)..where((b) => b.id.equals(id))).go();
 
+  Future<void> deleteAllForLanguage(String language) =>
+      (delete(bookEntries)..where((b) => b.language.equals(language))).go();
+
   Future<void> deleteAll() => delete(bookEntries).go();
 
   Stream<List<BookEntry>> watchAll(String language) =>

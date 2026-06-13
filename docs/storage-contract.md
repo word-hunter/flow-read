@@ -136,8 +136,9 @@ bootstrapStorage() {
 - `data/files/`：书籍文件副本
 
 运行时导出优先通过 `AppDatabase` DAO 读取 Drift 数据，并组装为兼容旧
-`boxes` 结构的 payload；没有可用数据库时回退读取 Hive boxes。导入仍按
-备份 schema 恢复 `boxes` 数据。
+`boxes` 结构的 payload；没有可用数据库时回退读取 Hive boxes。schema v2
+导入在 `AppDatabase` 可用时直接恢复到 Drift；legacy schema 或无数据库场景
+仍按备份 schema 恢复到 Hive boxes。
 
 备份不包含：本地文件路径、macOS Bookmark、API keys（除非 `includeSecretsInBackup=true`）
 

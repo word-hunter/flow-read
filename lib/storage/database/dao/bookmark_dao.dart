@@ -43,6 +43,9 @@ class BookmarkDao extends DatabaseAccessor<AppDatabase>
           ))
           .go();
 
+  Future<void> deleteWordBookmarksForLanguage(String language) =>
+      (delete(wordBookmarks)..where((b) => b.language.equals(language))).go();
+
   Future<void> deleteWordBookmark(String id) =>
       (delete(wordBookmarks)..where((b) => b.id.equals(id))).go();
 
@@ -80,6 +83,10 @@ class BookmarkDao extends DatabaseAccessor<AppDatabase>
             (b) => b.bookId.equals(bookId) & b.language.equals(language),
           ))
           .go();
+
+  Future<void> deleteReadingBookmarksForLanguage(String language) => (delete(
+    readingBookmarks,
+  )..where((b) => b.language.equals(language))).go();
 
   Future<void> deleteReadingBookmark(String id) =>
       (delete(readingBookmarks)..where((b) => b.id.equals(id))).go();

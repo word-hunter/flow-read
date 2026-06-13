@@ -410,6 +410,267 @@ void main() {
     expect(utf8.decode(sourceEntry!.content), 'drift epub content');
   });
 
+  test('imports v2 backup data into Drift storage', () async {
+    final db = await createTestAppDatabase();
+    final driftSettings = SettingsService(db.settingsDao);
+    await driftSettings.init();
+    final preImportDir = Directory('${tempDir.path}/drift_pre_import');
+    await driftSettings.setBackupFolderPath(preImportDir.path);
+    final driftBackup = BackupService(
+      driftSettings,
+      database: db,
+      documentsDirectoryProvider: () async => documentsDir,
+    );
+    addTearDown(driftBackup.dispose);
+
+    final currentSource = File('${tempDir.path}/current.epub');
+    await currentSource.writeAsString('current epub content');
+    await db.bookDao.upsert(
+      DriftBookRepository.companionFromMetadata(
+        BookMetadata(
+          id: 'current-book',
+          title: 'Current Book',
+          author: 'Author',
+          sourcePath: currentSource.path,
+          totalChapters: 1,
+        ),
+        languageCode: 'en',
+      ),
+    );
+    await db.userVocabularyDao.upsert(
+      UserVocabulariesCompanion.insert(
+        id: 'en_current',
+        canonical: 'current',
+        status: 'known',
+        language: const Value('en'),
+      ),
+    );
+    await userVocabularyBox().put('hive-current', 'known');
+
+    final importedBook = BookMetadata(
+      id: 'imported-book',
+      title: 'Imported Book',
+      author: 'Author',
+      sourcePath: '/external/imported.epub',
+      totalChapters: 5,
+      currentChapter: 3,
+      chapterProgress: 0.75,
+      chapterScrollOffset: 512,
+      lastReadAt: DateTime.utc(2026, 6, 13, 9),
+    );
+    final importedItem = LearningItem(
+      id: 'imported-learning',
+      type: LearningItemType.word,
+      canonicalKey: 'imported',
+      title: 'imported',
+      content: 'imported',
+      answer: 'brought in',
+      note: '',
+      sourceText: 'Imported data should replace current data.',
+      bookId: importedBook.id,
+      chapterIndex: 3,
+      chapterTitle: 'Chapter 4',
+      createdAt: DateTime.utc(2026, 6, 13, 9, 10),
+      updatedAt: DateTime.utc(2026, 6, 13, 9, 10),
+    );
+    final backupFile = await _writeFlowBackup(
+      path: '${tempDir.path}/drift_import.flow.bak',
+      schemaVersion: BackupService.schemaVersion,
+      bookIds: [importedBook.id],
+      bookHasCover: const {'imported-book': false},
+      sourceBytesByBookId: {
+        importedBook.id: Uint8List.fromList(utf8.encode('imported epub bytes')),
+      },
+      boxes: {
+        HiveBoxNames.settings: {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': 'aiProviderId'},
+              'value': 'openai',
+            },
+            {
+              'key': {'type': 'string', 'value': 'backupFolderPath'},
+              'value': '/should/not/replace',
+            },
+          ],
+        },
+        HiveBoxNames.rssSubscriptions: {
+          'entries': [
+            {
+              'key': {'type': 'int', 'value': 0},
+              'value': {
+                'url': 'https://example.com/imported.xml',
+                'title': 'Imported RSS',
+                'lastFetchedAt': '2026-06-13T09:20:00.000Z',
+              },
+            },
+          ],
+        },
+        HiveBoxNames.characterRegistry: {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': importedBook.id},
+              'value': '[{"name":"Imported","aliases":[]}]',
+            },
+          ],
+        },
+        HiveBoxNames.booksFor('en'): {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': importedBook.id},
+              'value': importedBook.toJson(),
+            },
+          ],
+        },
+        HiveBoxNames.userVocabularyFor('en'): {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': 'imported'},
+              'value': 'learning',
+            },
+          ],
+        },
+        HiveBoxNames.wordBookmarksFor('en'): {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': importedBook.id},
+              'value': jsonEncode([
+                {
+                  'word': 'imported',
+                  'translation': '导入的',
+                  'context': 'Imported data should replace current data.',
+                  'addedAt': '2026-06-13T09:05:00.000Z',
+                },
+              ]),
+            },
+          ],
+        },
+        HiveBoxNames.readingBookmarksFor('en'): {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': importedBook.id},
+              'value': jsonEncode([
+                {
+                  'chapterIndex': 3,
+                  'progress': 0.75,
+                  'chapterTitle': 'Chapter 4',
+                  'excerpt': 'A restored paragraph.',
+                  'createdAt': '2026-06-13T09:06:00.000Z',
+                },
+              ]),
+            },
+          ],
+        },
+        HiveBoxNames.readingConfigFor('en'): {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': 'fontSize'},
+              'value': '21.0',
+            },
+          ],
+        },
+        HiveBoxNames.readingTimeFor('en'): {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': '_global_'},
+              'value': 600,
+            },
+          ],
+        },
+        HiveBoxNames.wordContextsFor('en'): {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': 'imported'},
+              'value':
+                  '[{"word":"imported","text":"Imported data should replace current data."}]',
+            },
+          ],
+        },
+        HiveBoxNames.learningItemsFor('en'): {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': importedItem.id},
+              'value': importedItem.toJson(),
+            },
+          ],
+        },
+        HiveBoxNames.learningAnalyticsFor('en'): {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': 'lookups'},
+              'value': 5,
+            },
+          ],
+        },
+        HiveBoxNames.bookGlossary: {
+          'entries': [
+            {
+              'key': {'type': 'string', 'value': 'glossary-imported'},
+              'value': {
+                'id': 'glossary-imported',
+                'bookId': importedBook.id,
+                'word': 'imported',
+                'explanation': 'brought in',
+                'createdAt': '2026-06-13T09:30:00.000Z',
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    await driftBackup.importBackupFile(backupFile.path);
+
+    expect(await db.bookDao.getById('current-book'), isNull);
+    final restoredBook = await db.bookDao.getById(importedBook.id);
+    expect(restoredBook?.title, 'Imported Book');
+    expect(
+      restoredBook?.sourcePath,
+      '${documentsDir.path}/books/imported-book.epub',
+    );
+    expect(
+      await File(restoredBook!.sourcePath).readAsString(),
+      'imported epub bytes',
+    );
+    expect(await db.userVocabularyDao.entryFor('en_current'), isNull);
+    expect(
+      await db.userVocabularyDao.entryFor('en_imported'),
+      isA<UserVocabulary>(),
+    );
+    expect(
+      await db.readingConfigDao.valueFor('fontSize', 'en'),
+      '21.0',
+    );
+    expect(await db.readingTimeDao.secondsFor('_global_', 'en'), 600);
+    expect(
+      await db.wordContextDao.dataFor('imported', 'en'),
+      contains('Imported data'),
+    );
+    expect(
+      (await db.learningItemDao.getById(importedItem.id))?.answer,
+      'brought in',
+    );
+    expect(await db.learningAnalyticsDao.valueFor('lookups', 'en'), 5);
+    expect((await db.rssDao.allSubscriptions()).single.title, 'Imported RSS');
+    expect(
+      (await db.bookGlossaryDao.entriesForBook(importedBook.id)).single.word,
+      'imported',
+    );
+    expect(
+      await db.characterRegistryDao.valueFor(importedBook.id),
+      contains('Imported'),
+    );
+    expect(driftSettings.aiProviderId, 'openai');
+    expect(driftSettings.backupFolderPath, preImportDir.path);
+    expect(userVocabularyBox().get('hive-current'), 'known');
+    expect(
+      preImportDir.listSync().whereType<File>().where(
+        (file) => file.path.endsWith('.flow.bak'),
+      ),
+      hasLength(1),
+    );
+  });
+
   test('exports and restores book source and cover files', () async {
     final sourceBytes = utf8.encode('epub bytes');
     final coverBytes = Uint8List.fromList([0, 1, 2, 3, 4]);
