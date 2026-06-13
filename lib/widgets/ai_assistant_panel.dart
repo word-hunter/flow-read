@@ -263,12 +263,13 @@ class _SessionToolbar extends StatelessWidget {
                   .toList(growable: false);
             },
           ),
-          TextButton.icon(
+          FlowButton.text(
             onPressed: controller.currentContext == null
                 ? null
                 : controller.startNewSession,
             icon: const Icon(Icons.add_comment_outlined, size: 16),
-            label: const Text('新会话'),
+            size: FlowButtonSize.small,
+            child: const Text('新会话'),
           ),
           if (!embedded && onClose != null)
             IconButton(

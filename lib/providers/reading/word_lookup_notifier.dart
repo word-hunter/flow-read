@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flow_ai/flow_ai.dart';
 import '../../models/word_context_example.dart';
 import '../../services/compound_word_analyzer.dart';
-import '../../models/book_glossary_entry.dart' as glossary;
 import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_language/flow_language.dart';
 import '../../services/reading_search_service.dart';
@@ -284,6 +283,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
   ) async {
     final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
     if (activeBookId == null) return null;
+    if (!ref.read(appDatabaseProvider).hasValue) return null;
 
     final glossaryService = ref.read(bookGlossaryServiceProvider);
     final entry = await glossaryService.getEntry(
@@ -291,7 +291,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
       word: request.query,
       canonicalForm: request.canonicalForm,
     );
-    if (entry == null || entry.explanation == null) return null;
+    if (entry == null || entry.explanation.trim().isEmpty) return null;
 
     return DictionaryLookupResult.fromEntry(
       request: request,
