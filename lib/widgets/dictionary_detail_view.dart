@@ -6,6 +6,7 @@ import '../models/word_level.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_language/english/english.dart';
+import '../services/external_url_launcher.dart';
 import '../services/word_level_service.dart';
 import 'flow/flow_components.dart';
 import 'imported_word_examples.dart';
@@ -322,7 +323,75 @@ class DictionarySourceBadge extends StatelessWidget {
     final label = entry.fromCache
         ? '${entry.sourceName ?? '词典'} · 缓存'
         : entry.sourceName ?? '词典';
-    return _MetaChip(label: label, color: theme.colorScheme.onSurfaceVariant);
+    final color = theme.colorScheme.onSurfaceVariant;
+    final sourceUrl = entry.sourceUrl;
+
+    if (sourceUrl == null || sourceUrl.isEmpty) {
+      return _MetaChip(label: label, color: color);
+    }
+
+    return _SourceLinkChip(label: label, color: color, sourceUrl: sourceUrl);
+  }
+}
+
+class _SourceLinkChip extends StatefulWidget {
+  final String label;
+  final Color color;
+  final String sourceUrl;
+
+  const _SourceLinkChip({
+    required this.label,
+    required this.color,
+    required this.sourceUrl,
+  });
+
+  @override
+  State<_SourceLinkChip> createState() => _SourceLinkChipState();
+}
+
+class _SourceLinkChipState extends State<_SourceLinkChip> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = widget.color;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: () async {
+          try {
+            await const ExternalUrlLauncher()
+                .open(Uri.parse(widget.sourceUrl));
+          } on ExternalUrlOpenException {
+            // silently ignore
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: _hovered ? 0.22 : 0.12),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.open_in_new, size: 12, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
