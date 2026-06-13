@@ -122,6 +122,7 @@ class AIDebugTraceRecorder {
     );
     if (_announcedPaths.add(file.path)) {
       stdout.writeln('[FlowRead][AI Debug] trace file: ${file.path}');
+      stdout.writeln('[FlowRead][AI Debug] viewer: make ai-debug-viewer');
     }
     await file.writeAsString(
       '${jsonEncode(entry)}\n',

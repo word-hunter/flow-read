@@ -412,6 +412,8 @@ pre {
     document.documentElement.setAttribute("data-theme", "dark");
   }
 
+  tryLoadLatestTrace();
+
   [els.search, els.eventFilter, els.statusFilter, els.actionFilter].forEach((el) => {
     el.addEventListener("input", render);
     el.addEventListener("change", render);
@@ -430,22 +432,38 @@ pre {
   function loadFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        entries = parseTrace(String(reader.result || ""));
-        selectedId = entries[0]?.__id || null;
-        els.dropZone.style.display = "none";
-        els.toolbar.classList.add("active");
-        els.stats.classList.add("active");
-        els.workspace.classList.add("active");
-        els.exportFiltered.disabled = false;
-        populateActionFilter();
-        render();
-        showToast(`已加载 ${entries.length} 条 trace`);
-      } catch (error) {
-        showToast(`解析失败：${error.message}`);
-      }
+      loadText(String(reader.result || ""), file.name);
     };
     reader.readAsText(file);
+  }
+
+  function tryLoadLatestTrace() {
+    if (!/^https?:$/.test(window.location.protocol)) return;
+    fetch("/trace/latest.jsonl", { cache: "no-store" })
+      .then(async (response) => {
+        if (response.status === 404) return;
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const text = await response.text();
+        if (text.trim()) loadText(text, "latest");
+      })
+      .catch((error) => showToast(`自动加载失败：${error.message}`));
+  }
+
+  function loadText(text, sourceName) {
+    try {
+      entries = parseTrace(text);
+      selectedId = entries[0]?.__id || null;
+      els.dropZone.style.display = "none";
+      els.toolbar.classList.add("active");
+      els.stats.classList.add("active");
+      els.workspace.classList.add("active");
+      els.exportFiltered.disabled = false;
+      populateActionFilter();
+      render();
+      showToast(`已加载 ${entries.length} 条 trace${sourceName ? `：${sourceName}` : ""}`);
+    } catch (error) {
+      showToast(`解析失败：${error.message}`);
+    }
   }
 
   function parseTrace(text) {
