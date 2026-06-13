@@ -2,7 +2,7 @@
 
 > @source lib/storage/hive_box_names.dart lib/storage/hive_type_ids.dart lib/storage/storage_migrations.dart lib/storage/database/app_database.dart lib/storage/database/tables.dart
 
-Last updated: 2026-06-09
+Last updated: 2026-06-13
 
 ## Schema 版本
 
@@ -136,10 +136,9 @@ bootstrapStorage() {
 - `data/files/`：书籍文件副本
 
 运行时 provider 必须先完成 `AppDatabase` 初始化，备份导出通过 Drift DAO
-读取数据，并组装为兼容旧 `boxes` 结构的 payload。`BackupService` 内部仍
-保留无数据库 Hive 路径用于 legacy/test 兼容；schema v2 导入在
-`AppDatabase` 可用时直接恢复到 Drift，legacy schema 或无数据库兼容场景仍
-按备份 schema 恢复到 Hive boxes。
+读取数据，并组装为兼容旧 `boxes` 结构的 payload。`BackupService` 构造时
+必须注入 `AppDatabase`；schema v1/v2 备份导入都会按备份 schema 解析并恢复到
+Drift，legacy 兼容只保留在 payload 读取层，不再恢复到 Hive boxes。
 
 备份不包含：本地文件路径、macOS Bookmark、API keys（除非 `includeSecretsInBackup=true`）
 

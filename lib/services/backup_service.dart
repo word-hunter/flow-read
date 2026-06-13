@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/book_glossary_entry.dart';
@@ -19,8 +18,6 @@ import '../storage/database/repositories/drift_bookmark_repository.dart';
 import '../storage/database/repositories/drift_learning_item_repository.dart';
 import '../storage/database/repositories/drift_rss_repository.dart';
 import '../storage/hive_box_names.dart';
-import '../storage/hive_storage.dart' show appDatabase;
-import '../storage/storage_migrations.dart';
 import 'backup_archive.dart' as archive;
 import 'backup_folder_access.dart';
 import 'package:flow_language/flow_language.dart';
@@ -55,128 +52,24 @@ class BackupService extends ChangeNotifier {
   static const _secretSettingKeys = <String>{'apiKey', 'aiApiKeys'};
 
   // Regenerable/reference data stays out of backups: wordLevels and dictionaryCache.
-  static List<_BackupDataSegment> _globalBackupSegments() {
-    return [
-      _BackupDataSegment.box<dynamic>(
-        boxName: HiveBoxNames.settings,
-        box: () => Hive.box<dynamic>(HiveBoxNames.settings),
-        clearBeforeRestore: false,
-        skipSnapshotKey: (key, includeSecretsInBackup) {
-          if (_localSettingKeys.contains(key)) return true;
-          return !includeSecretsInBackup && _secretSettingKeys.contains(key);
-        },
-        skipRestoreKey: (key) => _localSettingKeys.contains(key),
-      ),
-      _BackupDataSegment.box<RssFeedSubscription>(
-        boxName: HiveBoxNames.rssSubscriptions,
-        box: () => Hive.box<RssFeedSubscription>(HiveBoxNames.rssSubscriptions),
-        encode: _rssSubscriptionToJson,
-        decode: (value) => _rssSubscriptionFromJson(_asStringKeyMap(value)),
-      ),
-      _BackupDataSegment.box<BookGlossaryEntry>(
-        boxName: HiveBoxNames.bookGlossary,
-        box: () => Hive.box<BookGlossaryEntry>(HiveBoxNames.bookGlossary),
-        encode: (value) => value.toJson(),
-        decode: (value) => BookGlossaryEntry.fromJson(_asStringKeyMap(value)),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.characterRegistry,
-        box: () => Hive.box<String>(HiveBoxNames.characterRegistry),
-      ),
-    ];
-  }
+  static const _globalBackupBoxNames = <String>[
+    HiveBoxNames.settings,
+    HiveBoxNames.rssSubscriptions,
+    HiveBoxNames.bookGlossary,
+    HiveBoxNames.characterRegistry,
+  ];
 
-  static List<_BackupDataSegment> _languageBackupSegments(String lang) {
+  static List<String> _languageBackupBoxNames(String lang) {
     return [
-      _BackupDataSegment.box<BookMetadata>(
-        boxName: HiveBoxNames.booksFor(lang),
-        box: () => Hive.box<BookMetadata>(HiveBoxNames.booksFor(lang)),
-        encode: (value) => value.toJson(),
-        decode: (value) => BookMetadata.fromJson(_asStringKeyMap(value)),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.userVocabularyFor(lang),
-        box: () => Hive.box<String>(HiveBoxNames.userVocabularyFor(lang)),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.wordBookmarksFor(lang),
-        box: () => Hive.box<String>(HiveBoxNames.wordBookmarksFor(lang)),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.readingBookmarksFor(lang),
-        box: () => Hive.box<String>(HiveBoxNames.readingBookmarksFor(lang)),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.readingConfigFor(lang),
-        box: () => Hive.box<String>(HiveBoxNames.readingConfigFor(lang)),
-      ),
-      _BackupDataSegment.box<int>(
-        boxName: HiveBoxNames.readingTimeFor(lang),
-        box: () => Hive.box<int>(HiveBoxNames.readingTimeFor(lang)),
-        decode: _decodeInt,
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.wordContextsFor(lang),
-        box: () => Hive.box<String>(HiveBoxNames.wordContextsFor(lang)),
-      ),
-      _BackupDataSegment.box<LearningItem>(
-        boxName: HiveBoxNames.learningItemsFor(lang),
-        box: () => Hive.box<LearningItem>(HiveBoxNames.learningItemsFor(lang)),
-        encode: (value) => value.toJson(),
-        decode: (value) => LearningItem.fromJson(_asStringKeyMap(value)),
-      ),
-      _BackupDataSegment.box<int>(
-        boxName: HiveBoxNames.learningAnalyticsFor(lang),
-        box: () => Hive.box<int>(HiveBoxNames.learningAnalyticsFor(lang)),
-        decode: _decodeInt,
-      ),
-    ];
-  }
-
-  static List<_BackupDataSegment> _v1BackupSegments() {
-    return [
-      _BackupDataSegment.box<BookMetadata>(
-        boxName: HiveBoxNames.books,
-        box: () => Hive.box<BookMetadata>(HiveBoxNames.books),
-        encode: (value) => value.toJson(),
-        decode: (value) => BookMetadata.fromJson(_asStringKeyMap(value)),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.userVocabulary,
-        box: () => Hive.box<String>(HiveBoxNames.userVocabulary),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.wordBookmarks,
-        box: () => Hive.box<String>(HiveBoxNames.wordBookmarks),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.readingBookmarks,
-        box: () => Hive.box<String>(HiveBoxNames.readingBookmarks),
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.readingConfig,
-        box: () => Hive.box<String>(HiveBoxNames.readingConfig),
-      ),
-      _BackupDataSegment.box<int>(
-        boxName: HiveBoxNames.readingTime,
-        box: () => Hive.box<int>(HiveBoxNames.readingTime),
-        decode: _decodeInt,
-      ),
-      _BackupDataSegment.box<String>(
-        boxName: HiveBoxNames.wordContexts,
-        box: () => Hive.box<String>(HiveBoxNames.wordContexts),
-      ),
-      _BackupDataSegment.box<LearningItem>(
-        boxName: HiveBoxNames.learningItems,
-        box: () => Hive.box<LearningItem>(HiveBoxNames.learningItems),
-        encode: (value) => value.toJson(),
-        decode: (value) => LearningItem.fromJson(_asStringKeyMap(value)),
-      ),
-      _BackupDataSegment.box<int>(
-        boxName: HiveBoxNames.learningAnalytics,
-        box: () => Hive.box<int>(HiveBoxNames.learningAnalytics),
-        decode: _decodeInt,
-      ),
+      HiveBoxNames.booksFor(lang),
+      HiveBoxNames.userVocabularyFor(lang),
+      HiveBoxNames.wordBookmarksFor(lang),
+      HiveBoxNames.readingBookmarksFor(lang),
+      HiveBoxNames.readingConfigFor(lang),
+      HiveBoxNames.readingTimeFor(lang),
+      HiveBoxNames.wordContextsFor(lang),
+      HiveBoxNames.learningItemsFor(lang),
+      HiveBoxNames.learningAnalyticsFor(lang),
     ];
   }
 
@@ -184,9 +77,9 @@ class BackupService extends ChangeNotifier {
   static List<String> get backupDataBoxNames {
     return List.unmodifiable(
       [
-        ..._globalBackupSegments(),
-        ..._languageBackupSegments(_defaultLang),
-      ].map((segment) => segment.boxName),
+        ..._globalBackupBoxNames,
+        ..._languageBackupBoxNames(_defaultLang),
+      ],
     );
   }
 
@@ -194,7 +87,7 @@ class BackupService extends ChangeNotifier {
   final BackupFolderAccess _folderAccess;
   final Future<Directory> Function() _documentsDirectoryProvider;
   final WordHunterImportServiceFactory? _wordHunterImportServiceFactory;
-  final drift.AppDatabase? _database;
+  final drift.AppDatabase _database;
 
   Timer? _timer;
   bool _isSyncing = false;
@@ -205,12 +98,12 @@ class BackupService extends ChangeNotifier {
     BackupFolderAccess? folderAccess,
     Future<Directory> Function()? documentsDirectoryProvider,
     WordHunterImportServiceFactory? wordHunterImportServiceFactory,
-    drift.AppDatabase? database,
+    required drift.AppDatabase database,
   }) : _folderAccess = folderAccess ?? const BackupFolderAccess(),
        _documentsDirectoryProvider =
            documentsDirectoryProvider ?? getApplicationDocumentsDirectory,
        _wordHunterImportServiceFactory = wordHunterImportServiceFactory,
-       _database = database ?? appDatabase;
+       _database = database;
 
   bool get isSyncing => _isSyncing;
   String? get lastError => _lastError;
@@ -463,22 +356,13 @@ class BackupService extends ChangeNotifier {
         stagingPaths[id] = (source: stagingSource, cover: stagingCover);
       }
 
-      final database = _database;
-      if (database != null && importedSchemaVersion >= 2) {
-        await _restoreDriftBackup(
-          database: database,
-          boxes: boxes,
-          stagingPaths: stagingPaths,
-          booksDir: booksDir,
-        );
-      } else {
-        await _restoreHiveBackup(
-          boxes: boxes,
-          importedSchemaVersion: importedSchemaVersion,
-          stagingPaths: stagingPaths,
-          booksDir: booksDir,
-        );
-      }
+      await _restoreDriftBackup(
+        database: _database,
+        boxes: boxes,
+        importedSchemaVersion: importedSchemaVersion,
+        stagingPaths: stagingPaths,
+        booksDir: booksDir,
+      );
 
       await _cleanupStaleImportingFiles(booksDir);
       await settings.reloadFromStorage();
@@ -492,63 +376,10 @@ class BackupService extends ChangeNotifier {
     }
   }
 
-  Future<void> _restoreHiveBackup({
-    required Map<String, dynamic> boxes,
-    required int importedSchemaVersion,
-    required Map<String, ({String source, String? cover})> stagingPaths,
-    required Directory booksDir,
-  }) async {
-    if (importedSchemaVersion < 2) {
-      await _clearV1BackupBoxes();
-    }
-
-    final restoreSegments = await _buildRestoreSegments(
-      boxNames: boxes.keys.map((key) => key.toString()).toSet(),
-      importedSchemaVersion: importedSchemaVersion,
-    );
-    for (final segment in restoreSegments) {
-      final boxData = boxes[segment.boxName];
-      if (boxData is Map) {
-        await _restoreSegment(segment, _asStringKeyMap(boxData));
-      }
-    }
-
-    if (importedSchemaVersion < 2) {
-      await _clearLanguageBackupBoxes(_defaultLang);
-      await migrateV1BoxesToLanguageBoxes();
-      await Hive.box<dynamic>(
-        HiveBoxNames.settings,
-      ).put(StorageSchema.versionKey, StorageSchema.currentVersion);
-    }
-
-    final restoredBookBoxNames = _restoredBookBoxNames(
-      boxes,
-      importedSchemaVersion,
-    );
-    await _commitStagedBookFiles(
-      stagingPaths: stagingPaths,
-      booksDir: booksDir,
-      updateBook: (id, sourcePath, coverPath) async {
-        for (final boxName in restoredBookBoxNames) {
-          if (!Hive.isBoxOpen(boxName)) {
-            await Hive.openBox<BookMetadata>(boxName);
-          }
-          final booksBoxRef = Hive.box<BookMetadata>(boxName);
-          final meta = booksBoxRef.get(id);
-          if (meta != null) {
-            await booksBoxRef.put(
-              id,
-              meta.copyWith(sourcePath: sourcePath, coverPath: coverPath),
-            );
-          }
-        }
-      },
-    );
-  }
-
   Future<void> _restoreDriftBackup({
     required drift.AppDatabase database,
     required Map<String, dynamic> boxes,
+    required int importedSchemaVersion,
     required Map<String, ({String source, String? cover})> stagingPaths,
     required Directory booksDir,
   }) async {
@@ -557,8 +388,16 @@ class BackupService extends ChangeNotifier {
       await _restoreDriftRssSubscriptions(database, boxes);
       await _restoreDriftCharacterRegistry(database, boxes);
 
-      for (final languageCode in _restoredLanguageCodes(boxes)) {
-        await _restoreDriftLanguageData(database, boxes, languageCode);
+      for (final languageCode in _restoredLanguageCodes(
+        boxes,
+        importedSchemaVersion,
+      )) {
+        await _restoreDriftLanguageData(
+          database,
+          boxes,
+          languageCode,
+          importedSchemaVersion,
+        );
       }
 
       await _restoreDriftBookGlossary(database, boxes);
@@ -675,29 +514,7 @@ class BackupService extends ChangeNotifier {
   }
 
   Future<List<_BackupDataSegment>> _buildBackupSegments() async {
-    final database = _database;
-    if (database != null) {
-      return _buildDriftBackupSegments(database);
-    }
-    return _buildHiveBackupSegments();
-  }
-
-  Future<List<_BackupDataSegment>> _buildHiveBackupSegments() async {
-    final segments = <_BackupDataSegment>[];
-    for (final segment in _globalBackupSegments()) {
-      await segment.ensureOpen();
-      segments.add(segment);
-    }
-
-    for (final languageCode in _backupLanguageCodes()) {
-      for (final segment in _languageBackupSegments(languageCode)) {
-        if (await _segmentBoxExistsOrOpen(segment.boxName)) {
-          await segment.ensureOpen();
-          segments.add(segment);
-        }
-      }
-    }
-    return segments;
+    return _buildDriftBackupSegments(_database);
   }
 
   Future<List<_BackupDataSegment>> _buildDriftBackupSegments(
@@ -730,12 +547,10 @@ class BackupService extends ChangeNotifier {
     return _BackupDataSegment.memory<String>(
       boxName: HiveBoxNames.settings,
       entries: await database.settingsDao.allEntries(),
-      clearBeforeRestore: false,
       skipSnapshotKey: (key, includeSecretsInBackup) {
         if (_localSettingKeys.contains(key)) return true;
         return !includeSecretsInBackup && _secretSettingKeys.contains(key);
       },
-      skipRestoreKey: (key) => _localSettingKeys.contains(key),
     );
   }
 
@@ -750,7 +565,6 @@ class BackupService extends ChangeNotifier {
           index: _rssSubscriptionFromDriftEntry(rows[index]),
       },
       encode: _rssSubscriptionToJson,
-      decode: (value) => _rssSubscriptionFromJson(_asStringKeyMap(value)),
     );
   }
 
@@ -764,7 +578,6 @@ class BackupService extends ChangeNotifier {
         for (final row in rows) row.id: _bookGlossaryEntryFromDrift(row),
       },
       encode: (value) => value.toJson(),
-      decode: (value) => BookGlossaryEntry.fromJson(_asStringKeyMap(value)),
     );
   }
 
@@ -811,7 +624,6 @@ class BackupService extends ChangeNotifier {
             row.id: DriftBookRepository.metadataFromEntry(row),
         },
         encode: (value) => value.toJson(),
-        decode: (value) => BookMetadata.fromJson(_asStringKeyMap(value)),
       ),
       _BackupDataSegment.memory<String>(
         boxName: HiveBoxNames.userVocabularyFor(languageCode),
@@ -836,7 +648,6 @@ class BackupService extends ChangeNotifier {
       _BackupDataSegment.memory<int>(
         boxName: HiveBoxNames.readingTimeFor(languageCode),
         entries: readingTime,
-        decode: _decodeInt,
       ),
       _BackupDataSegment.memory<String>(
         boxName: HiveBoxNames.wordContextsFor(languageCode),
@@ -849,12 +660,13 @@ class BackupService extends ChangeNotifier {
             row.id: DriftLearningItemRepository.itemFromEntry(row),
         },
         encode: (value) => value.toJson(),
-        decode: (value) => LearningItem.fromJson(_asStringKeyMap(value)),
       ),
       _BackupDataSegment.memory<int>(
         boxName: HiveBoxNames.learningAnalyticsFor(languageCode),
-        entries: learningAnalytics,
-        decode: _decodeInt,
+        entries: {
+          for (final entry in learningAnalytics.entries)
+            int.tryParse(entry.key) ?? entry.key: entry.value,
+        },
       ),
     ];
   }
@@ -955,24 +767,79 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
     String languageCode,
+    int importedSchemaVersion,
   ) async {
-    await _restoreDriftBooks(database, boxes, languageCode);
-    await _restoreDriftUserVocabulary(database, boxes, languageCode);
-    await _restoreDriftWordBookmarks(database, boxes, languageCode);
-    await _restoreDriftReadingBookmarks(database, boxes, languageCode);
-    await _restoreDriftReadingConfig(database, boxes, languageCode);
-    await _restoreDriftReadingTime(database, boxes, languageCode);
-    await _restoreDriftWordContexts(database, boxes, languageCode);
-    await _restoreDriftLearningItems(database, boxes, languageCode);
-    await _restoreDriftLearningAnalytics(database, boxes, languageCode);
+    if (importedSchemaVersion < 2) {
+      await _clearDriftLanguageData(database, languageCode);
+    }
+    await _restoreDriftBooks(
+      database,
+      boxes,
+      languageCode,
+      importedSchemaVersion,
+    );
+    await _restoreDriftUserVocabulary(
+      database,
+      boxes,
+      languageCode,
+      importedSchemaVersion,
+    );
+    await _restoreDriftWordBookmarks(
+      database,
+      boxes,
+      languageCode,
+      importedSchemaVersion,
+    );
+    await _restoreDriftReadingBookmarks(
+      database,
+      boxes,
+      languageCode,
+      importedSchemaVersion,
+    );
+    await _restoreDriftReadingConfig(
+      database,
+      boxes,
+      languageCode,
+      importedSchemaVersion,
+    );
+    await _restoreDriftReadingTime(
+      database,
+      boxes,
+      languageCode,
+      importedSchemaVersion,
+    );
+    await _restoreDriftWordContexts(
+      database,
+      boxes,
+      languageCode,
+      importedSchemaVersion,
+    );
+    await _restoreDriftLearningItems(
+      database,
+      boxes,
+      languageCode,
+      importedSchemaVersion,
+    );
+    await _restoreDriftLearningAnalytics(
+      database,
+      boxes,
+      languageCode,
+      importedSchemaVersion,
+    );
   }
 
   Future<void> _restoreDriftBooks(
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
     String languageCode,
+    int importedSchemaVersion,
   ) async {
-    final boxData = _boxData(boxes, HiveBoxNames.booksFor(languageCode));
+    final boxData = _languageBoxData(
+      boxes,
+      HiveBoxNames.books,
+      languageCode,
+      importedSchemaVersion,
+    );
     if (boxData == null) return;
 
     await database.bookDao.deleteAllForLanguage(languageCode);
@@ -998,10 +865,15 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
     String languageCode,
+    int importedSchemaVersion,
   ) async {
     final boxData = _boxData(
       boxes,
-      HiveBoxNames.userVocabularyFor(languageCode),
+      _languageBoxName(
+        HiveBoxNames.userVocabulary,
+        languageCode,
+        importedSchemaVersion,
+      ),
     );
     if (boxData == null) return;
 
@@ -1031,10 +903,15 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
     String languageCode,
+    int importedSchemaVersion,
   ) async {
     final boxData = _boxData(
       boxes,
-      HiveBoxNames.wordBookmarksFor(languageCode),
+      _languageBoxName(
+        HiveBoxNames.wordBookmarks,
+        languageCode,
+        importedSchemaVersion,
+      ),
     );
     if (boxData == null) return;
 
@@ -1054,10 +931,15 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
     String languageCode,
+    int importedSchemaVersion,
   ) async {
     final boxData = _boxData(
       boxes,
-      HiveBoxNames.readingBookmarksFor(languageCode),
+      _languageBoxName(
+        HiveBoxNames.readingBookmarks,
+        languageCode,
+        importedSchemaVersion,
+      ),
     );
     if (boxData == null) return;
 
@@ -1077,10 +959,15 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
     String languageCode,
+    int importedSchemaVersion,
   ) async {
     final boxData = _boxData(
       boxes,
-      HiveBoxNames.readingConfigFor(languageCode),
+      _languageBoxName(
+        HiveBoxNames.readingConfig,
+        languageCode,
+        importedSchemaVersion,
+      ),
     );
     if (boxData == null) return;
 
@@ -1098,8 +985,14 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
     String languageCode,
+    int importedSchemaVersion,
   ) async {
-    final boxData = _boxData(boxes, HiveBoxNames.readingTimeFor(languageCode));
+    final boxData = _languageBoxData(
+      boxes,
+      HiveBoxNames.readingTime,
+      languageCode,
+      importedSchemaVersion,
+    );
     if (boxData == null) return;
 
     await database.readingTimeDao.clearForLanguage(languageCode);
@@ -1116,8 +1009,14 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
     String languageCode,
+    int importedSchemaVersion,
   ) async {
-    final boxData = _boxData(boxes, HiveBoxNames.wordContextsFor(languageCode));
+    final boxData = _languageBoxData(
+      boxes,
+      HiveBoxNames.wordContexts,
+      languageCode,
+      importedSchemaVersion,
+    );
     if (boxData == null) return;
 
     await database.wordContextDao.clearForLanguage(languageCode);
@@ -1134,10 +1033,15 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
     String languageCode,
+    int importedSchemaVersion,
   ) async {
     final boxData = _boxData(
       boxes,
-      HiveBoxNames.learningItemsFor(languageCode),
+      _languageBoxName(
+        HiveBoxNames.learningItems,
+        languageCode,
+        importedSchemaVersion,
+      ),
     );
     if (boxData == null) return;
 
@@ -1164,10 +1068,15 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
     String languageCode,
+    int importedSchemaVersion,
   ) async {
     final boxData = _boxData(
       boxes,
-      HiveBoxNames.learningAnalyticsFor(languageCode),
+      _languageBoxName(
+        HiveBoxNames.learningAnalytics,
+        languageCode,
+        importedSchemaVersion,
+      ),
     );
     if (boxData == null) return;
 
@@ -1190,7 +1099,72 @@ class BackupService extends ChangeNotifier {
     return _asStringKeyMap(data);
   }
 
-  Set<String> _restoredLanguageCodes(Map<String, dynamic> boxes) {
+  Map<String, dynamic>? _languageBoxData(
+    Map<String, dynamic> boxes,
+    String baseBoxName,
+    String languageCode,
+    int importedSchemaVersion,
+  ) {
+    return _boxData(
+      boxes,
+      _languageBoxName(baseBoxName, languageCode, importedSchemaVersion),
+    );
+  }
+
+  String _languageBoxName(
+    String baseBoxName,
+    String languageCode,
+    int importedSchemaVersion,
+  ) {
+    if (importedSchemaVersion < 2) return baseBoxName;
+    return switch (baseBoxName) {
+      HiveBoxNames.books => HiveBoxNames.booksFor(languageCode),
+      HiveBoxNames.userVocabulary => HiveBoxNames.userVocabularyFor(
+        languageCode,
+      ),
+      HiveBoxNames.wordBookmarks => HiveBoxNames.wordBookmarksFor(
+        languageCode,
+      ),
+      HiveBoxNames.readingBookmarks => HiveBoxNames.readingBookmarksFor(
+        languageCode,
+      ),
+      HiveBoxNames.readingConfig => HiveBoxNames.readingConfigFor(
+        languageCode,
+      ),
+      HiveBoxNames.readingTime => HiveBoxNames.readingTimeFor(languageCode),
+      HiveBoxNames.wordContexts => HiveBoxNames.wordContextsFor(languageCode),
+      HiveBoxNames.learningItems => HiveBoxNames.learningItemsFor(
+        languageCode,
+      ),
+      HiveBoxNames.learningAnalytics => HiveBoxNames.learningAnalyticsFor(
+        languageCode,
+      ),
+      _ => throw BackupException('未知的语言备份分区：$baseBoxName'),
+    };
+  }
+
+  Future<void> _clearDriftLanguageData(
+    drift.AppDatabase database,
+    String languageCode,
+  ) async {
+    await database.bookDao.deleteAllForLanguage(languageCode);
+    await database.userVocabularyDao.clearForLanguage(languageCode);
+    await database.bookmarkDao.deleteWordBookmarksForLanguage(languageCode);
+    await database.bookmarkDao.deleteReadingBookmarksForLanguage(languageCode);
+    await database.readingConfigDao.clearForLanguage(languageCode);
+    await database.readingTimeDao.clearForLanguage(languageCode);
+    await database.wordContextDao.clearForLanguage(languageCode);
+    await database.learningItemDao.clearForLanguage(languageCode);
+    await database.learningAnalyticsDao.clearForLanguage(languageCode);
+  }
+
+  Set<String> _restoredLanguageCodes(
+    Map<String, dynamic> boxes,
+    int importedSchemaVersion,
+  ) {
+    if (importedSchemaVersion < 2) {
+      return const {HiveBoxNames.defaultLanguageCode};
+    }
     const languageBoxPrefixes = [
       HiveBoxNames.books,
       HiveBoxNames.userVocabulary,
@@ -1274,80 +1248,6 @@ class BackupService extends ChangeNotifier {
     }.where((code) => code.isNotEmpty).toSet();
   }
 
-  Future<List<_BackupDataSegment>> _buildRestoreSegments({
-    required Set<String> boxNames,
-    required int importedSchemaVersion,
-  }) async {
-    final candidates = importedSchemaVersion < 2
-        ? [..._globalBackupSegments(), ..._v1BackupSegments()]
-        : [
-            for (final boxName in boxNames)
-              if (_segmentForBoxName(boxName) != null)
-                _segmentForBoxName(boxName)!,
-          ];
-    final segments = <_BackupDataSegment>[];
-    for (final segment in candidates) {
-      if (!boxNames.contains(segment.boxName)) continue;
-      await segment.ensureOpen();
-      segments.add(segment);
-    }
-    return segments;
-  }
-
-  _BackupDataSegment? _segmentForBoxName(String boxName) {
-    if (boxName == HiveBoxNames.settings) {
-      return _globalBackupSegments().firstWhere(
-        (segment) => segment.boxName == boxName,
-      );
-    }
-    if (boxName == HiveBoxNames.rssSubscriptions) {
-      return _globalBackupSegments().firstWhere(
-        (segment) => segment.boxName == boxName,
-      );
-    }
-    if (boxName == HiveBoxNames.bookGlossary) {
-      return _globalBackupSegments().firstWhere(
-        (segment) => segment.boxName == boxName,
-      );
-    }
-    if (boxName == HiveBoxNames.characterRegistry) {
-      return _globalBackupSegments().firstWhere(
-        (segment) => segment.boxName == boxName,
-      );
-    }
-    if (boxName.startsWith('${HiveBoxNames.books}_')) {
-      return _BackupDataSegment.box<BookMetadata>(
-        boxName: boxName,
-        box: () => Hive.box<BookMetadata>(boxName),
-        encode: (value) => value.toJson(),
-        decode: (value) => BookMetadata.fromJson(_asStringKeyMap(value)),
-      );
-    }
-    if (boxName.startsWith('${HiveBoxNames.learningItems}_')) {
-      return _BackupDataSegment.box<LearningItem>(
-        boxName: boxName,
-        box: () => Hive.box<LearningItem>(boxName),
-        encode: (value) => value.toJson(),
-        decode: (value) => LearningItem.fromJson(_asStringKeyMap(value)),
-      );
-    }
-    if (boxName.startsWith('${HiveBoxNames.readingTime}_') ||
-        boxName.startsWith('${HiveBoxNames.learningAnalytics}_')) {
-      return _BackupDataSegment.box<int>(
-        boxName: boxName,
-        box: () => Hive.box<int>(boxName),
-        decode: _decodeInt,
-      );
-    }
-    if (_isLanguageStringBoxName(boxName)) {
-      return _BackupDataSegment.box<String>(
-        boxName: boxName,
-        box: () => Hive.box<String>(boxName),
-      );
-    }
-    return null;
-  }
-
   int _dataSchemaVersion(Map<String, dynamic> data) {
     final raw = data['schemaVersion'];
     return raw is int ? raw : int.parse(raw.toString());
@@ -1370,19 +1270,6 @@ class BackupService extends ChangeNotifier {
     };
   }
 
-  List<String> _restoredBookBoxNames(
-    Map<String, dynamic> boxes,
-    int importedSchemaVersion,
-  ) {
-    if (importedSchemaVersion < 2) {
-      return [HiveBoxNames.booksFor(_defaultLang)];
-    }
-    return boxes.keys
-        .map((key) => key.toString())
-        .where(_isLanguageBooksBoxName)
-        .toList();
-  }
-
   Iterable<Map<dynamic, dynamic>> _boxEntries(dynamic boxData) {
     if (boxData is! Map) return const [];
     final entries = boxData['entries'];
@@ -1390,36 +1277,8 @@ class BackupService extends ChangeNotifier {
     return entries.whereType<Map>();
   }
 
-  Future<void> _clearLanguageBackupBoxes(String languageCode) async {
-    for (final segment in _languageBackupSegments(languageCode)) {
-      if (await _segmentBoxExistsOrOpen(segment.boxName)) {
-        await segment.ensureOpen();
-        await segment.clear();
-      }
-    }
-  }
-
-  Future<void> _clearV1BackupBoxes() async {
-    for (final segment in _v1BackupSegments()) {
-      await segment.ensureOpen();
-      await segment.clear();
-    }
-  }
-
-  Future<bool> _segmentBoxExistsOrOpen(String boxName) async {
-    return Hive.isBoxOpen(boxName) || await Hive.boxExists(boxName);
-  }
-
   bool _isLanguageBooksBoxName(String boxName) {
     return boxName.startsWith('${HiveBoxNames.books}_');
-  }
-
-  bool _isLanguageStringBoxName(String boxName) {
-    return boxName.startsWith('${HiveBoxNames.userVocabulary}_') ||
-        boxName.startsWith('${HiveBoxNames.wordBookmarks}_') ||
-        boxName.startsWith('${HiveBoxNames.readingBookmarks}_') ||
-        boxName.startsWith('${HiveBoxNames.readingConfig}_') ||
-        boxName.startsWith('${HiveBoxNames.wordContexts}_');
   }
 
   Map<String, dynamic> _snapshotSegment(_BackupDataSegment segment) {
@@ -1605,30 +1464,6 @@ class BackupService extends ChangeNotifier {
     return '${booksDir.path}${Platform.pathSeparator}${bookId}_cover.png';
   }
 
-  Future<void> _restoreSegment(
-    _BackupDataSegment segment,
-    Map<String, dynamic> data,
-  ) async {
-    final entries = data['entries'];
-    if (entries is! List) {
-      throw BackupException('${segment.boxName} 备份数据无效');
-    }
-
-    if (segment.clearBeforeRestore) {
-      await segment.clear();
-    }
-
-    for (final entry in entries) {
-      if (entry is! Map) continue;
-      final key = _decodeKey(entry['key']);
-      if (segment.shouldSkipRestoreKey(key)) {
-        continue;
-      }
-      final value = segment.decodeValue(entry['value']);
-      await segment.putValue(key, value);
-    }
-  }
-
   Map<String, dynamic> _encodeKey(dynamic key) {
     if (key is int) return {'type': 'int', 'value': key};
     return {'type': 'string', 'value': key.toString()};
@@ -1772,107 +1607,43 @@ class BackupService extends ChangeNotifier {
 
 typedef _BackupSnapshotSkip =
     bool Function(dynamic key, bool includeSecretsInBackup);
-typedef _BackupRestoreSkip = bool Function(dynamic key);
 
 class _BackupDataSegment {
   _BackupDataSegment._({
     required this.boxName,
-    required this.ensureOpen,
     required this.keys,
     required this.values,
     required this.getValue,
-    required this.clear,
-    required this.putValue,
     required this.encodeValue,
-    required this.decodeValue,
-    required this.clearBeforeRestore,
     this.skipSnapshotKey,
-    this.skipRestoreKey,
   });
-
-  static _BackupDataSegment box<T>({
-    required String boxName,
-    required Box<T> Function() box,
-    dynamic Function(T value)? encode,
-    T Function(dynamic value)? decode,
-    bool clearBeforeRestore = true,
-    _BackupSnapshotSkip? skipSnapshotKey,
-    _BackupRestoreSkip? skipRestoreKey,
-  }) {
-    return _BackupDataSegment._(
-      boxName: boxName,
-      ensureOpen: () async {
-        if (!Hive.isBoxOpen(boxName)) {
-          await Hive.openBox<T>(boxName);
-        }
-      },
-      keys: () => box().keys,
-      values: () => box().values,
-      getValue: (key) => box().get(key),
-      clear: () => box().clear(),
-      putValue: (key, value) => box().put(key, value as T),
-      encodeValue: (value) {
-        if (encode != null) return encode(value as T);
-        return BackupService._encodeJsonValue(value);
-      },
-      decodeValue: (value) {
-        if (decode != null) return decode(value);
-        return value;
-      },
-      clearBeforeRestore: clearBeforeRestore,
-      skipSnapshotKey: skipSnapshotKey,
-      skipRestoreKey: skipRestoreKey,
-    );
-  }
 
   static _BackupDataSegment memory<T>({
     required String boxName,
     required Map<dynamic, T> entries,
     dynamic Function(T value)? encode,
-    T Function(dynamic value)? decode,
-    bool clearBeforeRestore = true,
     _BackupSnapshotSkip? skipSnapshotKey,
-    _BackupRestoreSkip? skipRestoreKey,
   }) {
     final snapshot = Map<dynamic, T>.of(entries);
     return _BackupDataSegment._(
       boxName: boxName,
-      ensureOpen: () async {},
       keys: () => snapshot.keys,
       values: () => snapshot.values,
       getValue: (key) => snapshot[key],
-      clear: () async {
-        throw UnsupportedError('In-memory backup segments are read-only');
-      },
-      putValue: (key, value) async {
-        throw UnsupportedError('In-memory backup segments are read-only');
-      },
       encodeValue: (value) {
         if (encode != null) return encode(value as T);
         return BackupService._encodeJsonValue(value);
       },
-      decodeValue: (value) {
-        if (decode != null) return decode(value);
-        return value;
-      },
-      clearBeforeRestore: clearBeforeRestore,
       skipSnapshotKey: skipSnapshotKey,
-      skipRestoreKey: skipRestoreKey,
     );
   }
 
   final String boxName;
-  final Future<void> Function() ensureOpen;
   final Iterable<dynamic> Function() keys;
   final Iterable<dynamic> Function() values;
   final dynamic Function(dynamic key) getValue;
-  final Future<int> Function() clear;
-  final Future<void> Function(dynamic key, dynamic value) putValue;
   final dynamic Function(dynamic value) encodeValue;
-  final dynamic Function(dynamic value) decodeValue;
-  final bool clearBeforeRestore;
   final _BackupSnapshotSkip? skipSnapshotKey;
-  final _BackupRestoreSkip? skipRestoreKey;
 
   bool shouldSkipSnapshotKey(
     dynamic key, {
@@ -1880,11 +1651,6 @@ class _BackupDataSegment {
   }) {
     final predicate = skipSnapshotKey;
     return predicate != null && predicate(key, includeSecretsInBackup);
-  }
-
-  bool shouldSkipRestoreKey(dynamic key) {
-    final predicate = skipRestoreKey;
-    return predicate != null && predicate(key);
   }
 }
 

@@ -7,7 +7,6 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/learning_item.dart';
-import 'package:flow_rss/flow_rss.dart';
 import 'package:flow_read/services/backup_archive.dart' as archive;
 import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';
@@ -17,9 +16,9 @@ import 'package:flow_read/services/wordhunter_import_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/storage/database/repositories/drift_book_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_learning_item_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_user_vocabulary_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_word_context_repository.dart';
 import 'package:flow_read/storage/hive_box_names.dart';
-import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
-import 'package:flow_read/storage/repositories/word_context_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/hive_test_storage.dart';
@@ -29,6 +28,7 @@ void main() {
 
   late Directory tempDir;
   late Directory documentsDir;
+  late AppDatabase db;
   late SettingsService settings;
   late BackupService backup;
 
@@ -40,16 +40,14 @@ void main() {
     await openFlowReadTestBoxes();
     documentsDir = await Directory('${tempDir.path}/documents').create();
 
-    settings = await createTestSettingsService();
-    settingsBox()
-      ..put('aiProviderId', settings.aiProviderId)
-      ..put('aiApiKeys', '{}')
-      ..put('backupFolderPath', '')
-      ..put('backupFolderBookmark', '');
+    db = await createTestAppDatabase();
+    settings = SettingsService(db.settingsDao);
+    await settings.init();
     backup = BackupService(
       settings,
+      database: db,
       documentsDirectoryProvider: () async => documentsDir,
-      wordHunterImportServiceFactory: _hiveWordHunterImportService,
+      wordHunterImportServiceFactory: () => _driftWordHunterImportService(db),
     );
   });
 
@@ -58,7 +56,7 @@ void main() {
     await disposeHiveTestStorage(tempDir);
   });
 
-  test('exports Hive data to .flow.bak and imports it back', () async {
+  test('exports Drift data to .flow.bak and imports it back', () async {
     final book = BookMetadata(
       id: 'book-1',
       title: 'Test Book',
@@ -88,39 +86,55 @@ void main() {
     final epubFile = File('${tempDir.path}/test.epub');
     await epubFile.writeAsString('mock epub content');
 
-    await booksBox().put(book.id, book.copyWith(sourcePath: epubFile.path));
-    await userVocabularyBox().put('flow', 'known');
-    await readingConfigBox().put('fontSize', '18.0');
-    await readingTimeBox().put('_global_', 120);
-    await learningAnalyticsBox().put(20260515, 7);
-    await dictionaryCacheBox().put('flow', '{"word":"flow"}');
-    await wordContextsBox().put(
-      'flow',
-      '[{"word":"flow","text":"A steady flow of ideas."}]',
-    );
-    await learningItemsBox().put(
-      'learning-1',
-      LearningItem(
-        id: 'learning-1',
-        type: LearningItemType.word,
-        canonicalKey: 'flow',
-        title: 'flow',
-        content: 'flow',
-        answer: 'movement',
-        note: '',
-        sourceText: 'A steady flow of ideas.',
-        bookId: 'book-1',
-        chapterIndex: 1,
-        chapterTitle: 'Chapter 2',
-        createdAt: DateTime.utc(2026, 5, 15, 8, 45),
-        updatedAt: DateTime.utc(2026, 5, 15, 8, 45),
+    await db.bookDao.upsert(
+      DriftBookRepository.companionFromMetadata(
+        book.copyWith(sourcePath: epubFile.path),
+        languageCode: 'en',
       ),
     );
-    await rssSubscriptionsBox().add(
-      RssFeedSubscription(
+    await db.userVocabularyDao.upsert(
+      UserVocabulariesCompanion.insert(
+        id: 'en_flow',
+        canonical: 'flow',
+        status: 'known',
+        language: const Value('en'),
+      ),
+    );
+    await db.readingConfigDao.putValue('fontSize', 'en', '18.0');
+    await db.readingTimeDao.putSeconds('_global_', 'en', 120);
+    await db.learningAnalyticsDao.putValue('20260515', 'en', 7);
+    await dictionaryCacheBox().put('flow', '{"word":"flow"}');
+    await db.wordContextDao.putData(
+      'flow',
+      'en',
+      '[{"word":"flow","text":"A steady flow of ideas."}]',
+    );
+    await db.learningItemDao.upsert(
+      DriftLearningItemRepository.companionFromItem(
+        LearningItem(
+          id: 'learning-1',
+          type: LearningItemType.word,
+          canonicalKey: 'flow',
+          title: 'flow',
+          content: 'flow',
+          answer: 'movement',
+          note: '',
+          sourceText: 'A steady flow of ideas.',
+          bookId: 'book-1',
+          chapterIndex: 1,
+          chapterTitle: 'Chapter 2',
+          createdAt: DateTime.utc(2026, 5, 15, 8, 45),
+          updatedAt: DateTime.utc(2026, 5, 15, 8, 45),
+        ),
+        languageCode: 'en',
+      ),
+    );
+    await db.rssDao.insertSubscription(
+      RssSubscriptionsCompanion.insert(
+        id: 'rss-1',
         url: 'https://example.com/rss.xml',
-        title: 'Example',
-        lastFetchedAt: DateTime.utc(2026, 5, 15),
+        title: const Value('Example'),
+        lastFetchedAt: const Value('2026-05-15T00:00:00.000Z'),
       ),
     );
     await settings.setAIProvider('openai');
@@ -130,7 +144,7 @@ void main() {
       '/private/backups',
       bookmark: 'bookmark',
     );
-    await settingsBox().put('rss_read_articles', jsonEncode(['a1']));
+    await db.settingsDao.putValue('rss_read_articles', jsonEncode(['a1']));
 
     await backup.exportNow(folderPath: '${tempDir.path}/backups');
 
@@ -200,35 +214,45 @@ void main() {
     expect(sourceEntry, isNotNull);
     expect(utf8.decode(sourceEntry!.content), 'mock epub content');
 
-    await booksBox().clear();
-    await userVocabularyBox().clear();
-    await readingConfigBox().clear();
-    await readingTimeBox().clear();
-    await learningAnalyticsBox().clear();
+    await db.bookDao.deleteAllForLanguage('en');
+    await db.userVocabularyDao.clearForLanguage('en');
+    await db.readingConfigDao.clearForLanguage('en');
+    await db.readingTimeDao.clearForLanguage('en');
+    await db.learningAnalyticsDao.clearForLanguage('en');
     await dictionaryCacheBox().clear();
-    await wordContextsBox().clear();
-    await learningItemsBox().clear();
-    await rssSubscriptionsBox().clear();
+    await db.wordContextDao.clearForLanguage('en');
+    await db.learningItemDao.clearForLanguage('en');
+    await db.rssDao.deleteAllArticles();
+    await db.rssDao.deleteAllSubscriptions();
 
     await backup.importBackupFile(bakFiles.first.path);
 
-    final restoredBook = booksBox().get('book-1');
+    final restoredBook = await db.bookDao.getById('book-1');
     expect(restoredBook?.title, 'Test Book');
     expect(restoredBook?.chapterScrollOffset, 320);
-    expect(restoredBook?.difficultyStudyWords, ['flow', 'reading']);
-    expect(restoredBook?.difficultyRating?.level, BookDifficultyLevel.l2);
-    expect(restoredBook?.difficultyVocabularySignature, 'vocab-v1');
-    expect(userVocabularyBox().get('flow'), 'known');
-    expect(readingConfigBox().get('fontSize'), '18.0');
-    expect(readingTimeBox().get('_global_'), 120);
-    expect(learningAnalyticsBox().get(20260515), 7);
+    final restoredMetadata = DriftBookRepository.metadataFromEntry(
+      restoredBook!,
+    );
+    expect(restoredMetadata.difficultyStudyWords, ['flow', 'reading']);
+    expect(restoredMetadata.difficultyRating?.level, BookDifficultyLevel.l2);
+    expect(restoredBook.difficultyVocabularySignature, 'vocab-v1');
+    expect(
+      (await db.userVocabularyDao.entryFor('en_flow'))?.status,
+      'known',
+    );
+    expect(await db.readingConfigDao.valueFor('fontSize', 'en'), '18.0');
+    expect(await db.readingTimeDao.secondsFor('_global_', 'en'), 120);
+    expect(await db.learningAnalyticsDao.valueFor('20260515', 'en'), 7);
     expect(dictionaryCacheBox().get('flow'), isNull);
     expect(
-      wordContextsBox().get('flow'),
+      await db.wordContextDao.dataFor('flow', 'en'),
       '[{"word":"flow","text":"A steady flow of ideas."}]',
     );
-    expect(learningItemsBox().get('learning-1')?.answer, 'movement');
-    expect(rssSubscriptionsBox().values.single.title, 'Example');
+    expect(
+      (await db.learningItemDao.getById('learning-1'))?.answer,
+      'movement',
+    );
+    expect((await db.rssDao.allSubscriptions()).single.title, 'Example');
     expect(settings.aiProviderId, 'openai');
     expect(settings.apiKeyFor('openai'), 'secret-key');
     expect(settings.backupFolderPath, '/private/backups');
@@ -236,14 +260,6 @@ void main() {
   });
 
   test('exports Drift data to the legacy backup payload shape', () async {
-    final db = await createTestAppDatabase();
-    final driftBackup = BackupService(
-      settings,
-      database: db,
-      documentsDirectoryProvider: () async => documentsDir,
-    );
-    addTearDown(driftBackup.dispose);
-
     final epubFile = File('${tempDir.path}/drift.epub');
     await epubFile.writeAsString('drift epub content');
 
@@ -350,7 +366,7 @@ void main() {
 
     await userVocabularyBox().put('hive-only', 'known');
 
-    final backupPath = await driftBackup.exportNow(
+    final backupPath = await backup.exportNow(
       folderPath: '${tempDir.path}/drift_backups',
     );
 
@@ -416,17 +432,8 @@ void main() {
   });
 
   test('imports v2 backup data into Drift storage', () async {
-    final db = await createTestAppDatabase();
-    final driftSettings = SettingsService(db.settingsDao);
-    await driftSettings.init();
     final preImportDir = Directory('${tempDir.path}/drift_pre_import');
-    await driftSettings.setBackupFolderPath(preImportDir.path);
-    final driftBackup = BackupService(
-      driftSettings,
-      database: db,
-      documentsDirectoryProvider: () async => documentsDir,
-    );
-    addTearDown(driftBackup.dispose);
+    await settings.setBackupFolderPath(preImportDir.path);
 
     final currentSource = File('${tempDir.path}/current.epub');
     await currentSource.writeAsString('current epub content');
@@ -624,7 +631,7 @@ void main() {
       },
     );
 
-    await driftBackup.importBackupFile(backupFile.path);
+    await backup.importBackupFile(backupFile.path);
 
     expect(await db.bookDao.getById('current-book'), isNull);
     final restoredBook = await db.bookDao.getById(importedBook.id);
@@ -665,8 +672,8 @@ void main() {
       await db.characterRegistryDao.valueFor(importedBook.id),
       contains('Imported'),
     );
-    expect(driftSettings.aiProviderId, 'openai');
-    expect(driftSettings.backupFolderPath, preImportDir.path);
+    expect(settings.aiProviderId, 'openai');
+    expect(settings.backupFolderPath, preImportDir.path);
     expect(userVocabularyBox().get('hive-current'), 'known');
     expect(
       preImportDir.listSync().whereType<File>().where(
@@ -695,7 +702,9 @@ void main() {
       chapterProgress: 0.25,
       chapterScrollOffset: 480,
     );
-    await booksBox().put(book.id, book);
+    await db.bookDao.upsert(
+      DriftBookRepository.companionFromMetadata(book, languageCode: 'en'),
+    );
 
     await backup.exportNow(folderPath: '${tempDir.path}/backups');
 
@@ -722,13 +731,13 @@ void main() {
     expect(coverEntry, isNotNull);
     expect(coverEntry!.content, coverBytes);
 
-    await booksBox().clear();
+    await db.bookDao.deleteAllForLanguage('en');
     await sourceFile.delete();
     await coverFile.delete();
 
     await backup.importBackupFile(bakFiles.first.path);
 
-    final restored = booksBox().get('book-file')!;
+    final restored = (await db.bookDao.getById('book-file'))!;
     final restoredSource = File(restored.sourcePath);
     final restoredCover = File(restored.coverPath!);
     expect(restored.sourcePath, '${documentsDir.path}/books/book-file.epub');
@@ -746,20 +755,37 @@ void main() {
     final preImportDir = Directory('${tempDir.path}/pre_import_backups');
     await settings.setBackupFolderPath(preImportDir.path);
 
-    await userVocabularyBox().put('imported', 'known');
+    await db.userVocabularyDao.upsert(
+      UserVocabulariesCompanion.insert(
+        id: 'en_imported',
+        canonical: 'imported',
+        status: 'known',
+        language: const Value('en'),
+      ),
+    );
     final importPath = await backup.exportNow(
       folderPath: '${tempDir.path}/restore_source',
     );
     final lastBackupAt = settings.lastBackupAt;
     final lastBackupPath = settings.lastBackupPath;
 
-    await userVocabularyBox().clear();
-    await userVocabularyBox().put('current', 'learning');
+    await db.userVocabularyDao.clearForLanguage('en');
+    await db.userVocabularyDao.upsert(
+      UserVocabulariesCompanion.insert(
+        id: 'en_current',
+        canonical: 'current',
+        status: 'learning',
+        language: const Value('en'),
+      ),
+    );
 
     await backup.importBackupFile(importPath);
 
-    expect(userVocabularyBox().get('imported'), 'known');
-    expect(userVocabularyBox().get('current'), isNull);
+    expect(
+      (await db.userVocabularyDao.entryFor('en_imported'))?.status,
+      'known',
+    );
+    expect(await db.userVocabularyDao.entryFor('en_current'), isNull);
     expect(settings.lastBackupAt, lastBackupAt);
     expect(settings.lastBackupPath, lastBackupPath);
 
@@ -783,8 +809,15 @@ void main() {
     });
   });
 
-  test('imports v1 backup data into English language boxes', () async {
-    await userVocabularyBox().put('current', 'learning');
+  test('imports v1 backup data into Drift default language', () async {
+    await db.userVocabularyDao.upsert(
+      UserVocabulariesCompanion.insert(
+        id: 'en_current',
+        canonical: 'current',
+        status: 'learning',
+        language: const Value('en'),
+      ),
+    );
 
     final sourceBytes = utf8.encode('legacy epub bytes');
     final legacyBook = BookMetadata(
@@ -845,24 +878,25 @@ void main() {
 
     await backup.importBackupFile(backupFile.path);
 
-    final restoredBook = booksBox().get('legacy-book');
+    final restoredBook = await db.bookDao.getById('legacy-book');
     expect(restoredBook?.title, 'Legacy Book');
     expect(
       restoredBook?.sourcePath,
       '${documentsDir.path}/books/legacy-book.epub',
     );
     expect(await File(restoredBook!.sourcePath).readAsBytes(), sourceBytes);
-    expect(userVocabularyBox().get('legacy'), 'known');
-    expect(userVocabularyBox().get('current'), isNull);
-    expect(readingConfigBox().get('fontSize'), '19');
-    expect(readingTimeBox().get('legacy-book'), 75);
+    expect(
+      (await db.userVocabularyDao.entryFor('en_legacy'))?.status,
+      'known',
+    );
+    expect(await db.userVocabularyDao.entryFor('en_current'), isNull);
+    expect(await db.readingConfigDao.valueFor('fontSize', 'en'), '19');
+    expect(await db.readingTimeDao.secondsFor('legacy-book', 'en'), 75);
     expect(settings.activeSourceLanguage, 'en');
-    expect(v1BooksBox().get('legacy-book')?.title, 'Legacy Book');
-    expect(v1UserVocabularyBox().get('legacy'), 'known');
   });
 
   test('exportNow writes a .flow.bak file into the selected folder', () async {
-    await readingTimeBox().put('_global_', 30);
+    await db.readingTimeDao.putSeconds('_global_', 'en', 30);
 
     final path = await backup.exportNow(folderPath: '${tempDir.path}/backups');
     final file = File(path);
@@ -888,7 +922,9 @@ void main() {
       sourcePath: '${tempDir.path}/nonexistent.epub',
       totalChapters: 1,
     );
-    await booksBox().put(book.id, book);
+    await db.bookDao.upsert(
+      DriftBookRepository.companionFromMetadata(book, languageCode: 'en'),
+    );
 
     expect(
       () => backup.exportNow(folderPath: '${tempDir.path}/backups'),
@@ -905,9 +941,17 @@ void main() {
   test(
     'imports Word Hunter backup as vocabulary status and examples',
     () async {
-      await userVocabularyBox().put('agenda', 'known');
-      await wordContextsBox().put(
+      await db.userVocabularyDao.upsert(
+        UserVocabulariesCompanion.insert(
+          id: 'en_agenda',
+          canonical: 'agenda',
+          status: 'known',
+          language: const Value('en'),
+        ),
+      );
+      await db.wordContextDao.putData(
         'agenda',
+        'en',
         jsonEncode([
           {'word': 'agenda', 'text': 'Existing example.'},
         ]),
@@ -936,18 +980,24 @@ void main() {
       expect(result.learningCount, 2);
       expect(result.exampleCount, 2);
 
-      final vocabulary = UserVocabularyService(
-        repository: HiveUserVocabularyRepository(),
+      expect((await db.userVocabularyDao.entryFor('en_flow'))?.status, 'known');
+      expect((await db.userVocabularyDao.entryFor('en_the'))?.status, 'known');
+      expect(
+        (await db.userVocabularyDao.entryFor('en_agenda'))?.status,
+        'known',
       );
-      await vocabulary.init();
-      expect(vocabulary.isKnown('flow'), isTrue);
-      expect(vocabulary.isKnown('the'), isTrue);
-      expect(vocabulary.isKnown('agenda'), isTrue);
-      expect(vocabulary.isLearning('migrate'), isTrue);
-      expect(vocabulary.isLearning('partition'), isTrue);
+      expect(
+        (await db.userVocabularyDao.entryFor('en_migrate'))?.status,
+        'learning',
+      );
+      expect(
+        (await db.userVocabularyDao.entryFor('en_partition'))?.status,
+        'learning',
+      );
 
       final agendaExamples =
-          jsonDecode(wordContextsBox().get('agenda')!) as List<dynamic>;
+          jsonDecode((await db.wordContextDao.dataFor('agenda', 'en'))!)
+              as List<dynamic>;
       expect(agendaExamples, hasLength(2));
       expect(
         agendaExamples.last['text'],
@@ -956,7 +1006,8 @@ void main() {
       expect(agendaExamples.last['title'], 'Sapiens');
 
       final partitionExamples =
-          jsonDecode(wordContextsBox().get('partition')!) as List<dynamic>;
+          jsonDecode((await db.wordContextDao.dataFor('partition', 'en'))!)
+              as List<dynamic>;
       expect(
         partitionExamples.single['text'],
         'function partition(nums, l, r) {',
@@ -987,16 +1038,22 @@ void main() {
     expect(result.learningCount, 1);
     expect(result.exampleCount, 1);
 
-    final vocabulary = UserVocabularyService(
-      repository: HiveUserVocabularyRepository(),
+    expect(
+      (await db.userVocabularyDao.entryFor('en_already'))?.status,
+      'known',
     );
-    await vocabulary.init();
-    expect(vocabulary.isKnown('already'), isTrue);
-    expect(vocabulary.isKnown('mastered'), isTrue);
-    expect(vocabulary.isLearning('learning'), isTrue);
+    expect(
+      (await db.userVocabularyDao.entryFor('en_mastered'))?.status,
+      'known',
+    );
+    expect(
+      (await db.userVocabularyDao.entryFor('en_learning'))?.status,
+      'learning',
+    );
 
     final examples =
-        jsonDecode(wordContextsBox().get('learning')!) as List<dynamic>;
+        jsonDecode((await db.wordContextDao.dataFor('learning', 'en'))!)
+            as List<dynamic>;
     expect(
       examples.single['text'],
       'Learning appears in an imported sentence.',
@@ -1004,13 +1061,20 @@ void main() {
   });
 }
 
-WordHunterImportService _hiveWordHunterImportService() {
+WordHunterImportService _driftWordHunterImportService(AppDatabase db) {
   return WordHunterImportService(
     vocabularyService: UserVocabularyService(
-      repository: HiveUserVocabularyRepository(),
+      repository: DriftUserVocabularyRepository(
+        db.userVocabularyDao,
+        languageCode: 'en',
+      ),
+      languageCode: 'en',
     ),
     wordContextService: WordContextService(
-      repository: HiveWordContextRepository(),
+      repository: DriftWordContextRepository(
+        db.wordContextDao,
+        languageCode: 'en',
+      ),
     ),
   );
 }

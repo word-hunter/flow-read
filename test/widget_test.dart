@@ -20,8 +20,10 @@ void main() {
   setUp(() async {
     await initHiveTestStorage('flow_read_widget_test_');
     await openFlowReadTestBoxes();
-    settings = await createTestSettingsService();
-    backup = BackupService(settings);
+    final db = await createTestAppDatabase();
+    settings = SettingsService(db.settingsDao);
+    await settings.init();
+    backup = BackupService(settings, database: db);
   });
 
   testWidgets('Settings screen renders redesigned settings sections', (
