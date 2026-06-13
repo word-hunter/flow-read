@@ -38,7 +38,7 @@ import '../../storage/database/repositories/drift_reading_time_repository.dart';
 import '../../storage/database/repositories/drift_user_vocabulary_repository.dart';
 import '../../storage/database/repositories/drift_word_context_repository.dart';
 import '../../storage/database/repositories/drift_word_level_repository.dart';
-import '../../storage/hive_storage.dart';
+import '../../storage/storage_bootstrap.dart';
 import '../book_insight_provider.dart';
 import '../settings_provider.dart';
 import 'bookshelf_notifier.dart';

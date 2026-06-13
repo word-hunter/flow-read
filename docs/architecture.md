@@ -1,6 +1,6 @@
 # Flow Read Architecture
 
-> @source lib/main.dart lib/platform/flow_shell_resolver.dart lib/providers/ lib/storage/hive_storage.dart lib/storage/database/bootstrap.dart lib/theme/city_theme_tokens.dart lib/widgets/flow/flow_components.dart packages/flow_design_system/lib/theme/flow_theme.dart packages/flow_design_system/lib/palettes/classic.dart
+> @source lib/main.dart lib/platform/flow_shell_resolver.dart lib/providers/ lib/storage/storage_bootstrap.dart lib/storage/database/bootstrap.dart lib/theme/city_theme_tokens.dart lib/widgets/flow/flow_components.dart packages/flow_design_system/lib/theme/flow_theme.dart packages/flow_design_system/lib/palettes/classic.dart
 
 Last updated: 2026-06-13
 
@@ -18,10 +18,10 @@ Last updated: 2026-06-13
 │  (Stateless services, abstract adapters)          │
 ├──────────────────────────────────────────────────┤
 │  Model Layer: models/                             │
-│  (Hive-annotated data classes + value objects)    │
+│  (plain Dart domain models + value objects)       │
 ├──────────────────────────────────────────────────┤
 │  Storage Layer: storage/                          │
-│  (Hive boxes, repositories, migrations)           │
+│  (Drift database, DAOs, repository adapters)      │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -30,7 +30,7 @@ Last updated: 2026-06-13
 1. **阅读器优先**：EPUB 阅读、搜索、图片渲染不依赖词汇标注、AI、RSS 或备份
 2. **Riverpod 入口**：UI 通过 Riverpod facade 消费阅读、设置、备份和 RSS 状态
 3. **抽象接口 + 多实现**：词典（4 个 source adapter）、语言模块（LanguageModule）、发音服务
-4. **Hive 按语言分区**：schema v2，box 名含语言后缀（`user_vocabulary_en`）
+4. **Drift 作为运行时存储**：语言分区由 Drift 表字段和 repository adapter 维护
 5. **显式 Provider 声明**：依赖通过 `lib/providers/` 中的 Riverpod provider 声明
 
 ## 启动流程
@@ -38,8 +38,8 @@ Last updated: 2026-06-13
 ```
 main()
   → runZonedGuarded (AppLogger)
-  → bootstrapStorage()           // Hive init/open + legacy box migration
-    → bootstrapDatabaseStorage() // AppDatabase + HiveToDriftMigration + startup snapshots
+  → bootstrapStorage()           // language modules + storage bootstrap
+    → bootstrapDatabaseStorage() // AppDatabase + Drift-backed startup snapshots
   → ProviderScope                // Riverpod root
   → FlowReadApp                  // MaterialApp, theme, global shortcuts
   → HomeScreen                  // 首屏：书架 + 侧栏
@@ -51,8 +51,8 @@ main()
 |------|------|------|
 | `main.dart:main()` | `lib/main.dart` | 应用入口，bootstrap + 路由 |
 | `providers/` | `lib/providers/` | Riverpod provider 声明与过渡 facade |
-| `hive_storage.dart:bootstrapStorage()` | `lib/storage/hive_storage.dart` | legacy Hive 初始化与启动编排 |
-| `database/bootstrap.dart:bootstrapDatabaseStorage()` | `lib/storage/database/bootstrap.dart` | AppDatabase 创建、legacy 导入、provider 启动快照 |
+| `storage_bootstrap.dart:bootstrapStorage()` | `lib/storage/storage_bootstrap.dart` | 语言模块注册与存储启动编排 |
+| `database/bootstrap.dart:bootstrapDatabaseStorage()` | `lib/storage/database/bootstrap.dart` | AppDatabase 创建与 Drift provider 启动快照 |
 | `reading_provider.dart:init()` | `lib/providers/reading_provider.dart` | 恢复上次阅读状态 |
 
 ## 路由结构

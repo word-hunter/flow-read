@@ -5,21 +5,23 @@ import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/services/analysis_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_user_vocabulary_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/hive_test_storage.dart';
-import 'support/legacy_hive_repositories.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
+  late AppDatabase db;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_book_difficulty_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_book_difficulty_test_');
+    db = await createTestAppDatabase();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('book difficulty is based on unique study words in the whole book', () {
@@ -39,7 +41,7 @@ void main() {
     'book difficulty compares new words with total mastered vocabulary',
     () async {
       final vocab = UserVocabularyService(
-        repository: HiveUserVocabularyRepository(),
+        repository: _vocabularyRepository(db),
       );
       await vocab.init();
 
@@ -68,7 +70,7 @@ void main() {
 
   test('book difficulty changes when user vocabulary changes', () async {
     final vocab = UserVocabularyService(
-      repository: HiveUserVocabularyRepository(),
+      repository: _vocabularyRepository(db),
     );
     await vocab.init();
 
@@ -92,7 +94,7 @@ void main() {
     'learning words count as a lighter reading load than unknown words',
     () async {
       final vocab = UserVocabularyService(
-        repository: HiveUserVocabularyRepository(),
+        repository: _vocabularyRepository(db),
       );
       await vocab.init();
       for (final word in _knownWords(1000)) {
@@ -135,6 +137,13 @@ void main() {
     expect(restored.weightedNewWordCount, 7);
     expect(restored.newWordToKnownRatio, 0.07);
   });
+}
+
+DriftUserVocabularyRepository _vocabularyRepository(AppDatabase db) {
+  return DriftUserVocabularyRepository(
+    db.userVocabularyDao,
+    languageCode: 'en',
+  );
 }
 
 Book _bookWithWords(Iterable<String> words) {

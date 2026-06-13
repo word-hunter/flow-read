@@ -3,11 +3,10 @@ import '../../models/learning_item.dart';
 import '../../models/user_vocabulary.dart';
 import '../../services/app_logger.dart';
 import 'app_database.dart';
-import 'migration.dart';
 import 'repositories/drift_book_repository.dart';
 import 'repositories/drift_bookmark_repository.dart';
 import 'repositories/drift_learning_item_repository.dart';
-import '../hive_box_names.dart';
+import '../legacy_backup_box_names.dart';
 
 typedef AppDatabaseFactory = Future<AppDatabase> Function();
 
@@ -46,7 +45,7 @@ final class DatabaseBootstrapSnapshot {
   });
 
   const DatabaseBootstrapSnapshot.empty({
-    String languageCode = HiveBoxNames.defaultLanguageCode,
+    String languageCode = LegacyBackupBoxNames.defaultLanguageCode,
   }) : bookMetadataLanguage = languageCode,
        bookMetadataValues = const [],
        readingConfigLanguage = languageCode,
@@ -189,8 +188,7 @@ final class DatabaseBootstrapSnapshot {
   }
 }
 
-Future<DatabaseBootstrapResult?> bootstrapDatabaseStorage(
-  String activeLanguageCode, {
+Future<DatabaseBootstrapResult?> bootstrapDatabaseStorage({
   AppDatabaseFactory databaseFactory = AppDatabase.create,
 }) async {
   final AppDatabase db;
@@ -207,9 +205,9 @@ Future<DatabaseBootstrapResult?> bootstrapDatabaseStorage(
     return null;
   }
 
-  await _runLegacyMigration(db, activeLanguageCode);
-
+  var activeLanguageCode = LegacyBackupBoxNames.defaultLanguageCode;
   try {
+    activeLanguageCode = await _activeSourceLanguageCode(db);
     return DatabaseBootstrapResult(
       database: db,
       snapshot: await DatabaseBootstrapSnapshot.load(db, activeLanguageCode),
@@ -231,31 +229,12 @@ Future<DatabaseBootstrapResult?> bootstrapDatabaseStorage(
   }
 }
 
-Future<void> _runLegacyMigration(
-  AppDatabase db,
-  String activeLanguageCode,
-) async {
-  final migration = HiveToDriftMigration(db);
-  try {
-    final result = await migration.migrateAll(activeLanguageCode);
-    AppLogger.instance.event(
-      'database.migration_succeeded',
-      source: 'storage',
-      metadata: {
-        'skipped': result.skipped,
-        'language': result.languageCode,
-        'scannedRows': result.totalScannedRows,
-      },
-    );
-  } catch (error, stackTrace) {
-    AppLogger.instance.event(
-      'database.migration_failed',
-      level: AppLogLevel.warning,
-      source: 'storage',
-      error: error,
-      stackTrace: stackTrace,
-    );
-  }
+Future<String> _activeSourceLanguageCode(AppDatabase db) async {
+  final raw = await db.settingsDao.valueFor(
+    LegacyBackupBoxNames.activeSourceLanguageKey,
+  );
+  final code = raw.trim().toLowerCase();
+  return code.isEmpty ? LegacyBackupBoxNames.defaultLanguageCode : code;
 }
 
 final class _BookmarkSnapshot {

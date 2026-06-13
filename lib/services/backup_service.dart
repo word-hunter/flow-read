@@ -17,7 +17,7 @@ import '../storage/database/repositories/drift_book_repository.dart';
 import '../storage/database/repositories/drift_bookmark_repository.dart';
 import '../storage/database/repositories/drift_learning_item_repository.dart';
 import '../storage/database/repositories/drift_rss_repository.dart';
-import '../storage/hive_box_names.dart';
+import '../storage/legacy_backup_box_names.dart';
 import 'backup_archive.dart' as archive;
 import 'backup_folder_access.dart';
 import 'package:flow_language/flow_language.dart';
@@ -38,7 +38,7 @@ class BackupException implements Exception {
 class BackupService extends ChangeNotifier {
   static const schemaVersion = 2;
   static const appId = 'flow_read';
-  static const _defaultLang = HiveBoxNames.defaultLanguageCode;
+  static const _defaultLang = LegacyBackupBoxNames.defaultLanguageCode;
 
   static const _localSettingKeys = <String>{
     'backupEnabled',
@@ -53,23 +53,23 @@ class BackupService extends ChangeNotifier {
 
   // Regenerable/reference data stays out of backups: wordLevels and dictionaryCache.
   static const _globalBackupBoxNames = <String>[
-    HiveBoxNames.settings,
-    HiveBoxNames.rssSubscriptions,
-    HiveBoxNames.bookGlossary,
-    HiveBoxNames.characterRegistry,
+    LegacyBackupBoxNames.settings,
+    LegacyBackupBoxNames.rssSubscriptions,
+    LegacyBackupBoxNames.bookGlossary,
+    LegacyBackupBoxNames.characterRegistry,
   ];
 
   static List<String> _languageBackupBoxNames(String lang) {
     return [
-      HiveBoxNames.booksFor(lang),
-      HiveBoxNames.userVocabularyFor(lang),
-      HiveBoxNames.wordBookmarksFor(lang),
-      HiveBoxNames.readingBookmarksFor(lang),
-      HiveBoxNames.readingConfigFor(lang),
-      HiveBoxNames.readingTimeFor(lang),
-      HiveBoxNames.wordContextsFor(lang),
-      HiveBoxNames.learningItemsFor(lang),
-      HiveBoxNames.learningAnalyticsFor(lang),
+      LegacyBackupBoxNames.booksFor(lang),
+      LegacyBackupBoxNames.userVocabularyFor(lang),
+      LegacyBackupBoxNames.wordBookmarksFor(lang),
+      LegacyBackupBoxNames.readingBookmarksFor(lang),
+      LegacyBackupBoxNames.readingConfigFor(lang),
+      LegacyBackupBoxNames.readingTimeFor(lang),
+      LegacyBackupBoxNames.wordContextsFor(lang),
+      LegacyBackupBoxNames.learningItemsFor(lang),
+      LegacyBackupBoxNames.learningAnalyticsFor(lang),
     ];
   }
 
@@ -545,7 +545,7 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
   ) async {
     return _BackupDataSegment.memory<String>(
-      boxName: HiveBoxNames.settings,
+      boxName: LegacyBackupBoxNames.settings,
       entries: await database.settingsDao.allEntries(),
       skipSnapshotKey: (key, includeSecretsInBackup) {
         if (_localSettingKeys.contains(key)) return true;
@@ -559,7 +559,7 @@ class BackupService extends ChangeNotifier {
   ) async {
     final rows = await database.rssDao.allSubscriptions();
     return _BackupDataSegment.memory<RssFeedSubscription>(
-      boxName: HiveBoxNames.rssSubscriptions,
+      boxName: LegacyBackupBoxNames.rssSubscriptions,
       entries: {
         for (var index = 0; index < rows.length; index += 1)
           index: _rssSubscriptionFromDriftEntry(rows[index]),
@@ -573,7 +573,7 @@ class BackupService extends ChangeNotifier {
   ) async {
     final rows = await database.bookGlossaryDao.allEntries();
     return _BackupDataSegment.memory<BookGlossaryEntry>(
-      boxName: HiveBoxNames.bookGlossary,
+      boxName: LegacyBackupBoxNames.bookGlossary,
       entries: {
         for (final row in rows) row.id: _bookGlossaryEntryFromDrift(row),
       },
@@ -585,7 +585,7 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
   ) async {
     return _BackupDataSegment.memory<String>(
-      boxName: HiveBoxNames.characterRegistry,
+      boxName: LegacyBackupBoxNames.characterRegistry,
       entries: await database.characterRegistryDao.allEntries(),
     );
   }
@@ -618,7 +618,7 @@ class BackupService extends ChangeNotifier {
 
     return [
       _BackupDataSegment.memory<BookMetadata>(
-        boxName: HiveBoxNames.booksFor(languageCode),
+        boxName: LegacyBackupBoxNames.booksFor(languageCode),
         entries: {
           for (final row in bookRows)
             row.id: DriftBookRepository.metadataFromEntry(row),
@@ -626,35 +626,35 @@ class BackupService extends ChangeNotifier {
         encode: (value) => value.toJson(),
       ),
       _BackupDataSegment.memory<String>(
-        boxName: HiveBoxNames.userVocabularyFor(languageCode),
+        boxName: LegacyBackupBoxNames.userVocabularyFor(languageCode),
         entries: vocabularyValues,
       ),
       _BackupDataSegment.memory<String>(
-        boxName: HiveBoxNames.wordBookmarksFor(languageCode),
+        boxName: LegacyBackupBoxNames.wordBookmarksFor(languageCode),
         entries: DriftBookmarkRepository.encodedWordBookmarksByBook(
           wordBookmarkRows,
         ),
       ),
       _BackupDataSegment.memory<String>(
-        boxName: HiveBoxNames.readingBookmarksFor(languageCode),
+        boxName: LegacyBackupBoxNames.readingBookmarksFor(languageCode),
         entries: DriftBookmarkRepository.encodedReadingBookmarksByBook(
           readingBookmarkRows,
         ),
       ),
       _BackupDataSegment.memory<String>(
-        boxName: HiveBoxNames.readingConfigFor(languageCode),
+        boxName: LegacyBackupBoxNames.readingConfigFor(languageCode),
         entries: readingConfig,
       ),
       _BackupDataSegment.memory<int>(
-        boxName: HiveBoxNames.readingTimeFor(languageCode),
+        boxName: LegacyBackupBoxNames.readingTimeFor(languageCode),
         entries: readingTime,
       ),
       _BackupDataSegment.memory<String>(
-        boxName: HiveBoxNames.wordContextsFor(languageCode),
+        boxName: LegacyBackupBoxNames.wordContextsFor(languageCode),
         entries: wordContexts,
       ),
       _BackupDataSegment.memory<LearningItem>(
-        boxName: HiveBoxNames.learningItemsFor(languageCode),
+        boxName: LegacyBackupBoxNames.learningItemsFor(languageCode),
         entries: {
           for (final row in learningItemRows)
             row.id: DriftLearningItemRepository.itemFromEntry(row),
@@ -662,7 +662,7 @@ class BackupService extends ChangeNotifier {
         encode: (value) => value.toJson(),
       ),
       _BackupDataSegment.memory<int>(
-        boxName: HiveBoxNames.learningAnalyticsFor(languageCode),
+        boxName: LegacyBackupBoxNames.learningAnalyticsFor(languageCode),
         entries: {
           for (final entry in learningAnalytics.entries)
             int.tryParse(entry.key) ?? entry.key: entry.value,
@@ -675,7 +675,7 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
   ) async {
-    final boxData = _boxData(boxes, HiveBoxNames.settings);
+    final boxData = _boxData(boxes, LegacyBackupBoxNames.settings);
     if (boxData == null) return;
 
     for (final entry in _boxEntries(boxData)) {
@@ -692,7 +692,7 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
   ) async {
-    final boxData = _boxData(boxes, HiveBoxNames.rssSubscriptions);
+    final boxData = _boxData(boxes, LegacyBackupBoxNames.rssSubscriptions);
     if (boxData == null) return;
 
     await database.rssDao.deleteAllArticles();
@@ -721,7 +721,7 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
   ) async {
-    final boxData = _boxData(boxes, HiveBoxNames.characterRegistry);
+    final boxData = _boxData(boxes, LegacyBackupBoxNames.characterRegistry);
     if (boxData == null) return;
 
     await database.characterRegistryDao.clear();
@@ -737,7 +737,7 @@ class BackupService extends ChangeNotifier {
     drift.AppDatabase database,
     Map<String, dynamic> boxes,
   ) async {
-    final boxData = _boxData(boxes, HiveBoxNames.bookGlossary);
+    final boxData = _boxData(boxes, LegacyBackupBoxNames.bookGlossary);
     if (boxData == null) return;
 
     await database.bookGlossaryDao.deleteAll();
@@ -836,7 +836,7 @@ class BackupService extends ChangeNotifier {
   ) async {
     final boxData = _languageBoxData(
       boxes,
-      HiveBoxNames.books,
+      LegacyBackupBoxNames.books,
       languageCode,
       importedSchemaVersion,
     );
@@ -870,7 +870,7 @@ class BackupService extends ChangeNotifier {
     final boxData = _boxData(
       boxes,
       _languageBoxName(
-        HiveBoxNames.userVocabulary,
+        LegacyBackupBoxNames.userVocabulary,
         languageCode,
         importedSchemaVersion,
       ),
@@ -908,7 +908,7 @@ class BackupService extends ChangeNotifier {
     final boxData = _boxData(
       boxes,
       _languageBoxName(
-        HiveBoxNames.wordBookmarks,
+        LegacyBackupBoxNames.wordBookmarks,
         languageCode,
         importedSchemaVersion,
       ),
@@ -936,7 +936,7 @@ class BackupService extends ChangeNotifier {
     final boxData = _boxData(
       boxes,
       _languageBoxName(
-        HiveBoxNames.readingBookmarks,
+        LegacyBackupBoxNames.readingBookmarks,
         languageCode,
         importedSchemaVersion,
       ),
@@ -964,7 +964,7 @@ class BackupService extends ChangeNotifier {
     final boxData = _boxData(
       boxes,
       _languageBoxName(
-        HiveBoxNames.readingConfig,
+        LegacyBackupBoxNames.readingConfig,
         languageCode,
         importedSchemaVersion,
       ),
@@ -989,7 +989,7 @@ class BackupService extends ChangeNotifier {
   ) async {
     final boxData = _languageBoxData(
       boxes,
-      HiveBoxNames.readingTime,
+      LegacyBackupBoxNames.readingTime,
       languageCode,
       importedSchemaVersion,
     );
@@ -1013,7 +1013,7 @@ class BackupService extends ChangeNotifier {
   ) async {
     final boxData = _languageBoxData(
       boxes,
-      HiveBoxNames.wordContexts,
+      LegacyBackupBoxNames.wordContexts,
       languageCode,
       importedSchemaVersion,
     );
@@ -1038,7 +1038,7 @@ class BackupService extends ChangeNotifier {
     final boxData = _boxData(
       boxes,
       _languageBoxName(
-        HiveBoxNames.learningItems,
+        LegacyBackupBoxNames.learningItems,
         languageCode,
         importedSchemaVersion,
       ),
@@ -1073,7 +1073,7 @@ class BackupService extends ChangeNotifier {
     final boxData = _boxData(
       boxes,
       _languageBoxName(
-        HiveBoxNames.learningAnalytics,
+        LegacyBackupBoxNames.learningAnalytics,
         languageCode,
         importedSchemaVersion,
       ),
@@ -1118,27 +1118,37 @@ class BackupService extends ChangeNotifier {
   ) {
     if (importedSchemaVersion < 2) return baseBoxName;
     return switch (baseBoxName) {
-      HiveBoxNames.books => HiveBoxNames.booksFor(languageCode),
-      HiveBoxNames.userVocabulary => HiveBoxNames.userVocabularyFor(
+      LegacyBackupBoxNames.books => LegacyBackupBoxNames.booksFor(languageCode),
+      LegacyBackupBoxNames.userVocabulary =>
+        LegacyBackupBoxNames.userVocabularyFor(
+          languageCode,
+        ),
+      LegacyBackupBoxNames.wordBookmarks =>
+        LegacyBackupBoxNames.wordBookmarksFor(
+          languageCode,
+        ),
+      LegacyBackupBoxNames.readingBookmarks =>
+        LegacyBackupBoxNames.readingBookmarksFor(
+          languageCode,
+        ),
+      LegacyBackupBoxNames.readingConfig =>
+        LegacyBackupBoxNames.readingConfigFor(
+          languageCode,
+        ),
+      LegacyBackupBoxNames.readingTime => LegacyBackupBoxNames.readingTimeFor(
         languageCode,
       ),
-      HiveBoxNames.wordBookmarks => HiveBoxNames.wordBookmarksFor(
+      LegacyBackupBoxNames.wordContexts => LegacyBackupBoxNames.wordContextsFor(
         languageCode,
       ),
-      HiveBoxNames.readingBookmarks => HiveBoxNames.readingBookmarksFor(
-        languageCode,
-      ),
-      HiveBoxNames.readingConfig => HiveBoxNames.readingConfigFor(
-        languageCode,
-      ),
-      HiveBoxNames.readingTime => HiveBoxNames.readingTimeFor(languageCode),
-      HiveBoxNames.wordContexts => HiveBoxNames.wordContextsFor(languageCode),
-      HiveBoxNames.learningItems => HiveBoxNames.learningItemsFor(
-        languageCode,
-      ),
-      HiveBoxNames.learningAnalytics => HiveBoxNames.learningAnalyticsFor(
-        languageCode,
-      ),
+      LegacyBackupBoxNames.learningItems =>
+        LegacyBackupBoxNames.learningItemsFor(
+          languageCode,
+        ),
+      LegacyBackupBoxNames.learningAnalytics =>
+        LegacyBackupBoxNames.learningAnalyticsFor(
+          languageCode,
+        ),
       _ => throw BackupException('未知的语言备份分区：$baseBoxName'),
     };
   }
@@ -1163,18 +1173,18 @@ class BackupService extends ChangeNotifier {
     int importedSchemaVersion,
   ) {
     if (importedSchemaVersion < 2) {
-      return const {HiveBoxNames.defaultLanguageCode};
+      return const {LegacyBackupBoxNames.defaultLanguageCode};
     }
     const languageBoxPrefixes = [
-      HiveBoxNames.books,
-      HiveBoxNames.userVocabulary,
-      HiveBoxNames.wordBookmarks,
-      HiveBoxNames.readingBookmarks,
-      HiveBoxNames.readingConfig,
-      HiveBoxNames.readingTime,
-      HiveBoxNames.wordContexts,
-      HiveBoxNames.learningItems,
-      HiveBoxNames.learningAnalytics,
+      LegacyBackupBoxNames.books,
+      LegacyBackupBoxNames.userVocabulary,
+      LegacyBackupBoxNames.wordBookmarks,
+      LegacyBackupBoxNames.readingBookmarks,
+      LegacyBackupBoxNames.readingConfig,
+      LegacyBackupBoxNames.readingTime,
+      LegacyBackupBoxNames.wordContexts,
+      LegacyBackupBoxNames.learningItems,
+      LegacyBackupBoxNames.learningAnalytics,
     ];
     final languageCodes = <String>{};
     for (final boxName in boxes.keys.map((key) => key.toString())) {
@@ -1258,7 +1268,7 @@ class BackupService extends ChangeNotifier {
     int importedSchemaVersion,
   ) {
     final bookBoxNames = importedSchemaVersion < 2
-        ? [HiveBoxNames.books]
+        ? [LegacyBackupBoxNames.books]
         : boxes.keys
               .map((key) => key.toString())
               .where(_isLanguageBooksBoxName)
@@ -1278,7 +1288,7 @@ class BackupService extends ChangeNotifier {
   }
 
   bool _isLanguageBooksBoxName(String boxName) {
-    return boxName.startsWith('${HiveBoxNames.books}_');
+    return boxName.startsWith('${LegacyBackupBoxNames.books}_');
   }
 
   Map<String, dynamic> _snapshotSegment(_BackupDataSegment segment) {

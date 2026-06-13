@@ -4,18 +4,18 @@ import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/storage/database/dao/settings_dao.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/hive_test_storage.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_feature_flags_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_feature_flags_test_');
+    await openFlowReadTestStorage();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('experimental features are disabled by default and persist', () async {

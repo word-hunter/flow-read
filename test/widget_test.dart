@@ -11,15 +11,15 @@ import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/widgets/settings/settings_shared.dart';
 
-import 'support/hive_test_storage.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late SettingsService settings;
   late BackupService backup;
 
   setUp(() async {
-    await initHiveTestStorage('flow_read_widget_test_');
-    await openFlowReadTestBoxes();
+    await initTestStorage('flow_read_widget_test_');
+    await openFlowReadTestStorage();
     final db = await createTestAppDatabase();
     settings = SettingsService(db.settingsDao);
     await settings.init();

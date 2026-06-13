@@ -3,13 +3,15 @@ import 'dart:io';
 import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/services/learning_item_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_learning_item_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/hive_test_storage.dart';
-import 'support/legacy_hive_repositories.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
+  late AppDatabase db;
   late LearningItemService service;
 
   const source = LearningItemSource(
@@ -19,14 +21,19 @@ void main() {
   );
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_learning_item_test_');
-    await openFlowReadTestBoxes();
-    service = LearningItemService(repository: HiveLearningItemRepository());
+    tempDir = await initTestStorage('flow_read_learning_item_test_');
+    db = await createTestAppDatabase();
+    service = LearningItemService(
+      repository: DriftLearningItemRepository(
+        db.learningItemDao,
+        languageCode: 'en',
+      ),
+    );
     await service.init();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('saves a lookup word as a learning item', () async {

@@ -1,66 +1,24 @@
-import 'package:hive/hive.dart';
-
 import 'book_difficulty.dart';
 
-part 'book_metadata.g.dart';
-
-@HiveType(typeId: 0)
 class BookMetadata {
-  @HiveField(0)
   final String id;
-
-  @HiveField(1)
   final String title;
-
-  @HiveField(2)
   final String author;
-
-  @HiveField(3)
   final String sourcePath;
-
-  @HiveField(4)
   final String? coverPath;
-
-  @HiveField(5)
   final int totalChapters;
-
-  @HiveField(6)
   final double globalProgress;
-
-  @HiveField(7)
   final int currentChapter;
-
-  @HiveField(8)
   final double chapterProgress;
-
-  @HiveField(9)
   final DateTime? lastReadAt;
-
-  @HiveField(10)
   final List<String>? difficultyStudyWords;
-
-  @HiveField(11)
   final Map<String, dynamic>? difficultyRatingJson;
-
-  @HiveField(12)
   final String? difficultyVocabularySignature;
-
-  @HiveField(13)
   final DateTime? difficultyComputedAt;
-
-  @HiveField(14)
   final double? chapterScrollOffset;
-
-  @HiveField(15)
   final String? sourceLanguage;
-
-  @HiveField(16)
   final String? sourceLanguageOverride;
-
-  @HiveField(17)
   final double? languageConfidence;
-
-  @HiveField(18)
   final String? targetExplanationLanguage;
 
   const BookMetadata({

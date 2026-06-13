@@ -66,8 +66,6 @@ dependencies:
   http: ^1.2.0
   html: ^0.15.0
   path_provider: ^2.1.5
-  hive: ^2.2.3
-  hive_flutter: ^1.1.0
   drift: ^2.33.0
   sqlite3: ^3.0.0
   flutter_tts: ^4.2.5

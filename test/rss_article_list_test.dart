@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 
 import 'support/fake_word_level_service.dart';
-import 'support/hive_test_storage.dart';
+import 'support/test_storage.dart';
 
 void main() {
   testWidgets('article list exposes original article action', (tester) async {

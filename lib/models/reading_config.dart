@@ -1,21 +1,9 @@
-import 'package:hive/hive.dart';
-
 import 'reader_font.dart';
 
-part 'reading_config.g.dart';
-
-@HiveType(typeId: 3)
 class ReadingConfig {
-  @HiveField(0)
   final double fontSize;
-
-  @HiveField(1)
   final String fontFamily;
-
-  @HiveField(2)
   final double lineHeight;
-
-  @HiveField(3)
   final String theme;
 
   const ReadingConfig({

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../services/settings_service.dart';
 import '../storage/database/dao/settings_dao.dart';
-import '../storage/hive_storage.dart';
+import '../storage/storage_bootstrap.dart';
 
 final settingsProvider = ChangeNotifierProvider<SettingsService>((ref) {
   final db = appDatabase;

@@ -1,98 +1,92 @@
 # Flow Read Storage Contract
 
-> @source lib/storage/hive_box_names.dart lib/storage/hive_type_ids.dart lib/storage/storage_migrations.dart lib/storage/database/app_database.dart lib/storage/database/bootstrap.dart lib/storage/database/tables.dart
+> @source lib/storage/legacy_backup_box_names.dart lib/storage/storage_bootstrap.dart lib/storage/database/app_database.dart lib/storage/database/bootstrap.dart lib/storage/database/tables.dart lib/services/backup_service.dart
 
 Last updated: 2026-06-13
 
-## Schema 版本
+## Runtime Schema
 
-**当前 Hive 版本：2** | **Drift 版本：1（新增）**
+Flow Read runtime storage is Drift-only.
 
-Drift 数据库文件：`flow_read.db`，位于应用文档目录。WAL 模式，外键约束已启用。
+- Database file: `flow_read.db`
+- Current Drift schema version: `1`
+- Startup entrypoint: `bootstrapStorage()`
+- Runtime source of truth: Drift DAOs and repository interfaces
+- Legacy backup compatibility: `.flow.bak` still serializes data under `boxes` keys defined by `LegacyBackupBoxNames`
 
-## Drift 数据库（新增）
+`bootstrapStorage()` registers language modules, then delegates database setup to
+`bootstrapDatabaseStorage()`. The database bootstrap creates `AppDatabase`, reads
+the active source language from the Drift `settings` table, and publishes Drift
+repositories/snapshot providers for the app.
 
-| 表 | DAO | 描述 |
+## Drift Tables
+
+| Table | DAO | Purpose |
 |----|-----|------|
-| `books` | BookDao | 书籍元数据 |
-| `user_vocabulary` | UserVocabularyDao | 用户词汇状态 |
-| `word_bookmarks` | WordBookmarksDao | 单词书签 |
-| `reading_bookmarks` | ReadingBookmarksDao | 阅读书签 |
-| `reading_config` | ReadingConfigDao | 阅读配置（运行时 source of truth） |
-| `reading_time` | ReadingTimeDao | 阅读时长 |
-| `dictionary_cache` | DictionaryCacheDao | 词典缓存 |
-| `word_contexts` | WordContextDao | 单词例句 |
-| `learning_items` | LearningItemDao | 学习条目 |
-| `learning_analytics` | LearningAnalyticsDao | 学习分析 |
-| `word_levels` | WordLevelDao | 单词等级 |
-| `rss_subscriptions` | RssDao | RSS 订阅 |
-| `rss_articles` | RssDao | RSS 文章 |
-| `book_glossary` | BookGlossaryDao | 书籍生词表 |
-| `character_registry` | CharacterRegistryDao | 字符注册 |
-| `settings` | SettingsDao | 应用设置 |
+| `books` | BookDao | Book metadata and reading progress |
+| `user_vocabulary` | UserVocabularyDao | Known/learning vocabulary by language |
+| `word_bookmarks` | BookmarkDao | Word bookmarks |
+| `reading_bookmarks` | BookmarkDao | Reading bookmarks |
+| `reading_config` | ReadingConfigDao | Reader display settings |
+| `reading_time` | ReadingTimeDao | Reading duration counters |
+| `dictionary_cache` | DictionaryCacheDao | Regenerable dictionary cache |
+| `word_contexts` | WordContextDao | Example sentences and context |
+| `learning_items` | LearningItemDao | Review/practice items |
+| `learning_analytics` | LearningAnalyticsDao | Learning counters |
+| `word_levels` | WordLevelDao | Built-in word level index |
+| `rss_subscriptions` | RssDao | RSS subscriptions |
+| `rss_articles` | RssDao | RSS article cache and read/favorite/read-later flags |
+| `book_glossary` | BookGlossaryDao | Per-book glossary entries |
+| `character_registry` | CharacterRegistryDao | Character registry payloads |
+| `settings` | SettingsDao | App settings |
 
-启动时 `bootstrapStorage()` 先完成 legacy Hive 初始化和 v1 → v2 box 迁移，再通过
-`bootstrapDatabaseStorage()` 创建 `AppDatabase`、执行 `HiveToDriftMigration` 并加载
-provider 启动快照。迁移成功后会在 Drift `settings` 表写入 legacy 迁移标记，后续
-启动默认跳过，避免旧 Hive 数据覆盖新的 Drift 数据。
+## Legacy Backup Keys
 
-### Legacy Hive → Drift 迁移标记
+The names below are compatibility keys inside backup payloads, not runtime
+storage handles. They remain stable so older `.flow.bak` files can be imported
+and newly exported backups keep the same data shape.
 
-| Key | 内容 |
-|-----|------|
-| `legacy_hive_to_drift_completed_at` | 最近一次完成迁移的 UTC 时间 |
-| `legacy_hive_to_drift_source_schema_version` | 导入时的 Hive schema version |
-| `legacy_hive_to_drift_source_language` | 导入时的语言分区 |
+### Global Keys
 
-RSS 文章状态的旧 settings ID 集合缺少 `rss_articles.subscription_id` 外键上下文，
-当前迁移只统计扫描量，不写入孤儿 `rss_articles` 行。RSS 运行时已切到
-`DriftRssRepository`：订阅从 `rss_subscriptions` 读写，文章在 feed fetch 后带完整
-订阅上下文写入 `rss_articles`，后续 read/favorite/read-later 状态写布尔列。
+| Key | Content |
+|----|------|
+| `settings` | Exportable app settings |
+| `rss_subscriptions` | RSS subscription list |
+| `book_glossary` | Book glossary entries |
+| `character_registry` | Character registry payloads |
+| `word_levels` | Legacy/regenerable word level key, excluded from backup export |
 
-## Hive Box 清单
+### Language-Scoped Keys
 
-### 全局 Box（不按语言分区）
+Pattern: `{name}_{languageCode}`. The default language is `en`.
 
-| Box 名 | 内容 | Key 格式 |
-|--------|------|----------|
-| `settings` | 所有应用设置 | 字符串 key（`aiProviderId`, `themeMode`, `dictionarySources` 等） |
-| `word_levels` | 单词等级映射 | 单词字符串 |
-| `rss_subscriptions` | RSS 订阅 | Hive key（自动生成） |
-| `book_glossary` | 作品词汇缓存 | `BookGlossaryEntry.id` |
+| Key Pattern | Content |
+|----------|------|
+| `books_{lang}` | Book metadata |
+| `user_vocabulary_{lang}` | Vocabulary status |
+| `word_bookmarks_{lang}` | Word bookmarks grouped by book |
+| `reading_bookmarks_{lang}` | Reading bookmarks grouped by book |
+| `reading_config_{lang}` | Reader display settings |
+| `reading_time_{lang}` | Reading duration counters |
+| `dictionary_cache_{lang}` | Regenerable dictionary cache, excluded from backup export |
+| `word_contexts_{lang}` | Word context examples |
+| `learning_items_{lang}` | Learning items |
+| `learning_analytics_{lang}` | Learning counters |
 
-### 按语言分区的 Box
-
-模式：`{name}_{languageCode}`，当前 `languageCode = 'en'`
-
-| Box 模式 | 内容 | 存储模型 |
-|----------|------|----------|
-| `books_{lang}` | 书籍元数据 | `BookMetadata` (0) |
-| `user_vocabulary_{lang}` | 用户词汇状态 | `${lang}_${canonical}` → `UserVocabularyEntry` JSON |
-| `word_bookmarks_{lang}` | 单词书签 | `BookmarkedWord` (1) |
-| `reading_bookmarks_{lang}` | 阅读书签 | `ReadingBookmark` (2) |
-| `reading_config_{lang}` | 旧版阅读器配置，作为 Drift 迁移来源保留 | `ReadingConfig` (3) |
-| `reading_time_{lang}` | 阅读时长记录 | 结构化 key |
-| `dictionary_cache_{lang}` | 词典缓存 | `{source}_{word}` → 缓存内容 |
-| `word_contexts_{lang}` | 单词上下文 | 结构化 key |
-| `learning_items_{lang}` | 学习条目 | `LearningItem` (11) |
-| `learning_analytics_{lang}` | 学习分析 | 结构化 key |
-
-### Bootstrap 流程
+## Startup Flow
 
 ```dart
-bootstrapStorage() {
-  Hive.init(path);
-  registerAdapters();          // 注册 8 个 HiveAdapter
-  registerLanguageModules();   // EnglishLanguageModule → LanguageRegistry
-  openBoxes();                 // settings + en-boxes × 10 + word_levels + rss_subscriptions + book_glossary
-  runMigrations();             // v1 → v2 迁移
-  bootstrapDatabaseStorage();  // AppDatabase + HiveToDriftMigration + provider 启动快照
-}
+bootstrapStorage()
+  -> registerFlowReadLanguageModules()
+  -> bootstrapDatabaseStorage()
+       -> AppDatabase.create()
+       -> settingsDao.valueFor('active_source_language')
+       -> register Drift-backed runtime snapshots
 ```
 
-## Settings Box Key 汇总
+## Settings Keys
 
-| Key | 类型 | 默认值 |
+| Key | Type | Default |
 |-----|------|--------|
 | `aiProviderId` | String | `deepseek` |
 | `aiApiKeys` | JSON map | `{}` |
@@ -112,8 +106,8 @@ bootstrapStorage() {
 | `lastBackupAt` | String (ISO8601) | null |
 | `lastBackupPath` | String | null |
 | `lastSeenReleaseNotesVersion` | String | `''` |
-| `active_source_language` | String | `'en'` |
-| `target_explanation_language` | String | `'zh'` |
+| `active_source_language` | String | `en` |
+| `target_explanation_language` | String | `zh` |
 | `enabledExperimentalFeatures` | JSON array | `[]` |
 | `forceDefaultBookCover` | bool | `false` |
 | `city_atmosphere.enabled` | bool | `false` |
@@ -124,31 +118,29 @@ bootstrapStorage() {
 | `city_atmosphere.intensity` | double | `0.30` |
 | `city_atmosphere.reduce_motion` | bool | `false` |
 | `city_atmosphere.performance_mode` | String enum | `auto` |
-| `dictionarySources` | JSON array | Collins/WordNet/dictAPI/Longman objects with `type`, `enabled`, `priority`, optional `supportedLanguages` |
+| `dictionarySources` | JSON array | Dictionary source settings |
 | `aiChapterSummaryCount` | int | `0` |
 | `aiTextAnalysisCount` | int | `0` |
 | `aiPracticeCount` | int | `0` |
 | `aiWordAnalysisCount` | int | `0` |
 
-## 备份 Schema
+## Backup Schema
 
-备份文件为 `.zip`，内含：
-- `data/app.json`：`boxes.*` 包含所有 box 数据
-- `data/files/`：书籍文件副本
+Backup files use the `.flow.bak` zip format:
 
-运行时 provider 必须先完成 `AppDatabase` 初始化，备份导出通过 Drift DAO
-读取数据，并组装为兼容旧 `boxes` 结构的 payload。`BackupService` 构造时
-必须注入 `AppDatabase`；schema v1/v2 备份导入都会按备份 schema 解析并恢复到
-Drift，legacy 兼容只保留在 payload 读取层，不再恢复到 Hive boxes。
+- `manifest.json`: format metadata and book file index
+- `data/app.json`: `boxes.*` payload using `LegacyBackupBoxNames`
+- `books/*.epub` and optional covers: source assets
 
-备份不包含：本地文件路径、macOS Bookmark、API keys（除非 `includeSecretsInBackup=true`）
+`BackupService` exports from Drift DAOs and restores imports into Drift tables.
+Local-only settings such as folder paths, bookmarks, last backup timestamps, and
+secrets are excluded unless the relevant user setting explicitly includes
+secrets.
 
-## 新增 Hive 类型 Checklist
+## Storage Change Checklist
 
-1. 在 `hive_type_ids.dart` 中分配新 ID（检查 reserved set）
-2. 在模型中添加 `@HiveType(typeId: N)` 和 `@HiveField(n)`
-3. 在 `hive_storage.dart:registerFlowReadHiveAdapters()` 中注册 Adapter
-4. 在 `hive_storage.dart:openFlowReadHiveBoxes()` 中打开 box（如需新 box）
-5. 在 `hive_box_names.dart` 中定义 box 名常量
-6. 运行 `fvm dart run build_runner build --delete-conflicting-outputs`
-7. 更新 `test/storage_contract_test.dart`：`expect(HiveTypeIds.reserved, hasLength(N))`
+1. Add or update the Drift table/DAO/repository.
+2. Keep provider bootstrap snapshots in `lib/storage/database/bootstrap.dart` aligned with runtime providers.
+3. If backup/import shape changes, update `LegacyBackupBoxNames`, `BackupService`, and backup tests.
+4. Update this document and `docs/data-model.md`.
+5. Run `fvm dart run tool/verify_docs.dart`, focused storage tests, and `git diff --check`.

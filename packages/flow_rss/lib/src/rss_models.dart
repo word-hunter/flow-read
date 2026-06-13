@@ -1,5 +1,3 @@
-import 'package:hive/hive.dart';
-
 enum RssLoadStatus { idle, loading, loaded, empty, error }
 
 enum RssErrorType { network, parse, empty, unknown }
@@ -12,21 +10,15 @@ class RssError {
   const RssError({required this.type, required this.message, this.detail});
 }
 
-@HiveType(typeId: 10)
-class RssFeedSubscription extends HiveObject {
-  @HiveField(0)
+class RssFeedSubscription {
   final String url;
 
-  @HiveField(1)
   String title;
 
-  @HiveField(2)
   String? description;
 
-  @HiveField(3)
   String? imageUrl;
 
-  @HiveField(4)
   DateTime? lastFetchedAt;
 
   RssFeedSubscription({
@@ -52,52 +44,6 @@ class RssFeedSubscription extends HiveObject {
       lastFetchedAt: lastFetchedAt ?? this.lastFetchedAt,
     );
   }
-}
-
-class RssFeedSubscriptionAdapter extends TypeAdapter<RssFeedSubscription> {
-  @override
-  final int typeId = 10;
-
-  @override
-  RssFeedSubscription read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return RssFeedSubscription(
-      url: fields[0] as String,
-      title: fields[1] as String,
-      description: fields[2] as String?,
-      imageUrl: fields[3] as String?,
-      lastFetchedAt: fields[4] as DateTime?,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, RssFeedSubscription obj) {
-    writer
-      ..writeByte(5)
-      ..writeByte(0)
-      ..write(obj.url)
-      ..writeByte(1)
-      ..write(obj.title)
-      ..writeByte(2)
-      ..write(obj.description)
-      ..writeByte(3)
-      ..write(obj.imageUrl)
-      ..writeByte(4)
-      ..write(obj.lastFetchedAt);
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RssFeedSubscriptionAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
 }
 
 class RssArticle {

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 
 import '../storage/database/dao/settings_dao.dart';
-import '../storage/hive_box_names.dart';
+import '../storage/legacy_backup_box_names.dart';
 import '../theme/app_theme.dart';
 import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
@@ -91,7 +91,8 @@ class SettingsService extends ChangeNotifier {
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
   static const _forceDefaultBookCoverKey = 'forceDefaultBookCover';
   static const _dictionarySourcesKey = 'dictionarySources';
-  static const _activeSourceLanguageKey = HiveBoxNames.activeSourceLanguageKey;
+  static const _activeSourceLanguageKey =
+      LegacyBackupBoxNames.activeSourceLanguageKey;
   static const _targetExplanationLanguageKey = 'target_explanation_language';
   static const _cityAtmosphereEnabledKey = 'city_atmosphere.enabled';
   static const _cityAtmosphereThemeModeKey = 'city_atmosphere.theme_mode';

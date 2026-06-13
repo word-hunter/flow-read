@@ -15,7 +15,6 @@ dependencies:
   flow_dictionary:
     path: ../flow_dictionary
   http: ^1.2.0
-  hive: ^2.2.3
   path_provider: ^2.1.5
 
 dev_dependencies:

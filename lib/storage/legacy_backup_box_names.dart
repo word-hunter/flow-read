@@ -1,5 +1,5 @@
-class HiveBoxNames {
-  const HiveBoxNames._();
+class LegacyBackupBoxNames {
+  const LegacyBackupBoxNames._();
 
   static const defaultLanguageCode = 'en';
   static const activeSourceLanguageKey = 'active_source_language';

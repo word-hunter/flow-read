@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flow_rss/flow_rss.dart';
 import '../services/app_logger.dart';
 import '../storage/database/repositories/drift_rss_repository.dart';
-import '../storage/hive_storage.dart';
+import '../storage/storage_bootstrap.dart';
 
 final rssFeedServiceProvider = Provider<RssFeedService>((ref) {
   final db = appDatabase;

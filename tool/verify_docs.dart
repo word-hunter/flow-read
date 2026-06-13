@@ -7,9 +7,8 @@
 //
 // Checks:
 //   1. @source file paths in docs exist in the repo
-//   2. Hive type IDs referenced in docs/data-model.md match hive_type_ids.dart
-//   3. Box names referenced in docs/storage-contract.md match hive_box_names.dart
-//   4. Key service classes referenced in docs exist in service package roots
+//   2. Legacy backup keys referenced in docs/storage-contract.md match legacy_backup_box_names.dart
+//   3. Key service classes referenced in docs exist in service package roots
 //
 // This is not a CI gate. It is a quick sanity check.
 // Exit code 0 = all checks pass. Non-zero = issue found.
@@ -19,8 +18,9 @@ import 'dart:io';
 final _repoRoot = Directory.current.path;
 final _docsDir = Directory('$_repoRoot/docs');
 final _libDir = '$_repoRoot/lib';
-final _hiveTypeIdsFile = File('$_libDir/storage/hive_type_ids.dart');
-final _hiveBoxNamesFile = File('$_libDir/storage/hive_box_names.dart');
+final _legacyBackupBoxNamesFile = File(
+  '$_libDir/storage/legacy_backup_box_names.dart',
+);
 final _serviceDirs = [
   Directory('$_libDir/services'),
   Directory('$_repoRoot/packages/flow_ai/lib/src'),
@@ -78,98 +78,17 @@ void main(List<String> args) {
 
   if (!allOk) stdout.writeln('  (some @source paths are stale)\n');
 
-  // ── Check 2: Hive type IDs in docs/data-model.md ───────────
-  stdout.writeln('── Hive type ID check ──');
-  final dataModelFile = File('${_docsDir.path}/data-model.md');
-  if (dataModelFile.existsSync()) {
-    final docContent = dataModelFile.readAsStringSync();
-    final hiveTypesCode = _hiveTypeIdsFile.existsSync()
-        ? _hiveTypeIdsFile.readAsStringSync()
-        : '';
-
-    // Extract type IDs from docs: skip "待新增" section markers
-    final docContentClean = docContent
-        .replaceAll(RegExp(r'待新增模型.*', dotAll: true), '')
-        .replaceAll(RegExp(r'1\.6\.0.*待新增.*', dotAll: true), '');
-    final docTypeIds = <int>{};
-    final docTypeNames = <int, String>{};
-    for (final m in RegExp(
-      r'\|\s*(\d+)\s*\|\s*`(\w+)`',
-    ).allMatches(docContentClean)) {
-      final id = int.parse(m.group(1)!);
-      final name = m.group(2)!;
-      // Skip empty/placeholder entries
-      if (name.isNotEmpty && name != '—') {
-        docTypeIds.add(id);
-        docTypeNames[id] = name;
-      }
-    }
-
-    // Extract type IDs from hive_type_ids.dart
-    final hiveTypeIds = <int, String>{};
-    for (final m in RegExp(
-      r'static const (\w+)\s*=\s*(\d+);',
-    ).allMatches(hiveTypesCode)) {
-      final name = m.group(1)!;
-      if (name == 'reserved') continue;
-      final id = int.parse(m.group(2)!);
-      hiveTypeIds[id] = name;
-    }
-
-    // Cross check (case-insensitive name matching)
-    for (final id in docTypeIds) {
-      if (!hiveTypeIds.containsKey(id)) {
-        stderr.writeln(
-          '  [FAIL] data-model.md references HiveType $id '
-          '(${docTypeNames[id]}) which does not exist in hive_type_ids.dart',
-        );
-        allOk = false;
-      } else {
-        final docName = docTypeNames[id]!.toLowerCase();
-        final codeName = hiveTypeIds[id]!.toLowerCase();
-        if (docName != codeName) {
-          stderr.writeln(
-            '  [FAIL] data-model.md HiveType $id: doc says "${docTypeNames[id]}", '
-            'code says "${hiveTypeIds[id]}"',
-          );
-          allOk = false;
-        }
-      }
-    }
-
-    // Check reserved set size
-    final reservedCount =
-        RegExp(
-          r'static const reserved',
-          multiLine: true,
-        ).hasMatch(hiveTypesCode)
-        ? RegExp(
-                    r'(\d+),',
-                  )
-                  .allMatches(hiveTypesCode.split('static const reserved').last)
-                  .length +
-              1
-        : 0;
-    stdout.writeln(
-      '  data-model.md: ${docTypeIds.length} types documented, '
-      'hive_type_ids.dart: ${hiveTypeIds.length} types in code, '
-      'reserved: $reservedCount',
-    );
-  } else {
-    stdout.writeln('  (docs/data-model.md not found, skipping)');
-  }
-
-  // ── Check 3: Box names in docs/storage-contract.md ─────────
+  // ── Check 2: Legacy backup keys in docs/storage-contract.md ─
   stdout.writeln('');
-  stdout.writeln('── Hive box name check ──');
+  stdout.writeln('── Legacy backup key check ──');
   final storageContractFile = File('${_docsDir.path}/storage-contract.md');
   if (storageContractFile.existsSync()) {
     final docContent = storageContractFile.readAsStringSync();
-    final boxNamesCode = _hiveBoxNamesFile.existsSync()
-        ? _hiveBoxNamesFile.readAsStringSync()
+    final boxNamesCode = _legacyBackupBoxNamesFile.existsSync()
+        ? _legacyBackupBoxNamesFile.readAsStringSync()
         : '';
 
-    // Extract box names from doc tables and code blocks
+    // Extract concrete backup keys from doc code spans.
     final docBoxNames = <String>{};
     for (final m in RegExp(r'`(\w+)`').allMatches(docContent)) {
       final name = m.group(1)!;
@@ -185,7 +104,7 @@ void main(List<String> args) {
       }
     }
 
-    // Extract box names from hive_box_names.dart (no explicit type)
+    // Extract static backup keys from legacy_backup_box_names.dart.
     final codeBoxNames = <String>{};
     for (final m in RegExp(
       r"static const (\w+)\s*=\s*'([^']+)'",
@@ -199,10 +118,10 @@ void main(List<String> args) {
 
     stdout.writeln(
       '  storage-contract.md: ~${docBoxNames.length} names referenced, '
-      'hive_box_names.dart: ${codeBoxNames.length} static names',
+      'legacy_backup_box_names.dart: ${codeBoxNames.length} static names',
     );
 
-    // Only check names that appear to be concrete box names (not _{lang} patterns)
+    // Computed keys such as books_en are generated by helper methods.
     final concreteDocNames = docBoxNames
         .where((n) => !n.contains('{lang}'))
         .toSet();
@@ -211,8 +130,8 @@ void main(List<String> args) {
         // Allow known patterns like `books_en`, `user_vocabulary_en` which are generated
         if (!name.endsWith('_en')) {
           stderr.writeln(
-            '  [WARN] storage-contract.md references box "$name" '
-            'not found as static constant in hive_box_names.dart',
+            '  [WARN] storage-contract.md references backup key "$name" '
+            'not found as static constant in legacy_backup_box_names.dart',
           );
         }
       }
@@ -221,7 +140,7 @@ void main(List<String> args) {
     stdout.writeln('  (docs/storage-contract.md not found, skipping)');
   }
 
-  // ── Check 4: Key service classes exist ─────────────────────
+  // ── Check 3: Key service classes exist ─────────────────────
   stdout.writeln('');
   stdout.writeln('── Service class existence check ──');
   final keyServices = <String>{

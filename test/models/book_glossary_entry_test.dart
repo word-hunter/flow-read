@@ -1,22 +1,20 @@
 import 'dart:io';
 
 import 'package:flow_read/models/book_glossary_entry.dart';
-import 'package:flow_read/storage/hive_box_names.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 
-import '../support/hive_test_storage.dart';
+import '../support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_book_glossary_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_book_glossary_test_');
+    await openFlowReadTestStorage();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('builds stable ids and round-trips through JSON', () {
@@ -43,19 +41,5 @@ void main() {
     expect(restored.id, entry.id);
     expect(restored.word, 'Godswood');
     expect(restored.createdAt, createdAt);
-  });
-
-  test('persists in the global book glossary Hive box', () async {
-    final box = Hive.box<BookGlossaryEntry>(HiveBoxNames.bookGlossary);
-    final entry = BookGlossaryEntry.create(
-      bookId: 'book-1',
-      word: 'flow',
-      explanation: 'Movement in context.',
-      createdAt: DateTime.utc(2026, 6, 6),
-    );
-
-    await box.put(entry.id, entry);
-
-    expect(box.get(entry.id)?.explanation, 'Movement in context.');
   });
 }

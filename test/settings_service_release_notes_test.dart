@@ -5,20 +5,20 @@ import 'package:flow_read/storage/database/dao/settings_dao.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flow_read/services/settings_service.dart';
 
-import 'support/hive_test_storage.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
   late SettingsService settings;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_release_notes_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_release_notes_test_');
+    await openFlowReadTestStorage();
     settings = await createTestSettingsService();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('tracks release notes visibility by app version', () async {

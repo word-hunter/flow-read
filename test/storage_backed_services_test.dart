@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
@@ -19,29 +19,37 @@ import 'package:flow_read/services/reading_time_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/services/word_context_service.dart';
-import 'package:flow_read/storage/hive_box_names.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_book_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_bookmark_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_dictionary_cache_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_reading_config_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_reading_time_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_rss_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_user_vocabulary_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_word_context_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_word_level_repository.dart';
 import 'package:flow_rss/flow_rss.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 
-import 'support/hive_test_storage.dart';
-import 'support/legacy_hive_repositories.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
+  late AppDatabase db;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_storage_services_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_storage_services_test_');
+    db = await createTestAppDatabase();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('user vocabulary persists normalized word status', () async {
     final service = UserVocabularyService(
-      repository: HiveUserVocabularyRepository(),
+      repository: _userVocabularyRepository(db),
     );
     await service.init();
     final emptySignature = service.revisionSignature;
@@ -54,13 +62,10 @@ void main() {
     expect(service.getStatus(' migrating '), UserWordStatus.learning);
     expect(service.knownWords, contains('flow'));
     expect(service.learningWords, contains('migrating'));
-    expect(userVocabularyBox().containsKey('en_flow'), isTrue);
-    expect(userVocabularyBox().containsKey('flow'), isFalse);
-    final entryJson =
-        jsonDecode(userVocabularyBox().get('en_flow')!) as Map<String, dynamic>;
-    expect(entryJson['status'], 'known');
-    expect(entryJson['key'], containsPair('languageId', 'en'));
-    expect(entryJson['key'], containsPair('canonical', 'flow'));
+    final entry = await db.userVocabularyDao.entryFor('en_flow');
+    expect(entry?.status, UserWordStatus.known.name);
+    expect(entry?.language, 'en');
+    expect(entry?.canonical, 'flow');
     expect(populatedSignature, isNot(emptySignature));
 
     await service.setUnknown('FLOW');
@@ -69,16 +74,14 @@ void main() {
     expect(service.revisionSignature, isNot(populatedSignature));
   });
 
-  test('user vocabulary can read and write isolated language boxes', () async {
-    await Hive.openBox<String>(HiveBoxNames.userVocabularyFor('ja'));
-
+  test('user vocabulary can read and write isolated languages', () async {
     final english = UserVocabularyService(
-      repository: HiveUserVocabularyRepository(languageCode: 'en'),
+      repository: _userVocabularyRepository(db, languageCode: 'en'),
       languageCode: 'en',
     );
     await english.init();
     final japanese = UserVocabularyService(
-      repository: HiveUserVocabularyRepository(languageCode: 'ja'),
+      repository: _userVocabularyRepository(db, languageCode: 'ja'),
       languageCode: 'ja',
     );
     await japanese.init();
@@ -88,35 +91,13 @@ void main() {
 
     expect(english.getStatus('flow'), UserWordStatus.known);
     expect(japanese.getStatus('flow'), UserWordStatus.learning);
-    expect(userVocabularyBox().containsKey('en_flow'), isTrue);
-    expect(
-      userVocabularyBox(languageCode: 'ja').containsKey('ja_flow'),
-      isTrue,
-    );
-  });
-
-  test('user vocabulary migrates legacy bare word keys on init', () async {
-    await userVocabularyBox().put('flow', 'known');
-    await userVocabularyBox().put('migrating', 'learning');
-
-    final service = UserVocabularyService(
-      repository: HiveUserVocabularyRepository(),
-    );
-    await service.init();
-
-    expect(service.getStatus('flow'), UserWordStatus.known);
-    expect(service.getStatus('migrating'), UserWordStatus.learning);
-    expect(service.knownWords, contains('flow'));
-    expect(service.learningWords, contains('migrating'));
-    expect(userVocabularyBox().containsKey('flow'), isFalse);
-    expect(userVocabularyBox().containsKey('migrating'), isFalse);
-    expect(userVocabularyBox().containsKey('en_flow'), isTrue);
-    expect(userVocabularyBox().containsKey('en_migrating'), isTrue);
+    expect(await db.userVocabularyDao.entryFor('en_flow'), isNotNull);
+    expect(await db.userVocabularyDao.entryFor('ja_flow'), isNotNull);
   });
 
   test('reading config persists clamped display settings', () async {
     final service = ReadingConfigService(
-      repository: HiveReadingConfigRepository(),
+      repository: _readingConfigRepository(db),
     );
     await service.init();
 
@@ -126,7 +107,7 @@ void main() {
     await service.setTheme('sepia');
 
     final reloaded = ReadingConfigService(
-      repository: HiveReadingConfigRepository(),
+      repository: _readingConfigRepository(db),
     );
     await reloaded.init();
 
@@ -138,7 +119,7 @@ void main() {
     await reloaded.setFontFamily('Unsupported Font');
 
     final sanitized = ReadingConfigService(
-      repository: HiveReadingConfigRepository(),
+      repository: _readingConfigRepository(db),
     );
     await sanitized.init();
 
@@ -150,7 +131,7 @@ void main() {
     () async {
       var now = DateTime.utc(2026, 5, 19, 8);
       final service = ReadingTimeService(
-        repository: HiveReadingTimeRepository(),
+        repository: _readingTimeRepository(db),
         clock: () => now,
       );
       await service.init();
@@ -171,7 +152,7 @@ void main() {
       expect(service.displayText, '2 分钟');
 
       final reloaded = ReadingTimeService(
-        repository: HiveReadingTimeRepository(),
+        repository: _readingTimeRepository(db),
         clock: () => now,
       );
       await reloaded.init();
@@ -189,7 +170,7 @@ void main() {
 
   test('word context examples are merged and deduplicated', () async {
     final service = WordContextService(
-      repository: HiveWordContextRepository(),
+      repository: _wordContextRepository(db),
     );
     await service.init();
 
@@ -209,7 +190,7 @@ void main() {
     ]);
 
     final reloaded = WordContextService(
-      repository: HiveWordContextRepository(),
+      repository: _wordContextRepository(db),
     );
     await reloaded.init();
     final examples = reloaded.examplesFor('flow');
@@ -226,7 +207,7 @@ void main() {
       ).create();
       var now = DateTime.utc(2026, 5, 19, 11);
       final service = BookService(
-        repository: HiveBookMetadataRepository(),
+        repository: _bookRepository(db),
         documentsDirectoryProvider: () async => documentsDir,
         clock: () => now,
       );
@@ -275,7 +256,7 @@ void main() {
       await service.updateProgress('book-1', 1, 0.5, chapterScrollOffset: 420);
 
       final reloaded = BookService(
-        repository: HiveBookMetadataRepository(),
+        repository: _bookRepository(db),
         documentsDirectoryProvider: () async {
           return documentsDir;
         },
@@ -309,7 +290,7 @@ void main() {
     final documentsDir = await Directory('${tempDir.path}/documents').create();
     var documentsDirectoryReads = 0;
     final service = BookService(
-      repository: HiveBookMetadataRepository(),
+      repository: _bookRepository(db),
       documentsDirectoryProvider: () async {
         documentsDirectoryReads += 1;
         return documentsDir;
@@ -347,7 +328,7 @@ void main() {
     await legacyCoverFile.writeAsBytes(legacyCoverBytes);
 
     final service = BookService(
-      repository: HiveBookMetadataRepository(),
+      repository: _bookRepository(db),
       documentsDirectoryProvider: () async => documentsDir,
     );
     await service.init();
@@ -365,7 +346,7 @@ void main() {
   });
 
   test('bookmarks persist word and reading bookmark payloads', () async {
-    final service = BookmarkService(repository: HiveBookmarkRepository());
+    final service = BookmarkService(repository: _bookmarkRepository(db));
     await service.init();
 
     await service.saveWordBookmarks('book-1', [
@@ -388,7 +369,7 @@ void main() {
       ),
     ]);
 
-    final reloaded = BookmarkService(repository: HiveBookmarkRepository());
+    final reloaded = BookmarkService(repository: _bookmarkRepository(db));
     await reloaded.init();
 
     expect(reloaded.loadWordBookmarks('book-1').single.word, 'flow');
@@ -405,7 +386,7 @@ void main() {
     'dictionary cache persists entries and prunes oldest overflow',
     () async {
       final cache = DictionaryCacheService(
-        repository: HiveDictionaryCacheRepository(),
+        repository: _dictionaryCacheRepository(db),
       );
       await cache.init();
 
@@ -431,32 +412,65 @@ void main() {
   );
 
   test('rss service loads subscriptions and persists read state', () async {
-    await rssSubscriptionsBox().add(
-      RssFeedSubscription(url: 'https://b.example/rss.xml', title: 'Beta'),
+    const betaUrl = 'https://b.example/rss.xml';
+    const alphaUrl = 'https://a.example/rss.xml';
+    final alphaId = DriftRssRepository.subscriptionIdForUrl(alphaUrl);
+    await db.rssDao.insertSubscription(
+      RssSubscriptionsCompanion.insert(
+        id: DriftRssRepository.subscriptionIdForUrl(betaUrl),
+        url: betaUrl,
+        title: const Value('Beta'),
+      ),
     );
-    await rssSubscriptionsBox().add(
-      RssFeedSubscription(url: 'https://a.example/rss.xml', title: 'Alpha'),
+    await db.rssDao.insertSubscription(
+      RssSubscriptionsCompanion.insert(
+        id: alphaId,
+        url: alphaUrl,
+        title: const Value('Alpha'),
+      ),
     );
-    await settingsBox().put('rss_read_articles', jsonEncode(['article-1']));
+    await db.rssDao.upsertArticles([
+      RssArticlesCompanion.insert(
+        id: 'article-1',
+        subscriptionId: alphaId,
+        feedUrl: alphaUrl,
+        title: 'Article 1',
+        isRead: true,
+        isFavorite: false,
+        isReadLater: false,
+      ),
+      RssArticlesCompanion.insert(
+        id: 'article-2',
+        subscriptionId: alphaId,
+        feedUrl: alphaUrl,
+        title: 'Article 2',
+        isRead: false,
+        isFavorite: false,
+        isReadLater: false,
+      ),
+      RssArticlesCompanion.insert(
+        id: 'article-3',
+        subscriptionId: alphaId,
+        feedUrl: alphaUrl,
+        title: 'Article 3',
+        isRead: false,
+        isFavorite: false,
+        isReadLater: false,
+      ),
+    ]);
 
-    final service = RssService(repository: HiveRssRepository());
+    final service = RssService(repository: DriftRssRepository(db.rssDao));
     await service.init();
 
     expect(service.subscriptions.map((s) => s.title), ['Alpha', 'Beta']);
 
     await service.markAsRead('article-2');
-    var ids =
-        (jsonDecode(settingsBox().get('rss_read_articles') as String)
-                as List<dynamic>)
-            .cast<String>();
+    var ids = await db.rssDao.readArticleIds();
 
     expect(ids, containsAll(['article-1', 'article-2']));
 
     await service.markAsUnread('article-1');
-    ids =
-        (jsonDecode(settingsBox().get('rss_read_articles') as String)
-                as List<dynamic>)
-            .cast<String>();
+    ids = await db.rssDao.readArticleIds();
 
     expect(ids, isNot(contains('article-1')));
     expect(ids, contains('article-2'));
@@ -464,46 +478,30 @@ void main() {
     await service.setArticleFavorite('article-2', true);
     await service.setArticleReadLater('article-3', true);
 
-    final favoriteIds =
-        (jsonDecode(settingsBox().get('rss_favorite_articles') as String)
-                as List<dynamic>)
-            .cast<String>();
-    final readLaterIds =
-        (jsonDecode(settingsBox().get('rss_read_later_articles') as String)
-                as List<dynamic>)
-            .cast<String>();
+    final favoriteIds = await db.rssDao.favoriteArticleIds();
+    final readLaterIds = await db.rssDao.readLaterArticleIds();
 
-    expect(favoriteIds, ['article-2']);
-    expect(readLaterIds, ['article-3']);
+    expect(favoriteIds, {'article-2'});
+    expect(readLaterIds, {'article-3'});
 
     await service.setArticleFavorite('article-2', false);
     await service.setArticleReadLater('article-3', false);
 
-    expect(
-      (jsonDecode(settingsBox().get('rss_favorite_articles') as String)
-              as List<dynamic>)
-          .cast<String>(),
-      isEmpty,
-    );
-    expect(
-      (jsonDecode(settingsBox().get('rss_read_later_articles') as String)
-              as List<dynamic>)
-          .cast<String>(),
-      isEmpty,
-    );
+    expect(await db.rssDao.favoriteArticleIds(), isEmpty);
+    expect(await db.rssDao.readLaterArticleIds(), isEmpty);
   });
 
   test(
     'word levels import built-in dictionary through storage boundary',
     () async {
       final service = WordLevelService(
-        repository: HiveWordLevelRepository(),
+        repository: _wordLevelRepository(db),
         assetLoader: (_) async => 'flow\tflow\t4\nmigrating\tmigrate\t6\n',
       );
       await service.init();
 
-      expect(settingsBox().get('word_levels_imported'), 'true');
-      expect(wordLevelsBox().length, 2);
+      expect(await db.settingsDao.valueFor('word_levels_imported'), 'true');
+      expect(await db.wordLevelDao.allEntries(), hasLength(2));
       expect(service.canonicalForm('Migrating'), 'migrate');
       expect(service.getLevel('flow'), LevelKey.cet4);
       expect(service.getLevel('migrating'), LevelKey.cet6);
@@ -514,7 +512,7 @@ void main() {
 
   test('word levels normalize contractions with curly apostrophes', () async {
     final service = WordLevelService(
-      repository: HiveWordLevelRepository(),
+      repository: _wordLevelRepository(db),
       assetLoader: (_) async =>
           'did\tdo\tp\nwas\tbe\tp\nhad\thave\tp\nwould\twould\tm\n'
           'should\tshould\tm\nthey\tthey\tp\nwe\twe\tp\nit\tit\tp\n',
@@ -535,12 +533,18 @@ void main() {
   test(
     'word levels index existing persisted entries without asset import',
     () async {
-      await settingsBox().put('word_levels_imported', 'true');
-      await wordLevelsBox().add(
-        const WordLevelInfo(word: 'running', originForm: 'run', levelIndex: 5),
-      );
+      await db.settingsDao.putValue('word_levels_imported', 'true');
+      await db.wordLevelDao.insertAll([
+        DriftWordLevelRepository.companionFromInfo(
+          const WordLevelInfo(
+            word: 'running',
+            originForm: 'run',
+            levelIndex: 5,
+          ),
+        ),
+      ]);
 
-      final service = WordLevelService(repository: HiveWordLevelRepository());
+      final service = WordLevelService(repository: _wordLevelRepository(db));
       await service.init();
 
       expect(service.canonicalForm('Running'), 'run');
@@ -549,4 +553,45 @@ void main() {
       expect(service.wordCount, 2);
     },
   );
+}
+
+DriftUserVocabularyRepository _userVocabularyRepository(
+  AppDatabase db, {
+  String languageCode = 'en',
+}) {
+  return DriftUserVocabularyRepository(
+    db.userVocabularyDao,
+    languageCode: languageCode,
+  );
+}
+
+DriftReadingConfigRepository _readingConfigRepository(AppDatabase db) {
+  return DriftReadingConfigRepository(db.readingConfigDao, languageCode: 'en');
+}
+
+DriftReadingTimeRepository _readingTimeRepository(AppDatabase db) {
+  return DriftReadingTimeRepository(db.readingTimeDao, languageCode: 'en');
+}
+
+DriftWordContextRepository _wordContextRepository(AppDatabase db) {
+  return DriftWordContextRepository(db.wordContextDao, languageCode: 'en');
+}
+
+DriftBookRepository _bookRepository(AppDatabase db) {
+  return DriftBookRepository(db.bookDao, languageCode: 'en');
+}
+
+DriftBookmarkRepository _bookmarkRepository(AppDatabase db) {
+  return DriftBookmarkRepository(db.bookmarkDao, languageCode: 'en');
+}
+
+DriftDictionaryCacheRepository _dictionaryCacheRepository(AppDatabase db) {
+  return DriftDictionaryCacheRepository(
+    db.dictionaryCacheDao,
+    languageCode: 'en',
+  );
+}
+
+DriftWordLevelRepository _wordLevelRepository(AppDatabase db) {
+  return DriftWordLevelRepository(db.wordLevelDao, db.settingsDao);
 }

@@ -4,10 +4,11 @@ import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/services/learning_analytics_service.dart';
 import 'package:flow_read/services/reading_insight_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_learning_analytics_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/hive_test_storage.dart';
-import '../support/legacy_hive_repositories.dart';
+import '../support/test_storage.dart';
 
 Chapter _chapter(String title, String text) {
   return Chapter(title: title, plainText: text, rawHtml: '');
@@ -15,21 +16,25 @@ Chapter _chapter(String title, String text) {
 
 void main() {
   late Directory tempDir;
+  late AppDatabase db;
   late LearningAnalyticsService analytics;
   late ReadingInsightService service;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_insight_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_insight_test_');
+    db = await createTestAppDatabase();
     analytics = LearningAnalyticsService(
-      repository: HiveLearningAnalyticsRepository(),
+      repository: DriftLearningAnalyticsRepository(
+        db.learningAnalyticsDao,
+        languageCode: 'en',
+      ),
     );
     await analytics.init();
     service = ReadingInsightService(analytics: analytics);
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('returns empty profile when no lookups recorded', () {

@@ -1,7 +1,3 @@
-import 'package:hive/hive.dart';
-
-part 'word_level.g.dart';
-
 enum LevelKey {
   p,
   m,
@@ -89,15 +85,9 @@ enum LevelKey {
   }
 }
 
-@HiveType(typeId: 4)
 class WordLevelInfo {
-  @HiveField(0)
   final String word;
-
-  @HiveField(1)
   final String originForm;
-
-  @HiveField(2)
   final int levelIndex;
 
   const WordLevelInfo({

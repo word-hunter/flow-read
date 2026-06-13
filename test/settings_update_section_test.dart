@@ -7,7 +7,7 @@ import 'package:flow_read/widgets/settings/update_check_result_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/hive_test_storage.dart';
+import 'support/test_storage.dart';
 
 void main() {
   testWidgets('reading section shows current book language override', (

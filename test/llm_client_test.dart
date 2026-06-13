@@ -7,20 +7,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'support/hive_test_storage.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
   late SettingsService settings;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_llm_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_llm_test_');
+    await openFlowReadTestStorage();
     settings = await createTestSettingsService();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('chat uses the selected OpenAI-compatible provider config', () async {

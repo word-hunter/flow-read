@@ -6,18 +6,18 @@ import 'package:flow_read/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/hive_test_storage.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_theme_settings_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_theme_settings_test_');
+    await openFlowReadTestStorage();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('app theme family and brightness mode persist', () async {
@@ -57,9 +57,11 @@ void main() {
   });
 
   test('unknown stored theme family falls back to classic', () async {
-    await settingsBox().put('appThemeId', 'legacy_theme');
+    final db = await createTestAppDatabase();
+    await db.settingsDao.putValue('appThemeId', 'legacy_theme');
 
-    final settings = await createTestSettingsService();
+    final settings = SettingsService(SettingsDao(db));
+    await settings.init();
 
     expect(settings.appThemeId, AppThemeId.classic);
   });

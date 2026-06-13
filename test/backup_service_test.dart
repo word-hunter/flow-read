@@ -18,10 +18,10 @@ import 'package:flow_read/storage/database/repositories/drift_book_repository.da
 import 'package:flow_read/storage/database/repositories/drift_learning_item_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_user_vocabulary_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_word_context_repository.dart';
-import 'package:flow_read/storage/hive_box_names.dart';
+import 'package:flow_read/storage/legacy_backup_box_names.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/hive_test_storage.dart';
+import 'support/test_storage.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -33,11 +33,7 @@ void main() {
   late BackupService backup;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage(
-      'flow_read_backup_test_',
-      hivePathSuffix: 'hive',
-    );
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_backup_test_');
     documentsDir = await Directory('${tempDir.path}/documents').create();
 
     db = await createTestAppDatabase();
@@ -53,7 +49,7 @@ void main() {
 
   tearDown(() async {
     backup.dispose();
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('exports Drift data to .flow.bak and imports it back', () async {
@@ -103,7 +99,6 @@ void main() {
     await db.readingConfigDao.putValue('fontSize', 'en', '18.0');
     await db.readingTimeDao.putSeconds('_global_', 'en', 120);
     await db.learningAnalyticsDao.putValue('20260515', 'en', 7);
-    await dictionaryCacheBox().put('flow', '{"word":"flow"}');
     await db.wordContextDao.putData(
       'flow',
       'en',
@@ -183,13 +178,18 @@ void main() {
     expect(data['files'], isNull);
     final boxes = data['boxes'] as Map<String, dynamic>;
     expect(boxes.keys, containsAll(BackupService.backupDataBoxNames));
-    expect(boxes, isNot(containsPair(HiveBoxNames.dictionaryCache, anything)));
     expect(
       boxes,
-      isNot(containsPair(HiveBoxNames.dictionaryCacheFor('en'), anything)),
+      isNot(containsPair(LegacyBackupBoxNames.dictionaryCache, anything)),
+    );
+    expect(
+      boxes,
+      isNot(
+        containsPair(LegacyBackupBoxNames.dictionaryCacheFor('en'), anything),
+      ),
     );
     final analyticsEntries =
-        boxes[HiveBoxNames.learningAnalyticsFor('en')]['entries']
+        boxes[LegacyBackupBoxNames.learningAnalyticsFor('en')]['entries']
             as List<dynamic>;
     expect(analyticsEntries, hasLength(1));
     expect(analyticsEntries.single, {
@@ -198,7 +198,7 @@ void main() {
     });
 
     final settingsEntries =
-        boxes[HiveBoxNames.settings]['entries'] as List<dynamic>;
+        boxes[LegacyBackupBoxNames.settings]['entries'] as List<dynamic>;
     final settingKeys = settingsEntries
         .map((entry) => entry['key']['value'] as String)
         .toSet();
@@ -219,7 +219,6 @@ void main() {
     await db.readingConfigDao.clearForLanguage('en');
     await db.readingTimeDao.clearForLanguage('en');
     await db.learningAnalyticsDao.clearForLanguage('en');
-    await dictionaryCacheBox().clear();
     await db.wordContextDao.clearForLanguage('en');
     await db.learningItemDao.clearForLanguage('en');
     await db.rssDao.deleteAllArticles();
@@ -243,7 +242,6 @@ void main() {
     expect(await db.readingConfigDao.valueFor('fontSize', 'en'), '18.0');
     expect(await db.readingTimeDao.secondsFor('_global_', 'en'), 120);
     expect(await db.learningAnalyticsDao.valueFor('20260515', 'en'), 7);
-    expect(dictionaryCacheBox().get('flow'), isNull);
     expect(
       await db.wordContextDao.dataFor('flow', 'en'),
       '[{"word":"flow","text":"A steady flow of ideas."}]',
@@ -364,8 +362,6 @@ void main() {
     await db.settingsDao.putValue('apiKey', 'secret-key');
     await db.settingsDao.putValue('backupFolderPath', '/private/backups');
 
-    await userVocabularyBox().put('hive-only', 'known');
-
     final backupPath = await backup.exportNow(
       folderPath: '${tempDir.path}/drift_backups',
     );
@@ -375,14 +371,15 @@ void main() {
     expect(boxes.keys, containsAll(BackupService.backupDataBoxNames));
 
     final bookEntries =
-        boxes[HiveBoxNames.booksFor('en')]['entries'] as List<dynamic>;
+        boxes[LegacyBackupBoxNames.booksFor('en')]['entries'] as List<dynamic>;
     final bookEntry = bookEntries.single as Map<String, dynamic>;
     expect(bookEntry['key'], {'type': 'string', 'value': book.id});
     expect(bookEntry['value']['title'], 'Drift Book');
     expect(bookEntry['value']['chapterScrollOffset'], 240);
 
     final vocabEntries =
-        boxes[HiveBoxNames.userVocabularyFor('en')]['entries'] as List<dynamic>;
+        boxes[LegacyBackupBoxNames.userVocabularyFor('en')]['entries']
+            as List<dynamic>;
     expect(vocabEntries, [
       {
         'key': {'type': 'string', 'value': 'flow'},
@@ -391,7 +388,8 @@ void main() {
     ]);
 
     final wordBookmarkEntries =
-        boxes[HiveBoxNames.wordBookmarksFor('en')]['entries'] as List<dynamic>;
+        boxes[LegacyBackupBoxNames.wordBookmarksFor('en')]['entries']
+            as List<dynamic>;
     expect(wordBookmarkEntries.single['key'], {
       'type': 'string',
       'value': book.id,
@@ -404,18 +402,19 @@ void main() {
     );
 
     final readingTimeEntries =
-        boxes[HiveBoxNames.readingTimeFor('en')]['entries'] as List<dynamic>;
+        boxes[LegacyBackupBoxNames.readingTimeFor('en')]['entries']
+            as List<dynamic>;
     expect(readingTimeEntries.single, {
       'key': {'type': 'string', 'value': '_global_'},
       'value': 300,
     });
 
     final glossaryEntries =
-        boxes[HiveBoxNames.bookGlossary]['entries'] as List<dynamic>;
+        boxes[LegacyBackupBoxNames.bookGlossary]['entries'] as List<dynamic>;
     expect(glossaryEntries.single['value']['explanation'], 'movement');
 
     final settingsEntries =
-        boxes[HiveBoxNames.settings]['entries'] as List<dynamic>;
+        boxes[LegacyBackupBoxNames.settings]['entries'] as List<dynamic>;
     final settingKeys = settingsEntries
         .map((entry) => entry['key']['value'] as String)
         .toSet();
@@ -457,8 +456,6 @@ void main() {
         language: const Value('en'),
       ),
     );
-    await userVocabularyBox().put('hive-current', 'known');
-
     final importedBook = BookMetadata(
       id: 'imported-book',
       title: 'Imported Book',
@@ -494,7 +491,7 @@ void main() {
         importedBook.id: Uint8List.fromList(utf8.encode('imported epub bytes')),
       },
       boxes: {
-        HiveBoxNames.settings: {
+        LegacyBackupBoxNames.settings: {
           'entries': [
             {
               'key': {'type': 'string', 'value': 'aiProviderId'},
@@ -506,7 +503,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.rssSubscriptions: {
+        LegacyBackupBoxNames.rssSubscriptions: {
           'entries': [
             {
               'key': {'type': 'int', 'value': 0},
@@ -518,7 +515,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.characterRegistry: {
+        LegacyBackupBoxNames.characterRegistry: {
           'entries': [
             {
               'key': {'type': 'string', 'value': importedBook.id},
@@ -526,7 +523,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.booksFor('en'): {
+        LegacyBackupBoxNames.booksFor('en'): {
           'entries': [
             {
               'key': {'type': 'string', 'value': importedBook.id},
@@ -534,7 +531,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.userVocabularyFor('en'): {
+        LegacyBackupBoxNames.userVocabularyFor('en'): {
           'entries': [
             {
               'key': {'type': 'string', 'value': 'imported'},
@@ -542,7 +539,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.wordBookmarksFor('en'): {
+        LegacyBackupBoxNames.wordBookmarksFor('en'): {
           'entries': [
             {
               'key': {'type': 'string', 'value': importedBook.id},
@@ -557,7 +554,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.readingBookmarksFor('en'): {
+        LegacyBackupBoxNames.readingBookmarksFor('en'): {
           'entries': [
             {
               'key': {'type': 'string', 'value': importedBook.id},
@@ -573,7 +570,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.readingConfigFor('en'): {
+        LegacyBackupBoxNames.readingConfigFor('en'): {
           'entries': [
             {
               'key': {'type': 'string', 'value': 'fontSize'},
@@ -581,7 +578,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.readingTimeFor('en'): {
+        LegacyBackupBoxNames.readingTimeFor('en'): {
           'entries': [
             {
               'key': {'type': 'string', 'value': '_global_'},
@@ -589,7 +586,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.wordContextsFor('en'): {
+        LegacyBackupBoxNames.wordContextsFor('en'): {
           'entries': [
             {
               'key': {'type': 'string', 'value': 'imported'},
@@ -598,7 +595,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.learningItemsFor('en'): {
+        LegacyBackupBoxNames.learningItemsFor('en'): {
           'entries': [
             {
               'key': {'type': 'string', 'value': importedItem.id},
@@ -606,7 +603,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.learningAnalyticsFor('en'): {
+        LegacyBackupBoxNames.learningAnalyticsFor('en'): {
           'entries': [
             {
               'key': {'type': 'string', 'value': 'lookups'},
@@ -614,7 +611,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.bookGlossary: {
+        LegacyBackupBoxNames.bookGlossary: {
           'entries': [
             {
               'key': {'type': 'string', 'value': 'glossary-imported'},
@@ -674,7 +671,6 @@ void main() {
     );
     expect(settings.aiProviderId, 'openai');
     expect(settings.backupFolderPath, preImportDir.path);
-    expect(userVocabularyBox().get('hive-current'), 'known');
     expect(
       preImportDir.listSync().whereType<File>().where(
         (file) => file.path.endsWith('.flow.bak'),
@@ -802,7 +798,8 @@ void main() {
 
     final boxes = _decodeBackupBoxes(preImportFiles.single);
     final vocabEntries =
-        boxes[HiveBoxNames.userVocabularyFor('en')]['entries'] as List<dynamic>;
+        boxes[LegacyBackupBoxNames.userVocabularyFor('en')]['entries']
+            as List<dynamic>;
     expect(vocabEntries.single, {
       'key': {'type': 'string', 'value': 'current'},
       'value': 'learning',
@@ -836,7 +833,7 @@ void main() {
       bookHasCover: const {'legacy-book': false},
       sourceBytesByBookId: {'legacy-book': Uint8List.fromList(sourceBytes)},
       boxes: {
-        HiveBoxNames.books: {
+        LegacyBackupBoxNames.books: {
           'entries': [
             {
               'key': {'type': 'string', 'value': legacyBook.id},
@@ -844,7 +841,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.userVocabulary: {
+        LegacyBackupBoxNames.userVocabulary: {
           'entries': [
             {
               'key': {'type': 'string', 'value': 'legacy'},
@@ -852,9 +849,13 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.wordBookmarks: {'entries': <Map<String, dynamic>>[]},
-        HiveBoxNames.readingBookmarks: {'entries': <Map<String, dynamic>>[]},
-        HiveBoxNames.readingConfig: {
+        LegacyBackupBoxNames.wordBookmarks: {
+          'entries': <Map<String, dynamic>>[],
+        },
+        LegacyBackupBoxNames.readingBookmarks: {
+          'entries': <Map<String, dynamic>>[],
+        },
+        LegacyBackupBoxNames.readingConfig: {
           'entries': [
             {
               'key': {'type': 'string', 'value': 'fontSize'},
@@ -862,7 +863,7 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.readingTime: {
+        LegacyBackupBoxNames.readingTime: {
           'entries': [
             {
               'key': {'type': 'string', 'value': 'legacy-book'},
@@ -870,9 +871,15 @@ void main() {
             },
           ],
         },
-        HiveBoxNames.wordContexts: {'entries': <Map<String, dynamic>>[]},
-        HiveBoxNames.learningItems: {'entries': <Map<String, dynamic>>[]},
-        HiveBoxNames.learningAnalytics: {'entries': <Map<String, dynamic>>[]},
+        LegacyBackupBoxNames.wordContexts: {
+          'entries': <Map<String, dynamic>>[],
+        },
+        LegacyBackupBoxNames.learningItems: {
+          'entries': <Map<String, dynamic>>[],
+        },
+        LegacyBackupBoxNames.learningAnalytics: {
+          'entries': <Map<String, dynamic>>[],
+        },
       },
     );
 

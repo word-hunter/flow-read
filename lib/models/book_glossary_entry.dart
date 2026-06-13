@@ -1,35 +1,13 @@
 import 'dart:convert';
 
-import 'package:hive/hive.dart';
-
-import '../storage/hive_type_ids.dart';
-
-part 'book_glossary_entry.g.dart';
-
-@HiveType(typeId: HiveTypeIds.bookGlossaryEntry)
 class BookGlossaryEntry {
-  @HiveField(0)
   final String id;
-
-  @HiveField(1)
   final String bookId;
-
-  @HiveField(2)
   final String word;
-
-  @HiveField(3)
   final String? canonicalForm;
-
-  @HiveField(4)
   final String explanation;
-
-  @HiveField(5)
   final String? sourceContext;
-
-  @HiveField(6)
   final DateTime createdAt;
-
-  @HiveField(7)
   final DateTime? lastAccessedAt;
 
   const BookGlossaryEntry({

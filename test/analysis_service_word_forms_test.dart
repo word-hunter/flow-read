@@ -6,71 +6,54 @@ import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/analysis_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_user_vocabulary_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_word_level_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/hive_test_storage.dart';
-import 'support/legacy_hive_repositories.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
+  late AppDatabase db;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_word_forms_test_');
-    await openFlowReadTestBoxes();
-    await settingsBox().put('word_levels_imported', 'true');
-    await wordLevelsBox().addAll([
-      const WordLevelInfo(
-        word: 'partitions',
-        originForm: 'partition',
-        levelIndex: 6,
-      ),
-      const WordLevelInfo(
-        word: 'migrating',
-        originForm: 'migrate',
-        levelIndex: 5,
-      ),
-      const WordLevelInfo(
-        word: 'looked',
-        originForm: 'look',
-        levelIndex: 0,
-      ),
-      const WordLevelInfo(
-        word: 'thinks',
-        originForm: 'think',
-        levelIndex: 0,
-      ),
-      const WordLevelInfo(
-        word: 'answers',
-        originForm: 'answer',
-        levelIndex: 0,
-      ),
-      const WordLevelInfo(
-        word: 'spoken',
-        originForm: 'speak',
-        levelIndex: 0,
-      ),
-      const WordLevelInfo(
-        word: 'years',
-        originForm: 'year',
-        levelIndex: 0,
-      ),
+    tempDir = await initTestStorage('flow_read_word_forms_test_');
+    db = await createTestAppDatabase();
+    final repository = DriftWordLevelRepository(
+      db.wordLevelDao,
+      db.settingsDao,
+    );
+    await repository.init();
+    await repository.addAll(const [
+      WordLevelInfo(word: 'partitions', originForm: 'partition', levelIndex: 6),
+      WordLevelInfo(word: 'migrating', originForm: 'migrate', levelIndex: 5),
+      WordLevelInfo(word: 'looked', originForm: 'look', levelIndex: 0),
+      WordLevelInfo(word: 'thinks', originForm: 'think', levelIndex: 0),
+      WordLevelInfo(word: 'answers', originForm: 'answer', levelIndex: 0),
+      WordLevelInfo(word: 'spoken', originForm: 'speak', levelIndex: 0),
+      WordLevelInfo(word: 'years', originForm: 'year', levelIndex: 0),
     ]);
+    await repository.markImported();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('analysis normalizes plural and tense forms like Word Hunter', () async {
     final vocab = UserVocabularyService(
-      repository: HiveUserVocabularyRepository(),
+      repository: DriftUserVocabularyRepository(
+        db.userVocabularyDao,
+        languageCode: 'en',
+      ),
     );
     await vocab.init();
     await vocab.setKnown('can');
     await vocab.setKnown('partition');
     await vocab.setLearning('migrate');
 
-    final wordLevels = WordLevelService(repository: HiveWordLevelRepository());
+    final wordLevels = WordLevelService(repository: _wordLevelRepository(db));
     await wordLevels.init();
 
     final result = AnalysisService.analyzeChapter(
@@ -140,7 +123,10 @@ void main() {
     'analysis canonicalizes common verb inflections via WordLevelService',
     () async {
       final vocab = UserVocabularyService(
-        repository: HiveUserVocabularyRepository(),
+        repository: DriftUserVocabularyRepository(
+          db.userVocabularyDao,
+          languageCode: 'en',
+        ),
       );
       await vocab.init();
       await vocab.setKnown('look');
@@ -148,7 +134,7 @@ void main() {
       await vocab.setLearning('answer');
 
       final wordLevels = WordLevelService(
-        repository: HiveWordLevelRepository(),
+        repository: _wordLevelRepository(db),
       );
       await wordLevels.init();
 
@@ -182,14 +168,17 @@ void main() {
     'known words are recognized in non-lemma forms (past participle, plural)',
     () async {
       final vocab = UserVocabularyService(
-        repository: HiveUserVocabularyRepository(),
+        repository: DriftUserVocabularyRepository(
+          db.userVocabularyDao,
+          languageCode: 'en',
+        ),
       );
       await vocab.init();
       await vocab.setKnown('speak');
       await vocab.setKnown('year');
 
       final wordLevels = WordLevelService(
-        repository: HiveWordLevelRepository(),
+        repository: _wordLevelRepository(db),
       );
       await wordLevels.init();
 
@@ -224,6 +213,10 @@ void main() {
 
     expect(result.vocabulary.map((item) => item.word), ['terra']);
   });
+}
+
+DriftWordLevelRepository _wordLevelRepository(AppDatabase db) {
+  return DriftWordLevelRepository(db.wordLevelDao, db.settingsDao);
 }
 
 class _HashLanguageModule implements LanguageModule {

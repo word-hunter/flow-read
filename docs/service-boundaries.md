@@ -10,12 +10,12 @@ Last updated: 2026-06-13
 
 | Service | 职责 | 依赖 |
 |---------|------|------|
-| `BookService` | 书籍 CRUD、封面提取、书籍列表 | Drift `books`（由 Hive `books_{lang}` 迁移） |
+| `BookService` | 书籍 CRUD、封面提取、书籍列表 | Drift `books` |
 | `EpubService` | EPUB core parser 结果到 app `Book` 的映射、章节提取、图片提取 | `epub_reader_core` |
 | `EpubParseWorker` | EPUB 文件/字节后台 isolate 解析入口，支持导入解析进度回调与任务取消，避免 UI isolate 执行 ZIP/XML/HTML/CSS 解析 | `Isolate.spawn`, `EpubService` |
-| `BookmarkService` | 阅读书签 + 单词书签管理 | Drift `word_bookmarks`, `reading_bookmarks`（由 Hive `word_bookmarks_{lang}` / `reading_bookmarks_{lang}` 迁移） |
-| `ReadingConfigService` | 字体、字号、行高、边距、主题持久化 | Drift `reading_config`（由 Hive `reading_config_{lang}` 迁移） |
-| `ReadingTimeService` | 阅读时长跟踪、每日目标检测 | Drift `reading_time`（由 Hive `reading_time_{lang}` 迁移） |
+| `BookmarkService` | 阅读书签 + 单词书签管理 | Drift `word_bookmarks`, `reading_bookmarks` |
+| `ReadingConfigService` | 字体、字号、行高、边距、主题持久化 | Drift `reading_config` |
+| `ReadingTimeService` | 阅读时长跟踪、每日目标检测 | Drift `reading_time` |
 | `ReadingSearchService` | 全文搜索、搜索结果偏移定位 | `BookService`（获取章节文本） |
 
 ### 2. 词典
@@ -156,6 +156,6 @@ BackupService（独立）
 
 1. **不要继续塞进 `ReadingProvider`**：新 AI 能力用独立 service/provider/use-case
 2. **抽象接口优先**：词典、发音、语言模块都使用 interface + 多实现
-3. **Repository/DAO 模式**：`lib/storage/repositories/` 只保留业务接口，runtime 实现位于 Drift repository/DAO；UI/provider 不直接操作底层表或 legacy Hive box
+3. **Repository/DAO 模式**：`lib/storage/repositories/` 只保留业务接口，runtime 实现位于 Drift repository/DAO；UI/provider 不直接操作底层表或 legacy backup payload
 4. **显式 Provider 声明**：在 `lib/providers/` 中声明 Riverpod provider，不引入额外 DI 框架
 5. **LanguageModule 约束**：新增语言只需实现 `LanguageModule` 接口并注册

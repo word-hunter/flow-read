@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  hive: ^2.2.3
   flow_ai:
     path: ../flow_ai
   flow_dictionary:

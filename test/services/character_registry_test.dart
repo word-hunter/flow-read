@@ -2,26 +2,28 @@ import 'dart:io';
 
 import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/services/character_registry.dart';
+import 'package:flow_read/storage/database/app_database.dart' show AppDatabase;
+import 'package:flow_read/storage/database/repositories/drift_character_registry_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 
-import '../support/hive_test_storage.dart';
-import '../support/legacy_hive_repositories.dart';
+import '../support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
+  late AppDatabase db;
   late CharacterRegistry registry;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_character_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_character_test_');
+    db = await createTestAppDatabase();
     registry = CharacterRegistry(
-      repository: HiveCharacterRegistryRepository(),
+      repository: DriftCharacterRegistryRepository(db.characterRegistryDao),
     );
+    await registry.init();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('getAll returns empty list for unknown book', () {
@@ -224,7 +226,7 @@ void main() {
     expect(registry.getAll('book-y'), hasLength(1));
   });
 
-  test('empty entries list removes box key', () async {
+  test('empty entries list removes persisted key', () async {
     await registry.addEntry(
       'book-z',
       CharacterRegistryEntry(
@@ -234,7 +236,7 @@ void main() {
     );
     await registry.removeEntry('book-z', 'Aragorn');
 
-    final box = Hive.box<String>('character_registry');
-    expect(box.get('book-z'), isNull);
+    final entries = await db.characterRegistryDao.allEntries();
+    expect(entries.containsKey('book-z'), isFalse);
   });
 }

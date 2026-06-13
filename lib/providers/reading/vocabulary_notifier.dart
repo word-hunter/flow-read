@@ -17,7 +17,7 @@ import 'package:flow_language/flow_language.dart';
 import '../../services/user_vocabulary_service.dart';
 import '../../services/word_context_service.dart';
 import '../../services/word_level_service.dart';
-import '../../storage/hive_box_names.dart';
+import '../../storage/legacy_backup_box_names.dart';
 import '../settings_provider.dart';
 import 'bookshelf_notifier.dart';
 import 'current_book_notifier.dart';
@@ -432,7 +432,7 @@ class VocabularyNotifier extends Notifier<VocabularyState> {
         LanguageRegistry.normalizeLanguageCode(
           settings.activeSourceLanguage,
         ) ??
-        HiveBoxNames.defaultLanguageCode;
+        LegacyBackupBoxNames.defaultLanguageCode;
   }
 
   String _aggregatedVocabularyKey(String languageId, String canonical) {

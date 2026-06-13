@@ -7,15 +7,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'support/hive_test_storage.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
   late SettingsService settings;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_agent_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_agent_test_');
+    await openFlowReadTestStorage();
     settings = await createTestSettingsService();
     await settings.setAIProvider('openai_compatible');
     await settings.setAIBaseUrl('https://llm.example.com/v1');
@@ -24,7 +24,7 @@ void main() {
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test(

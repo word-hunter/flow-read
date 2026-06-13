@@ -18,7 +18,7 @@ import 'screens/settings_screen.dart';
 import 'screens/spaced_review_screen.dart';
 import 'screens/syntax_screen.dart';
 import 'services/app_logger.dart';
-import 'storage/hive_storage.dart';
+import 'storage/storage_bootstrap.dart';
 import 'theme/app_surface_tokens.dart';
 import 'theme/app_theme.dart';
 import 'theme/city_theme_tokens.dart';

@@ -4,13 +4,14 @@ import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_word_level_repository.dart';
 import 'package:flow_read/widgets/reader_text_view.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/hive_test_storage.dart';
-import 'support/legacy_hive_repositories.dart';
+import 'support/test_storage.dart';
 
 typedef _TappableTextProbe = ({
   String text,
@@ -20,30 +21,36 @@ typedef _TappableTextProbe = ({
 
 void main() {
   late Directory tempDir;
+  late AppDatabase db;
   late WordLevelService wordLevels;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_reader_forms_test_');
-    await openFlowReadTestBoxes();
-    await settingsBox().put('word_levels_imported', 'true');
-    await wordLevelsBox().addAll([
-      const WordLevelInfo(
+    tempDir = await initTestStorage('flow_read_reader_forms_test_');
+    db = await createTestAppDatabase();
+    final repository = DriftWordLevelRepository(
+      db.wordLevelDao,
+      db.settingsDao,
+    );
+    await repository.init();
+    await repository.addAll(const [
+      WordLevelInfo(
         word: 'partitions',
         originForm: 'partition',
         levelIndex: 6,
       ),
-      const WordLevelInfo(
+      WordLevelInfo(
         word: 'migrating',
         originForm: 'migrate',
         levelIndex: 5,
       ),
     ]);
-    wordLevels = WordLevelService(repository: HiveWordLevelRepository());
+    await repository.markImported();
+    wordLevels = WordLevelService(repository: repository);
     await wordLevels.init();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   testWidgets(

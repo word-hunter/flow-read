@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  hive: ^2.2.3
   http: ^1.2.0
   html: ^0.15.0
 

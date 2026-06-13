@@ -1,8 +1,4 @@
-import 'package:hive/hive.dart';
-
 import 'package:flow_ai/flow_ai.dart';
-
-part 'learning_item.g.dart';
 
 enum LearningItemType { word, sentence, grammar, expression, questionMistake }
 
@@ -34,60 +30,24 @@ extension LearningItemTypeLabel on LearningItemType {
   }
 }
 
-@HiveType(typeId: 11)
 class LearningItem {
-  @HiveField(0)
   final String id;
-
-  @HiveField(1)
   final LearningItemType type;
-
-  @HiveField(2)
   final String canonicalKey;
-
-  @HiveField(3)
   final String title;
-
-  @HiveField(4)
   final String content;
-
-  @HiveField(5)
   final String answer;
-
-  @HiveField(6)
   final String note;
-
-  @HiveField(7)
   final String sourceText;
-
-  @HiveField(8)
   final String bookId;
-
-  @HiveField(9)
   final int chapterIndex;
-
-  @HiveField(10)
   final String chapterTitle;
-
-  @HiveField(11)
   final DateTime createdAt;
-
-  @HiveField(12)
   final DateTime updatedAt;
-
-  @HiveField(13)
   final List<String> tags;
-
-  @HiveField(14)
   final Map<String, String> metadata;
-
-  @HiveField(15)
   final DateTime nextReviewAt;
-
-  @HiveField(16)
   final int reviewCount;
-
-  @HiveField(17)
   final LearningReviewResult lastResult;
 
   const LearningItem({
@@ -242,10 +202,10 @@ class LearningItemSource {
   });
 
   const LearningItemSource.unknown()
-      : bookId = '',
-        bookTitle = null,
-        chapterIndex = -1,
-        chapterTitle = '';
+    : bookId = '',
+      bookTitle = null,
+      chapterIndex = -1,
+      chapterTitle = '';
 }
 
 class LearningItemSaveResult {

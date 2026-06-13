@@ -4,12 +4,11 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:drift/drift.dart' show Variable;
-import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../storage/database/app_database.dart';
-import '../storage/hive_box_names.dart';
-import '../storage/hive_storage.dart' show appDatabase;
+import '../storage/legacy_backup_box_names.dart';
+import '../storage/storage_bootstrap.dart' show appDatabase;
 import 'app_logger.dart';
 import 'app_version.dart';
 import 'settings_service.dart';
@@ -106,7 +105,7 @@ class DiagnosticExportService {
   }
 
   Future<Map<String, Object?>> _collectAppStats() async {
-    const lang = HiveBoxNames.defaultLanguageCode;
+    const lang = LegacyBackupBoxNames.defaultLanguageCode;
     final database = _database;
     if (database != null) {
       return {
@@ -138,11 +137,11 @@ class DiagnosticExportService {
     }
 
     return {
-      'bookCount': _boxLength(HiveBoxNames.booksFor(lang)),
-      'vocabularyCount': _boxLength(HiveBoxNames.userVocabularyFor(lang)),
-      'rssSubscriptionCount': _boxLength(HiveBoxNames.rssSubscriptions),
-      'learningItemCount': _boxLength(HiveBoxNames.learningItemsFor(lang)),
-      'dictionaryCacheCount': _boxLength(HiveBoxNames.dictionaryCacheFor(lang)),
+      'bookCount': null,
+      'vocabularyCount': null,
+      'rssSubscriptionCount': null,
+      'learningItemCount': null,
+      'dictionaryCacheCount': null,
     };
   }
 
@@ -168,11 +167,6 @@ class DiagnosticExportService {
       'backupFolderConfigured': settings.backupFolderPath.trim().isNotEmpty,
       'backupIntervalMinutes': settings.backupIntervalMinutes,
     };
-  }
-
-  int? _boxLength(String boxName) {
-    if (!Hive.isBoxOpen(boxName)) return null;
-    return Hive.box(boxName).length;
   }
 
   Future<int> _countRows(

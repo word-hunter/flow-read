@@ -1,55 +1,59 @@
 import 'dart:io';
 
 import 'package:flow_read/services/backup_service.dart';
-import 'package:flow_read/storage/hive_box_names.dart';
-import 'package:flow_read/storage/hive_type_ids.dart';
-import 'package:flow_read/storage/storage_migrations.dart';
+import 'package:flow_read/storage/legacy_backup_box_names.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/hive_test_storage.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_storage_test_');
+    tempDir = await initTestStorage('flow_read_storage_test_');
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
-  test('Hive box and type id contracts stay explicit', () {
+  test('legacy backup box keys stay explicit and unique', () {
     final backupDataBoxes = BackupService.backupDataBoxNames;
 
     expect(
-      HiveBoxNames.bootstrapBoxes.toSet(),
-      hasLength(HiveBoxNames.bootstrapBoxes.length),
+      LegacyBackupBoxNames.bootstrapBoxes.toSet(),
+      hasLength(LegacyBackupBoxNames.bootstrapBoxes.length),
     );
     expect(backupDataBoxes.toSet(), hasLength(backupDataBoxes.length));
-    expect(backupDataBoxes, everyElement(isIn(HiveBoxNames.bootstrapBoxes)));
-    expect(backupDataBoxes, contains(HiveBoxNames.learningAnalyticsFor('en')));
-    expect(backupDataBoxes, isNot(contains(HiveBoxNames.wordLevels)));
-    expect(HiveBoxNames.bootstrapBoxes, contains(HiveBoxNames.bookGlossary));
-    expect(backupDataBoxes, contains(HiveBoxNames.bookGlossary));
-    expect(HiveBoxNames.bootstrapBoxes, contains(HiveBoxNames.characterRegistry));
-    expect(backupDataBoxes, contains(HiveBoxNames.characterRegistry));
     expect(
       backupDataBoxes,
-      isNot(contains(HiveBoxNames.dictionaryCacheFor('en'))),
+      everyElement(isIn(LegacyBackupBoxNames.bootstrapBoxes)),
     );
-
-    expect(HiveTypeIds.reserved, hasLength(8));
+    expect(
+      backupDataBoxes,
+      contains(LegacyBackupBoxNames.learningAnalyticsFor('en')),
+    );
+    expect(backupDataBoxes, isNot(contains(LegacyBackupBoxNames.wordLevels)));
+    expect(
+      LegacyBackupBoxNames.bootstrapBoxes,
+      contains(LegacyBackupBoxNames.bookGlossary),
+    );
+    expect(backupDataBoxes, contains(LegacyBackupBoxNames.bookGlossary));
+    expect(
+      LegacyBackupBoxNames.bootstrapBoxes,
+      contains(LegacyBackupBoxNames.characterRegistry),
+    );
+    expect(backupDataBoxes, contains(LegacyBackupBoxNames.characterRegistry));
+    expect(
+      backupDataBoxes,
+      isNot(contains(LegacyBackupBoxNames.dictionaryCacheFor('en'))),
+    );
   });
 
-  test('storage migrations persist the current schema version', () async {
-    await openFlowReadTestBoxes();
+  test('Drift storage opens with the current schema version', () async {
+    final db = await createTestAppDatabase();
 
-    await runStorageMigrations();
-
-    expect(
-      settingsBox().get(StorageSchema.versionKey),
-      StorageSchema.currentVersion,
-    );
+    expect(db.schemaVersion, 1);
+    expect(await db.settingsDao.allEntries(), isEmpty);
   });
 }

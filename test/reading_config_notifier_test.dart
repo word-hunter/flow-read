@@ -9,18 +9,18 @@ import 'package:flow_read/storage/database/repositories/drift_reading_config_rep
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/hive_test_storage.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_reading_config_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_reading_config_test_');
+    await openFlowReadTestStorage();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test(
@@ -55,9 +55,8 @@ void main() {
   );
 
   test(
-    'service writes updated reading settings to Drift instead of Hive',
+    'service writes updated reading settings to Drift storage',
     () async {
-      await readingConfigBox().put('fontSize', '16');
       final db = await createTestAppDatabase();
       final dao = ReadingConfigDao(db);
       await dao.putValue('fontSize', 'en', '21');
@@ -69,7 +68,6 @@ void main() {
       await service.setFontSize(20);
 
       expect(await dao.valueFor('fontSize', 'en'), '20.0');
-      expect(readingConfigBox().get('fontSize'), '16');
     },
   );
 }

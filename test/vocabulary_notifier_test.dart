@@ -9,36 +9,41 @@ import 'package:flow_read/providers/reading/bookshelf_notifier.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/reading/vocabulary_notifier.dart';
 import 'package:flow_read/services/book_service.dart';
+import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/providers/settings_provider.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_book_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_user_vocabulary_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_word_level_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/hive_test_storage.dart';
-import 'support/legacy_hive_repositories.dart';
+import 'support/test_storage.dart';
 
 void main() {
   late Directory tempDir;
+  late AppDatabase db;
 
   setUp(() async {
-    tempDir = await initHiveTestStorage('flow_read_vocabulary_notifier_test_');
-    await openFlowReadTestBoxes();
+    tempDir = await initTestStorage('flow_read_vocabulary_notifier_test_');
+    db = await createTestAppDatabase();
   });
 
   tearDown(() async {
-    await disposeHiveTestStorage(tempDir);
+    await disposeTestStorage(tempDir);
   });
 
   test('active book difficulty falls back to cached shelf rating', () async {
     final documentsDir = await Directory('${tempDir.path}/documents').create();
     final bookService = BookService(
-      repository: HiveBookMetadataRepository(),
+      repository: DriftBookRepository(db.bookDao, languageCode: 'en'),
       documentsDirectoryProvider: () async => documentsDir,
     );
     await bookService.init();
     final wordLevelService = WordLevelService(
-      repository: HiveWordLevelRepository(),
+      repository: DriftWordLevelRepository(db.wordLevelDao, db.settingsDao),
       assetLoader: (_) async => '',
     );
     await wordLevelService.init();
@@ -79,13 +84,17 @@ void main() {
   test(
     'marking a lemma known refreshes current chapter word highlights',
     () async {
-      final settings = await createTestSettingsService();
+      final settings = SettingsService(db.settingsDao);
+      await settings.init();
       final userVocabulary = UserVocabularyService(
-        repository: HiveUserVocabularyRepository(),
+        repository: DriftUserVocabularyRepository(
+          db.userVocabularyDao,
+          languageCode: 'en',
+        ),
       );
       await userVocabulary.init();
       final wordLevelService = WordLevelService(
-        repository: HiveWordLevelRepository(),
+        repository: DriftWordLevelRepository(db.wordLevelDao, db.settingsDao),
         assetLoader: (_) async =>
             'reassemble\treassemble\to\n'
             'reassembling\treassemble\to\n',
@@ -105,6 +114,7 @@ void main() {
       );
       final bookshelf = _ReaderBookshelfNotifier(book);
       final bookService = _NoopBookService(
+        db: db,
         books: [
           const BookMetadata(
             id: 'book-1',
@@ -175,9 +185,11 @@ class _ReaderBookshelfNotifier extends BookshelfNotifier {
 }
 
 class _NoopBookService extends BookService {
-  _NoopBookService({required List<BookMetadata> books})
-    : _books = books,
-      super(repository: HiveBookMetadataRepository());
+  _NoopBookService({
+    required AppDatabase db,
+    required List<BookMetadata> books,
+  }) : _books = books,
+       super(repository: DriftBookRepository(db.bookDao, languageCode: 'en'));
 
   final List<BookMetadata> _books;
 
