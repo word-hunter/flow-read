@@ -364,6 +364,8 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
                 aiCacheEntryCount: _aiCacheEntryCount,
                 cacheStatsLoading: _cacheStatsLoading,
               ),
+              SettingsSection.network =>
+                SettingsNetworkSection(settings: settings),
               SettingsSection.backup => SettingsBackupSection(
                 settings: settings,
                 backup: backup,

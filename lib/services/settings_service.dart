@@ -8,6 +8,7 @@ import '../storage/database/dao/settings_dao.dart';
 import '../storage/legacy_backup_box_names.dart';
 import '../theme/app_theme.dart';
 import 'package:flow_ai/flow_ai.dart';
+import 'proxy_http_overrides.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
 
 class AIUsageStats {
@@ -90,6 +91,10 @@ class SettingsService extends ChangeNotifier {
   static const _dailyReadingGoalMinutesKey = 'dailyReadingGoalMinutes';
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
   static const _forceDefaultBookCoverKey = 'forceDefaultBookCover';
+  static const _visualDictionaryEnabledKey = 'visualDictionaryEnabled';
+  static const _proxyEnabledKey = 'proxyEnabled';
+  static const _proxyHostKey = 'proxyHost';
+  static const _proxyPortKey = 'proxyPort';
   static const _dictionarySourcesKey = 'dictionarySources';
   static const _activeSourceLanguageKey =
       LegacyBackupBoxNames.activeSourceLanguageKey;
@@ -138,6 +143,10 @@ class SettingsService extends ChangeNotifier {
   String _targetExplanationLanguage = 'zh';
   Set<String> _enabledExperimentalFeatures = {};
   bool _forceDefaultBookCover = false;
+  bool _visualDictionaryEnabled = true;
+  bool _proxyEnabled = false;
+  String _proxyHost = '127.0.0.1';
+  int _proxyPort = 7890;
   CityAtmosphereSettings _cityAtmosphereSettings =
       const CityAtmosphereSettings();
   List<DictionarySourceConfig> _dictionarySources =
@@ -206,6 +215,10 @@ class SettingsService extends ChangeNotifier {
   bool get desktopReaderWorkspaceEnabled => true;
 
   bool get forceDefaultBookCover => _forceDefaultBookCover;
+  bool get visualDictionaryEnabled => _visualDictionaryEnabled;
+  bool get proxyEnabled => _proxyEnabled;
+  String get proxyHost => _proxyHost;
+  int get proxyPort => _proxyPort;
   CityAtmosphereSettings get cityAtmosphereSettings => _cityAtmosphereSettings;
 
   Future<void> init() {
@@ -328,6 +341,11 @@ class SettingsService extends ChangeNotifier {
       _enabledExperimentalFeaturesKey,
     );
     _forceDefaultBookCover = _readBool(_forceDefaultBookCoverKey, false);
+    _visualDictionaryEnabled = _readBool(_visualDictionaryEnabledKey, true);
+    _proxyEnabled = _readBool(_proxyEnabledKey, false);
+    _proxyHost = _get(_proxyHostKey, defaultValue: '127.0.0.1') ?? '127.0.0.1';
+    _proxyPort = _readInt(_proxyPortKey, 7890);
+    _applyProxyOverrides();
     _cityAtmosphereSettings = _readCityAtmosphereSettings();
     _dictionarySources = _readDictionarySources();
   }
@@ -732,6 +750,46 @@ class SettingsService extends ChangeNotifier {
     _forceDefaultBookCover = enabled;
     _put(_forceDefaultBookCoverKey, enabled.toString());
     notifyListeners();
+  }
+
+  Future<void> setVisualDictionaryEnabled(bool enabled) async {
+    if (_visualDictionaryEnabled == enabled) return;
+    _visualDictionaryEnabled = enabled;
+    _put(_visualDictionaryEnabledKey, enabled.toString());
+    notifyListeners();
+  }
+
+  Future<void> setProxyEnabled(bool enabled) async {
+    if (_proxyEnabled == enabled) return;
+    _proxyEnabled = enabled;
+    _put(_proxyEnabledKey, enabled.toString());
+    _applyProxyOverrides();
+    notifyListeners();
+  }
+
+  Future<void> setProxyHost(String host) async {
+    final trimmed = host.trim();
+    if (_proxyHost == trimmed) return;
+    _proxyHost = trimmed;
+    _put(_proxyHostKey, trimmed);
+    _applyProxyOverrides();
+    notifyListeners();
+  }
+
+  Future<void> setProxyPort(int port) async {
+    if (_proxyPort == port) return;
+    _proxyPort = port;
+    _put(_proxyPortKey, port.toString());
+    _applyProxyOverrides();
+    notifyListeners();
+  }
+
+  void _applyProxyOverrides() {
+    ProxyHttpOverrides.apply(
+      enabled: _proxyEnabled,
+      host: _proxyHost,
+      port: _proxyPort,
+    );
   }
 
   Future<void> setCityAtmosphereEnabled(bool enabled) {

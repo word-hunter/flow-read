@@ -11,6 +11,7 @@ enum SettingsSection {
   reading,
   dictionary,
   ai,
+  network,
   backup,
   experiments,
   about,
@@ -27,6 +28,8 @@ extension SettingsSectionMeta on SettingsSection {
         return '词典';
       case SettingsSection.ai:
         return 'AI 设置';
+      case SettingsSection.network:
+        return '网络';
       case SettingsSection.backup:
         return '备份与同步';
       case SettingsSection.experiments:
@@ -46,6 +49,8 @@ extension SettingsSectionMeta on SettingsSection {
         return '管理查词来源和本地缓存。';
       case SettingsSection.ai:
         return '配置 AI 服务商、模型、密钥与连接状态。';
+      case SettingsSection.network:
+        return '配置 HTTP 代理以访问受限网络资源。';
       case SettingsSection.backup:
         return '管理本地数据备份、自动同步与恢复。';
       case SettingsSection.experiments:
@@ -65,6 +70,8 @@ extension SettingsSectionMeta on SettingsSection {
         return Icons.menu_book_outlined;
       case SettingsSection.ai:
         return Icons.auto_awesome;
+      case SettingsSection.network:
+        return Icons.wifi_outlined;
       case SettingsSection.backup:
         return Icons.cloud_sync_outlined;
       case SettingsSection.experiments:

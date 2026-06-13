@@ -4,6 +4,7 @@ export 'settings_reading_section.dart';
 export 'settings_city_atmosphere_section.dart';
 export 'settings_ai_section.dart';
 export 'settings_dictionary_section.dart';
+export 'settings_network_section.dart';
 export 'settings_experimental_features_section.dart';
 export 'settings_backup_section.dart';
 export 'settings_about_section.dart';
