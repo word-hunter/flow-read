@@ -35,11 +35,23 @@ class ReaderWorkspaceController extends ChangeNotifier {
   double get leftPanelWidth => _leftPanelWidth;
   double get rightPanelWidth => _rightPanelWidth;
 
+  bool get isTocOpen => _isLeftPanelOpen && _leftTab == ReaderLeftPanelTab.toc;
+
   void openToc() {
     if (!_isLeftPanelOpen) {
       _isLeftPanelOpen = true;
     }
     _leftTab = ReaderLeftPanelTab.toc;
+    notifyListeners();
+  }
+
+  void toggleToc() {
+    if (isTocOpen) {
+      _isLeftPanelOpen = false;
+    } else {
+      _isLeftPanelOpen = true;
+      _leftTab = ReaderLeftPanelTab.toc;
+    }
     notifyListeners();
   }
 

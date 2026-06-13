@@ -27,6 +27,7 @@ class ReaderNavBar extends StatelessWidget {
   final ValueListenable<double> displayProgressListenable;
   final bool showSidebarToggle;
   final bool sidebarOpen;
+  final bool tocPanelOpen;
   final bool useWorkspaceTocPanel;
   final bool tocMenuOpen;
   final MenuController tocMenuController;
@@ -61,6 +62,7 @@ class ReaderNavBar extends StatelessWidget {
     required this.displayProgressListenable,
     required this.showSidebarToggle,
     required this.sidebarOpen,
+    required this.tocPanelOpen,
     required this.useWorkspaceTocPanel,
     required this.tocMenuOpen,
     required this.tocMenuController,
@@ -397,7 +399,7 @@ class ReaderNavBar extends StatelessWidget {
         key: const ValueKey('reader-toolbar-toc'),
         icon: Icons.menu,
         tooltip: '目录',
-        selected: sidebarOpen,
+        selected: tocPanelOpen,
         onPressed: onShowWorkspaceToc,
       );
     }

@@ -126,10 +126,31 @@ class _ReaderLeftPanelTitleBar extends StatelessWidget {
                   width: 32,
                   height: 32,
                 ),
-                style: IconButton.styleFrom(
-                  foregroundColor: theme.colorScheme.onSurfaceVariant,
-                  hoverColor: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.56),
+                style: ButtonStyle(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  mouseCursor: WidgetStateProperty.all(
+                    SystemMouseCursors.click,
+                  ),
+                  shape: WidgetStatePropertyAll(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  backgroundColor:
+                      WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.pressed)) {
+                      return theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.14);
+                    }
+                    if (states.contains(WidgetState.hovered)) {
+                      return theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.08);
+                    }
+                    return Colors.transparent;
+                  }),
+                  foregroundColor: WidgetStatePropertyAll(
+                    theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ),

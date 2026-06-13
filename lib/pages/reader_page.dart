@@ -1076,6 +1076,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               sidebarOpen: useWorkspace
                   ? _workspaceController.isRightPanelOpen
                   : _sidebarOpen,
+              tocPanelOpen: _workspaceController.isTocOpen,
               useWorkspaceTocPanel: useWorkspace,
               tocMenuOpen: _tocMenuOpen,
               tocMenuController: _tocMenuController,
@@ -1083,7 +1084,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               onSidebarToggle: useWorkspace
                   ? _workspaceController.toggleRightPanel
                   : _toggleSidebar,
-              onShowWorkspaceToc: _workspaceController.openToc,
+              onShowWorkspaceToc: _workspaceController.toggleToc,
               onShowTocSheet: _showTocSheet,
               onTocMenuToggle: _toggleTocMenu,
               onTocMenuOpenChanged: _setTocMenuOpen,
