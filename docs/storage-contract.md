@@ -44,8 +44,9 @@ Drift 数据。
 | `legacy_hive_to_drift_source_language` | 导入时的语言分区 |
 
 RSS 文章状态的旧 settings ID 集合缺少 `rss_articles.subscription_id` 外键上下文，
-当前迁移只统计扫描量，不写入孤儿 `rss_articles` 行；后续 RSS 仓储切流时需要用完整
-订阅/文章上下文补齐。
+当前迁移只统计扫描量，不写入孤儿 `rss_articles` 行。RSS 运行时已切到
+`DriftRssRepository`：订阅从 `rss_subscriptions` 读写，文章在 feed fetch 后带完整
+订阅上下文写入 `rss_articles`，后续 read/favorite/read-later 状态写布尔列。
 
 ## Hive Box 清单
 

@@ -48,6 +48,10 @@ void main() {
     );
     expect(articles.first.author, 'Ada');
     expect(articles.first.pubDate?.toUtc(), DateTime.utc(2026, 5, 20, 7));
+    expect(
+      repository.cachedArticles[subscription.url]?.map((article) => article.id),
+      articles.map((article) => article.id),
+    );
   });
 
   test('parses Atom metadata and alternate article links', () async {
@@ -216,6 +220,7 @@ class _MemoryRssRepository implements RssRepository {
   Set<String> _readArticleIds = {};
   Set<String> _favoriteArticleIds = {};
   Set<String> _readLaterArticleIds = {};
+  final Map<String, List<RssArticle>> cachedArticles = {};
   int updateLastFetchedCalls = 0;
   DateTime? lastFetchedUpdate;
 
@@ -250,6 +255,16 @@ class _MemoryRssRepository implements RssRepository {
     final before = subscriptions.length;
     subscriptions.removeWhere((subscription) => subscription.url == url);
     return subscriptions.length != before;
+  }
+
+  @override
+  Future<void> cacheArticles(
+    String feedUrl,
+    Iterable<RssArticle> articles,
+  ) async {
+    cachedArticles[feedUrl] = articles
+        .map((article) => article.copyWith())
+        .toList(growable: false);
   }
 
   @override

@@ -19,6 +19,7 @@ abstract class RssRepository {
     RssFeedSubscription subscription,
   );
   Future<bool> deleteSubscriptionByUrl(String url);
+  Future<void> cacheArticles(String feedUrl, Iterable<RssArticle> articles);
   Set<String> get readArticleIds;
   Future<void> putReadArticleIds(Set<String> ids);
   Set<String> get favoriteArticleIds;
@@ -90,6 +91,12 @@ class HiveRssRepository implements RssRepository {
     await _feedStorage.delete(key);
     return true;
   }
+
+  @override
+  Future<void> cacheArticles(
+    String feedUrl,
+    Iterable<RssArticle> articles,
+  ) async {}
 
   @override
   Set<String> get readArticleIds {

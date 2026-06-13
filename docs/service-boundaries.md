@@ -138,7 +138,9 @@ ReadingProvider（总调度）
 
 RssProvider
 ├── RssService
-├── RssFeedDocumentParser
+│   ├── DriftRssRepository
+│   │   └── RssDao → rss_subscriptions / rss_articles
+│   └── RssFeedDocumentParser
 └── WebContentService
 
 SettingsService（独立）

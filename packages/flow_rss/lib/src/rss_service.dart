@@ -186,6 +186,7 @@ class RssService implements RssFeedService {
         _applyArticleState(a);
       }
 
+      await _repository.cacheArticles(feedUrl, articles);
       _articleCache[feedUrl] = articles;
       await _updateLastFetched(feedUrl);
       return articles;

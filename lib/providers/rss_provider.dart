@@ -5,8 +5,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flow_rss/flow_rss.dart';
 import '../services/app_logger.dart';
+import '../storage/database/repositories/drift_rss_repository.dart';
+import '../storage/hive_storage.dart';
 
-final rssFeedServiceProvider = Provider<RssFeedService>((ref) => RssService());
+final rssFeedServiceProvider = Provider<RssFeedService>((ref) {
+  final db = appDatabase;
+  if (db == null) return RssService();
+  return RssService(repository: DriftRssRepository(db.rssDao));
+});
 
 @immutable
 class RssState {
@@ -94,16 +100,18 @@ class RssState {
   }) {
     return RssState(
       subscriptions: subscriptions ?? this.subscriptions,
-      selectedFeedUrl:
-          clearSelectedFeedUrl ? null : (selectedFeedUrl ?? this.selectedFeedUrl),
+      selectedFeedUrl: clearSelectedFeedUrl
+          ? null
+          : (selectedFeedUrl ?? this.selectedFeedUrl),
       articles: articles ?? this.articles,
       subscriptionStatus: subscriptionStatus ?? this.subscriptionStatus,
       articlesStatus: articlesStatus ?? this.articlesStatus,
       subscriptionError: clearSubscriptionError
           ? null
           : (subscriptionError ?? this.subscriptionError),
-      articlesError:
-          clearArticlesError ? null : (articlesError ?? this.articlesError),
+      articlesError: clearArticlesError
+          ? null
+          : (articlesError ?? this.articlesError),
       articleQuery: articleQuery ?? this.articleQuery,
       articleFilter: articleFilter ?? this.articleFilter,
     );
@@ -300,8 +308,9 @@ class RssNotifier extends Notifier<RssState> {
           subscriptions: subs,
           clearSelectedFeedUrl: true,
           articles: const [],
-          articlesStatus:
-              subs.isEmpty ? RssLoadStatus.empty : RssLoadStatus.idle,
+          articlesStatus: subs.isEmpty
+              ? RssLoadStatus.empty
+              : RssLoadStatus.idle,
           subscriptionStatus: _statusForItems(subs),
         );
         if (subs.isNotEmpty) {

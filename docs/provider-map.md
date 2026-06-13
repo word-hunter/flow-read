@@ -105,6 +105,7 @@ String get _activeLanguageCode =>
 | 筛选 | `filter`, `query` | `setFilter(RssArticleFilter)`, `updateArticleQuery()` |
 | 文章 | `articleBody` (详情页) | `loadArticleBody()`, `setArticleRead()`, `setArticleFavorite()`, `setArticleReadLater()` |
 | 状态 | `loadStatus`, `errorMessage` | loading/empty/error 三态 |
+| 存储 | `RssService` 默认使用 `DriftRssRepository` | `rss_subscriptions`, `rss_articles` |
 
 ## BackupService
 
