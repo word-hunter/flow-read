@@ -3,10 +3,13 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../storage/database/app_database.dart';
 import '../storage/hive_box_names.dart';
+import '../storage/hive_storage.dart' show appDatabase;
 import 'app_logger.dart';
 import 'app_version.dart';
 import 'settings_service.dart';
@@ -25,13 +28,16 @@ class DiagnosticExportService {
     AppLogger? logger,
     Future<Directory> Function()? tempDirectoryProvider,
     DateTime Function()? clock,
+    AppDatabase? database,
   }) : _logger = logger ?? AppLogger.instance,
        _tempDirectoryProvider = tempDirectoryProvider ?? getTemporaryDirectory,
-       _clock = clock ?? DateTime.now;
+       _clock = clock ?? DateTime.now,
+       _database = database ?? appDatabase;
 
   final AppLogger _logger;
   final Future<Directory> Function() _tempDirectoryProvider;
   final DateTime Function() _clock;
+  final AppDatabase? _database;
 
   Future<String> export({SettingsService? settings}) async {
     final bytes = await buildArchive(settings: settings);
@@ -49,7 +55,7 @@ class DiagnosticExportService {
     final archive = Archive();
     final appInfoJson = const JsonEncoder.withIndent(
       '  ',
-    ).convert(_collectAppInfo(settings));
+    ).convert(await _collectAppInfo(settings));
     _validateAppInfoJson(appInfoJson);
 
     archive.addFile(
@@ -76,7 +82,9 @@ class DiagnosticExportService {
     return Uint8List.fromList(encoded);
   }
 
-  Map<String, Object?> _collectAppInfo(SettingsService? settings) {
+  Future<Map<String, Object?>> _collectAppInfo(
+    SettingsService? settings,
+  ) async {
     return {
       'exportType': 'diagnostic',
       'appName': 'Flow Read',
@@ -90,15 +98,45 @@ class DiagnosticExportService {
         'locale': Platform.localeName,
         'numberOfProcessors': Platform.numberOfProcessors,
       },
-      'appStats': _collectAppStats(),
+      'appStats': await _collectAppStats(),
       'settingsSummary': settings == null
           ? null
           : _collectSettingsSummary(settings),
     };
   }
 
-  Map<String, Object?> _collectAppStats() {
+  Future<Map<String, Object?>> _collectAppStats() async {
     const lang = HiveBoxNames.defaultLanguageCode;
+    final database = _database;
+    if (database != null) {
+      return {
+        'bookCount': await _countRows(
+          database,
+          'books',
+          language: lang,
+        ),
+        'vocabularyCount': await _countRows(
+          database,
+          'user_vocabulary',
+          language: lang,
+        ),
+        'rssSubscriptionCount': await _countRows(
+          database,
+          'rss_subscriptions',
+        ),
+        'learningItemCount': await _countRows(
+          database,
+          'learning_items',
+          language: lang,
+        ),
+        'dictionaryCacheCount': await _countRows(
+          database,
+          'dictionary_cache',
+          language: lang,
+        ),
+      };
+    }
+
     return {
       'bookCount': _boxLength(HiveBoxNames.booksFor(lang)),
       'vocabularyCount': _boxLength(HiveBoxNames.userVocabularyFor(lang)),
@@ -135,6 +173,25 @@ class DiagnosticExportService {
   int? _boxLength(String boxName) {
     if (!Hive.isBoxOpen(boxName)) return null;
     return Hive.box(boxName).length;
+  }
+
+  Future<int> _countRows(
+    AppDatabase database,
+    String tableName, {
+    String? language,
+  }) async {
+    final where = language == null ? '' : ' WHERE language = ?';
+    final variables = language == null
+        ? const <Variable>[]
+        : <Variable>[Variable<String>(language)];
+    final row = await database
+        .customSelect(
+          'SELECT COUNT(*) AS count FROM $tableName$where',
+          variables: variables,
+          readsFrom: const {},
+        )
+        .getSingle();
+    return row.read<int>('count');
   }
 
   void _validateAppInfoJson(String json) {

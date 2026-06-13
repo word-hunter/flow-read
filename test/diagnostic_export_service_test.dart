@@ -3,8 +3,10 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flow_read/services/app_logger.dart';
 import 'package:flow_read/services/diagnostic_export_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -78,6 +80,68 @@ void main() {
     expect(logText, contains('<local_path>'));
     expect(logText, isNot(contains('sk-secret-value')));
     expect(logText, isNot(contains('/Users/example')));
+  });
+
+  test('uses Drift counts in diagnostic app stats', () async {
+    final db = await AppDatabase.createInMemory();
+    addTearDown(db.close);
+
+    await db.bookDao.upsert(
+      BookEntriesCompanion.insert(
+        id: 'book-1',
+        title: 'Book',
+        sourcePath: '/tmp/book.epub',
+        language: const Value('en'),
+      ),
+    );
+    await db.userVocabularyDao.upsert(
+      UserVocabulariesCompanion.insert(
+        id: 'en_flow',
+        language: const Value('en'),
+        canonical: 'flow',
+        status: 'known',
+      ),
+    );
+    await db.rssDao.insertSubscription(
+      RssSubscriptionsCompanion.insert(
+        id: 'rss-1',
+        url: 'https://example.com/rss.xml',
+        title: const Value('Example'),
+      ),
+    );
+    await db.learningItemDao.upsert(
+      LearningItemsCompanion.insert(
+        id: 'learning-1',
+        language: const Value('en'),
+        type: 'word',
+        nextReviewAt: DateTime.utc(2026, 6, 13).toIso8601String(),
+      ),
+    );
+    await db.dictionaryCacheDao.putValue('flow', 'en', '{"word":"flow"}');
+
+    final service = DiagnosticExportService(
+      logger: AppLogger(
+        logDirectoryProvider: () async => logDir,
+        clock: () => now,
+      ),
+      tempDirectoryProvider: () async => exportDir,
+      clock: () => now,
+      database: db,
+    );
+
+    final archive = ZipDecoder().decodeBytes(
+      await service.buildArchive(),
+    );
+    final appInfo =
+        jsonDecode(utf8.decode(_bytesFor(archive.findFile('app_info.json')!)))
+            as Map<String, dynamic>;
+    final appStats = appInfo['appStats'] as Map<String, dynamic>;
+
+    expect(appStats['bookCount'], 1);
+    expect(appStats['vocabularyCount'], 1);
+    expect(appStats['rssSubscriptionCount'], 1);
+    expect(appStats['learningItemCount'], 1);
+    expect(appStats['dictionaryCacheCount'], 1);
   });
 }
 
