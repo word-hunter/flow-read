@@ -161,6 +161,7 @@ void main() {
     expect(find.text('诊断日志'), findsOneWidget);
     expect(find.text('打开日志文件夹'), findsOneWidget);
 
+    await tester.pump(const Duration(seconds: 9));
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });

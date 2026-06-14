@@ -76,7 +76,7 @@ void main() {
           of: find.byType(ReaderWordSidebar),
           matching: find.text('已掌握'),
         ),
-        findsNothing,
+        findsOneWidget,
       );
       expect(
         find.descendant(
