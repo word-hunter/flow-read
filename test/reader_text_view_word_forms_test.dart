@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flow_language/english/english.dart';
 import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/settings_service.dart';
@@ -45,7 +46,7 @@ void main() {
       ),
     ]);
     await repository.markImported();
-    wordLevels = WordLevelService(repository: repository);
+    wordLevels = WordLevelService(repository: repository, languageModule: const EnglishLanguageModule());
     await wordLevels.init();
   });
 

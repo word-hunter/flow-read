@@ -1,11 +1,17 @@
+import 'package:flow_language/english/english.dart';
+import 'package:flow_language/flow_language.dart';
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/storage/repositories/word_level_repository.dart';
 
 WordLevelService fakeWordLevelService({
   Iterable<WordLevelInfo> entries = const [],
+  LanguageModule? languageModule,
 }) {
-  return WordLevelService(repository: _InMemoryWordLevelRepository(entries));
+  return WordLevelService(
+    repository: _InMemoryWordLevelRepository(entries),
+    languageModule: languageModule ?? const EnglishLanguageModule(),
+  );
 }
 
 class _InMemoryWordLevelRepository implements WordLevelRepository {

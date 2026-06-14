@@ -1,19 +1,22 @@
+import 'package:flow_language/flow_language.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../models/word_level.dart';
 import '../storage/repositories/word_level_repository.dart';
-import 'package:flow_language/english/english.dart';
 
 typedef WordLevelAssetLoader = Future<String> Function(String assetPath);
 
 class WordLevelService {
   WordLevelService({
     required WordLevelRepository repository,
+    required LanguageModule languageModule,
     WordLevelAssetLoader? assetLoader,
   }) : _repository = repository,
+       _languageModule = languageModule,
        _assetLoader = assetLoader ?? rootBundle.loadString;
 
   final WordLevelRepository _repository;
+  final LanguageModule _languageModule;
   final WordLevelAssetLoader _assetLoader;
 
   final Map<String, LevelKey> _levelMap = {};
@@ -41,31 +44,26 @@ class WordLevelService {
   }
 
   String canonicalForm(String word) {
-    final lower = normalizeEnglishApostrophes(word).toLowerCase().trim();
+    final lower = _languageModule.canonicalize(word);
     if (lower.isEmpty) return lower;
-    return _originMap[lower] ??
-        canonicalEnglishContraction(
-          lower,
-          originFor: (base) => _originMap[base],
-        ) ??
-        lower;
+    return _originMap[lower] ?? lower;
   }
 
   LevelKey getLevel(String word) {
     return _levelMap[canonicalForm(word)] ??
-        _levelMap[normalizeEnglishApostrophes(word).toLowerCase().trim()] ??
+        _levelMap[_languageModule.canonicalize(word)] ??
         LevelKey.other;
   }
 
   String? getOriginForm(String word) {
-    final lower = normalizeEnglishApostrophes(word).toLowerCase().trim();
+    final lower = _languageModule.canonicalize(word);
     final origin = _originMap[lower];
     if (origin == null || origin == lower) return null;
     return origin;
   }
 
   bool hasWord(String word) {
-    final lower = normalizeEnglishApostrophes(word).toLowerCase().trim();
+    final lower = _languageModule.canonicalize(word);
     return _levelMap.containsKey(lower) ||
         _levelMap.containsKey(canonicalForm(lower));
   }
@@ -77,8 +75,14 @@ class WordLevelService {
   Future<void> _importBuiltinDict() async {
     if (_repository.isNotEmpty) return;
 
+    final assetPath = _languageModule.dictionaryAssetPath;
+    if (assetPath == null) {
+      await _repository.markImported();
+      return;
+    }
+
     try {
-      final content = await _assetLoader('assets/dict/eng-dict.txt');
+      final content = await _assetLoader(assetPath);
       final lines = content.split('\n');
       final batch = <WordLevelInfo>[];
 
@@ -107,16 +111,13 @@ class WordLevelService {
       await _repository.addAll(batch);
       await _repository.markImported();
     } catch (e) {
-      // Silently fail - dict import is best-effort
       await _repository.markImported();
     }
   }
 
   void _indexInfo(WordLevelInfo info) {
-    final word = normalizeEnglishApostrophes(info.word).toLowerCase().trim();
-    final origin = normalizeEnglishApostrophes(
-      info.originForm,
-    ).toLowerCase().trim();
+    final word = _languageModule.canonicalize(info.word);
+    final origin = _languageModule.canonicalize(info.originForm);
     _levelMap[word] = info.level;
     _levelMap[origin] = info.level;
     _originMap[word] = origin;

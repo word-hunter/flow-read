@@ -1,3 +1,4 @@
+import 'package:flow_language/english/english.dart';
 import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/chapter.dart';
@@ -77,6 +78,7 @@ void main() {
       final wordLevels = WordLevelService(
         repository: _MemoryWordLevelRepository(),
         assetLoader: (_) async => '',
+        languageModule: const EnglishLanguageModule(),
       );
       await wordLevels.init();
       final bookshelf = _FakeBookshelfNotifier(
@@ -122,6 +124,7 @@ void main() {
     final wordLevels = WordLevelService(
       repository: _MemoryWordLevelRepository(),
       assetLoader: (_) async => '',
+      languageModule: const EnglishLanguageModule(),
     );
     await wordLevels.init();
     final bookshelf = _FakeBookshelfNotifier(

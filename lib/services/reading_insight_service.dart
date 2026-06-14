@@ -1,14 +1,17 @@
-import '../models/book.dart';
 import 'package:flow_ai/flow_ai.dart';
-import 'package:flow_language/english/english.dart';
+import 'package:flow_language/flow_language.dart';
+
+import '../models/book.dart';
 import 'learning_analytics_service.dart';
 
 class ReadingInsightService {
   ReadingInsightService({
     required this.analytics,
-  });
+    required LanguageModule languageModule,
+  }) : _languageModule = languageModule;
 
   final LearningAnalyticsService analytics;
+  final LanguageModule _languageModule;
 
   ReadingInsightProfile compute({
     required String bookId,
@@ -97,7 +100,7 @@ class ReadingInsightService {
   int _totalWordCount(Book book) {
     var total = 0;
     for (final chapter in book.chapters) {
-      total += englishWordPattern.allMatches(chapter.plainText).length;
+      total += _languageModule.wordCount(chapter.plainText);
     }
     return total;
   }

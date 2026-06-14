@@ -25,6 +25,12 @@ abstract class SyntaxMarkerProvider {
 abstract class LanguageModule
     implements Tokenizer, SentenceSplitter, SyntaxMarkerProvider {
   String get languageName;
+
+  int wordCount(String text);
+
+  String? get dictionaryAssetPath;
+
+  List<String> get supportedLevelKeys;
 }
 
 TokenizedText tokenizeTextWithPattern({

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flow_language/english/english.dart';
 import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/services/learning_analytics_service.dart';
@@ -28,9 +29,13 @@ void main() {
         db.learningAnalyticsDao,
         languageCode: 'en',
       ),
+      languageModule: const EnglishLanguageModule(),
     );
     await analytics.init();
-    service = ReadingInsightService(analytics: analytics);
+    service = ReadingInsightService(
+      analytics: analytics,
+      languageModule: const EnglishLanguageModule(),
+    );
   });
 
   tearDown(() async {

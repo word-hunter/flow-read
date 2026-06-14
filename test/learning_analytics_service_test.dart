@@ -1,3 +1,4 @@
+import 'package:flow_language/english/english.dart';
 import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/chapter.dart';
@@ -16,6 +17,7 @@ void main() {
       final analytics = LearningAnalyticsService(
         repository: _MemoryLearningAnalyticsRepository(),
         clock: () => DateTime(2026, 5, 20, 9),
+        languageModule: const EnglishLanguageModule(),
       );
       await analytics.init();
 
@@ -84,6 +86,7 @@ void main() {
     final analytics = LearningAnalyticsService(
       repository: _MemoryLearningAnalyticsRepository(),
       clock: () => DateTime(2026, 5, 20, 9),
+      languageModule: const EnglishLanguageModule(),
     );
     await analytics.init();
 
@@ -138,6 +141,7 @@ void main() {
     final analytics = LearningAnalyticsService(
       repository: _MemoryLearningAnalyticsRepository(),
       clock: () => now,
+      languageModule: const EnglishLanguageModule(),
     );
     await analytics.init();
     final readingTime = ReadingTimeService(

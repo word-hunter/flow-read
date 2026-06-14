@@ -1100,6 +1100,15 @@ class _CountingLanguageModule implements LanguageModule {
 
   @override
   Set<String> get subordinatingMarkers => _delegate.subordinatingMarkers;
+
+  @override
+  int wordCount(String text) => wordPattern.allMatches(text).length;
+
+  @override
+  String? get dictionaryAssetPath => null;
+
+  @override
+  List<String> get supportedLevelKeys => const ['o'];
 }
 
 List<_TappableTextProbe> _tappableTextSpans(InlineSpan span) {

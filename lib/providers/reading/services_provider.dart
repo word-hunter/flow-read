@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
+import 'package:flow_language/flow_language.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -183,11 +184,15 @@ final visualDictionaryServiceProvider = Provider<VisualDictionaryService>((
 
 final wordLevelServiceProvider = Provider<WordLevelService>((ref) {
   final db = _requireAppDatabase();
+  final langCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final languageModule = LanguageRegistry.instance.get(langCode) ??
+      LanguageRegistry.instance.defaultModule!;
   final service = WordLevelService(
     repository: DriftWordLevelRepository(
       db.wordLevelDao,
       db.settingsDao,
     ),
+    languageModule: languageModule,
   );
   unawaited(service.init());
   return service;
@@ -230,6 +235,8 @@ final learningAnalyticsServiceProvider = Provider<LearningAnalyticsService>((
 ) {
   final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final languageModule = LanguageRegistry.instance.get(languageCode) ??
+      LanguageRegistry.instance.defaultModule!;
   final service = LearningAnalyticsService(
     repository: DriftLearningAnalyticsRepository(
       db.learningAnalyticsDao,
@@ -238,6 +245,7 @@ final learningAnalyticsServiceProvider = Provider<LearningAnalyticsService>((
           ? bootstrappedLearningAnalyticsValues
           : const {},
     ),
+    languageModule: languageModule,
   );
   unawaited(service.init());
   return service;
@@ -281,8 +289,12 @@ final characterRegistryProvider = Provider<CharacterRegistry>((ref) {
 });
 
 final readingInsightServiceProvider = Provider<ReadingInsightService>((ref) {
+  final langCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final languageModule = LanguageRegistry.instance.get(langCode) ??
+      LanguageRegistry.instance.defaultModule!;
   return ReadingInsightService(
     analytics: ref.read(learningAnalyticsServiceProvider),
+    languageModule: languageModule,
   );
 });
 

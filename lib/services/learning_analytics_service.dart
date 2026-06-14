@@ -1,17 +1,20 @@
+import 'package:flow_language/flow_language.dart';
+
 import '../models/analysis_result.dart';
 import '../models/book.dart';
 import '../models/learning_analytics.dart';
 import '../models/learning_item.dart';
 import '../storage/repositories/learning_analytics_repository.dart';
-import 'package:flow_language/english/english.dart';
 import 'reading_time_service.dart';
 import 'user_vocabulary_service.dart';
 
 class LearningAnalyticsService {
   LearningAnalyticsService({
     required LearningAnalyticsRepository repository,
+    required LanguageModule languageModule,
     DateTime Function()? clock,
   }) : _repository = repository,
+       _languageModule = languageModule,
        _clock = clock ?? DateTime.now;
 
   static const _lookupChapterPrefix = 'lookup.chapter';
@@ -22,6 +25,7 @@ class LearningAnalyticsService {
   static const _practiceChapterCorrectPrefix = 'practice.chapter_correct';
 
   final LearningAnalyticsRepository _repository;
+  final LanguageModule _languageModule;
   final DateTime Function() _clock;
 
   Future<void> init() async {
@@ -595,7 +599,7 @@ class LearningAnalyticsService {
     return remain > 0 ? '$hours 小时 $remain 分钟' : '$hours 小时';
   }
 
-  int _wordCount(String text) => englishWordPattern.allMatches(text).length;
+  int _wordCount(String text) => _languageModule.wordCount(text);
 
   double _perThousand(int count, int wordCount) {
     if (count <= 0 || wordCount <= 0) return 0;
@@ -637,7 +641,7 @@ class LearningAnalyticsService {
   }
 
   String _canonicalWord(String word) {
-    return normalizeEnglishApostrophes(word).toLowerCase().trim();
+    return _languageModule.canonicalize(word);
   }
 
   String _dateKey(DateTime date) {

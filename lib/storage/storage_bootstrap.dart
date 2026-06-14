@@ -70,4 +70,7 @@ void registerFlowReadLanguageModules() {
   if (registry.get('en') == null) {
     registry.register(const EnglishLanguageModule());
   }
+  if (registry.get('ja') == null) {
+    registry.register(const JapaneseLanguageModule());
+  }
 }

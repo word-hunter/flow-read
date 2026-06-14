@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flow_language/english/english.dart';
 import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
@@ -45,6 +46,7 @@ void main() {
     final wordLevelService = WordLevelService(
       repository: DriftWordLevelRepository(db.wordLevelDao, db.settingsDao),
       assetLoader: (_) async => '',
+      languageModule: const EnglishLanguageModule(),
     );
     await wordLevelService.init();
     await bookService.addBook(
@@ -98,6 +100,7 @@ void main() {
         assetLoader: (_) async =>
             'reassemble\treassemble\to\n'
             'reassembling\treassemble\to\n',
+        languageModule: const EnglishLanguageModule(),
       );
       await wordLevelService.init();
       final book = Book(

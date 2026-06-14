@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flow_dictionary/flow_dictionary.dart';
+import 'package:flow_language/english/english.dart';
 import 'package:flow_read/models/book_difficulty.dart';
 import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/bookmarked_word.dart';
@@ -497,6 +498,7 @@ void main() {
       final service = WordLevelService(
         repository: _wordLevelRepository(db),
         assetLoader: (_) async => 'flow\tflow\t4\nmigrating\tmigrate\t6\n',
+        languageModule: const EnglishLanguageModule(),
       );
       await service.init();
 
@@ -516,6 +518,7 @@ void main() {
       assetLoader: (_) async =>
           'did\tdo\tp\nwas\tbe\tp\nhad\thave\tp\nwould\twould\tm\n'
           'should\tshould\tm\nthey\tthey\tp\nwe\twe\tp\nit\tit\tp\n',
+      languageModule: const EnglishLanguageModule(),
     );
     await service.init();
 
@@ -544,7 +547,7 @@ void main() {
         ),
       ]);
 
-      final service = WordLevelService(repository: _wordLevelRepository(db));
+      final service = WordLevelService(repository: _wordLevelRepository(db), languageModule: const EnglishLanguageModule());
       await service.init();
 
       expect(service.canonicalForm('Running'), 'run');

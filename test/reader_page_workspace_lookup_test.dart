@@ -1,4 +1,5 @@
 import 'package:epub_reader_core/epub_reader_core.dart';
+import 'package:flow_language/english/english.dart';
 import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/models/analysis_result.dart';
@@ -459,6 +460,7 @@ Future<void> _pumpWorkspaceReader(
   await userVocabulary.init();
   final wordLevel = WordLevelService(
     repository: _MemoryWordLevelRepository(),
+    languageModule: const EnglishLanguageModule(),
   );
   await wordLevel.init();
 
@@ -482,6 +484,7 @@ Future<void> _pumpWorkspaceReader(
         learningAnalyticsServiceProvider.overrideWithValue(
           LearningAnalyticsService(
             repository: _MemoryLearningAnalyticsRepository(),
+            languageModule: const EnglishLanguageModule(),
           ),
         ),
         learningItemServiceProvider.overrideWithValue(

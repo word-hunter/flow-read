@@ -1,5 +1,5 @@
 import 'package:flow_dictionary/flow_dictionary.dart';
-import 'package:flow_language/english/english.dart';
+import 'package:flow_language/flow_language.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -294,23 +294,19 @@ class _WordHeader extends StatelessWidget {
     );
   }
 
+  static const _levelColors = [
+    Colors.green,
+    Colors.teal,
+    Colors.blue,
+    Colors.orange,
+    Colors.deepOrange,
+    Colors.red,
+    Colors.grey,
+  ];
+
   Color _levelColor(LevelKey level) {
-    switch (level) {
-      case LevelKey.p:
-        return Colors.green;
-      case LevelKey.m:
-        return Colors.teal;
-      case LevelKey.h:
-        return Colors.blue;
-      case LevelKey.cet4:
-        return Colors.orange;
-      case LevelKey.cet6:
-        return Colors.deepOrange;
-      case LevelKey.gre:
-        return Colors.red;
-      case LevelKey.other:
-        return Colors.grey;
-    }
+    final index = (level.difficultyScore - 1).clamp(0, _levelColors.length - 1);
+    return _levelColors[index];
   }
 }
 
@@ -1074,6 +1070,7 @@ class DictionaryContextBlock extends StatelessWidget {
   final int? contextWordStart;
   final int? contextWordEnd;
   final Widget? trailing;
+  final LanguageModule? languageModule;
 
   const DictionaryContextBlock({
     super.key,
@@ -1081,6 +1078,7 @@ class DictionaryContextBlock extends StatelessWidget {
     this.contextText,
     this.contextWordStart,
     this.contextWordEnd,
+    this.languageModule,
     this.trailing,
   });
 
@@ -1210,11 +1208,14 @@ class DictionaryContextBlock extends StatelessWidget {
   }
 
   List<RegExpMatch> _findContextWordMatches(String text) {
-    final target = normalizeEnglishApostrophes(word).toLowerCase().trim();
+    final target = languageModule?.canonicalize(word) ??
+        word.toLowerCase().trim();
     if (target.isEmpty) return const [];
 
-    return englishWordPattern.allMatches(text).where((match) {
-      final token = normalizeEnglishApostrophes(match.group(0)!).toLowerCase();
+    final pattern = languageModule?.wordPattern ?? RegExp(r"[\w']+");
+    return pattern.allMatches(text).where((match) {
+      final token = languageModule?.canonicalize(match.group(0)!) ??
+          match.group(0)!.toLowerCase();
       return token == target;
     }).toList();
   }

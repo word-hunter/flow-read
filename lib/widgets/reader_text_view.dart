@@ -1,6 +1,5 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flow_language/english/english.dart';
 import 'package:flow_language/flow_language.dart';
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 import '../models/analysis_result.dart';
@@ -643,8 +642,7 @@ class _HighlightBuilder {
 
   String _keyFor(String word) {
     final key =
-        languageModule?.canonicalize(word) ??
-        normalizeEnglishApostrophes(word).toLowerCase().trim();
+        languageModule?.canonicalize(word) ?? word.toLowerCase().trim();
     if (key.isEmpty) return key;
     return wordLevelService?.canonicalForm(key) ?? key;
   }
@@ -838,8 +836,7 @@ class _StyledBlockBuilder {
 
   String _keyFor(String word) {
     final key =
-        languageModule?.canonicalize(word) ??
-        normalizeEnglishApostrophes(word).toLowerCase().trim();
+        languageModule?.canonicalize(word) ?? word.toLowerCase().trim();
     if (key.isEmpty) return key;
     return wordLevelService?.canonicalForm(key) ?? key;
   }
@@ -1184,8 +1181,7 @@ bool _isCommonContraction(
   LanguageModule? languageModule,
 ) {
   if (languageModule != null) return languageModule.isCommonWord(key);
-  final contractionKey = canonicalEnglishContraction(word) ?? key;
-  return isCommonWord(contractionKey);
+  return false;
 }
 
 Widget buildChapterNav(

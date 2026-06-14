@@ -1,3 +1,4 @@
+import 'package:flow_language/english/english.dart';
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
 import 'package:flow_read/services/learning_analytics_service.dart';
@@ -108,6 +109,7 @@ void main() {
           initialValues: const {'lookup.day.2026-06-13': 2},
         ),
         clock: () => DateTime.utc(2026, 6, 13, 8),
+        languageModule: const EnglishLanguageModule(),
       );
 
       expect(service.lookupCountForChapter('book-1', 0), 0);
@@ -137,6 +139,7 @@ void main() {
           db.learningAnalyticsDao,
           languageCode: 'en',
         ),
+        languageModule: const EnglishLanguageModule(),
       );
       await reloaded.init();
 

@@ -1,3 +1,4 @@
+import 'package:flow_language/english/english.dart';
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/services/word_level_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
@@ -25,6 +26,7 @@ void main() {
           importCount += 1;
           return 'flow\tflow\t4\nideas\tidea\t6\n';
         },
+        languageModule: const EnglishLanguageModule(),
       );
 
       await service.init();
@@ -39,6 +41,7 @@ void main() {
         assetLoader: (_) async {
           throw StateError('should not import again');
         },
+        languageModule: const EnglishLanguageModule(),
       );
       await reloaded.init();
 

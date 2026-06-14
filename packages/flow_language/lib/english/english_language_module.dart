@@ -52,6 +52,18 @@ class EnglishLanguageModule implements LanguageModule {
   }
 
   @override
+  int wordCount(String text) {
+    return wordPattern.allMatches(text).length;
+  }
+
+  @override
+  String? get dictionaryAssetPath => 'assets/dict/eng-dict.txt';
+
+  @override
+  List<String> get supportedLevelKeys =>
+      const ['p', 'm', 'h', '4', '6', 'g', 'o'];
+
+  @override
   Set<String> get subordinatingMarkers => _englishSubordinators;
 
   static const _englishSubordinators = {

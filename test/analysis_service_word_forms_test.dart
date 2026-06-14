@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flow_language/english/english.dart';
 import 'package:flow_language/flow_language.dart';
 
 import 'package:flow_read/models/word_level.dart';
@@ -53,7 +54,7 @@ void main() {
     await vocab.setKnown('partition');
     await vocab.setLearning('migrate');
 
-    final wordLevels = WordLevelService(repository: _wordLevelRepository(db));
+    final wordLevels = WordLevelService(repository: _wordLevelRepository(db), languageModule: const EnglishLanguageModule());
     await wordLevels.init();
 
     final result = AnalysisService.analyzeChapter(
@@ -135,6 +136,7 @@ void main() {
 
       final wordLevels = WordLevelService(
         repository: _wordLevelRepository(db),
+        languageModule: const EnglishLanguageModule(),
       );
       await wordLevels.init();
 
@@ -179,6 +181,7 @@ void main() {
 
       final wordLevels = WordLevelService(
         repository: _wordLevelRepository(db),
+        languageModule: const EnglishLanguageModule(),
       );
       await wordLevels.init();
 
@@ -262,4 +265,13 @@ class _HashLanguageModule implements LanguageModule {
 
   @override
   Set<String> get subordinatingMarkers => const {};
+
+  @override
+  int wordCount(String text) => wordPattern.allMatches(text).length;
+
+  @override
+  String? get dictionaryAssetPath => null;
+
+  @override
+  List<String> get supportedLevelKeys => const ['o'];
 }
