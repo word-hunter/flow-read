@@ -8,7 +8,7 @@ import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../services/settings_service.dart';
 import '../services/word_level_service.dart';
-import '../theme/app_colors.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import '../theme/app_constants.dart';
 import 'dictionary_detail_view.dart';
 import 'pronunciation_button.dart';
@@ -617,17 +617,17 @@ class _HighlightBuilder {
 
   Color _colorForVocab(String lower, Vocabulary vocab) {
     if (learningSet.contains(lower)) {
-      return colorSettings?.learningColor ?? AppColors.vocabLearning;
+      return colorSettings?.learningColor ?? FunctionalColors.vocabLearning;
     }
     // 0.45 = learning, 0.2 = unknown
     if (vocab.familiarity >= 0.4 && vocab.familiarity <= 0.5) {
-      return colorSettings?.learningColor ?? AppColors.vocabLearning;
+      return colorSettings?.learningColor ?? FunctionalColors.vocabLearning;
     }
-    return colorSettings?.unknownColor ?? AppColors.familiarityLow;
+    return colorSettings?.unknownColor ?? FunctionalColors.familiarityLow;
   }
 
   Color _colorForLearning() {
-    return colorSettings?.learningColor ?? AppColors.vocabLearning;
+    return colorSettings?.learningColor ?? FunctionalColors.vocabLearning;
   }
 
   TextStyle _baseTextStyle() {
@@ -747,7 +747,7 @@ class _HighlightBuilder {
         );
       } else {
         final unknownColor =
-            colorSettings?.unknownColor ?? AppColors.familiarityLow;
+            colorSettings?.unknownColor ?? FunctionalColors.familiarityLow;
         spans.add(
           buildTappableWordSpan(
             word: word,
@@ -822,16 +822,16 @@ class _StyledBlockBuilder {
 
   Color _colorForVocab(String lower, Vocabulary vocab) {
     if (learningSet.contains(lower)) {
-      return colorSettings?.learningColor ?? AppColors.vocabLearning;
+      return colorSettings?.learningColor ?? FunctionalColors.vocabLearning;
     }
     if (vocab.familiarity >= 0.4 && vocab.familiarity <= 0.5) {
-      return colorSettings?.learningColor ?? AppColors.vocabLearning;
+      return colorSettings?.learningColor ?? FunctionalColors.vocabLearning;
     }
-    return colorSettings?.unknownColor ?? AppColors.familiarityLow;
+    return colorSettings?.unknownColor ?? FunctionalColors.familiarityLow;
   }
 
   Color _colorForLearning() {
-    return colorSettings?.learningColor ?? AppColors.vocabLearning;
+    return colorSettings?.learningColor ?? FunctionalColors.vocabLearning;
   }
 
   String _keyFor(String word) {
@@ -994,7 +994,7 @@ class _StyledBlockBuilder {
         );
       } else {
         final unknownColor =
-            colorSettings?.unknownColor ?? AppColors.familiarityLow;
+            colorSettings?.unknownColor ?? FunctionalColors.familiarityLow;
         spans.add(
           buildTappableWordSpan(
             word: word,

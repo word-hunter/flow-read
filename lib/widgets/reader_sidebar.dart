@@ -8,7 +8,7 @@ import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../services/word_level_service.dart';
-import '../theme/app_colors.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import 'dictionary_detail_view.dart';
 import 'pronunciation_button.dart';
 import 'reader_text_view.dart' show WordTapCallback;
@@ -107,13 +107,13 @@ class ReaderSidebar extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.familiarityLow.withValues(alpha: 0.15),
+                color: FunctionalColors.familiarityLow.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '$unknownCount new',
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: AppColors.familiarityLow,
+                  color: FunctionalColors.familiarityLow,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -124,13 +124,13 @@ class ReaderSidebar extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.vocabLearning.withValues(alpha: 0.15),
+                color: FunctionalColors.vocabLearning.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '$learningCount learning',
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: AppColors.vocabLearning,
+                  color: FunctionalColors.vocabLearning,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -254,7 +254,7 @@ class ReaderSidebar extends ConsumerWidget {
                               vocab.word,
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.familiarityColor(
+                                color: FunctionalColors.familiarityColor(
                                   vocab.familiarity,
                                 ),
                                 fontFamily: 'Serif',
@@ -292,7 +292,7 @@ class ReaderSidebar extends ConsumerWidget {
                                   vertical: 1,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.vocabLearning.withValues(
+                                  color: FunctionalColors.vocabLearning.withValues(
                                     alpha: 0.12,
                                   ),
                                   borderRadius: BorderRadius.circular(4),
@@ -301,7 +301,7 @@ class ReaderSidebar extends ConsumerWidget {
                                   'learning',
                                   style: TextStyle(
                                     fontSize: 9,
-                                    color: AppColors.vocabLearning.withValues(
+                                    color: FunctionalColors.vocabLearning.withValues(
                                       alpha: 0.8,
                                     ),
                                     fontWeight: FontWeight.w600,
@@ -328,7 +328,7 @@ class ReaderSidebar extends ConsumerWidget {
                     '${(vocab.familiarity * 100).toInt()}%',
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: AppColors.familiarityColor(vocab.familiarity),
+                      color: FunctionalColors.familiarityColor(vocab.familiarity),
                     ),
                   ),
                 ],
@@ -439,7 +439,7 @@ class ReaderSidebar extends ConsumerWidget {
                   builder: (context, origin) => _miniActionChip(
                     label: 'Known',
                     icon: Icons.check_circle_outline,
-                    color: AppColors.familiarityHigh,
+                    color: FunctionalColors.familiarityHigh,
                       onTap: () => vocabularyNotifier.markWordKnown(
                         word,
                         celebrationOrigin: origin(),
@@ -450,14 +450,14 @@ class ReaderSidebar extends ConsumerWidget {
                 _miniActionChip(
                   label: 'Learning',
                   icon: Icons.school_outlined,
-                  color: AppColors.vocabLearning,
+                  color: FunctionalColors.vocabLearning,
                     onTap: () => vocabularyNotifier.markWordLearning(word),
                 ),
               if (status != null)
                 _miniActionChip(
                   label: 'Unknown',
                   icon: Icons.help_outline,
-                  color: AppColors.familiarityLow,
+                  color: FunctionalColors.familiarityLow,
                     onTap: () => vocabularyNotifier.markWordUnknown(word),
                 ),
             ],

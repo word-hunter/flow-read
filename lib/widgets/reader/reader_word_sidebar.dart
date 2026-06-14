@@ -5,7 +5,7 @@ import '../../models/user_vocabulary.dart';
 import '../../providers/reading/services_provider.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/reading/word_lookup_notifier.dart';
-import '../../theme/app_colors.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import '../dictionary_detail_view.dart';
 import '../visual_hint_card.dart';
 import '../word_mastery_confetti.dart';
@@ -198,7 +198,7 @@ class _WordStatusBar extends riverpod.ConsumerWidget {
                 theme: theme,
                 label: '已掌握',
                 icon: Icons.check_circle_outline,
-                color: AppColors.familiarityHigh,
+                color: FunctionalColors.familiarityHigh,
                 onTap: () => vocabularyNotifier.markWordKnown(
                   word,
                   celebrationOrigin: origin(),
@@ -210,7 +210,7 @@ class _WordStatusBar extends riverpod.ConsumerWidget {
               theme: theme,
               label: '学习中',
               icon: Icons.school_outlined,
-              color: AppColors.vocabLearning,
+              color: FunctionalColors.vocabLearning,
               onTap: () => vocabularyNotifier.markWordLearning(word),
             ),
           if (status != null)
@@ -218,7 +218,7 @@ class _WordStatusBar extends riverpod.ConsumerWidget {
               theme: theme,
               label: '未知',
               icon: Icons.help_outline,
-              color: AppColors.familiarityLow,
+              color: FunctionalColors.familiarityLow,
               onTap: () => vocabularyNotifier.markWordUnknown(word),
             ),
         ],

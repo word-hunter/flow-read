@@ -5,7 +5,6 @@ import 'package:flow_language/flow_language.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
-import '../app/flow_read_feature_flags.dart';
 import '../models/book_difficulty.dart';
 import '../models/book_metadata.dart';
 import '../providers/reading/bookshelf_notifier.dart';
@@ -409,65 +408,14 @@ Widget _buildCover(
 ) {
   final coverBytes = notifier.getCoverBytes(meta.id);
 
-  if (FlowReadFeatureFlags.v2Enabled) {
-    return BookCoverView(
-      coverBytes: coverBytes,
-      progressPercent: (meta.globalProgress * 100).toInt(),
-      title: meta.title,
-      author: meta.author,
-      width: width,
-      height: height,
-      forceDefaultCover: settings.forceDefaultBookCover,
-    );
-  }
-
-  return SizedBox(
+  return BookCoverView(
+    coverBytes: coverBytes,
+    progressPercent: (meta.globalProgress * 100).toInt(),
+    title: meta.title,
+    author: meta.author,
     width: width,
     height: height,
-    child: coverBytes != null
-        ? ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.memory(
-              coverBytes,
-              width: width,
-              height: height,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) =>
-                  _buildPlaceholderCover(theme, isCompact),
-            ),
-          )
-        : _buildPlaceholderCover(theme, isCompact),
-  );
-}
-
-Widget _buildPlaceholderCover(ThemeData theme, bool isCompact) {
-  return Container(
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(12),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          theme.colorScheme.primary,
-          theme.colorScheme.primary.withValues(alpha: 0.6),
-          theme.colorScheme.tertiary.withValues(alpha: 0.8),
-        ],
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: theme.colorScheme.primary.withValues(alpha: 0.15),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
-        ),
-      ],
-    ),
-    child: Center(
-      child: Icon(
-        Icons.menu_book,
-        size: isCompact ? 36 : 48,
-        color: theme.colorScheme.onPrimary.withValues(alpha: 0.9),
-      ),
-    ),
+    forceDefaultCover: settings.forceDefaultBookCover,
   );
 }
 

@@ -6,7 +6,7 @@ import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 
 import '../storage/database/dao/settings_dao.dart';
 import '../storage/legacy_backup_box_names.dart';
-import '../theme/app_theme.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import 'package:flow_ai/flow_ai.dart';
 import 'proxy_http_overrides.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
@@ -128,7 +128,7 @@ class SettingsService extends ChangeNotifier {
   Map<String, String> _aiModels = {};
   AIUsageStats _aiUsage = AIUsageStats();
   AIAutomationMode _aiAutomationMode = AIAutomationMode.saving;
-  AppThemeId _appThemeId = AppThemeId.classic;
+  PaletteId _appThemeId = PaletteId.classic;
   ThemeMode _themeMode = ThemeMode.system;
   int _dailyReadingGoalMinutes = defaultDailyReadingGoalMinutes;
   bool _backupEnabled = false;
@@ -179,7 +179,7 @@ class SettingsService extends ChangeNotifier {
 
   AIUsageStats get aiUsage => _aiUsage;
   AIAutomationMode get aiAutomationMode => _aiAutomationMode;
-  AppThemeId get appThemeId => _appThemeId;
+  PaletteId get appThemeId => _appThemeId;
   ThemeMode get themeMode => _themeMode;
   int get dailyReadingGoalMinutes => _dailyReadingGoalMinutes;
   int get dailyReadingGoalSeconds => _dailyReadingGoalMinutes * 60;
@@ -304,9 +304,9 @@ class SettingsService extends ChangeNotifier {
         ThemeMode.values[themeModeIndex.clamp(0, ThemeMode.values.length - 1)];
     final appThemeIdValue = _get(
       'appThemeId',
-      defaultValue: AppThemeId.classic.name,
+      defaultValue: PaletteId.classic.name,
     )!;
-    _appThemeId = AppTheme.themeIdFromName(appThemeIdValue);
+    _appThemeId = PaletteId.values.where((v) => v.name == appThemeIdValue).firstOrNull ?? PaletteId.classic;
     _dailyReadingGoalMinutes = _normalizeDailyReadingGoalMinutes(
       _get(
         _dailyReadingGoalMinutesKey,
@@ -540,7 +540,7 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setAppThemeId(AppThemeId themeId) async {
+  Future<void> setAppThemeId(PaletteId themeId) async {
     if (_appThemeId == themeId) return;
     _appThemeId = themeId;
     _put('appThemeId', themeId.name);

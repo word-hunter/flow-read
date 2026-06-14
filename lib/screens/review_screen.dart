@@ -8,7 +8,7 @@ import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/services_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/review_service.dart';
-import '../theme/app_colors.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import '../theme/app_constants.dart';
 import '../widgets/flow/flow_components.dart';
 
@@ -171,7 +171,7 @@ class _WideReview extends StatelessWidget {
                     leading: CircleAvatar(
                       radius: 14,
                       backgroundColor: q.isCompleted
-                          ? AppColors.correct.withValues(alpha: 0.15)
+                          ? FunctionalColors.correct.withValues(alpha: 0.15)
                           : theme.colorScheme.primaryContainer,
                       child: Icon(
                         q.isCompleted
@@ -179,7 +179,7 @@ class _WideReview extends StatelessWidget {
                             : Icons.radio_button_unchecked,
                         size: 16,
                         color: q.isCompleted
-                            ? AppColors.correct
+                            ? FunctionalColors.correct
                             : theme.colorScheme.primary,
                       ),
                     ),
@@ -334,7 +334,7 @@ class _QuestionCardState extends State<_QuestionCard> {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: widget.isCompleted
-              ? AppColors.correct.withValues(alpha: 0.3)
+              ? FunctionalColors.correct.withValues(alpha: 0.3)
               : theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
         ),
       ),
@@ -370,18 +370,18 @@ class _QuestionCardState extends State<_QuestionCard> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.correct.withValues(alpha: 0.1),
+                      color: FunctionalColors.correct.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check, size: 14, color: AppColors.correct),
+                        Icon(Icons.check, size: 14, color: FunctionalColors.correct),
                         const SizedBox(width: 4),
                         Text(
                           'Based on the text',
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: AppColors.correct,
+                            color: FunctionalColors.correct,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -570,7 +570,7 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: showAnswer
-              ? (isCorrect ? AppColors.correct : AppColors.familiarityLow)
+              ? (isCorrect ? FunctionalColors.correct : FunctionalColors.familiarityLow)
                     .withValues(alpha: 0.3)
               : theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
         ),
@@ -670,9 +670,9 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
                     decoration: BoxDecoration(
                       color: showResult
                           ? (text == q.answer
-                                ? AppColors.correct.withValues(alpha: 0.1)
+                                ? FunctionalColors.correct.withValues(alpha: 0.1)
                                 : isSelected
-                                ? AppColors.familiarityLow.withValues(
+                                ? FunctionalColors.familiarityLow.withValues(
                                     alpha: 0.1,
                                   )
                                 : null)
@@ -686,9 +686,9 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
                       border: Border.all(
                         color: showResult
                             ? (text == q.answer
-                                  ? AppColors.correct
+                                  ? FunctionalColors.correct
                                   : isSelected
-                                  ? AppColors.familiarityLow
+                                  ? FunctionalColors.familiarityLow
                                   : theme.colorScheme.outlineVariant.withValues(
                                       alpha: 0.2,
                                     ))
@@ -708,14 +708,14 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: showResult && text == q.answer
-                                  ? AppColors.correct
+                                  ? FunctionalColors.correct
                                   : theme.colorScheme.outlineVariant.withValues(
                                       alpha: 0.3,
                                     ),
                               width: 2,
                             ),
                             color: showResult && text == q.answer
-                                ? AppColors.correct
+                                ? FunctionalColors.correct
                                 : null,
                           ),
                           child: showResult && text == q.answer
@@ -763,8 +763,8 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: isCorrect
-                      ? AppColors.correct.withValues(alpha: 0.08)
-                      : AppColors.familiarityLow.withValues(alpha: 0.08),
+                      ? FunctionalColors.correct.withValues(alpha: 0.08)
+                      : FunctionalColors.familiarityLow.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Column(
@@ -775,8 +775,8 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
                       style: theme.textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: isCorrect
-                            ? AppColors.correct
-                            : AppColors.familiarityLow,
+                            ? FunctionalColors.correct
+                            : FunctionalColors.familiarityLow,
                       ),
                     ),
                     if (!isCorrect) ...[
@@ -785,7 +785,7 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
                         '正确答案: ${q.answer}',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: AppColors.correct,
+                          color: FunctionalColors.correct,
                         ),
                       ),
                     ],
@@ -804,7 +804,7 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
                       Text(
                         options[selected].whyWrong,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.familiarityLow.withValues(
+                          color: FunctionalColors.familiarityLow.withValues(
                             alpha: 0.8,
                           ),
                           height: 1.4,
@@ -816,7 +816,7 @@ class _AIReviewState extends riverpod.ConsumerState<_AIReview> {
                       Text(
                         '已加入今日复习',
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: AppColors.familiarityLow,
+                          color: FunctionalColors.familiarityLow,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

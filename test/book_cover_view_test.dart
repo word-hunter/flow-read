@@ -1,46 +1,15 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flow_read/app/flow_read_feature_flags.dart';
 import 'package:flow_read/widgets/home/book_cover_view.dart';
 import 'package:flow_read/widgets/home/default_book_cover.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  setUp(() {
-    FlowReadFeatureFlags.setV2Enabled(false);
-  });
-
-  tearDown(() {
-    FlowReadFeatureFlags.setV2Enabled(false);
-  });
-
-  testWidgets('uses legacy placeholder when V2 flag is disabled', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: BookCoverView(
-            coverBytes: null,
-            progressPercent: 12,
-            title: 'A Long Book Title',
-            author: 'A Writer',
-          ),
-        ),
-      ),
-    );
-
-    expect(find.byIcon(Icons.menu_book), findsOneWidget);
-    expect(find.byKey(DefaultBookCover.titleTextKey), findsNothing);
-    expect(find.text('12%'), findsNothing);
-  });
-
   testWidgets('renders V2 default cover and clamps title to three lines', (
     tester,
   ) async {
-    FlowReadFeatureFlags.setV2Enabled(true);
     const fullTitle =
         'Harry Potter and the Order of the Phoenix and the Very Long Subtitle';
 
@@ -85,7 +54,6 @@ void main() {
   });
 
   testWidgets('exposes full book title in cover tooltip', (tester) async {
-    FlowReadFeatureFlags.setV2Enabled(true);
     const fullTitle = 'A Complete Book Title Hidden Behind the Cover Artwork';
 
     await tester.pumpWidget(
@@ -111,12 +79,10 @@ void main() {
   });
 
   testWidgets(
-    'keeps existing book cover in V2 when cover bytes exist',
+    'keeps existing book cover when cover bytes exist',
     (
       tester,
     ) async {
-      FlowReadFeatureFlags.setV2Enabled(true);
-
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -138,12 +104,10 @@ void main() {
   );
 
   testWidgets(
-    'can force V2 default cover even when cover bytes exist',
+    'can force default cover even when cover bytes exist',
     (
       tester,
     ) async {
-      FlowReadFeatureFlags.setV2Enabled(true);
-
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -162,32 +126,6 @@ void main() {
       expect(find.byKey(DefaultBookCover.titleTextKey), findsOneWidget);
       expect(find.text('Forced Generated Cover'), findsOneWidget);
       expect(find.text('64%'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'ignores forced default cover when V2 flag is disabled',
-    (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: BookCoverView(
-              coverBytes: _onePixelPng(),
-              progressPercent: 71,
-              title: 'Legacy Real Cover',
-              author: 'Flow Read',
-              forceDefaultCover: true,
-            ),
-          ),
-        ),
-      );
-
-      expect(find.byType(Image), findsOneWidget);
-      expect(find.byKey(DefaultBookCover.titleTextKey), findsNothing);
-      expect(find.text('Legacy Real Cover'), findsNothing);
-      expect(find.text('71%'), findsOneWidget);
     },
   );
 }

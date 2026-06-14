@@ -7,7 +7,7 @@ import '../models/user_vocabulary.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import 'package:flow_language/flow_language.dart';
-import '../theme/app_colors.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import '../widgets/flow/flow_components.dart';
 import '../widgets/word_bottom_sheet.dart';
 import '../widgets/word_mastery_confetti.dart';
@@ -348,14 +348,14 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.familiarityLow.withValues(alpha: 0.12),
+                color: FunctionalColors.familiarityLow.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 '$unknown new',
                 style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.familiarityLow,
+                  color: FunctionalColors.familiarityLow,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -366,14 +366,14 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.vocabLearning.withValues(alpha: 0.12),
+                color: FunctionalColors.vocabLearning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 '$learning learning',
                 style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.vocabLearning,
+                  color: FunctionalColors.vocabLearning,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -424,7 +424,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
           ),
           if (wordCount > 0) ...[
             const SizedBox(width: 10),
-            _statPill('$wordCount words', AppColors.vocabLearning),
+            _statPill('$wordCount words', FunctionalColors.vocabLearning),
           ],
           if (sentenceCount > 0) ...[
             const SizedBox(width: 6),
@@ -548,8 +548,8 @@ class _VocabItem extends StatelessWidget {
   });
 
   Color get _statusColor {
-    if (status == UserWordStatus.learning) return AppColors.vocabLearning;
-    return AppColors.familiarityLow;
+    if (status == UserWordStatus.learning) return FunctionalColors.vocabLearning;
+    return FunctionalColors.familiarityLow;
   }
 
   Color _levelColor(String level) {
@@ -657,7 +657,7 @@ class _VocabItem extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.vocabLearning.withValues(
+                          color: FunctionalColors.vocabLearning.withValues(
                             alpha: 0.12,
                           ),
                           borderRadius: BorderRadius.circular(4),
@@ -666,7 +666,7 @@ class _VocabItem extends StatelessWidget {
                           'learning',
                           style: TextStyle(
                             fontSize: 10,
-                            color: AppColors.vocabLearning,
+                            color: FunctionalColors.vocabLearning,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -698,20 +698,20 @@ class _VocabItem extends StatelessWidget {
                       WordMasteryActionAnchor(
                         builder: (context, origin) => _miniButton(
                           label: 'Known',
-                          color: AppColors.familiarityHigh,
+                          color: FunctionalColors.familiarityHigh,
                           onTap: () => onMarkKnown(origin()),
                         ),
                       ),
                     if (status != UserWordStatus.learning)
                       _miniButton(
                         label: 'Learning',
-                        color: AppColors.vocabLearning,
+                        color: FunctionalColors.vocabLearning,
                         onTap: onMarkLearning,
                       ),
                     if (status != null)
                       _miniButton(
                         label: 'Unknown',
-                        color: AppColors.familiarityLow,
+                        color: FunctionalColors.familiarityLow,
                         onTap: onMarkUnknown,
                       ),
                   ],
@@ -870,7 +870,7 @@ class _LearningItemCard extends StatelessWidget {
 
   Widget _typeBadge(ThemeData theme) {
     final color = switch (item.type) {
-      LearningItemType.word => AppColors.vocabLearning,
+      LearningItemType.word => FunctionalColors.vocabLearning,
       LearningItemType.sentence => theme.colorScheme.primary,
       LearningItemType.grammar => theme.colorScheme.tertiary,
       LearningItemType.expression => Colors.indigo,

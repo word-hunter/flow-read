@@ -1,21 +1,8 @@
 import 'dart:io';
 
-import 'package:flow_read/app/flow_read_env.dart';
-
 Future<void> main(List<String> args) async {
-  final config = await FlowReadEnv.loadV2Config(compileTimeEnabled: false);
   final flutter = await _resolveFlutterCommand();
-  final flutterArgs = <String>['run'];
-
-  if (config.source != 'default') {
-    flutterArgs.add('--dart-define=${FlowReadEnv.flowV2Key}=${config.enabled}');
-  }
-  flutterArgs.addAll(_withDefaultDevice(args));
-
-  stdout.writeln(
-    '[FlowRead] launching with ${FlowReadEnv.flowV2Key}=${config.enabled}'
-    ' from ${config.source}',
-  );
+  final flutterArgs = <String>['run', ..._withDefaultDevice(args)];
 
   final process = await Process.start(
     flutter.executable,

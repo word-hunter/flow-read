@@ -1,8 +1,8 @@
 import 'dart:io';
 
+import 'package:flow_design_system/flow_design_system.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/storage/database/dao/settings_dao.dart';
-import 'package:flow_read/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -25,16 +25,16 @@ void main() {
     final settings = SettingsService(SettingsDao(db));
     await settings.init();
 
-    expect(settings.appThemeId, AppThemeId.classic);
+    expect(settings.appThemeId, PaletteId.classic);
     expect(settings.themeMode, ThemeMode.system);
 
-    await settings.setAppThemeId(AppThemeId.ocean);
+    await settings.setAppThemeId(PaletteId.ocean);
     await settings.setThemeMode(ThemeMode.dark);
 
     final reloaded = SettingsService(SettingsDao(db));
     await reloaded.init();
 
-    expect(reloaded.appThemeId, AppThemeId.ocean);
+    expect(reloaded.appThemeId, PaletteId.ocean);
     expect(reloaded.themeMode, ThemeMode.dark);
   });
 
@@ -63,6 +63,6 @@ void main() {
     final settings = SettingsService(SettingsDao(db));
     await settings.init();
 
-    expect(settings.appThemeId, AppThemeId.classic);
+    expect(settings.appThemeId, PaletteId.classic);
   });
 }

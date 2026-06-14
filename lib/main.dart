@@ -6,8 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 
-import 'app/flow_read_env.dart';
-import 'app/flow_read_feature_flags.dart';
 import 'platform/flow_shell_resolver.dart';
 import 'providers/settings_provider.dart';
 import 'screens/dashboard_screen.dart';
@@ -20,7 +18,6 @@ import 'screens/syntax_screen.dart';
 import 'services/app_logger.dart';
 import 'storage/storage_bootstrap.dart';
 import 'theme/app_surface_tokens.dart';
-import 'theme/app_theme.dart';
 import 'theme/city_theme_tokens.dart';
 import 'widgets/epub_drop_importer.dart';
 import 'widgets/flow/flow_components.dart';
@@ -30,37 +27,10 @@ import 'widgets/word_mastery_confetti.dart';
 
 import 'package:flow_design_system/flow_design_system.dart';
 
-const _v2CompileTime = bool.fromEnvironment('FLOW_V2', defaultValue: true);
-bool _v2Enabled = true;
-FlowReadV2Config _v2Config = const FlowReadV2Config(
-  enabled: true,
-  source: 'not-loaded',
-);
-
-Future<void> _loadEnvConfig() async {
-  try {
-    _v2Config = await FlowReadEnv.loadV2Config(
-      compileTimeEnabled: _v2CompileTime,
-    );
-    _v2Enabled = _v2Config.enabled;
-    debugPrint(
-      '[FlowRead] V2 config | enabled=${_v2Config.enabled}'
-      ' | source=${_v2Config.source}'
-      ' | searched=${_v2Config.searchedPaths.take(8).join(', ')}',
-    );
-  } catch (_) {
-    debugPrint(
-      '[FlowRead] Failed to load V2 config, V2 flag defaults to disabled',
-    );
-  }
-}
-
 void main() {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
-      await _loadEnvConfig();
-      FlowReadFeatureFlags.setV2Enabled(_v2Enabled);
       _registerBundledFontLicenses();
       await _initializeLogging();
       _installGlobalErrorLogging();
@@ -178,8 +148,8 @@ class _FlowReadBootstrapAppState extends State<FlowReadBootstrapApp> {
         return MaterialApp(
           title: 'Flow Read',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
+          theme: ThemeData.light(),
+          darkTheme: ThemeData.dark(),
           home: StartupScreen(error: snapshot.error, onRetry: _retry),
         );
       },
@@ -321,15 +291,6 @@ class _CurrentRouteObserver extends NavigatorObserver {
   }
 }
 
-PaletteId _toPaletteId(AppThemeId id) {
-  return switch (id) {
-    AppThemeId.classic => PaletteId.classic,
-    AppThemeId.ocean => PaletteId.ocean,
-    AppThemeId.forest => PaletteId.forest,
-    AppThemeId.highContrast => PaletteId.highContrast,
-  };
-}
-
 ThemeData _withFlowReadThemeExtensions(
   ThemeData theme, {
   required Brightness brightness,
@@ -438,40 +399,26 @@ class _FlowReadAppState extends State<FlowReadApp> {
       builder: (context, ref, _) {
         final settings = ref.watch(settingsProvider);
         final themeId = settings.appThemeId;
-        final v2 = FlowReadFeatureFlags.v2Enabled;
         final shellId = FlowShellResolver.resolveCurrent();
 
-        if (v2) {
-          // ignore: avoid_print
-          debugPrint(
-            '[V2] enabled | shell: ${shellId.name}'
-            ' | palette: ${_toPaletteId(themeId).name}'
-            ' | mode: ${settings.themeMode.name}',
-          );
-        }
-
         final lightTheme = _withFlowReadThemeExtensions(
-          v2
-              ? FlowTheme.build(
-                  shellId: shellId,
-                  paletteId: _toPaletteId(themeId),
-                  brightness: Brightness.light,
-                )
-              : AppTheme.lightThemeFor(themeId),
+          FlowTheme.build(
+            shellId: shellId,
+            paletteId: themeId,
+            brightness: Brightness.light,
+          ),
           brightness: Brightness.light,
-          paletteId: _toPaletteId(themeId),
+          paletteId: themeId,
         );
 
         final darkTheme = _withFlowReadThemeExtensions(
-          v2
-              ? FlowTheme.build(
-                  shellId: shellId,
-                  paletteId: _toPaletteId(themeId),
-                  brightness: Brightness.dark,
-                )
-              : AppTheme.darkThemeFor(themeId),
+          FlowTheme.build(
+            shellId: shellId,
+            paletteId: themeId,
+            brightness: Brightness.dark,
+          ),
           brightness: Brightness.dark,
-          paletteId: _toPaletteId(themeId),
+          paletteId: themeId,
         );
 
         return ThemeTransitionHost(
@@ -489,7 +436,7 @@ class _FlowReadAppState extends State<FlowReadApp> {
               return _buildShortcutScope(
                 context,
                 CityAtmosphere(
-                  enabled: v2,
+                  enabled: true,
                   settings: settings.cityAtmosphereSettings,
                   child: Builder(
                     builder: (context) {

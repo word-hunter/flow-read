@@ -8,7 +8,7 @@ import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
-import '../theme/app_colors.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import 'dictionary_detail_view.dart';
 import 'flow/flow_components.dart';
 import 'word_mastery_confetti.dart';
@@ -191,7 +191,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                       theme: theme,
                       label: 'Known',
                       icon: Icons.check_circle_outline,
-                      color: AppColors.familiarityHigh,
+                      color: FunctionalColors.familiarityHigh,
                       onPressed: () => vocabularyNotifier.markWordKnown(
                         word,
                         celebrationOrigin: origin(),
@@ -205,7 +205,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                     theme: theme,
                     label: 'Learning',
                     icon: Icons.school_outlined,
-                    color: AppColors.vocabLearning,
+                    color: FunctionalColors.vocabLearning,
                     onPressed: () => vocabularyNotifier.markWordLearning(word),
                   ),
                 ),
@@ -215,7 +215,7 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
                     theme: theme,
                     label: 'Unknown',
                     icon: Icons.help_outline,
-                    color: AppColors.familiarityLow,
+                    color: FunctionalColors.familiarityLow,
                     onPressed: () => _markWordUnknown(
                       vocabularyNotifier,
                       bookmarkNotifier,

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flow_ai/flow_ai.dart';
 
 import '../providers/book_insight_provider.dart';
-import '../theme/app_colors.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import '../widgets/flow/flow_components.dart';
 
 class BookInsightsPage extends StatefulWidget {
@@ -411,11 +411,11 @@ class _BookInsightsPageState extends State<BookInsightsPage>
       child: ExpansionTile(
         leading: CircleAvatar(
           radius: 14,
-          backgroundColor: AppColors.correct.withValues(alpha: 0.15),
+          backgroundColor: FunctionalColors.correct.withValues(alpha: 0.15),
           child: Icon(
             Icons.check_circle,
             size: 16,
-            color: AppColors.correct,
+            color: FunctionalColors.correct,
           ),
         ),
         title: Text(

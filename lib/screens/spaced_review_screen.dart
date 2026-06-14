@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import '../models/learning_item.dart';
 import '../providers/reading/services_provider.dart';
 import '../services/review_schedule_service.dart';
-import '../theme/app_colors.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import '../theme/app_constants.dart';
 import '../widgets/flow/flow_components.dart';
 
@@ -210,7 +210,7 @@ class _SpacedReviewScreenState
                   isDone ? Icons.check_circle : _typeIcon(card.type),
                   size: 17,
                   color: isDone
-                      ? AppColors.correct
+                      ? FunctionalColors.correct
                       : isActive
                       ? theme.colorScheme.primary
                       : theme.colorScheme.onSurfaceVariant,

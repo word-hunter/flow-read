@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flow_language/flow_language.dart';
 
-import '../../app/flow_read_feature_flags.dart';
 import '../../models/book_metadata.dart';
 import '../../services/settings_service.dart';
 import '../flow/flow_components.dart';
@@ -42,10 +41,8 @@ class SettingsReadingSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (FlowReadFeatureFlags.v2Enabled) ...[
-          SettingsCityAtmosphereSection(settings: settings),
-          const SizedBox(height: 16),
-        ],
+        SettingsCityAtmosphereSection(settings: settings),
+        const SizedBox(height: 16),
         SettingsCard(
           icon: Icons.flag_outlined,
           title: '每日目标',

@@ -1,12 +1,29 @@
+import 'package:flow_design_system/flow_design_system.dart';
 import 'package:flow_read/theme/app_surface_tokens.dart';
-import 'package:flow_read/theme/app_theme.dart';
 import 'package:flow_read/theme/city_theme_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+ThemeData _buildCityTheme(Brightness brightness) {
+  final base = FlowTheme.build(
+    shellId: ShellId.macosStandard,
+    paletteId: PaletteId.classic,
+    brightness: brightness,
+  );
+  return base.copyWith(
+    extensions: [
+      ...base.extensions.values,
+      brightness == Brightness.dark
+          ? AppSurfaceTokens.cityDark()
+          : AppSurfaceTokens.cityLight(),
+      CityThemeTokens.forBrightness(brightness),
+    ],
+  );
+}
+
 void main() {
   test('city light theme exposes city color and surface tokens', () {
-    final theme = AppTheme.lightThemeFor(AppThemeId.classic);
+    final theme = _buildCityTheme(Brightness.light);
     final city = theme.extension<CityThemeTokens>();
     final surface = theme.extension<AppSurfaceTokens>();
 
@@ -19,7 +36,7 @@ void main() {
   });
 
   test('city dark theme uses dark city tokens', () {
-    final theme = AppTheme.darkThemeFor(AppThemeId.classic);
+    final theme = _buildCityTheme(Brightness.dark);
     final city = theme.extension<CityThemeTokens>();
     final surface = theme.extension<AppSurfaceTokens>();
 

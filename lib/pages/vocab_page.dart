@@ -6,7 +6,7 @@ import '../models/user_vocabulary.dart';
 import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
-import '../theme/app_colors.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import '../widgets/dictionary_detail_view.dart';
 import '../widgets/flow/flow_components.dart';
 import '../widgets/pronunciation_button.dart';
@@ -322,8 +322,8 @@ class _VocabItem extends StatelessWidget {
   });
 
   Color get _statusColor {
-    if (status == UserWordStatus.learning) return AppColors.vocabLearning;
-    return AppColors.familiarityLow;
+    if (status == UserWordStatus.learning) return FunctionalColors.vocabLearning;
+    return FunctionalColors.familiarityLow;
   }
 
   Color _levelColor(String level) {
@@ -426,14 +426,14 @@ class _VocabItem extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.vocabLearning.withValues(alpha: 0.12),
+                        color: FunctionalColors.vocabLearning.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         'learning',
                         style: TextStyle(
                           fontSize: 10,
-                          color: AppColors.vocabLearning,
+                          color: FunctionalColors.vocabLearning,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -465,20 +465,20 @@ class _VocabItem extends StatelessWidget {
                     WordMasteryActionAnchor(
                       builder: (context, origin) => _miniButton(
                         label: 'Known',
-                        color: AppColors.familiarityHigh,
+                        color: FunctionalColors.familiarityHigh,
                         onTap: () => onMarkKnown(origin()),
                       ),
                     ),
                   if (status != UserWordStatus.learning)
                     _miniButton(
                       label: 'Learning',
-                      color: AppColors.vocabLearning,
+                      color: FunctionalColors.vocabLearning,
                       onTap: onMarkLearning,
                     ),
                   if (status != null)
                     _miniButton(
                       label: 'Unknown',
-                      color: AppColors.familiarityLow,
+                      color: FunctionalColors.familiarityLow,
                       onTap: onMarkUnknown,
                     ),
                 ],

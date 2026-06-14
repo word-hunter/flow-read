@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/analysis_result.dart';
-import '../theme/app_colors.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import '../utils/syntax_helpers.dart';
 import 'flow/flow_components.dart';
 
@@ -35,11 +35,11 @@ class _PracticeCardState extends State<PracticeCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final typeColor = switch (widget.practice.type) {
-      'inference' => AppColors.practiceInference,
-      'vocabulary_in_context' => AppColors.practiceVocab,
-      'sentence_structure' => AppColors.practiceSentence,
-      'paraphrasing' => AppColors.practiceParaphrasing,
-      _ => AppColors.practiceDefault,
+      'inference' => FunctionalColors.practiceInference,
+      'vocabulary_in_context' => FunctionalColors.practiceVocab,
+      'sentence_structure' => FunctionalColors.practiceSentence,
+      'paraphrasing' => FunctionalColors.practiceParaphrasing,
+      _ => FunctionalColors.practiceDefault,
     };
     final hasDraft = _controller.text.trim().isNotEmpty;
 

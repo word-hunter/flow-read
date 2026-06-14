@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 
 import '../../services/settings_service.dart';
-import '../../theme/app_theme.dart';
 import 'settings_shared.dart';
 
 class SettingsAppearanceSection extends StatelessWidget {
@@ -37,11 +37,11 @@ class SettingsAppearanceSection extends StatelessWidget {
           title: '主题',
           child: ResponsiveSettingsGrid(
             children: [
-              SettingsSelectField<AppThemeId>(
+              SettingsSelectField<PaletteId>(
                 label: '主题',
                 value: settings.appThemeId,
                 icon: Icons.style_outlined,
-                options: AppThemeId.values
+                options: PaletteId.values
                     .map(
                       (themeId) => SettingsSelectOption(
                         value: themeId,

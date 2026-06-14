@@ -5,7 +5,7 @@ import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
-import '../theme/app_colors.dart';
+import 'package:flow_design_system/flow_design_system.dart';
 import 'flow/flow_components.dart';
 
 class AISummaryView extends riverpod.ConsumerStatefulWidget {
@@ -173,7 +173,7 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
     final color = switch (status.kind) {
       ChapterAIStatusKind.unconfigured => theme.colorScheme.outline,
       ChapterAIStatusKind.loading => theme.colorScheme.primary,
-      ChapterAIStatusKind.cacheHit => AppColors.correct,
+      ChapterAIStatusKind.cacheHit => FunctionalColors.correct,
       ChapterAIStatusKind.failed => theme.colorScheme.error,
       ChapterAIStatusKind.fallback => theme.colorScheme.tertiary,
       ChapterAIStatusKind.generated => theme.colorScheme.primary,
@@ -638,7 +638,7 @@ class _AISummaryViewState extends riverpod.ConsumerState<AISummaryView> {
               vocab.word,
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.vocabLearning,
+                color: FunctionalColors.vocabLearning,
                 fontFamily: 'Serif',
               ),
             ),
