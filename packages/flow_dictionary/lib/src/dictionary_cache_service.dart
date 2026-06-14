@@ -25,7 +25,7 @@ class DictionaryCacheService {
 
   String? get(String source, String word, {String languageCode = 'en'}) {
     if (!_initialized) return null;
-    return _repository.get(_cacheKey(source, word));
+    return _repository.get(_cacheKey(source, word, languageCode));
   }
 
   int get entryCount => _initialized ? _repository.length : 0;
@@ -38,7 +38,7 @@ class DictionaryCacheService {
   }) async {
     if (!_initialized) return;
 
-    await _repository.put(_cacheKey(source, word), content);
+    await _repository.put(_cacheKey(source, word, languageCode), content);
 
     if (_repository.length > _maxEntries) {
       final keysToRemove = _repository.keys
@@ -52,7 +52,7 @@ class DictionaryCacheService {
 
   bool hasWord(String source, String word, {String languageCode = 'en'}) {
     if (!_initialized) return false;
-    return _repository.containsKey(_cacheKey(source, word));
+    return _repository.containsKey(_cacheKey(source, word, languageCode));
   }
 
   Future<void> clear() async {
@@ -60,5 +60,6 @@ class DictionaryCacheService {
     await _repository.clear();
   }
 
-  String _cacheKey(String source, String word) => '${source}_$word';
+  String _cacheKey(String source, String word, String languageCode) =>
+      '${languageCode}_${source}_$word';
 }
