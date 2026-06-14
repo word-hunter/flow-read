@@ -2,7 +2,7 @@
 
 > @source lib/services/ lib/providers/ packages/flow_ai/ packages/flow_dictionary/ packages/flow_language/ packages/flow_read_atmosphere/
 
-Last updated: 2026-06-13
+Last updated: 2026-06-14
 
 ## 服务分类
 
@@ -30,6 +30,7 @@ Last updated: 2026-06-13
 | `DictionarySourceRegistry` | 创建全部适配器实例 | Factory |
 | `DictionaryCacheService` | 查词结果缓存（Drift, 500 条上限） | Cache |
 | `DictionarySourceTestService` | 来源连通性测试 | Diagnostics |
+| `VisualDictionaryService` | Wikidata 可视化释义查询（图片+描述），带缓存 | Adapter (online) |
 | `CompoundWordAnalyzer` | 复合词拆分（`godswood → gods + wood`） | NLP |
 
 查词优先级链：

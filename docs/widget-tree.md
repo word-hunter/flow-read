@@ -2,7 +2,7 @@
 
 > @source lib/screens/ lib/pages/ lib/widgets/
 
-Last updated: 2026-06-03
+Last updated: 2026-06-14
 
 ## 屏幕导航
 
@@ -46,6 +46,7 @@ HomeScreen → 点击书籍
       └── _buildReaderSidebar (宽屏右侧栏)
           ├── ReaderWordSidebar (词典详情)
           │   ├── DictionaryDetailView (词典正文)
+          │   ├── VisualHintCard (可视化释义卡片)
           │   └── _buildLearningStatusSection (学习状态 SegmentedButton)
           └── 未来：AIAssistantPanel (1.7.0)
 ```
@@ -70,6 +71,7 @@ WordBottomSheet (showModalBottomSheet)
 DictionaryDetailView (用于 ReaderWordSidebar + WordBottomSheet + VocabularyScreen)
 ├── 单词头部 (phonetic, level badge, source badge, 发音按钮)
 ├── 释义区块 (partOfSpeech chip, 编号释义, 例句)
+├── VisualHintCard (Wikidata 可视化释义：缩略图 + 标签 + 描述)
 ├── 回退区 (compoundAnalysis + bookContexts)
 ├── 上下文块 (单词在原文中的上下文高亮)
 ├── 导入示例 (WordHunter examples)
@@ -111,6 +113,7 @@ SelectedTextSheet (选中文本 AI 分析弹窗)
 | `ReleaseNotesGate` | 应用启动后首屏 |
 | `BookDifficultyChip` | ReaderPage, 书架项 |
 | `PronunciationButton` | DictionaryDetailView |
+| `VisualHintCard` | DictionaryDetailView, ReaderWordSidebar |
 
 ## 添加新页面 / 组件的约定
 

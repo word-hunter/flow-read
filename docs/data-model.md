@@ -1,8 +1,8 @@
 # Flow Read Data Model
 
-> @source lib/models/ lib/storage/database/tables.dart packages/flow_ai/lib/src/models/ packages/flow_rss/lib/src/rss_models.dart
+> @source lib/models/ lib/storage/database/tables.dart packages/flow_ai/lib/src/models/ packages/flow_dictionary/lib/src/ packages/flow_rss/lib/src/rss_models.dart
 
-Last updated: 2026-06-13
+Last updated: 2026-06-14
 
 ## Runtime Persistence
 
@@ -72,6 +72,14 @@ Generated model adapters are no longer part of the runtime model contract.
 | `AIAutomationSettings` | Automation settings |
 | `ReadingInsightProfile` | Runtime reading profile |
 | `CharacterRegistryEntry` | Character registry item |
+
+## Dictionary Models
+
+| Model | Package | Purpose |
+|------|---------|------|
+| `VisualDefinition` | `flow_dictionary` | Wikidata 可视化释义结果（图片 URL、标签、描述、置信度） |
+| `DictionarySourceConfig` | `flow_dictionary` | 词典来源配置（启用、优先级、支持语言） |
+| `CompoundAnalysis` | `flow_dictionary` | 复合词拆分结果 |
 
 ## Language Module Models
 

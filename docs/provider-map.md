@@ -2,7 +2,7 @@
 
 > @source lib/providers/reading/services_provider.dart lib/providers/settings_provider.dart lib/providers/reading/ai_notifier.dart packages/flow_ai/lib/src/ai_assistant_action_registry.dart packages/flow_ai/lib/src/ai_assistant_controller.dart
 
-Last updated: 2026-06-12
+Last updated: 2026-06-14
 
 ## Provider 层级
 
@@ -35,7 +35,7 @@ ProviderScope
 |----|-----------|---------|
 | **书籍** | `currentBook`, `currentBookMetadata`, `currentBookChapters`, `currentChapterIndex` | `openBook()`, `closeBook()`, `importEpubFromPath/Bytes()`, `nextChapter()`, `previousChapter()` |
 | **章节** | `currentChapter`, `currentChapterContentBlocks`, `chapterScrollOffset` | `gotoChapter()`, `setChapterScrollOffset()` |
-| **查词** | `selectedWord`, `selectedWordLookupResult`, `wordLookupHistory`, `isLoadingWord` | `lookupWord()`, `lookupRelatedWord()`, `goBackWordLookup()`, `clearWordLookup()` |
+| **查词** | `selectedWord`, `selectedWordLookupResult`, `wordLookupHistory`, `isLoadingWord`, `visualDefinition`, `isLoadingVisualHint` | `lookupWord()`, `lookupRelatedWord()`, `goBackWordLookup()`, `clearWordLookup()` |
 | **阅读配置** | `readingConfig` (font/theme/spacing) | `setFontSize()`, `setFontFamily()`, `setLineHeight()`, `setPageMargins()` |
 | **搜索** | `searchResults`, `currentSearchQuery` | `searchInChapter()`, `searchInBook()`, `clearSearch()` |
 | **书签** | `bookmarks`, `wordBookmarks` | `addBookmark()`, `removeBookmark()`, `toggleWordBookmark()` |
