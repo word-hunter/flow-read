@@ -1,16 +1,17 @@
+import 'package:flow_dictionary/flow_dictionary.dart';
+import 'package:flow_language/english/english.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../models/word_context_example.dart';
 import '../models/word_level.dart';
 import '../providers/reading/word_lookup_notifier.dart';
-import 'package:flow_dictionary/flow_dictionary.dart';
-import 'package:flow_language/english/english.dart';
 import '../services/external_url_launcher.dart';
 import '../services/word_level_service.dart';
 import 'flow/flow_components.dart';
 import 'imported_word_examples.dart';
 import 'pronunciation_button.dart';
+import 'visual_hint_card.dart';
 
 class DictionaryDetailView extends StatelessWidget {
   final String word;
@@ -30,6 +31,9 @@ class DictionaryDetailView extends StatelessWidget {
   final ValueChanged<String>? onLookupWord;
   final VoidCallback? onGoBack;
   final bool canGoBack;
+  final VisualDefinition? visualDefinition;
+  final bool isLoadingVisualHint;
+  final bool showVisualHint;
 
   const DictionaryDetailView({
     super.key,
@@ -50,6 +54,9 @@ class DictionaryDetailView extends StatelessWidget {
     this.onLookupWord,
     this.onGoBack,
     this.canGoBack = false,
+    this.visualDefinition,
+    this.isLoadingVisualHint = false,
+    this.showVisualHint = true,
   });
 
   factory DictionaryDetailView.fromWordLookup({
@@ -59,6 +66,7 @@ class DictionaryDetailView extends StatelessWidget {
     required String word,
     bool showWordHeader = true,
     bool showContext = false,
+    bool showVisualHint = true,
     WordLevelService? wordLevelService,
     bool canPronounceWords = false,
   }) {
@@ -89,6 +97,9 @@ class DictionaryDetailView extends StatelessWidget {
           ? lookupNotifier.goBackWordLookup
           : null,
       canGoBack: lookupState.canGoBackWordLookup,
+      visualDefinition: lookupState.visualDefinition,
+      isLoadingVisualHint: lookupState.isLoadingVisualHint,
+      showVisualHint: showVisualHint,
     );
   }
 
@@ -138,46 +149,69 @@ class DictionaryDetailView extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
-        if (!hasContent)
+        if (!hasContent && visualDefinition == null && !isLoadingVisualHint)
           _EmptyDictionaryState(errorMessage: entry?.errorMessage)
         else ...[
-          if (hasPrimaryDefinition) ...[
-            _SectionLabel(label: '释义'),
-            const SizedBox(height: 6),
-            _PrimaryDefinition(
-              text: primaryDefinition!.trim(),
-              currentWord: word,
-              onLookupWord: onLookupWord,
+          if (hasContent)
+            _CollapsiblePanel(
+              icon: Icons.menu_book_outlined,
+              title: '词典',
+              initiallyExpanded: true,
+              children: [
+                if (hasPrimaryDefinition) ...[
+                  _SectionLabel(label: '释义'),
+                  const SizedBox(height: 6),
+                  _PrimaryDefinition(
+                    text: primaryDefinition!.trim(),
+                    currentWord: word,
+                    onLookupWord: onLookupWord,
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                if (entry != null) ...[
+                  if (entry!.errorMessage != null &&
+                      entry!.errorMessage!.trim().isNotEmpty) ...[
+                    _StatusHint(
+                      icon: Icons.warning_amber_rounded,
+                      text: entry!.errorMessage!.trim(),
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  for (final meaning in entry!.meanings)
+                    _MeaningBlock(
+                      meaning: meaning,
+                      primaryDefinition: primaryDefinition?.trim(),
+                      currentWord: word,
+                      onLookupWord: onLookupWord,
+                    ),
+                ],
+                if (importedExamples.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  ImportedWordExamples(examples: importedExamples),
+                ],
+                if (compoundAnalysis != null || bookContexts.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _DictionaryFallbackSection(
+                    analysis: compoundAnalysis,
+                    contexts: bookContexts,
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 14),
-          ],
-          if (entry != null) ...[
-            if (entry!.errorMessage != null &&
-                entry!.errorMessage!.trim().isNotEmpty) ...[
-              _StatusHint(
-                icon: Icons.warning_amber_rounded,
-                text: entry!.errorMessage!.trim(),
-                color: theme.colorScheme.error,
-              ),
-              const SizedBox(height: 12),
-            ],
-            for (final meaning in entry!.meanings)
-              _MeaningBlock(
-                meaning: meaning,
-                primaryDefinition: primaryDefinition?.trim(),
-                currentWord: word,
-                onLookupWord: onLookupWord,
-              ),
-          ],
-          if (importedExamples.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            ImportedWordExamples(examples: importedExamples),
-          ],
-          if (compoundAnalysis != null || bookContexts.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _DictionaryFallbackSection(
-              analysis: compoundAnalysis,
-              contexts: bookContexts,
+          if (showVisualHint &&
+              (visualDefinition != null || isLoadingVisualHint)) ...[
+            const SizedBox(height: 6),
+            _CollapsiblePanel(
+              icon: Icons.image_outlined,
+              title: '图片',
+              initiallyExpanded: true,
+              children: [
+                if (visualDefinition != null)
+                  VisualHintCard(definition: visualDefinition!)
+                else
+                  const VisualHintLoadingIndicator(),
+              ],
             ),
           ],
         ],
@@ -363,8 +397,7 @@ class _SourceLinkChipState extends State<_SourceLinkChip> {
       child: GestureDetector(
         onTap: () async {
           try {
-            await const ExternalUrlLauncher()
-                .open(Uri.parse(widget.sourceUrl));
+            await const ExternalUrlLauncher().open(Uri.parse(widget.sourceUrl));
           } on ExternalUrlOpenException {
             // silently ignore
           }
@@ -417,6 +450,90 @@ class _MetaChip extends StatelessWidget {
           fontWeight: FontWeight.w700,
         ),
       ),
+    );
+  }
+}
+
+class _CollapsiblePanel extends StatefulWidget {
+  final IconData icon;
+  final String title;
+  final bool initiallyExpanded;
+  final List<Widget> children;
+
+  const _CollapsiblePanel({
+    required this.icon,
+    required this.title,
+    required this.initiallyExpanded,
+    required this.children,
+  });
+
+  @override
+  State<_CollapsiblePanel> createState() => _CollapsiblePanelState();
+}
+
+class _CollapsiblePanelState extends State<_CollapsiblePanel> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.onSurfaceVariant;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Icon(widget.icon, size: 16, color: color),
+                  const SizedBox(width: 6),
+                  Text(
+                    widget.title,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
+                  const Spacer(),
+                  AnimatedRotation(
+                    turns: _expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.expand_more,
+                      size: 18,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: _expanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: widget.children,
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 }

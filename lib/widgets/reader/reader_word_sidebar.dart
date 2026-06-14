@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
+import 'package:flow_dictionary/flow_dictionary.dart';
 import '../../models/user_vocabulary.dart';
 import '../../providers/reading/services_provider.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/reading/word_lookup_notifier.dart';
 import '../../theme/app_colors.dart';
 import '../dictionary_detail_view.dart';
+import '../visual_hint_card.dart';
 import '../word_mastery_confetti.dart';
 
 class ReaderWordSidebar extends riverpod.ConsumerWidget {
@@ -115,6 +117,10 @@ class ReaderWordSidebar extends riverpod.ConsumerWidget {
     WordLookupNotifier lookupNotifier,
     String word,
   ) {
+    final visualDefinition = lookupState.visualDefinition;
+    final isLoadingVisualHint = lookupState.isLoadingVisualHint;
+    final hasVisualHint = visualDefinition != null || isLoadingVisualHint;
+
     return Column(
       children: [
         Expanded(
@@ -124,13 +130,42 @@ class ReaderWordSidebar extends riverpod.ConsumerWidget {
               word: word,
               lookupState: lookupState,
               lookupNotifier: lookupNotifier,
+              showVisualHint: false,
               wordLevelService: ref.read(wordLevelServiceProvider),
               canPronounceWords: true,
             ),
           ),
         ),
+        if (hasVisualHint)
+          _SidebarVisualHintSection(
+            visualDefinition: visualDefinition,
+          ),
         _WordStatusBar(word: word),
       ],
+    );
+  }
+}
+
+class _SidebarVisualHintSection extends StatelessWidget {
+  final VisualDefinition? visualDefinition;
+
+  const _SidebarVisualHintSection({required this.visualDefinition});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.15),
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 10),
+      child: visualDefinition != null
+          ? VisualHintCard(definition: visualDefinition!)
+          : const VisualHintLoadingIndicator(),
     );
   }
 }

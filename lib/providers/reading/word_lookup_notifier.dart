@@ -1,11 +1,13 @@
+import 'dart:async';
+
+import 'package:flow_ai/flow_ai.dart';
+import 'package:flow_dictionary/flow_dictionary.dart';
+import 'package:flow_language/flow_language.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:flow_ai/flow_ai.dart';
 import '../../models/word_context_example.dart';
 import '../../services/compound_word_analyzer.dart';
-import 'package:flow_dictionary/flow_dictionary.dart';
-import 'package:flow_language/flow_language.dart';
 import '../../services/reading_search_service.dart';
 import '../../services/word_context_service.dart';
 import '../settings_provider.dart';
@@ -27,6 +29,8 @@ class WordLookupState {
     this.isLoadingWord = false,
     this.aiWordAnalysis,
     this.isAnalyzingWord = false,
+    this.visualDefinition,
+    this.isLoadingVisualHint = false,
   });
 
   final String? selectedWord;
@@ -40,6 +44,8 @@ class WordLookupState {
   final bool isLoadingWord;
   final WordAnalysis? aiWordAnalysis;
   final bool isAnalyzingWord;
+  final VisualDefinition? visualDefinition;
+  final bool isLoadingVisualHint;
 
   bool get canGoBackWordLookup => wordLookupHistory.isNotEmpty;
 
@@ -55,8 +61,11 @@ class WordLookupState {
     bool? isLoadingWord,
     WordAnalysis? aiWordAnalysis,
     bool? isAnalyzingWord,
+    VisualDefinition? visualDefinition,
+    bool? isLoadingVisualHint,
     bool clearWordLookup = false,
     bool clearAIAnalysis = false,
+    bool clearVisualHint = false,
   }) {
     return WordLookupState(
       selectedWord: clearWordLookup
@@ -86,6 +95,12 @@ class WordLookupState {
           ? null
           : (aiWordAnalysis ?? this.aiWordAnalysis),
       isAnalyzingWord: isAnalyzingWord ?? this.isAnalyzingWord,
+      visualDefinition: clearWordLookup || clearVisualHint
+          ? null
+          : (visualDefinition ?? this.visualDefinition),
+      isLoadingVisualHint: clearWordLookup || clearVisualHint
+          ? false
+          : (isLoadingVisualHint ?? this.isLoadingVisualHint),
     );
   }
 
@@ -95,7 +110,9 @@ class WordLookupState {
         other.selectedWord == selectedWord &&
         other.selectedWordTranslation == selectedWordTranslation &&
         other.isLoadingWord == isLoadingWord &&
-        other.isAnalyzingWord == isAnalyzingWord;
+        other.isAnalyzingWord == isAnalyzingWord &&
+        other.isLoadingVisualHint == isLoadingVisualHint &&
+        other.visualDefinition == visualDefinition;
   }
 
   @override
@@ -104,6 +121,8 @@ class WordLookupState {
     selectedWordTranslation,
     isLoadingWord,
     isAnalyzingWord,
+    isLoadingVisualHint,
+    visualDefinition,
   );
 }
 
@@ -192,6 +211,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
       selectedWordEntry: null,
       selectedWordLookupResult: null,
       isLoadingWord: true,
+      clearVisualHint: true,
     );
 
     final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
@@ -220,6 +240,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
     if (requestVersion != _wordLookupRequestVersion) return;
     _applyWordLookupResult(result);
     state = state.copyWith(isLoadingWord: false);
+    unawaited(_fetchVisualHint(request.query, requestVersion));
   }
 
   void goBackWordLookup() {
@@ -257,6 +278,23 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
   }
 
   // ---- Internal helpers ----
+
+  Future<void> _fetchVisualHint(String word, int requestVersion) async {
+    final settings = ref.read(settingsProvider);
+    if (!settings.visualDictionaryEnabled) return;
+    state = state.copyWith(isLoadingVisualHint: true);
+    try {
+      final service = ref.read(visualDictionaryServiceProvider);
+      final result = await service.lookup(word);
+      if (requestVersion != _wordLookupRequestVersion) return;
+      state = state.copyWith(
+        visualDefinition: result,
+        isLoadingVisualHint: false,
+      );
+    } on Object {
+      state = state.copyWith(isLoadingVisualHint: false);
+    }
+  }
 
   LanguageModule get _activeLanguageModule {
     final settings = ref.read(settingsProvider);

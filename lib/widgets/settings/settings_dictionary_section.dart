@@ -1,6 +1,6 @@
+import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flutter/material.dart';
 
-import 'package:flow_dictionary/flow_dictionary.dart';
 import '../../services/settings_service.dart';
 import '../flow/flow_components.dart';
 import 'settings_shared.dart';
@@ -88,6 +88,32 @@ class SettingsDictionarySection extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
+          icon: Icons.image_outlined,
+          title: '图片词典',
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '查词时通过 Wikidata 展示图像解释',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: settings.visualDictionaryEnabled,
+                onChanged: (v) => settings.setVisualDictionaryEnabled(v),
+              ),
             ],
           ),
         ),

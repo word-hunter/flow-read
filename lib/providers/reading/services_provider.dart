@@ -1,9 +1,10 @@
 import 'dart:async';
 
+import 'package:flow_ai/flow_ai.dart';
+import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
-import 'package:flow_ai/flow_ai.dart';
 import '../../models/book.dart';
 import '../../services/app_logger.dart';
 import '../../services/book_cache.dart';
@@ -11,17 +12,16 @@ import '../../services/book_glossary_service.dart';
 import '../../services/book_service.dart';
 import '../../services/bookmark_service.dart';
 import '../../services/character_registry.dart';
-import 'package:flow_dictionary/flow_dictionary.dart';
 import '../../services/epub_parse_worker.dart';
 import '../../services/learning_analytics_service.dart';
 import '../../services/learning_item_service.dart';
 import '../../services/pronunciation_service.dart';
+import '../../services/reader_layout_engine.dart';
 import '../../services/reading_config_service.dart';
 import '../../services/reading_insight_service.dart';
 import '../../services/reading_time_service.dart';
 import '../../services/review_schedule_service.dart';
 import '../../services/sentence_analyzer.dart';
-import '../../services/reader_layout_engine.dart';
 import '../../services/user_vocabulary_service.dart';
 import '../../services/word_context_service.dart';
 import '../../services/word_level_service.dart';
@@ -172,6 +172,13 @@ final wordRepositoryProvider = Provider<WordRepository>((ref) {
     configs: settings.dictionarySources,
     sources: registry.adapters(),
   );
+});
+
+final visualDictionaryServiceProvider = Provider<VisualDictionaryService>((
+  ref,
+) {
+  final cache = ref.read(dictionaryCacheServiceProvider);
+  return VisualDictionaryService(cache);
 });
 
 final wordLevelServiceProvider = Provider<WordLevelService>((ref) {

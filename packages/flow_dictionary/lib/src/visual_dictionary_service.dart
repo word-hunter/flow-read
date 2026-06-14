@@ -49,37 +49,45 @@ class VisualDictionaryService {
   }
 
   Future<VisualDefinition?> _fetchVisualDefinition(String word) async {
-    final entities = await _searchEntities(word);
-    if (entities.isEmpty) return null;
+    final result = await _lookupByWikipediaTitle(word);
+    if (result != null) return result;
+    return _lookupBySearch(word);
+  }
 
-    for (final entity in entities) {
-      final entityId = entity['id'] as String?;
-      if (entityId == null) continue;
+  Future<VisualDefinition?> _lookupByWikipediaTitle(String word) async {
+    final title = '${word[0].toUpperCase()}${word.substring(1)}';
+    final uri = Uri.parse(_wikidataApi).replace(
+      queryParameters: {
+        'action': 'wbgetentities',
+        'sites': 'enwiki',
+        'titles': title,
+        'props': 'claims|labels|descriptions',
+        'languages': 'en',
+        'format': 'json',
+      },
+    );
 
-      final imageFile = await _getEntityImage(entityId);
-      if (imageFile == null) continue;
+    final response = await _get(uri);
+    if (response.statusCode != 200) return null;
 
-      final label =
-          (entity['label'] as String?) ?? word;
-      final description = entity['description'] as String?;
-      final matchScore = _matchScore(word, label);
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final entities = body['entities'] as Map<String, dynamic>?;
+    if (entities == null) return null;
 
-      return VisualDefinition(
-        word: word,
-        entityId: entityId,
-        label: label,
-        description: description,
-        thumbnailUrl: _buildThumbnailUrl(imageFile),
-        imageUrl: _buildFullImageUrl(imageFile),
-        sourcePageUrl: '$_wikidataEntityPage$entityId',
-        confidence: matchScore,
+    for (final entry in entities.entries) {
+      final entityId = entry.key;
+      if (entityId.startsWith('-')) continue;
+      final parsed = _parseEntity(
+        entityId,
+        entry.value as Map<String, dynamic>,
+        word,
       );
+      if (parsed != null) return parsed;
     }
-
     return null;
   }
 
-  Future<List<Map<String, dynamic>>> _searchEntities(String word) async {
+  Future<VisualDefinition?> _lookupBySearch(String word) async {
     final uri = Uri.parse(_wikidataApi).replace(
       queryParameters: {
         'action': 'wbsearchentities',
@@ -92,20 +100,63 @@ class VisualDictionaryService {
     );
 
     final response = await _get(uri);
-    if (response.statusCode != 200) return [];
+    if (response.statusCode != 200) return null;
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     final results = body['search'];
-    if (results is! List) return [];
-    return results.cast<Map<String, dynamic>>();
+    if (results is! List) return null;
+
+    for (final r in results) {
+      final entityId = (r as Map<String, dynamic>)['id'] as String?;
+      if (entityId == null) continue;
+
+      final desc = (r['description'] as String? ?? '').toLowerCase();
+      if (_isNameOrPlaceDescription(desc)) continue;
+
+      final entity = await _getEntity(entityId);
+      if (entity == null) continue;
+
+      final parsed = _parseEntity(entityId, entity, word);
+      if (parsed != null) return parsed;
+    }
+    return null;
   }
 
-  Future<String?> _getEntityImage(String entityId) async {
+  VisualDefinition? _parseEntity(
+    String entityId,
+    Map<String, dynamic> entity,
+    String word,
+  ) {
+    final imageFile = _extractP18(entity);
+    if (imageFile == null) return null;
+
+    final label =
+        (entity['labels'] as Map<String, dynamic>?)?['en']?['value']
+            as String? ??
+        word;
+    final description =
+        (entity['descriptions'] as Map<String, dynamic>?)?['en']?['value']
+            as String?;
+
+    return VisualDefinition(
+      word: word,
+      entityId: entityId,
+      label: label,
+      description: description,
+      thumbnailUrl: _buildThumbnailUrl(imageFile),
+      imageUrl: _buildFullImageUrl(imageFile),
+      sourcePageUrl: '$_wikidataEntityPage$entityId',
+      confidence: 1.0,
+    );
+  }
+
+  Future<Map<String, dynamic>?> _getEntity(String entityId) async {
     final uri = Uri.parse(_wikidataApi).replace(
       queryParameters: {
         'action': 'wbgetentities',
         'ids': entityId,
-        'props': 'claims',
+        'props': 'claims|labels|descriptions',
+        'languages': 'en',
         'format': 'json',
       },
     );
@@ -114,12 +165,11 @@ class VisualDictionaryService {
     if (response.statusCode != 200) return null;
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final entities = body['entities'] as Map<String, dynamic>?;
-    if (entities == null) return null;
+    return (body['entities'] as Map<String, dynamic>?)?[entityId]
+        as Map<String, dynamic>?;
+  }
 
-    final entity = entities[entityId] as Map<String, dynamic>?;
-    if (entity == null) return null;
-
+  String? _extractP18(Map<String, dynamic> entity) {
     final claims = entity['claims'] as Map<String, dynamic>?;
     if (claims == null) return null;
 
@@ -127,11 +177,26 @@ class VisualDictionaryService {
     if (p18 == null || p18.isEmpty) return null;
 
     final mainsnak =
-        (p18.first as Map<String, dynamic>)['mainsnak'] as Map<String, dynamic>?;
+        (p18.first as Map<String, dynamic>)['mainsnak']
+            as Map<String, dynamic>?;
     if (mainsnak == null) return null;
 
     final datavalue = mainsnak['datavalue'] as Map<String, dynamic>?;
     return datavalue?['value'] as String?;
+  }
+
+  static bool _isNameOrPlaceDescription(String desc) {
+    const markers = [
+      'given name',
+      'family name',
+      'surname',
+      'first name',
+      'unisex name',
+    ];
+    for (final m in markers) {
+      if (desc.contains(m)) return true;
+    }
+    return false;
   }
 
   String _buildThumbnailUrl(String filename) {
@@ -144,18 +209,13 @@ class VisualDictionaryService {
     return '$_commonsFilePath$encoded';
   }
 
-  double _matchScore(String query, String label) {
-    final q = query.toLowerCase();
-    final l = label.toLowerCase();
-    if (q == l) return 1.0;
-    if (l.startsWith(q) || l.endsWith(q)) return 0.9;
-    if (l.contains(q)) return 0.8;
-    return 0.6;
-  }
+  static const _headers = {'User-Agent': 'FlowRead/1.0'};
 
   Future<http.Response> _get(Uri uri) async {
     final client = _httpClient;
-    final future = client != null ? client.get(uri) : http.get(uri);
+    final future = client != null
+        ? client.get(uri, headers: _headers)
+        : http.get(uri, headers: _headers);
     return future.timeout(const Duration(seconds: 10));
   }
 
