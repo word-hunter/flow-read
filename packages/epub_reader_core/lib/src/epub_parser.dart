@@ -306,12 +306,14 @@ class EpubParser {
       );
     }
 
+    final mergedChapters = _mergeChaptersByToc(chapters, toc);
+
     // Extract footnote content from spine items
     final footnoteMap = _extractFootnotes(archive, spineItems, opfDir);
 
     report(
       EpubParsePhase.complete,
-      totalChapters: chapters.length,
+      totalChapters: mergedChapters.length,
       progress: 1,
     );
 
@@ -319,11 +321,94 @@ class EpubParser {
       title: title,
       author: author,
       language: language,
-      chapters: chapters,
+      chapters: mergedChapters,
       coverBytes: coverBytes,
       toc: toc,
       footnoteMap: footnoteMap,
     );
+  }
+
+  static List<ParsedEpubChapter> _mergeChaptersByToc(
+    List<ParsedEpubChapter> spineChapters,
+    List<EpubTocEntry> toc,
+  ) {
+    if (toc.isEmpty || spineChapters.length <= 1) return spineChapters;
+
+    final spineHrefToIndex = <String, int>{};
+    for (var i = 0; i < spineChapters.length; i++) {
+      final href = spineChapters[i].href;
+      if (href != null) {
+        spineHrefToIndex.putIfAbsent(_stripFragment(href), () => i);
+      }
+    }
+
+    final boundaries = <int>{};
+    for (final entry in toc) {
+      final key = _stripFragment(entry.href);
+      final idx = spineHrefToIndex[key];
+      if (idx != null) boundaries.add(idx);
+    }
+
+    if (boundaries.isEmpty) return spineChapters;
+
+    final sortedBoundaries = boundaries.toList()..sort();
+
+    final merged = <ParsedEpubChapter>[];
+
+    for (var i = 0; i < sortedBoundaries.length; i++) {
+      final start = sortedBoundaries[i];
+      final end = i + 1 < sortedBoundaries.length
+          ? sortedBoundaries[i + 1]
+          : spineChapters.length;
+
+      if (start >= spineChapters.length) continue;
+
+      if (end - start == 1) {
+        merged.add(spineChapters[start]);
+      } else {
+        merged.add(_mergeRange(spineChapters, start, end));
+      }
+    }
+
+    if (sortedBoundaries.first > 0) {
+      final preamble = <ParsedEpubChapter>[];
+      for (var i = 0; i < sortedBoundaries.first; i++) {
+        preamble.add(spineChapters[i]);
+      }
+      merged.insertAll(0, preamble);
+    }
+
+    return merged;
+  }
+
+  static ParsedEpubChapter _mergeRange(
+    List<ParsedEpubChapter> chapters,
+    int start,
+    int end,
+  ) {
+    final items = chapters.sublist(start, end);
+    final blocks = <ParsedContentBlock>[];
+    final plainTexts = <String>[];
+    final rawHtmlParts = <String>[];
+
+    for (final item in items) {
+      blocks.addAll(item.blocks);
+      if (item.plainText.isNotEmpty) plainTexts.add(item.plainText);
+      if (item.rawHtml.isNotEmpty) rawHtmlParts.add(item.rawHtml);
+    }
+
+    return ParsedEpubChapter(
+      documentTitle: items.first.documentTitle,
+      plainText: plainTexts.join('\n\n'),
+      rawHtml: rawHtmlParts.join('\n'),
+      blocks: blocks,
+      href: items.first.href,
+    );
+  }
+
+  static String _stripFragment(String href) {
+    final idx = href.indexOf('#');
+    return idx < 0 ? href : href.substring(0, idx);
   }
 
   static ParsedEpubChapter? _parseChapter(

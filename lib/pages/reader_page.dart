@@ -966,9 +966,11 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
       final book = ref.read(bookshelfNotifierProvider).book;
       if (book != null && activeBookId != null) {
+        final clampedIdx = currentBookState.currentChapter
+            .clamp(0, book.chapters.length - 1);
         _captureAnchorForReflow(
-          chapterIndex: currentBookState.currentChapter,
-          blocks: book.chapters[currentBookState.currentChapter].blocks,
+          chapterIndex: clampedIdx,
+          blocks: book.chapters[clampedIdx].blocks,
         );
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || !_scrollController.hasClients) return;
@@ -996,12 +998,14 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     }
     final result = currentBookNotifier.result;
 
+    final chapterIndex = currentBookNotifier.hasBook &&
+            currentBookNotifier.chapterCount > 0
+        ? currentBookState.currentChapter
+              .clamp(0, currentBookNotifier.chapterCount - 1)
+        : 0;
     final blocks =
         currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 0
-        ? currentBookNotifier
-              .book!
-              .chapters[currentBookState.currentChapter]
-              .blocks
+        ? currentBookNotifier.book!.chapters[chapterIndex].blocks
         : const <ContentBlock>[];
     final paragraphs = result != null && blocks.isEmpty
         ? _paragraphsFor(result, currentBookState, currentBookNotifier)
@@ -1009,10 +1013,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final theme = Theme.of(context);
     final chapterTitle =
         currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 0
-        ? currentBookNotifier
-              .book!
-              .chapters[currentBookState.currentChapter]
-              .title
+        ? currentBookNotifier.book!.chapters[chapterIndex].title
         : (result?.title ?? '当前位置');
     final colorSettings = settings.colors;
     final search = ref.watch(readingSearchNotifierProvider);
