@@ -9,6 +9,7 @@ import '../../models/book.dart';
 import '../../models/book_difficulty.dart';
 import '../../models/book_metadata.dart';
 import '../../services/app_logger.dart';
+import '../../services/book_service.dart';
 import '../../services/epub_import_source.dart';
 import '../../services/epub_parse_worker.dart';
 import 'package:flow_language/flow_language.dart';
@@ -180,12 +181,26 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
   Timer? _importCancelTimer;
   EpubParseTask? _activeImportParseTask;
 
+  int _buildGeneration = 0;
+
   @override
   BookshelfState build() {
-    final bookService = ref.read(bookServiceProvider);
-    return BookshelfState(
-      books: bookService.books,
-    );
+    final bookService = ref.watch(bookServiceProvider);
+    final books = bookService.books;
+    final generation = ++_buildGeneration;
+    if (books.isEmpty) {
+      _loadBooksAsync(bookService, generation);
+    }
+    return BookshelfState(books: books);
+  }
+
+  Future<void> _loadBooksAsync(BookService bookService, int generation) async {
+    await bookService.init();
+    if (_buildGeneration != generation) return;
+    final books = bookService.books;
+    if (books.isNotEmpty) {
+      state = state.copyWith(books: books);
+    }
   }
 
   Future<void> reloadBooks() async {
