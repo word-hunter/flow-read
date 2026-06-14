@@ -14,6 +14,8 @@ import 'ai_notifier.dart';
 import 'bookshelf_notifier.dart';
 import 'reading_search_notifier.dart';
 import 'services_provider.dart';
+import 'text_selection_notifier.dart';
+import 'word_lookup_notifier.dart';
 
 const double _readingProgressUpdateTolerance = 0.0005;
 const double _readingScrollOffsetUpdateTolerance = 0.5;
@@ -195,6 +197,10 @@ class CurrentBookNotifier extends Notifier<CurrentBookState> {
     await _saveCurrentProgress();
     if (!ref.mounted) return;
     state = state.copyWith(isReading: false);
+    ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
+    ref.read(readingSearchNotifierProvider.notifier).clearSearch();
+    ref.read(textSelectionNotifierProvider.notifier).clearSelectedText();
+    ref.read(aiNotifierProvider.notifier).clearAIResults();
   }
 
   void switchTab(int index) {
