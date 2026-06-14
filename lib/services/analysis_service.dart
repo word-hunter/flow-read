@@ -44,8 +44,8 @@ class AnalysisService {
       wordLevelService,
       lm,
     );
-    final knownWords = _extractKnownWords(canonicalWords, userVocab);
-    final learningWords = _extractLearningWords(canonicalWords, userVocab);
+    final knownWords = _extractKnownWords(canonicalWords, userVocab, lm);
+    final learningWords = _extractLearningWords(canonicalWords, userVocab, lm);
     final syntaxPatterns = _analyzeSyntax(sentences, lm);
     final comprehension = _buildComprehension(
       sentences,
@@ -167,7 +167,8 @@ class AnalysisService {
     }
 
     bool isStudyWord(String word) {
-      if (word.length < AppConstants.minWordLength) return false;
+      final minLen = lm.languageCode == 'en' ? AppConstants.minWordLength : 1;
+      if (word.length < minLen) return false;
       if (lm.isCommonWord(word, maxLength: 6)) return false;
       return true;
     }
@@ -284,13 +285,15 @@ class AnalysisService {
   }
 
   static Set<String> _extractKnownWords(
-    List<String> canonicalWords, [
+    List<String> canonicalWords,
     UserVocabularyService? userVocab,
-  ]) {
+    LanguageModule lm,
+  ) {
     if (userVocab == null) return {};
+    final minLen = lm.languageCode == 'en' ? AppConstants.minWordLength : 1;
     final seen = <String>{};
     for (final w in canonicalWords) {
-      if (w.length < AppConstants.minWordLength) continue;
+      if (w.length < minLen) continue;
       if (seen.contains(w)) continue;
       if (userVocab.isKnown(w)) {
         seen.add(w);
@@ -300,13 +303,15 @@ class AnalysisService {
   }
 
   static Set<String> _extractLearningWords(
-    List<String> canonicalWords, [
+    List<String> canonicalWords,
     UserVocabularyService? userVocab,
-  ]) {
+    LanguageModule lm,
+  ) {
     if (userVocab == null) return {};
+    final minLen = lm.languageCode == 'en' ? AppConstants.minWordLength : 1;
     final seen = <String>{};
     for (final w in canonicalWords) {
-      if (w.length < AppConstants.minWordLength) continue;
+      if (w.length < minLen) continue;
       if (seen.contains(w)) continue;
       if (userVocab.isLearning(w)) {
         seen.add(w);
@@ -334,12 +339,17 @@ class AnalysisService {
   }
 
   static bool _isStudyWord(String word, LanguageModule lm) {
-    if (word.length < AppConstants.minWordLength) return false;
+    final minLen = lm.languageCode == 'en' ? AppConstants.minWordLength : 1;
+    if (word.length < minLen) return false;
     if (lm.isCommonWord(word, maxLength: 6)) return false;
     return true;
   }
 
   static String _generateSimpleMeaning(String word, LanguageModule lm) {
+    if (lm.languageCode != 'en') {
+      return '点击查看释义';
+    }
+
     if (word.endsWith('ing') && word.length > 6) {
       final base = word.substring(0, word.length - 3);
       if (base.endsWith('nn')) {

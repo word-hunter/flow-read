@@ -114,7 +114,7 @@ class JapaneseLanguageModule implements LanguageModule {
   }
 
   @override
-  String? get dictionaryAssetPath => null;
+  String? get dictionaryAssetPath => 'assets/dict/ja-dict.txt';
 
   @override
   List<String> get supportedLevelKeys =>
