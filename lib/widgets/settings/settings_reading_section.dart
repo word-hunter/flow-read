@@ -39,13 +39,6 @@ class SettingsReadingSection extends StatelessWidget {
                 ),
               )
               .toList();
-    final selectedLanguage =
-        languageOptions.any(
-          (option) => option.code == settings.activeSourceLanguage,
-        )
-        ? settings.activeSourceLanguage
-        : 'en';
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -120,25 +113,7 @@ class SettingsReadingSection extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        SettingsCard(
-          icon: Icons.translate_outlined,
-          title: '内容语言',
-          child: SegmentedButton<String>(
-            segments: [
-              for (final option in languageOptions)
-                ButtonSegment<String>(
-                  value: option.code,
-                  label: Text(option.name),
-                ),
-            ],
-            selected: {selectedLanguage},
-            onSelectionChanged: (value) {
-              if (value.isEmpty) return;
-              settings.setActiveSourceLanguage(value.first);
-            },
-          ),
-        ),
+
         if (activeBookMetadata != null) ...[
           const SizedBox(height: 16),
           _BookLanguageSection(

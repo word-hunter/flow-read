@@ -12,6 +12,7 @@ import '../../services/app_logger.dart';
 import '../../services/epub_import_source.dart';
 import '../../services/epub_parse_worker.dart';
 import 'package:flow_language/flow_language.dart';
+import '../settings_provider.dart';
 import 'current_book_notifier.dart';
 import 'services_provider.dart';
 import 'vocabulary_notifier.dart';
@@ -185,6 +186,12 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     return BookshelfState(
       books: bookService.books,
     );
+  }
+
+  Future<void> reloadBooks() async {
+    final bookService = ref.read(bookServiceProvider);
+    await bookService.init();
+    state = state.copyWith(books: bookService.books);
   }
 
   // ---- Book Management ----
@@ -385,10 +392,12 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
         );
       }
 
-      final sourceLanguage = LanguageRegistry.normalizeLanguageCode(
+      final detectedLanguage = LanguageRegistry.normalizeLanguageCode(
         book.language,
       );
-      final languageConfidence = sourceLanguage == null ? null : 0.9;
+      final sourceLanguage = detectedLanguage ??
+          ref.read(settingsProvider).activeSourceLanguage;
+      final languageConfidence = detectedLanguage == null ? null : 0.9;
 
       final metadata = restoredMeta == null
           ? BookMetadata(
@@ -408,7 +417,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
               sourcePath: copiedPath,
               coverPath: coverPath ?? restoredMeta.coverPath,
               totalChapters: book.chapters.length,
-              sourceLanguage: sourceLanguage ?? restoredMeta.sourceLanguage,
+              sourceLanguage: detectedLanguage ?? restoredMeta.sourceLanguage ?? sourceLanguage,
               languageConfidence:
                   languageConfidence ?? restoredMeta.languageConfidence,
               currentChapter: _clampChapterIndex(

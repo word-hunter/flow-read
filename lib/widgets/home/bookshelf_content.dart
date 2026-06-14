@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flow_language/flow_language.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
@@ -11,6 +12,7 @@ import '../../providers/reading/reading_time_notifier.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/epub_import_source.dart';
+import '../../services/settings_service.dart';
 import '../../theme/city_theme_tokens.dart';
 import '../flow/flow_components.dart';
 import 'book_shelf_row.dart';
@@ -73,11 +75,23 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     );
 
     if (allBooks.isEmpty) {
-      return _buildEmptyState(
-        context,
-        bookshelfState,
-        bookshelfNotifier,
-        theme,
+      return Column(
+        children: [
+          _buildBookshelfHeader(
+            theme,
+            bookshelfNotifier,
+            bookCount: 0,
+            isDifficultyLoading: false,
+          ),
+          Expanded(
+            child: _buildEmptyState(
+              context,
+              bookshelfState,
+              bookshelfNotifier,
+              theme,
+            ),
+          ),
+        ],
       );
     }
 
@@ -409,6 +423,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     required bool isDifficultyLoading,
   }) {
     final city = Theme.of(context).extension<CityThemeTokens>();
+    final settings = ref.read(settingsProvider);
     final countText = '$bookCount 本${isDifficultyLoading ? ' · 计算中' : ''}';
     final titleGroup = Row(
       mainAxisSize: MainAxisSize.min,
@@ -426,6 +441,11 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
           style: theme.textTheme.titleMedium?.copyWith(
             color: city?.textSecondary ?? theme.colorScheme.onSurfaceVariant,
           ),
+        ),
+        const SizedBox(width: 12),
+        _BookshelfLanguageSwitcher(
+          settings: settings,
+          onChanged: () => ref.read(bookshelfNotifierProvider.notifier).reloadBooks(),
         ),
       ],
     );
@@ -755,5 +775,104 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     }
 
     await notifier.importBookFromSource(source);
+  }
+}
+
+class _BookshelfLanguageSwitcher extends StatelessWidget {
+  const _BookshelfLanguageSwitcher({
+    required this.settings,
+    this.onChanged,
+  });
+
+  final SettingsService settings;
+  final VoidCallback? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final modules = LanguageRegistry.instance.modules;
+    if (modules.length <= 1) return const SizedBox.shrink();
+
+    final active = settings.activeSourceLanguage;
+    final activeModule = modules.firstWhere(
+      (m) => m.languageCode == active,
+      orElse: () => modules.first,
+    );
+
+    return FlowMenuButton<String>(
+      tooltip: '切换书架语言',
+      entries: [
+        for (final module in modules)
+          FlowMenuItem<String>(
+            value: module.languageCode,
+            label: module.languageName,
+            icon: Icons.translate_outlined,
+            selected: module.languageCode == active,
+          ),
+      ],
+      onSelected: (code) {
+        settings.setActiveSourceLanguage(code);
+        onChanged?.call();
+      },
+      builder: (context, isOpen, toggle) {
+        return _LanguageSwitcherTrigger(
+          label: activeModule.languageCode.toUpperCase(),
+          isOpen: isOpen,
+          onTap: toggle,
+        );
+      },
+    );
+  }
+}
+
+class _LanguageSwitcherTrigger extends StatefulWidget {
+  const _LanguageSwitcherTrigger({
+    required this.label,
+    required this.isOpen,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isOpen;
+  final VoidCallback onTap;
+
+  @override
+  State<_LanguageSwitcherTrigger> createState() =>
+      _LanguageSwitcherTriggerState();
+}
+
+class _LanguageSwitcherTriggerState extends State<_LanguageSwitcherTrigger> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isActive = widget.isOpen || _hovering;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: isActive
+                ? colorScheme.primary.withValues(alpha: 0.10)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            widget.label,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: colorScheme.primary,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

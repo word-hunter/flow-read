@@ -1,4 +1,5 @@
 import 'english/english.dart';
+import 'japanese/japanese.dart';
 import 'language_module.dart';
 
 class LanguageRegistry {
@@ -13,6 +14,7 @@ class LanguageRegistry {
     if (_initialized) return;
     _initialized = true;
     _modules['en'] = const EnglishLanguageModule();
+    _modules['ja'] = const JapaneseLanguageModule();
   }
 
   void register(LanguageModule module) {

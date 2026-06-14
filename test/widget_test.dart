@@ -57,7 +57,6 @@ void main() {
     expect(find.text('每日目标'), findsOneWidget);
     expect(find.text('每日 1 小时'), findsOneWidget);
     expect(find.text('周目标 6 小时'), findsOneWidget);
-    expect(find.text('内容语言'), findsOneWidget);
 
     await tester.tap(find.text('词典').first);
     await tester.pump(const Duration(milliseconds: 250));

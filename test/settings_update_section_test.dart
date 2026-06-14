@@ -43,7 +43,7 @@ void main() {
 
     expect(find.text('当前书籍语言'), findsOneWidget);
     expect(find.textContaining('自动检测：English'), findsOneWidget);
-    expect(find.text('当前覆盖：JA'), findsOneWidget);
+    expect(find.text('当前覆盖：日本語'), findsOneWidget);
     expect(find.text('恢复自动检测'), findsOneWidget);
 
     await tester.ensureVisible(find.text('恢复自动检测'));

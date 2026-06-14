@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flow_language/flow_language.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
@@ -68,6 +69,10 @@ class _NarrowBookshelf extends riverpod.ConsumerWidget {
         ),
         centerTitle: false,
         actions: [
+          _LanguageSwitcher(
+            settings: settings,
+            onChanged: () => bookshelfNotifier.reloadBooks(),
+          ),
           IconButton(
             icon: const Icon(Icons.info_outline),
             tooltip: 'About',
@@ -125,6 +130,10 @@ class _WideBookshelfState extends riverpod.ConsumerState<_WideBookshelf> {
         ),
         centerTitle: false,
         actions: [
+          _LanguageSwitcher(
+            settings: settings,
+            onChanged: () => bookshelfNotifier.reloadBooks(),
+          ),
           if (books.isNotEmpty)
             IconButton(
               icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
@@ -821,5 +830,104 @@ Future<void> _openAboutLink(BuildContext context, Uri uri) async {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _LanguageSwitcher extends StatelessWidget {
+  const _LanguageSwitcher({
+    required this.settings,
+    this.onChanged,
+  });
+
+  final SettingsService settings;
+  final VoidCallback? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final modules = LanguageRegistry.instance.modules;
+    if (modules.length <= 1) return const SizedBox.shrink();
+
+    final active = settings.activeSourceLanguage;
+    final activeModule = modules.firstWhere(
+      (m) => m.languageCode == active,
+      orElse: () => modules.first,
+    );
+
+    return FlowMenuButton<String>(
+      tooltip: '切换书架语言',
+      entries: [
+        for (final module in modules)
+          FlowMenuItem<String>(
+            value: module.languageCode,
+            label: module.languageName,
+            icon: Icons.translate_outlined,
+            selected: module.languageCode == active,
+          ),
+      ],
+      onSelected: (code) {
+        settings.setActiveSourceLanguage(code);
+        onChanged?.call();
+      },
+      builder: (context, isOpen, toggle) {
+        return _LanguageSwitcherTrigger(
+          label: activeModule.languageCode.toUpperCase(),
+          isOpen: isOpen,
+          onTap: toggle,
+        );
+      },
+    );
+  }
+}
+
+class _LanguageSwitcherTrigger extends StatefulWidget {
+  const _LanguageSwitcherTrigger({
+    required this.label,
+    required this.isOpen,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isOpen;
+  final VoidCallback onTap;
+
+  @override
+  State<_LanguageSwitcherTrigger> createState() =>
+      _LanguageSwitcherTriggerState();
+}
+
+class _LanguageSwitcherTriggerState extends State<_LanguageSwitcherTrigger> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isActive = widget.isOpen || _hovering;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: isActive
+                ? colorScheme.primary.withValues(alpha: 0.10)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            widget.label,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: colorScheme.primary,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

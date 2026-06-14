@@ -136,8 +136,9 @@ class AnalysisService {
     WordLevelService? wordLevelService,
   ]) async {
     final originMap = wordLevelService?.originMap ?? const {};
-    final languageCode =
-        LanguageRegistry.instance.defaultModule?.languageCode ?? 'en';
+    final languageCode = LanguageRegistry.normalizeLanguageCode(book.language) ??
+        LanguageRegistry.instance.defaultModule?.languageCode ??
+        'en';
     final chapterTexts = book.chapters
         .map((chapter) => chapter.plainText)
         .toList(growable: false);
