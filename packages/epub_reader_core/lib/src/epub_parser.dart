@@ -642,34 +642,167 @@ class EpubParser {
     return entries;
   }
 
+  static final _noterefTextPattern = RegExp(
+    r'^\s*[\[\(〚（]?\d+[\]\)〛）]?\s*$'
+    r'|^\s*[¹²³⁴⁵⁶⁷⁸⁹⁰]+\s*$'
+    r'|^\s*[*†‡§‖¶]\s*$',
+  );
+
+  static bool _isNoterefAnchor(dom.Element a, {bool inSup = false}) {
+    final type = a.attributes['type'] ?? '';
+    if (type == 'noteref') return true;
+    final epubType = a.attributes['epub:type'] ?? '';
+    if (epubType.contains('noteref')) return true;
+    final role = a.attributes['role'] ?? '';
+    if (role.contains('doc-noteref')) return true;
+    final href = a.attributes['href'] ?? '';
+    if (!href.contains('#')) return false;
+    if (inSup) return true;
+    if (a.parent?.localName == 'sup') return true;
+    final text = a.text.trim();
+    if (text.isEmpty) return false;
+    return _noterefTextPattern.hasMatch(text);
+  }
+
+  static bool _isFootnoteContainer(dom.Element el) {
+    final epubType = el.attributes['epub:type'] ?? '';
+    if (epubType.contains('footnote') ||
+        epubType.contains('endnote') ||
+        epubType.contains('rearnote')) {
+      return true;
+    }
+    final role = el.attributes['role'] ?? '';
+    if (role.contains('doc-footnote') || role.contains('doc-endnote')) {
+      return true;
+    }
+    return false;
+  }
+
+  static dom.Element? _findNoteContainer(dom.Element target) {
+    const containerTags = {'aside', 'li', 'p', 'div', 'section'};
+    dom.Element? current = target;
+    while (current != null) {
+      final tag = current.localName?.toLowerCase() ?? '';
+      if (containerTags.contains(tag)) return current;
+      current = current.parent;
+    }
+    return target;
+  }
+
+  static bool _hasBacklink(dom.Element container, String sourceId) {
+    if (sourceId.isEmpty) return false;
+    for (final a in container.querySelectorAll('a[href]')) {
+      final href = a.attributes['href'] ?? '';
+      final fragment = href.contains('#')
+          ? href.substring(href.indexOf('#') + 1)
+          : '';
+      if (fragment == sourceId) return true;
+    }
+    return false;
+  }
+
+  static bool _isInFootnoteSection(dom.Element el) {
+    dom.Element? current = el.parent;
+    while (current != null) {
+      final epubType = current.attributes['epub:type'] ?? '';
+      if (epubType.contains('footnote') ||
+          epubType.contains('endnote') ||
+          epubType.contains('rearnote')) {
+        return true;
+      }
+      final role = current.attributes['role'] ?? '';
+      if (role.contains('doc-footnote') || role.contains('doc-endnote')) {
+        return true;
+      }
+      final tag = current.localName?.toLowerCase() ?? '';
+      if (tag == 'body' || tag == 'html') break;
+      current = current.parent;
+    }
+    return false;
+  }
+
+  static String _extractNoteText(dom.Element container) {
+    final clone = container.clone(true);
+    for (final a in clone.querySelectorAll('a[href]')) {
+      final href = a.attributes['href'] ?? '';
+      if (href.contains('#')) {
+        final text = a.text.trim();
+        if (text.isEmpty ||
+            _noterefTextPattern.hasMatch(text) ||
+            text == '↩' ||
+            text == '↩️' ||
+            text == '⬆' ||
+            text == '↑') {
+          a.remove();
+        }
+      }
+    }
+    final text = clone.text.trim();
+    return text
+        .replaceFirst(RegExp(r'^[\[\(〚（]?\d+[\]\)〛）]?[.\s:：]*'), '')
+        .replaceFirst(RegExp(r'^[¹²³⁴⁵⁶⁷⁸⁹⁰]+[.\s:：]*'), '')
+        .trim();
+  }
+
   static Map<String, String> _extractFootnotes(
     _EpubArchive archive,
     List<({String idref, String href, String mediaType})> spineItems,
     String opfDir,
   ) {
     final footnoteMap = <String, String>{};
+    final idIndex = <String, dom.Element>{};
+    final parsedDocs = <String, dom.Document>{};
+    final fileHrefs = <String>[];
+
     for (final entry in spineItems) {
-      final href = '$opfDir${entry.href}';
-      final html = _readFile(archive, href);
-      if (html == null ||
-          !(html.contains('rearnote') || html.contains('noteref'))) {
-        continue;
-      }
+      final fullHref = '$opfDir${entry.href}';
+      final html = _readFile(archive, fullHref);
+      if (html == null) continue;
       final doc = html_parser.parse(html);
-      for (final aside in doc.querySelectorAll('aside[type="rearnote"]')) {
-        final id = aside.attributes['id'];
-        if (id == null) {
-          continue;
-        }
-        final fullText = aside.text.trim();
-        final cleanedText = fullText
-            .replaceFirst(RegExp(r'^\[\d+\]\s*'), '')
-            .trim();
-        if (cleanedText.isNotEmpty) {
-          footnoteMap[id] = cleanedText;
+      parsedDocs[fullHref] = doc;
+      fileHrefs.add(fullHref);
+      for (final el in doc.querySelectorAll('[id]')) {
+        final id = el.attributes['id'];
+        if (id != null && id.isNotEmpty) {
+          idIndex[id] = el;
         }
       }
     }
+
+    for (final fileHref in fileHrefs) {
+      final doc = parsedDocs[fileHref]!;
+
+      for (final a in doc.querySelectorAll('a[href]')) {
+        final href = a.attributes['href'] ?? '';
+        if (!href.contains('#')) continue;
+        if (!_isNoterefAnchor(a)) continue;
+
+        final fragment = href.substring(href.indexOf('#') + 1);
+        if (fragment.isEmpty) continue;
+        if (footnoteMap.containsKey(fragment)) continue;
+
+        final targetEl = idIndex[fragment];
+        if (targetEl == null) continue;
+
+        final container = _findNoteContainer(targetEl);
+        if (container == null) continue;
+
+        final sourceId = a.attributes['id'] ??
+            a.parent?.attributes['id'] ?? '';
+
+        final isFootnote = _isFootnoteContainer(container) ||
+            _hasBacklink(container, sourceId) ||
+            _isInFootnoteSection(container);
+
+        if (!isFootnote) continue;
+
+        final noteText = _extractNoteText(container);
+        if (noteText.isNotEmpty) {
+          footnoteMap[fragment] = noteText;
+        }
+      }
+    }
+
     return footnoteMap;
   }
 
@@ -1646,7 +1779,12 @@ class EpubParser {
       spans = [];
     }
 
-    void visit(_XNode node, InlineStyle inlineStyle, {String? footnoteTarget}) {
+    void visit(
+      _XNode node,
+      InlineStyle inlineStyle, {
+      String? footnoteTarget,
+      bool inSup = false,
+    }) {
       switch (node) {
         case _XText(:final text):
           if (text.isNotEmpty) {
@@ -1659,7 +1797,7 @@ class EpubParser {
           if (_shouldSkipFastElement(node)) return;
           final tag = node.tag;
 
-          if (tag == 'a' && node.attributes['type'] == 'noteref') {
+          if (tag == 'a' && _isFastNoterefAnchor(node, inSup: inSup)) {
             final href = node.attributes['href'] ?? '';
             final fnTarget = href.contains('#')
                 ? href.substring(href.indexOf('#') + 1)
@@ -1716,6 +1854,7 @@ class EpubParser {
           var childStyle = inlineStyle.merge(
             css.declarationForFast(node).inlineStyle,
           );
+          final isSup = tag == 'sup';
           if (tag == 'b' || tag == 'strong') {
             childStyle = childStyle.merge(const InlineStyle(bold: true));
           } else if (tag == 'i' || tag == 'em' || tag == 'cite') {
@@ -1723,7 +1862,12 @@ class EpubParser {
           }
 
           for (final child in node.children) {
-            visit(child, childStyle, footnoteTarget: footnoteTarget);
+            visit(
+              child,
+              childStyle,
+              footnoteTarget: footnoteTarget,
+              inSup: inSup || isSup,
+            );
           }
       }
     }
@@ -1732,6 +1876,21 @@ class EpubParser {
       visit(node, InlineStyle.normal);
     }
     flushParsedTextBlock();
+  }
+
+  static bool _isFastNoterefAnchor(_XElement a, {bool inSup = false}) {
+    final type = a.attributes['type'] ?? '';
+    if (type == 'noteref') return true;
+    final epubType = a.attributes['epub:type'] ?? '';
+    if (epubType.contains('noteref')) return true;
+    final role = a.attributes['role'] ?? '';
+    if (role.contains('doc-noteref')) return true;
+    final href = a.attributes['href'] ?? '';
+    if (!href.contains('#')) return false;
+    if (inSup) return true;
+    final text = a.text.trim();
+    if (text.isEmpty) return false;
+    return _noterefTextPattern.hasMatch(text);
   }
 
   static bool _shouldSkipFastElement(_XElement element) {
@@ -2315,6 +2474,7 @@ class EpubParser {
       dom.Node node,
       InlineStyle inlineStyle, {
       String? footnoteTarget,
+      bool inSup = false,
     }) {
       if (node is dom.Text) {
         if (node.text.isNotEmpty) {
@@ -2330,7 +2490,7 @@ class EpubParser {
 
       final tag = node.localName?.toLowerCase() ?? '';
 
-      if (tag == 'a' && node.attributes['type'] == 'noteref') {
+      if (tag == 'a' && _isNoterefAnchor(node, inSup: inSup)) {
         final href = node.attributes['href'] ?? '';
         final fnTarget = href.contains('#')
             ? href.substring(href.indexOf('#') + 1)
@@ -2385,6 +2545,7 @@ class EpubParser {
       }
 
       var childStyle = inlineStyle.merge(css.declarationFor(node).inlineStyle);
+      final isSup = tag == 'sup';
       if (tag == 'b' || tag == 'strong') {
         childStyle = childStyle.merge(const InlineStyle(bold: true));
       } else if (tag == 'i' || tag == 'em' || tag == 'cite') {
@@ -2392,7 +2553,12 @@ class EpubParser {
       }
 
       for (final child in node.nodes) {
-        visit(child, childStyle, footnoteTarget: footnoteTarget);
+        visit(
+          child,
+          childStyle,
+          footnoteTarget: footnoteTarget,
+          inSup: inSup || isSup,
+        );
       }
     }
 
