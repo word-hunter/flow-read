@@ -236,6 +236,7 @@ class SettingsService extends ChangeNotifier {
       _load();
       await _writeDictionarySources(_dictionarySources);
       _initialized = true;
+      notifyListeners();
     } catch (_) {
       _initFuture = null;
       rethrow;

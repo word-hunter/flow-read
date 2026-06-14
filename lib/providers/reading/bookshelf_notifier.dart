@@ -186,21 +186,19 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
   @override
   BookshelfState build() {
     final bookService = ref.watch(bookServiceProvider);
-    final books = bookService.books;
     final generation = ++_buildGeneration;
-    if (books.isEmpty) {
-      _loadBooksAsync(bookService, generation);
-    }
-    return BookshelfState(books: books);
+    _ensureInitialized(bookService, generation);
+    return BookshelfState(books: bookService.books);
   }
 
-  Future<void> _loadBooksAsync(BookService bookService, int generation) async {
-    await bookService.init();
-    if (_buildGeneration != generation) return;
-    final books = bookService.books;
-    if (books.isNotEmpty) {
-      state = state.copyWith(books: books);
+  Future<void> _ensureInitialized(BookService bookService, int gen) async {
+    try {
+      await bookService.init();
+    } catch (_) {
+      return;
     }
+    if (_buildGeneration != gen) return;
+    state = state.copyWith(books: bookService.books);
   }
 
   Future<void> reloadBooks() async {
