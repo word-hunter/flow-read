@@ -8,6 +8,7 @@ export 'src/dictionary_repository.dart';
 export 'src/dictionary_source_config.dart';
 export 'src/dictionary_source_registry.dart';
 export 'src/dictionary_source_test_service.dart';
+export 'src/jpdb_repository.dart';
 export 'src/longman_repository.dart';
 export 'src/visual_definition.dart';
 export 'src/visual_dictionary_service.dart';

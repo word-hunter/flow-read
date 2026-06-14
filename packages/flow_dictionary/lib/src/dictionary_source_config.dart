@@ -2,7 +2,8 @@ enum DictionarySourceType {
   wordNet('wordnet', 'WordNet', false),
   dictionaryApi('dictionaryapi', 'Dictionary API', true),
   collins('collins', 'Collins', true),
-  longman('longman', 'Longman', true);
+  longman('longman', 'Longman', true),
+  jpdb('jpdb', 'JPDB', true);
 
   const DictionarySourceType(this.id, this.label, this.online);
 
@@ -55,6 +56,12 @@ class DictionarySourceConfig {
       priority: 3,
       supportedLanguages: {'en'},
     ),
+    DictionarySourceConfig(
+      type: DictionarySourceType.jpdb,
+      enabled: true,
+      priority: 4,
+      supportedLanguages: {'ja'},
+    ),
   ];
 
   static final legacyWordNetFirstDefaults = <DictionarySourceConfig>[
@@ -80,6 +87,12 @@ class DictionarySourceConfig {
       enabled: true,
       priority: 3,
       supportedLanguages: {'en'},
+    ),
+    DictionarySourceConfig(
+      type: DictionarySourceType.jpdb,
+      enabled: true,
+      priority: 4,
+      supportedLanguages: {'ja'},
     ),
   ];
 
@@ -192,6 +205,7 @@ class DictionarySourceConfig {
       DictionarySourceType.collins ||
       DictionarySourceType.wordNet ||
       DictionarySourceType.longman => const {'en'},
+      DictionarySourceType.jpdb => const {'ja'},
       DictionarySourceType.dictionaryApi => null,
     };
   }

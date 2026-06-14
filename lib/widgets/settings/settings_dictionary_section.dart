@@ -379,6 +379,8 @@ class _DictionarySourceTile extends StatelessWidget {
         return Icons.language_outlined;
       case DictionarySourceType.longman:
         return Icons.school_outlined;
+      case DictionarySourceType.jpdb:
+        return Icons.translate_outlined;
     }
   }
 

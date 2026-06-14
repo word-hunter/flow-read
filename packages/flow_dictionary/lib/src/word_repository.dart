@@ -6,6 +6,7 @@ class DictionaryEntry {
   final List<Meaning> meanings;
   final String? sourceName;
   final String? sourceUrl;
+  final String? audioUrl;
   final String? htmlContent;
   final bool fromCache;
   final String? errorMessage;
@@ -17,6 +18,7 @@ class DictionaryEntry {
     required this.meanings,
     this.sourceName,
     this.sourceUrl,
+    this.audioUrl,
     this.htmlContent,
     this.fromCache = false,
     this.errorMessage,
@@ -32,6 +34,7 @@ class DictionaryEntry {
     List<Meaning>? meanings,
     String? sourceName,
     String? sourceUrl,
+    String? audioUrl,
     String? htmlContent,
     bool? fromCache,
     String? errorMessage,
@@ -43,6 +46,7 @@ class DictionaryEntry {
       meanings: meanings ?? this.meanings,
       sourceName: sourceName ?? this.sourceName,
       sourceUrl: sourceUrl ?? this.sourceUrl,
+      audioUrl: audioUrl ?? this.audioUrl,
       htmlContent: htmlContent ?? this.htmlContent,
       fromCache: fromCache ?? this.fromCache,
       errorMessage: errorMessage ?? this.errorMessage,

@@ -3,6 +3,7 @@ import 'dictionary_cache_service.dart';
 import 'dictionary_manager_service.dart';
 import 'dictionary_repository.dart';
 import 'dictionary_source_config.dart';
+import 'jpdb_repository.dart';
 import 'longman_repository.dart';
 import 'word_repository.dart';
 import 'wordnet_repository.dart';
@@ -37,6 +38,10 @@ class DictionarySourceRegistry {
       _DictionarySourceRegistration(
         type: DictionarySourceType.longman,
         createRepository: (cache) => LongmanRepository(cache),
+      ),
+      _DictionarySourceRegistration(
+        type: DictionarySourceType.jpdb,
+        createRepository: (cache) => JpdbRepository(cache),
       ),
     ],
   );

@@ -266,7 +266,12 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
 
   Future<void> speakWord(String word) async {
     final pronunciation = ref.read(pronunciationServiceProvider);
-    await pronunciation.speakWord(word);
+    final result = state.selectedWordLookupResult;
+    await pronunciation.speakWord(
+      word,
+      audioUrl: result?.entry?.audioUrl,
+      languageCode: result?.request.languageCode ?? 'en',
+    );
   }
 
   void setAIWordAnalysis(WordAnalysis? analysis) {
