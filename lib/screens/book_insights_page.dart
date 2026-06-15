@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flow_ai/flow_ai.dart';
 
+import '../models/book_glossary_entry.dart';
 import '../providers/book_insight_provider.dart';
 import 'package:flow_design_system/flow_design_system.dart';
 import '../widgets/flow/flow_components.dart';
@@ -31,7 +32,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     if (!_requestedLoad) {
       _requestedLoad = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -94,6 +95,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
           tabs: const [
             Tab(text: '故事线'),
             Tab(text: '人物'),
+            Tab(text: '术语'),
             Tab(text: '章节'),
           ],
         ),
@@ -109,6 +111,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
               children: [
                 _buildStoryline(theme, provider),
                 _buildCharacters(theme, provider),
+                _buildGlossary(theme, provider),
                 _buildChapterList(theme, provider),
               ],
             ),
@@ -374,6 +377,102 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlossary(ThemeData theme, BookInsightProvider provider) {
+    final entries = provider.glossaryEntries;
+    if (entries.isEmpty) {
+      return _buildEmptyTab(theme, '暂无本书术语');
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (provider.coverage != null) _buildCoverageBar(theme, provider),
+        const SizedBox(height: 12),
+        ...entries.map((entry) => _buildGlossaryCard(theme, entry)),
+      ],
+    );
+  }
+
+  Widget _buildGlossaryCard(ThemeData theme, BookGlossaryEntry entry) {
+    final canonical = entry.canonicalForm?.trim();
+    final context = entry.sourceContext?.trim();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 15,
+                  backgroundColor: theme.colorScheme.tertiaryContainer,
+                  child: Icon(
+                    Icons.local_offer_outlined,
+                    size: 15,
+                    color: theme.colorScheme.onTertiaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.word,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (canonical != null &&
+                          canonical.isNotEmpty &&
+                          canonical.toLowerCase() !=
+                              entry.word.toLowerCase()) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          canonical,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(entry.explanation, style: theme.textTheme.bodyMedium),
+            if (context != null && context.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.45,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '"$context"',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

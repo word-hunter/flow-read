@@ -447,6 +447,7 @@ final bookGlossaryDaoProvider = Provider<BookGlossaryDao>((ref) {
 final bookInsightProvider = ChangeNotifierProvider<BookInsightProvider>((ref) {
   final provider = BookInsightProvider(
     cacheService: ref.watch(aiCacheServiceProvider),
+    glossaryService: ref.watch(bookGlossaryServiceProvider),
   );
   ref.onDispose(() => provider.dispose());
   return provider;

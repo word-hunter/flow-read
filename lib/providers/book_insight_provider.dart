@@ -4,12 +4,18 @@ import 'package:flutter/foundation.dart';
 
 import 'package:flow_ai/flow_ai.dart';
 
+import '../models/book_glossary_entry.dart';
+import '../services/book_glossary_service.dart';
+
 class BookInsightProvider extends ChangeNotifier {
   BookInsightProvider({
     required AICacheService cacheService,
-  }) : _cacheService = cacheService;
+    BookGlossaryService? glossaryService,
+  }) : _cacheService = cacheService,
+       _glossaryService = glossaryService;
 
   final AICacheService _cacheService;
+  final BookGlossaryService? _glossaryService;
   final BookInsightAggregator _aggregator = const BookInsightAggregator();
 
   String? _bookId;
@@ -20,6 +26,7 @@ class BookInsightProvider extends ChangeNotifier {
   List<BookCharacterCard> _characterCards = const [];
   BookInsightCoverage? _coverage;
   Map<int, AISummary> _chapterSummaries = {};
+  List<BookGlossaryEntry> _glossaryEntries = const [];
   bool _isLoading = false;
   bool _showFullBook = false;
   String? _error;
@@ -28,10 +35,11 @@ class BookInsightProvider extends ChangeNotifier {
   List<BookCharacterCard> get characterCards => _characterCards;
   BookInsightCoverage? get coverage => _coverage;
   Map<int, AISummary> get chapterSummaries => _chapterSummaries;
+  List<BookGlossaryEntry> get glossaryEntries => _glossaryEntries;
   bool get isLoading => _isLoading;
   bool get showFullBook => _showFullBook;
   String? get error => _error;
-  bool get isEmpty => _chapterSummaries.isEmpty;
+  bool get isEmpty => _chapterSummaries.isEmpty && _glossaryEntries.isEmpty;
 
   int get maxChapter => _showFullBook ? _totalChapters - 1 : _currentChapter;
 
@@ -64,6 +72,7 @@ class BookInsightProvider extends ChangeNotifier {
       }
 
       _chapterSummaries = summaries;
+      _glossaryEntries = await _loadGlossary(bookId);
 
       final cachedChapters = summaries.keys.toSet();
       final readChapters = currentChapter + 1;
@@ -94,6 +103,23 @@ class BookInsightProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<List<BookGlossaryEntry>> _loadGlossary(String bookId) async {
+    final service = _glossaryService;
+    if (service == null) return const [];
+
+    final entries = await service.getBookGlossary(bookId);
+    entries.sort((a, b) {
+      final wordCompare = a.word.toLowerCase().compareTo(
+        b.word.toLowerCase(),
+      );
+      if (wordCompare != 0) return wordCompare;
+      return (a.canonicalForm ?? '').toLowerCase().compareTo(
+        (b.canonicalForm ?? '').toLowerCase(),
+      );
+    });
+    return entries;
   }
 
   void toggleShowFullBook() {
