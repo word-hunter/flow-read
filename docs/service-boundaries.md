@@ -2,7 +2,7 @@
 
 > @source lib/services/ lib/providers/ packages/flow_ai/ packages/flow_dictionary/ packages/flow_language/ packages/flow_read_atmosphere/
 
-Last updated: 2026-06-14
+Last updated: 2026-06-15
 
 ## 服务分类
 
@@ -76,6 +76,9 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 | `LearningAnalyticsService` | 查词频率分析、章节报告、周报（Drift `learning_analytics`） |
 | `ReviewScheduleService` | 间隔重复调度 |
 | `ReviewService` | 复习题目生成 |
+| `SourceScopeService` | 管理 book/rss/browser/manual 来源作用域与 tombstone（Drift `source_records`） |
+| `ReadingMemoryService` | Reading Memory 写入总入口，记录查词、词汇状态和保存解释事件 |
+| `WordMemoryService` | 聚合词汇状态、历史查词、上下文例句、保存解释和 evidence |
 
 ### 5. 语音与发音
 
@@ -116,6 +119,9 @@ ReadingProvider（总调度）
 ├── ReadingConfigService
 ├── ReadingTimeService
 ├── UserVocabularyService
+├── ReadingMemoryService
+├── SourceScopeService
+├── WordMemoryService
 ├── DictionaryManagerService
 │   ├── CollinsRepository
 │   ├── WordNetRepository

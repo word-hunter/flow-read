@@ -20,6 +20,9 @@ import '../../services/pronunciation_service.dart';
 import '../../services/reader_layout_engine.dart';
 import '../../services/reading_config_service.dart';
 import '../../services/reading_insight_service.dart';
+import '../../services/reading_memory/reading_memory_service.dart';
+import '../../services/reading_memory/source_scope_service.dart';
+import '../../services/reading_memory/word_memory_service.dart';
 import '../../services/reading_time_service.dart';
 import '../../services/review_schedule_service.dart';
 import '../../services/sentence_analyzer.dart';
@@ -34,6 +37,7 @@ import '../../storage/database/repositories/drift_character_registry_repository.
 import '../../storage/database/repositories/drift_dictionary_cache_repository.dart';
 import '../../storage/database/repositories/drift_learning_analytics_repository.dart';
 import '../../storage/database/repositories/drift_learning_item_repository.dart';
+import '../../storage/database/repositories/drift_reading_memory_repository.dart';
 import '../../storage/database/repositories/drift_reading_config_repository.dart';
 import '../../storage/database/repositories/drift_reading_time_repository.dart';
 import '../../storage/database/repositories/drift_user_vocabulary_repository.dart';
@@ -139,6 +143,50 @@ final userVocabularyServiceProvider = Provider<UserVocabularyService>((ref) {
   return service;
 });
 
+final readingMemoryServiceProvider = Provider<ReadingMemoryService>((ref) {
+  final db = _requireAppDatabase();
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = ReadingMemoryService(
+    repository: DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: languageCode,
+    ),
+    languageCode: languageCode,
+  );
+  unawaited(service.init());
+  return service;
+});
+
+final sourceScopeServiceProvider = Provider<SourceScopeService>((ref) {
+  final db = _requireAppDatabase();
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = SourceScopeService(
+    repository: DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: languageCode,
+    ),
+    languageCode: languageCode,
+  );
+  unawaited(service.init());
+  return service;
+});
+
+final wordMemoryServiceProvider = Provider<WordMemoryService>((ref) {
+  final db = _requireAppDatabase();
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = WordMemoryService(
+    repository: DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: languageCode,
+    ),
+    userVocabulary: ref.watch(userVocabularyServiceProvider),
+    wordContext: ref.watch(wordContextServiceProvider),
+    languageCode: languageCode,
+  );
+  unawaited(service.init());
+  return service;
+});
+
 final dictionarySourceRegistryProvider = Provider<DictionarySourceRegistry>((
   ref,
 ) {
@@ -185,7 +233,8 @@ final visualDictionaryServiceProvider = Provider<VisualDictionaryService>((
 final wordLevelServiceProvider = Provider<WordLevelService>((ref) {
   final db = _requireAppDatabase();
   final langCode = ref.watch(settingsProvider).activeSourceLanguage;
-  final languageModule = LanguageRegistry.instance.get(langCode) ??
+  final languageModule =
+      LanguageRegistry.instance.get(langCode) ??
       LanguageRegistry.instance.defaultModule!;
   final service = WordLevelService(
     repository: DriftWordLevelRepository(
@@ -235,7 +284,8 @@ final learningAnalyticsServiceProvider = Provider<LearningAnalyticsService>((
 ) {
   final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
-  final languageModule = LanguageRegistry.instance.get(languageCode) ??
+  final languageModule =
+      LanguageRegistry.instance.get(languageCode) ??
       LanguageRegistry.instance.defaultModule!;
   final service = LearningAnalyticsService(
     repository: DriftLearningAnalyticsRepository(
@@ -290,7 +340,8 @@ final characterRegistryProvider = Provider<CharacterRegistry>((ref) {
 
 final readingInsightServiceProvider = Provider<ReadingInsightService>((ref) {
   final langCode = ref.watch(settingsProvider).activeSourceLanguage;
-  final languageModule = LanguageRegistry.instance.get(langCode) ??
+  final languageModule =
+      LanguageRegistry.instance.get(langCode) ??
       LanguageRegistry.instance.defaultModule!;
   return ReadingInsightService(
     analytics: ref.read(learningAnalyticsServiceProvider),

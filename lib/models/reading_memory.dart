@@ -1,3 +1,6 @@
+import 'user_vocabulary.dart';
+import 'word_context_example.dart';
+
 enum SourceKind {
   book('book'),
   rss('rss'),
@@ -280,6 +283,61 @@ final class MemoryEvent {
   final String sourceRefJson;
   final String metadataJson;
   final DateTime createdAt;
+}
+
+final class MemorySourceRef {
+  const MemorySourceRef({
+    required this.sourceId,
+    required this.sourceKind,
+    required this.sourceTitleSnapshot,
+    this.bookId,
+    this.chapterIndex,
+    this.locationLocator,
+    this.sourceAvailability = SourceAvailability.available,
+  });
+
+  final String sourceId;
+  final SourceKind sourceKind;
+  final String sourceTitleSnapshot;
+  final String? bookId;
+  final int? chapterIndex;
+  final String? locationLocator;
+  final SourceAvailability sourceAvailability;
+}
+
+final class WordMemoryCard {
+  const WordMemoryCard({
+    required this.canonical,
+    required this.displayText,
+    required this.languageCode,
+    required this.lookupCount,
+    this.entity,
+    this.userStatus,
+    this.contextExamples = const [],
+    this.savedExplanations = const [],
+    this.evidences = const [],
+    this.recentEvents = const [],
+  });
+
+  final String canonical;
+  final String displayText;
+  final String languageCode;
+  final UserWordStatus? userStatus;
+  final MemoryKnowledgeEntity? entity;
+  final int lookupCount;
+  final List<WordContextExample> contextExamples;
+  final List<MemoryKnowledgeExplanation> savedExplanations;
+  final List<MemoryKnowledgeEvidence> evidences;
+  final List<MemoryEvent> recentEvents;
+
+  bool get hasPersonalMemory {
+    return userStatus != null ||
+        lookupCount > 0 ||
+        contextExamples.isNotEmpty ||
+        savedExplanations.isNotEmpty ||
+        evidences.isNotEmpty ||
+        recentEvents.isNotEmpty;
+  }
 }
 
 final class ReviewCandidate {
