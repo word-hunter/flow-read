@@ -287,8 +287,16 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   }
 
   Widget _buildCharacters(ThemeData theme, BookInsightProvider provider) {
-    final cards = provider.characterCards;
-    if (cards.isEmpty) {
+    final registryEntries = provider.characterRegistryEntries;
+    final registeredNames = registryEntries
+        .map((entry) => entry.canonicalName.toLowerCase())
+        .toSet();
+    final cards = provider.characterCards
+        .where(
+          (card) => !registeredNames.contains(card.canonicalName.toLowerCase()),
+        )
+        .toList();
+    if (registryEntries.isEmpty && cards.isEmpty) {
       return _buildEmptyTab(theme, '暂无人物数据');
     }
 
@@ -297,8 +305,92 @@ class _BookInsightsPageState extends State<BookInsightsPage>
       children: [
         if (provider.coverage != null) _buildCoverageBar(theme, provider),
         const SizedBox(height: 12),
+        ...registryEntries.map(
+          (entry) => _buildRegistryCharacterCard(theme, entry),
+        ),
         ...cards.map((card) => _buildCharacterCard(theme, card)),
       ],
+    );
+  }
+
+  Widget _buildRegistryCharacterCard(
+    ThemeData theme,
+    CharacterRegistryEntry entry,
+  ) {
+    final aliases = [...entry.aliases, ...entry.userOverrides].toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  child: Text(
+                    entry.canonicalName.isNotEmpty
+                        ? entry.canonicalName[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    entry.canonicalName,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (entry.firstAppearanceChapter != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '首次出现: 第 ${entry.firstAppearanceChapter! + 1} 章',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (aliases.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: aliases
+                    .map(
+                      (alias) => Chip(
+                        label: Text(alias),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 

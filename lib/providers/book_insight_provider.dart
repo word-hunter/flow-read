@@ -6,16 +6,20 @@ import 'package:flow_ai/flow_ai.dart';
 
 import '../models/book_glossary_entry.dart';
 import '../services/book_glossary_service.dart';
+import '../services/character_registry.dart';
 
 class BookInsightProvider extends ChangeNotifier {
   BookInsightProvider({
     required AICacheService cacheService,
     BookGlossaryService? glossaryService,
+    CharacterRegistry? characterRegistry,
   }) : _cacheService = cacheService,
-       _glossaryService = glossaryService;
+       _glossaryService = glossaryService,
+       _characterRegistry = characterRegistry;
 
   final AICacheService _cacheService;
   final BookGlossaryService? _glossaryService;
+  final CharacterRegistry? _characterRegistry;
   final BookInsightAggregator _aggregator = const BookInsightAggregator();
 
   String? _bookId;
@@ -24,6 +28,7 @@ class BookInsightProvider extends ChangeNotifier {
 
   BookStoryline? _storyline;
   List<BookCharacterCard> _characterCards = const [];
+  List<CharacterRegistryEntry> _characterRegistryEntries = const [];
   BookInsightCoverage? _coverage;
   Map<int, AISummary> _chapterSummaries = {};
   List<BookGlossaryEntry> _glossaryEntries = const [];
@@ -33,13 +38,18 @@ class BookInsightProvider extends ChangeNotifier {
 
   BookStoryline? get storyline => _storyline;
   List<BookCharacterCard> get characterCards => _characterCards;
+  List<CharacterRegistryEntry> get characterRegistryEntries =>
+      _characterRegistryEntries;
   BookInsightCoverage? get coverage => _coverage;
   Map<int, AISummary> get chapterSummaries => _chapterSummaries;
   List<BookGlossaryEntry> get glossaryEntries => _glossaryEntries;
   bool get isLoading => _isLoading;
   bool get showFullBook => _showFullBook;
   String? get error => _error;
-  bool get isEmpty => _chapterSummaries.isEmpty && _glossaryEntries.isEmpty;
+  bool get isEmpty =>
+      _chapterSummaries.isEmpty &&
+      _glossaryEntries.isEmpty &&
+      _characterRegistryEntries.isEmpty;
 
   int get maxChapter => _showFullBook ? _totalChapters - 1 : _currentChapter;
 
@@ -89,6 +99,7 @@ class BookInsightProvider extends ChangeNotifier {
         summaries,
         boundary,
       );
+      _characterRegistryEntries = await _loadCharacterRegistry(bookId);
 
       _coverage = _aggregator.buildCoverage(
         bookId,
@@ -120,6 +131,28 @@ class BookInsightProvider extends ChangeNotifier {
       );
     });
     return entries;
+  }
+
+  Future<List<CharacterRegistryEntry>> _loadCharacterRegistry(
+    String bookId,
+  ) async {
+    final registry = _characterRegistry;
+    if (registry == null) return const [];
+
+    await registry.init();
+    final entries = registry.getAll(bookId);
+    return entries
+        .where((entry) => entry.canonicalName.trim().isNotEmpty)
+        .toList()
+      ..sort((a, b) {
+        final chapterA = a.firstAppearanceChapter ?? 1 << 30;
+        final chapterB = b.firstAppearanceChapter ?? 1 << 30;
+        final chapterCompare = chapterA.compareTo(chapterB);
+        if (chapterCompare != 0) return chapterCompare;
+        return a.canonicalName.toLowerCase().compareTo(
+          b.canonicalName.toLowerCase(),
+        );
+      });
   }
 
   void toggleShowFullBook() {
