@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import 'package:flow_ai/flow_ai.dart';
+import '../models/reading_memory.dart';
+import '../providers/reading/services_provider.dart';
+import '../services/reading_memory/reading_memory_ids.dart';
+import '../utils/ai_explanation_memory_formatter.dart';
 import 'flow/flow_components.dart';
 
 class AIAssistantPanel extends HookWidget {
@@ -647,6 +652,7 @@ class _ConversationArea extends HookWidget {
             ),
             child: _ChatMessageBubble(
               message: messages[i],
+              snapshot: snapshot,
               result: _isLatestAssistantMessage(messages, i)
                   ? latestResult
                   : null,
@@ -803,9 +809,14 @@ class _PendingAssistantBubble extends StatelessWidget {
 }
 
 class _ChatMessageBubble extends HookWidget {
-  const _ChatMessageBubble({required this.message, this.result});
+  const _ChatMessageBubble({
+    required this.message,
+    required this.snapshot,
+    this.result,
+  });
 
   final AIChatMessage message;
+  final AIContextSnapshot snapshot;
   final AIActionResult? result;
 
   @override
@@ -820,7 +831,11 @@ class _ChatMessageBubble extends HookWidget {
     final borderColor = isUser
         ? colorScheme.primary.withValues(alpha: 0.22)
         : colorScheme.outlineVariant;
-    final content = _InlineMessageContent(message: message, result: result);
+    final content = _InlineMessageContent(
+      message: message,
+      snapshot: snapshot,
+      result: result,
+    );
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -894,19 +909,254 @@ class _ChatMessageBubble extends HookWidget {
 }
 
 class _InlineMessageContent extends StatelessWidget {
-  const _InlineMessageContent({required this.message, this.result});
+  const _InlineMessageContent({
+    required this.message,
+    required this.snapshot,
+    this.result,
+  });
 
   final AIChatMessage message;
+  final AIContextSnapshot snapshot;
   final AIActionResult? result;
 
   @override
   Widget build(BuildContext context) {
     final latest = result;
     if (latest is AITextAnalysisResult) {
-      return _TextAnalysisContent(analysis: latest.analysis);
+      return _TextAnalysisContent(
+        analysis: latest.analysis,
+        snapshot: snapshot,
+      );
+    }
+    if (latest is AIWordAnalysisResult) {
+      final payload = _AIExplanationSavePayload.fromSnapshot(
+        snapshot,
+        explanation: formatWordAnalysisForMemory(latest.analysis),
+        type: KnowledgeEntityType.word,
+        promptVersion: 'assistant-word-analysis-v1',
+        targetOverride: snapshot.word,
+      );
+      return _SaveableMarkdownMessage(payload: payload, text: message.content);
     }
     return _MarkdownMessage(text: message.content);
   }
+}
+
+class _SaveableMarkdownMessage extends StatelessWidget {
+  const _SaveableMarkdownMessage({required this.payload, required this.text});
+
+  final _AIExplanationSavePayload payload;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!payload.isValid) {
+      return _MarkdownMessage(text: text);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SaveAIExplanationButton(
+          key: const ValueKey('assistant-save-ai-explanation'),
+          payload: payload,
+        ),
+        const SizedBox(height: 8),
+        _MarkdownMessage(text: text),
+      ],
+    );
+  }
+}
+
+class _SaveAIExplanationButton extends riverpod.ConsumerStatefulWidget {
+  const _SaveAIExplanationButton({super.key, required this.payload});
+
+  final _AIExplanationSavePayload payload;
+
+  @override
+  riverpod.ConsumerState<_SaveAIExplanationButton> createState() =>
+      _SaveAIExplanationButtonState();
+}
+
+class _SaveAIExplanationButtonState
+    extends riverpod.ConsumerState<_SaveAIExplanationButton> {
+  bool _isSaving = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return FlowButton.secondary(
+      size: FlowButtonSize.small,
+      onPressed: _isSaving || !widget.payload.isValid ? null : _save,
+      icon: _isSaving
+          ? SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: theme.colorScheme.primary,
+              ),
+            )
+          : const Icon(Icons.bookmark_add_outlined, size: 16),
+      child: Text(_isSaving ? '保存中' : '保存到学习记忆'),
+    );
+  }
+
+  Future<void> _save() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+
+    var message = '已保存到学习记忆';
+    try {
+      final payload = widget.payload;
+      final saved = await ref
+          .read(readingMemoryServiceProvider)
+          .saveExplanation(
+            targetText: payload.targetText,
+            canonical: payload.canonical,
+            explanation: payload.explanation,
+            type: payload.type,
+            source: ExplanationSource.ai,
+            sourceRef: payload.sourceRef,
+            targetLanguage: payload.targetLanguage,
+            promptVersion: payload.promptVersion,
+            languageCode: payload.languageCode,
+          );
+      if (saved == null) {
+        message = '无法保存到学习记忆';
+      }
+    } catch (_) {
+      message = '无法保存到学习记忆';
+    }
+
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+}
+
+class _AIExplanationSavePayload {
+  const _AIExplanationSavePayload({
+    required this.targetText,
+    required this.canonical,
+    required this.explanation,
+    required this.type,
+    required this.targetLanguage,
+    required this.promptVersion,
+    required this.languageCode,
+    this.sourceRef,
+  });
+
+  factory _AIExplanationSavePayload.fromSnapshot(
+    AIContextSnapshot snapshot, {
+    required String explanation,
+    required KnowledgeEntityType type,
+    required String promptVersion,
+    String? targetOverride,
+  }) {
+    final targetText =
+        _nonEmptyOrNull(targetOverride) ?? _targetTextForMemory(snapshot);
+    return _AIExplanationSavePayload(
+      targetText: targetText ?? '',
+      canonical: targetText ?? '',
+      explanation: explanation,
+      type: type,
+      sourceRef: _sourceRefForMemory(snapshot),
+      targetLanguage: snapshot.outputLanguage,
+      promptVersion: promptVersion,
+      languageCode: snapshot.sourceLanguage,
+    );
+  }
+
+  final String targetText;
+  final String canonical;
+  final String explanation;
+  final KnowledgeEntityType type;
+  final MemorySourceRef? sourceRef;
+  final String targetLanguage;
+  final String promptVersion;
+  final String languageCode;
+
+  bool get isValid =>
+      targetText.trim().isNotEmpty && explanation.trim().isNotEmpty;
+}
+
+KnowledgeEntityType _textAnalysisEntityType(AIContextSnapshot snapshot) {
+  return switch (snapshot.source) {
+    AIContextSource.readerWord => KnowledgeEntityType.word,
+    _ => KnowledgeEntityType.sentence,
+  };
+}
+
+String? _targetTextForMemory(AIContextSnapshot snapshot) {
+  return switch (snapshot.source) {
+    AIContextSource.readerWord => _nonEmptyOrNull(snapshot.word),
+    AIContextSource.readerSelectedText => _nonEmptyOrNull(
+      snapshot.selectedText,
+    ),
+    AIContextSource.readerParagraph =>
+      _nonEmptyOrNull(
+            snapshot.selectedText,
+          ) ??
+          _nonEmptyOrNull(snapshot.surroundingPassage),
+    AIContextSource.readerChapter => _nonEmptyOrNull(snapshot.chapterTitle),
+    AIContextSource.rssArticle || AIContextSource.internalWeb =>
+      _nonEmptyOrNull(
+            snapshot.selectedText,
+          ) ??
+          _nonEmptyOrNull(snapshot.articleTitle),
+  };
+}
+
+MemorySourceRef? _sourceRefForMemory(AIContextSnapshot snapshot) {
+  switch (snapshot.source) {
+    case AIContextSource.readerSelectedText:
+    case AIContextSource.readerParagraph:
+    case AIContextSource.readerWord:
+    case AIContextSource.readerChapter:
+      final bookId = _nonEmptyOrNull(snapshot.bookId);
+      if (bookId == null) return null;
+      final title = _nonEmptyOrNull(snapshot.chapterTitle) ?? bookId;
+      return MemorySourceRef(
+        sourceId: ReadingMemoryIds.source(SourceKind.book, bookId),
+        sourceKind: SourceKind.book,
+        sourceTitleSnapshot: title,
+        bookId: bookId,
+        chapterIndex: snapshot.chapterIndex,
+        locationLocator: snapshot.chapterIndex == null
+            ? null
+            : 'chapter:${snapshot.chapterIndex}',
+      );
+    case AIContextSource.rssArticle:
+      final localId =
+          _nonEmptyOrNull(snapshot.articleUrl) ??
+          _nonEmptyOrNull(snapshot.articleTitle);
+      if (localId == null) return null;
+      return MemorySourceRef(
+        sourceId: ReadingMemoryIds.source(SourceKind.rss, localId),
+        sourceKind: SourceKind.rss,
+        sourceTitleSnapshot: _nonEmptyOrNull(snapshot.articleTitle) ?? localId,
+        locationLocator: _nonEmptyOrNull(snapshot.articleUrl),
+      );
+    case AIContextSource.internalWeb:
+      final localId =
+          _nonEmptyOrNull(snapshot.articleUrl) ??
+          _nonEmptyOrNull(snapshot.articleTitle);
+      if (localId == null) return null;
+      return MemorySourceRef(
+        sourceId: ReadingMemoryIds.source(SourceKind.browser, localId),
+        sourceKind: SourceKind.browser,
+        sourceTitleSnapshot: _nonEmptyOrNull(snapshot.articleTitle) ?? localId,
+        locationLocator: _nonEmptyOrNull(snapshot.articleUrl),
+      );
+  }
+}
+
+String? _nonEmptyOrNull(String? value) {
+  final trimmed = value?.trim();
+  if (trimmed == null || trimmed.isEmpty) return null;
+  return trimmed;
 }
 
 class _MarkdownMessage extends StatelessWidget {
@@ -1203,9 +1453,10 @@ class _CitationPanel extends StatelessWidget {
 }
 
 class _TextAnalysisContent extends StatelessWidget {
-  const _TextAnalysisContent({required this.analysis});
+  const _TextAnalysisContent({required this.analysis, required this.snapshot});
 
   final AITextAnalysis analysis;
+  final AIContextSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
@@ -1217,6 +1468,21 @@ class _TextAnalysisContent extends StatelessWidget {
         sections.add(const SizedBox(height: 10));
       }
       sections.add(section);
+    }
+
+    final payload = _AIExplanationSavePayload.fromSnapshot(
+      snapshot,
+      explanation: formatAITextAnalysisForMemory(analysis),
+      type: _textAnalysisEntityType(snapshot),
+      promptVersion: 'assistant-text-analysis-v1',
+    );
+    if (payload.isValid) {
+      addSection(
+        _SaveAIExplanationButton(
+          key: const ValueKey('assistant-save-ai-explanation'),
+          payload: payload,
+        ),
+      );
     }
 
     final translation = analysis.translation.trim();

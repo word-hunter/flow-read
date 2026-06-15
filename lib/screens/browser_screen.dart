@@ -169,6 +169,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
         selectedText: selectedText,
         analysis: null,
         analyzerName: analyzerName,
+        memorySourceRef: _browserMemorySourceRef(),
       ),
     );
   }

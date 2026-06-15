@@ -475,6 +475,12 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
         selectedText: selectedText,
         analysis: state.selectedAnalysis,
         breakdowns: state.selectedBreakdowns,
+        memorySourceRef: MemorySourceRef(
+          sourceId: ReadingMemoryIds.source(SourceKind.rss, article.id),
+          sourceKind: SourceKind.rss,
+          sourceTitleSnapshot: article.title,
+          locationLocator: article.link,
+        ),
       ),
     );
   }

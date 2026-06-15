@@ -2,17 +2,30 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flow_ai/flow_ai.dart';
+import 'package:flow_read/models/reading_memory.dart';
+import 'package:flow_read/providers/reading/services_provider.dart';
+import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
 import 'package:flow_read/widgets/ai_assistant_panel.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 
 import '../support/test_storage.dart';
 
-Widget _wrap(Widget child) {
-  return MaterialApp(home: Scaffold(body: child));
+Widget _wrap(
+  Widget child, {
+  List<Override> overrides = const [],
+}) {
+  return riverpod.ProviderScope(
+    overrides: overrides,
+    child: MaterialApp(home: Scaffold(body: child)),
+  );
 }
 
 void main() {
@@ -257,6 +270,168 @@ void main() {
     expect(find.textContaining('正是在一个周六的早上'), findsOneWidget);
     expect(find.text('main clause'), findsOneWidget);
     expect(find.textContaining('structure_notes'), findsNothing);
+  });
+
+  testWidgets('saves assistant text analysis into reading memory', (
+    tester,
+  ) async {
+    final db = await AppDatabase.createInMemory();
+    addTearDown(db.close);
+    final memoryRepository = DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 9),
+    );
+    final memory = ReadingMemoryService(
+      repository: memoryRepository,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 8),
+    );
+    await memory.init();
+
+    final responseJson = jsonEncode({
+      'translation': '门慢慢打开了。',
+      'structure_notes': [
+        {
+          'source': 'The door opened slowly.',
+          'role': 'main clause',
+          'explanation': '主谓结构，slowly 修饰 opened。',
+        },
+      ],
+      'grammar_points': [],
+      'vocabulary_notes': [],
+      'reading_tip': '注意副词位置。',
+    });
+    final assistant = _buildController(
+      settings,
+      responseContent: '```json\n$responseJson\n```',
+    );
+    addTearDown(assistant.dispose);
+
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.readerSelectedText,
+        selectedText: 'The door opened slowly.',
+        surroundingPassage: 'The door opened slowly.',
+        bookId: 'book-1',
+        chapterIndex: 2,
+        chapterTitle: 'Chapter 3',
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        AIAssistantPanel(controller: assistant),
+        overrides: [readingMemoryServiceProvider.overrideWithValue(memory)],
+      ),
+    );
+    await tester.pump();
+
+    await assistant.executeAction(AIAssistantActionType.explain);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('assistant-save-ai-explanation')),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('已保存到学习记忆'), findsOneWidget);
+    final entity = await memoryRepository.entityByCanonical(
+      languageCode: 'en',
+      type: KnowledgeEntityType.sentence,
+      canonicalKey: 'the door opened slowly.',
+    );
+    expect(entity, isNotNull);
+
+    final explanations = await memoryRepository.explanationsForEntity(
+      entity!.id,
+    );
+    expect(explanations.single.explanation, contains('译文：门慢慢打开了。'));
+    expect(explanations.single.promptVersion, 'assistant-text-analysis-v1');
+
+    final events = await memoryRepository.eventsForCanonical(
+      languageCode: 'en',
+      canonicalKey: 'the door opened slowly.',
+    );
+    expect(events.single.type, MemoryEventType.saveExplanation);
+    expect(events.single.sourceId, 'book:book-1');
+  });
+
+  testWidgets('saves assistant word analysis into reading memory', (
+    tester,
+  ) async {
+    final db = await AppDatabase.createInMemory();
+    addTearDown(db.close);
+    final memoryRepository = DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 9),
+    );
+    final memory = ReadingMemoryService(
+      repository: memoryRepository,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 8),
+    );
+    await memory.init();
+
+    final responseJson = jsonEncode({
+      'pronunciation': '/rɪˈlʌktənt/',
+      'meanings': [
+        {
+          'meaning': '不情愿的',
+          'explanation': '在语境中表示不愿意承认失败。',
+        },
+      ],
+      'usage_tips': ['常见搭配 reluctant to do something。'],
+      'memory_tip': '联想 hesitate before doing。',
+    });
+    final assistant = _buildController(
+      settings,
+      responseContent: '```json\n$responseJson\n```',
+    );
+    addTearDown(assistant.dispose);
+
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.readerWord,
+        word: 'Reluctant',
+        wordSentence: 'He was reluctant to admit defeat.',
+        bookId: 'book-1',
+        chapterIndex: 2,
+        chapterTitle: 'Chapter 3',
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        AIAssistantPanel(controller: assistant),
+        overrides: [readingMemoryServiceProvider.overrideWithValue(memory)],
+      ),
+    );
+    await tester.pump();
+
+    await assistant.executeAction(AIAssistantActionType.wordAnalysis);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('assistant-save-ai-explanation')),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('已保存到学习记忆'), findsOneWidget);
+    final entity = await memoryRepository.entityByCanonical(
+      languageCode: 'en',
+      type: KnowledgeEntityType.word,
+      canonicalKey: 'reluctant',
+    );
+    expect(entity, isNotNull);
+
+    final explanations = await memoryRepository.explanationsForEntity(
+      entity!.id,
+    );
+    expect(explanations.single.explanation, contains('语境释义：'));
+    expect(explanations.single.explanation, contains('不情愿的'));
+    expect(explanations.single.promptVersion, 'assistant-word-analysis-v1');
   });
 
   testWidgets('closes via onClose when context is set', (tester) async {

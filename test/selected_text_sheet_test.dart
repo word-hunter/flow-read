@@ -1,10 +1,14 @@
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flow_ai/flow_ai.dart';
+import 'package:flow_read/models/reading_memory.dart';
 import 'package:flow_read/providers/reading/ai_notifier.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
+import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
 import 'package:flow_read/storage/repositories/reading_config_repository.dart';
 import 'package:flow_read/storage/repositories/reading_time_repository.dart';
 import 'package:flow_read/widgets/selected_text_sheet.dart';
@@ -137,6 +141,100 @@ void main() {
       (firstVocabularySave.dx - secondVocabularySave.dx).abs(),
       lessThan(1),
     );
+  });
+
+  testWidgets('saving AI explanation writes selected text reading memory', (
+    tester,
+  ) async {
+    final db = await AppDatabase.createInMemory();
+    addTearDown(db.close);
+    final memoryRepository = DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 9),
+    );
+    final memory = ReadingMemoryService(
+      repository: memoryRepository,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 8),
+    );
+    await memory.init();
+
+    final provider = _SelectedTextAINotifier(
+      aiTextAnalysis: const AITextAnalysis(
+        translation: '敏捷的狐狸跳过了懒狗。',
+        structureNotes: [
+          StructureNote(
+            source: 'The quick fox',
+            role: 'main subject',
+            explanation: '主语部分。',
+          ),
+        ],
+        grammarPoints: [],
+        vocabularyNotes: [],
+        expressionNotes: [],
+        readingTip: '注意主语。',
+      ),
+    );
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          aiNotifierProvider.overrideWith(() => provider),
+          readingMemoryServiceProvider.overrideWithValue(memory),
+          readingConfigServiceProvider.overrideWith(
+            (ref) => _FakeReadingConfigService(),
+          ),
+          readingTimeServiceProvider.overrideWith(
+            (ref) => _FakeReadingTimeService(),
+          ),
+          wordLevelServiceProvider.overrideWith(
+            (ref) => fakeWordLevelService(),
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 420,
+              height: 720,
+              child: SelectedTextSheet(
+                selectedText: 'The quick fox jumps over the lazy dog.',
+                analysis: null,
+                analyzerName: 'DeepSeek AI',
+                embedded: true,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('selected-text-save-ai-explanation')),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('已保存到学习记忆'), findsOneWidget);
+    final entity = await memoryRepository.entityByCanonical(
+      languageCode: 'en',
+      type: KnowledgeEntityType.sentence,
+      canonicalKey: 'the quick fox jumps over the lazy dog.',
+    );
+    expect(entity, isNotNull);
+
+    final explanations = await memoryRepository.explanationsForEntity(
+      entity!.id,
+    );
+    expect(explanations.single.explanation, contains('译文：敏捷的狐狸跳过了懒狗。'));
+    expect(explanations.single.explanation, contains('结构：'));
+    expect(explanations.single.promptVersion, 'selected-text-analysis-v1');
+
+    final events = await memoryRepository.eventsForCanonical(
+      languageCode: 'en',
+      canonicalKey: 'the quick fox jumps over the lazy dog.',
+    );
+    expect(events.single.type, MemoryEventType.saveExplanation);
   });
 
   testWidgets('structure hover keeps source text layout stable', (

@@ -5,9 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flow_ai/flow_ai.dart';
 import '../models/analysis_result.dart';
 import '../models/learning_item.dart';
+import '../models/reading_memory.dart';
 import '../models/sentence_breakdown.dart';
 import '../providers/reading/ai_notifier.dart';
+import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
+import '../utils/ai_explanation_memory_formatter.dart';
 import '../utils/syntax_helpers.dart';
 import 'flow/flow_components.dart';
 
@@ -18,6 +21,7 @@ class SelectedTextSheet extends riverpod.ConsumerStatefulWidget {
   final String analyzerName;
   final bool embedded;
   final VoidCallback? onClose;
+  final MemorySourceRef? memorySourceRef;
 
   const SelectedTextSheet({
     super.key,
@@ -27,6 +31,7 @@ class SelectedTextSheet extends riverpod.ConsumerStatefulWidget {
     this.analyzerName = '规则引擎',
     this.embedded = false,
     this.onClose,
+    this.memorySourceRef,
   });
 
   @override
@@ -38,6 +43,7 @@ class _SelectedTextSheetState
     extends riverpod.ConsumerState<SelectedTextSheet> {
   final ScrollController _embeddedScrollController = ScrollController();
   int? _hoveredStructureIndex;
+  bool _isSavingMemoryExplanation = false;
 
   @override
   void dispose() {
@@ -324,7 +330,7 @@ class _SelectedTextSheetState
     }
 
     addSection(_buildAnalyzerBadge(theme));
-    addSection(_buildSelectedTextLearningAction(theme));
+    addSection(_buildAIResultActions(theme, analysis));
 
     final translation = analysis.translation.trim();
     if (translation.isNotEmpty) {
@@ -384,21 +390,45 @@ class _SelectedTextSheetState
     );
   }
 
+  Widget _buildAIResultActions(ThemeData theme, AITextAnalysis analysis) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _buildSelectedTextLearningAction(theme),
+        FlowButton.secondary(
+          key: const ValueKey('selected-text-save-ai-explanation'),
+          onPressed: _isSavingMemoryExplanation
+              ? null
+              : () => _saveAIExplanation(analysis),
+          icon: _isSavingMemoryExplanation
+              ? SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: theme.colorScheme.primary,
+                  ),
+                )
+              : const Icon(Icons.bookmark_add_outlined, size: 18),
+          child: Text(_isSavingMemoryExplanation ? '保存中' : '保存到学习记忆'),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSelectedTextLearningAction(ThemeData theme) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: FlowButton.secondary(
-        onPressed:
-            ref.read(vocabularyNotifierProvider.notifier).canCreateLearningItems
-            ? () => _saveLearningItem(
-                ref
-                    .read(vocabularyNotifierProvider.notifier)
-                    .addSelectedTextLearningItem(),
-              )
-            : null,
-        icon: const Icon(Icons.add_card_outlined, size: 18),
-        child: const Text('加入学习卡片'),
-      ),
+    return FlowButton.secondary(
+      onPressed:
+          ref.read(vocabularyNotifierProvider.notifier).canCreateLearningItems
+          ? () => _saveLearningItem(
+              ref
+                  .read(vocabularyNotifierProvider.notifier)
+                  .addSelectedTextLearningItem(),
+            )
+          : null,
+      icon: const Icon(Icons.add_card_outlined, size: 18),
+      child: const Text('加入学习卡片'),
     );
   }
 
@@ -1002,6 +1032,38 @@ class _SelectedTextSheetState
         : result.created
         ? '已加入学习卡片'
         : '学习卡片已存在';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  Future<void> _saveAIExplanation(AITextAnalysis analysis) async {
+    if (_isSavingMemoryExplanation) return;
+    setState(() => _isSavingMemoryExplanation = true);
+
+    var message = '已保存到学习记忆';
+    try {
+      final saved = await ref
+          .read(readingMemoryServiceProvider)
+          .saveExplanation(
+            targetText: widget.selectedText,
+            canonical: widget.selectedText,
+            explanation: formatAITextAnalysisForMemory(analysis),
+            type: KnowledgeEntityType.sentence,
+            source: ExplanationSource.ai,
+            sourceRef: widget.memorySourceRef,
+            targetLanguage: 'zh',
+            promptVersion: 'selected-text-analysis-v1',
+          );
+      if (saved == null) {
+        message = '无法保存到学习记忆';
+      }
+    } catch (_) {
+      message = '无法保存到学习记忆';
+    }
+
+    if (!mounted) return;
+    setState(() => _isSavingMemoryExplanation = false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
