@@ -53,6 +53,7 @@ ProviderScope
 已新增 `AIAssistantController` / `AIActionController` 生命周期基础类；阅读器右侧 `AIAssistantPanel` 已开始使用轻量 session/message 状态承载动作结果和连续追问。旧 `ReadingProvider` 中的 AI 字段仍按下表逐步收敛。
 已新增 `contextRetrievalServiceProvider`，由 `AIAssistantController.contextResolver` 在动作执行前注入 Reading Memory 学习上下文。
 已新增 `reviewCandidateServiceProvider`，由 `ReadingMemoryService` 在保存解释、重复查词和标记学习中时生成复习候选。
+已新增 `knowledgeRetentionServiceProvider`，统一处理 SourceScope 归档、保留学习记忆、仅保留元数据和彻底删除相关记忆。
 
 以下 AI 状态将从 `ReadingProvider` 中迁出至 `AIActionController`：
 

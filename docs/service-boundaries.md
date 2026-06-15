@@ -79,7 +79,8 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 | `ReviewScheduleService` | 间隔重复调度，并将复习结果写回 Reading Memory masteryState |
 | `ReviewService` | 复习题目生成 |
 | `ReviewCandidateService` | 从保存解释、重复查词和学习中词生成复习候选（Drift `review_candidates`） |
-| `SourceScopeService` | 管理 book/rss/browser/manual 来源作用域与 tombstone（Drift `source_records`） |
+| `SourceScopeService` | 管理 book/rss/browser/manual 来源作用域、source cache 与 tombstone（Drift `source_records` / `source_scope_cache`） |
+| `KnowledgeRetentionService` | 统一处理来源归档、保留学习记忆、仅保留元数据、彻底删除相关记忆 |
 | `ReadingMemoryService` | Reading Memory 写入总入口，记录查词、词汇状态和保存解释事件 |
 | `WordMemoryService` | 聚合词汇状态、历史查词、上下文例句、保存解释和 evidence |
 | `ReadingMemoryInspectorService` | 本地开发调试用只读观测入口，聚合 Reading Memory 计数、列表和实体详情 |
@@ -125,6 +126,7 @@ ReadingProvider（总调度）
 ├── UserVocabularyService
 ├── ReadingMemoryService
 ├── SourceScopeService
+├── KnowledgeRetentionService
 ├── WordMemoryService
 ├── ContextRetrievalService
 ├── DictionaryManagerService

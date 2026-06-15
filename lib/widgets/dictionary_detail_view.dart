@@ -3,6 +3,8 @@ import 'package:flow_language/flow_language.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import '../models/reading_memory.dart';
+import '../models/user_vocabulary.dart';
 import '../models/word_context_example.dart';
 import '../models/word_level.dart';
 import '../providers/reading/word_lookup_notifier.dart';
@@ -34,6 +36,8 @@ class DictionaryDetailView extends StatelessWidget {
   final VisualDefinition? visualDefinition;
   final bool isLoadingVisualHint;
   final bool showVisualHint;
+  final WordMemoryCard? wordMemoryCard;
+  final bool isLoadingWordMemory;
 
   const DictionaryDetailView({
     super.key,
@@ -57,6 +61,8 @@ class DictionaryDetailView extends StatelessWidget {
     this.visualDefinition,
     this.isLoadingVisualHint = false,
     this.showVisualHint = true,
+    this.wordMemoryCard,
+    this.isLoadingWordMemory = false,
   });
 
   factory DictionaryDetailView.fromWordLookup({
@@ -100,6 +106,8 @@ class DictionaryDetailView extends StatelessWidget {
       visualDefinition: lookupState.visualDefinition,
       isLoadingVisualHint: lookupState.isLoadingVisualHint,
       showVisualHint: showVisualHint,
+      wordMemoryCard: lookupState.wordMemoryCard,
+      isLoadingWordMemory: lookupState.isLoadingWordMemory,
     );
   }
 
@@ -125,6 +133,8 @@ class DictionaryDetailView extends StatelessWidget {
         importedExamples.isNotEmpty ||
         compoundAnalysis != null ||
         bookContexts.isNotEmpty;
+    final hasPersonalMemory =
+        isLoadingWordMemory || wordMemoryCard?.hasPersonalMemory == true;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,7 +159,10 @@ class DictionaryDetailView extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
-        if (!hasContent && visualDefinition == null && !isLoadingVisualHint)
+        if (!hasContent &&
+            !hasPersonalMemory &&
+            visualDefinition == null &&
+            !isLoadingVisualHint)
           _EmptyDictionaryState(errorMessage: entry?.errorMessage)
         else ...[
           if (hasContent)
@@ -199,6 +212,23 @@ class DictionaryDetailView extends StatelessWidget {
                 ],
               ],
             ),
+          if (hasPersonalMemory) ...[
+            const SizedBox(height: 6),
+            _CollapsiblePanel(
+              icon: Icons.history_edu_outlined,
+              title: '个人记忆',
+              initiallyExpanded: true,
+              children: [
+                if (isLoadingWordMemory)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: LinearProgressIndicator(minHeight: 2),
+                  )
+                else if (wordMemoryCard != null)
+                  _WordMemorySection(card: wordMemoryCard!),
+              ],
+            ),
+          ],
           if (showVisualHint &&
               (visualDefinition != null || isLoadingVisualHint)) ...[
             const SizedBox(height: 6),
@@ -450,6 +480,149 @@ class _MetaChip extends StatelessWidget {
   }
 }
 
+class _WordMemorySection extends StatelessWidget {
+  const _WordMemorySection({required this.card});
+
+  final WordMemoryCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    final explanations = card.savedExplanations
+        .where((item) => item.explanation.trim().isNotEmpty)
+        .take(2)
+        .toList(growable: false);
+    final examples = _examples().take(3).toList(growable: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (card.userStatus != null)
+              _MetaChip(
+                label: _statusLabel(card.userStatus!),
+                color: _statusColor(context, card.userStatus!),
+              ),
+            if (card.lookupCount > 0)
+              _MetaChip(
+                label: '查词 ${card.lookupCount} 次',
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            if (card.evidences.isNotEmpty)
+              _MetaChip(
+                label: '例句 ${card.evidences.length} 条',
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
+          ],
+        ),
+        if (explanations.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _SectionLabel(label: '保存解释'),
+          const SizedBox(height: 6),
+          for (final explanation in explanations)
+            _MemorySnippet(text: explanation.explanation.trim()),
+        ],
+        if (examples.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _SectionLabel(label: '历史例句'),
+          const SizedBox(height: 6),
+          for (final example in examples)
+            _MemorySnippet(text: example.text, source: example.source),
+        ],
+      ],
+    );
+  }
+
+  Iterable<({String text, String? source})> _examples() sync* {
+    final seen = <String>{};
+    for (final example in card.contextExamples) {
+      final text = example.text.trim();
+      if (text.isEmpty || !seen.add(text)) continue;
+      final source = example.title.trim();
+      yield (text: text, source: source.isEmpty ? null : source);
+    }
+    for (final evidence in card.evidences) {
+      final text = evidence.shortExcerpt.trim();
+      if (text.isEmpty || !seen.add(text)) continue;
+      yield (text: text, source: _evidenceSourceLabel(evidence));
+    }
+  }
+
+  String _statusLabel(UserWordStatus status) {
+    return switch (status) {
+      UserWordStatus.learning => '学习中',
+      UserWordStatus.known => '已掌握',
+    };
+  }
+
+  Color _statusColor(BuildContext context, UserWordStatus status) {
+    final scheme = Theme.of(context).colorScheme;
+    return switch (status) {
+      UserWordStatus.learning => scheme.secondary,
+      UserWordStatus.known => scheme.tertiary,
+    };
+  }
+
+  String? _evidenceSourceLabel(MemoryKnowledgeEvidence evidence) {
+    final title = evidence.sourceTitleSnapshot.trim();
+    if (title.isEmpty) return null;
+    return switch (evidence.sourceAvailability) {
+      SourceAvailability.available => title,
+      SourceAvailability.archived => '$title · 已归档',
+      SourceAvailability.deleted => '$title · 已删除',
+    };
+  }
+}
+
+class _MemorySnippet extends StatelessWidget {
+  const _MemorySnippet({required this.text, this.source});
+
+  final String text;
+  final String? source;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.36,
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+              height: 1.4,
+            ),
+          ),
+          if (source != null && source!.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              source!.trim(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _CollapsiblePanel extends StatefulWidget {
   final IconData icon;
   final String title;
@@ -504,11 +677,7 @@ class _CollapsiblePanelState extends State<_CollapsiblePanel> {
                   AnimatedRotation(
                     turns: _expanded ? 0.5 : 0,
                     duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      Icons.expand_more,
-                      size: 18,
-                      color: color,
-                    ),
+                    child: Icon(Icons.expand_more, size: 18, color: color),
                   ),
                 ],
               ),
@@ -1208,13 +1377,14 @@ class DictionaryContextBlock extends StatelessWidget {
   }
 
   List<RegExpMatch> _findContextWordMatches(String text) {
-    final target = languageModule?.canonicalize(word) ??
-        word.toLowerCase().trim();
+    final target =
+        languageModule?.canonicalize(word) ?? word.toLowerCase().trim();
     if (target.isEmpty) return const [];
 
     final pattern = languageModule?.wordPattern ?? RegExp(r"[\w']+");
     return pattern.allMatches(text).where((match) {
-      final token = languageModule?.canonicalize(match.group(0)!) ??
+      final token =
+          languageModule?.canonicalize(match.group(0)!) ??
           match.group(0)!.toLowerCase();
       return token == target;
     }).toList();

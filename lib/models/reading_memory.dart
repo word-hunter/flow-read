@@ -285,6 +285,24 @@ final class MemoryEvent {
   final DateTime createdAt;
 }
 
+final class SourceScopeCacheItem {
+  const SourceScopeCacheItem({
+    required this.id,
+    required this.sourceId,
+    required this.cacheType,
+    required this.payload,
+    required this.retentionPolicy,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String sourceId;
+  final String cacheType;
+  final String payload;
+  final EvidenceRetentionPolicy retentionPolicy;
+  final DateTime updatedAt;
+}
+
 final class MemorySourceRef {
   const MemorySourceRef({
     required this.sourceId,

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/book.dart';
 import '../../models/book_difficulty.dart';
 import '../../models/book_metadata.dart';
+import '../../models/reading_memory.dart';
 import '../../services/app_logger.dart';
 import '../../services/book_service.dart';
 import '../../services/epub_import_source.dart';
@@ -456,7 +457,11 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     ref.read(currentBookNotifierProvider.notifier).enterReader();
   }
 
-  Future<void> removeBook(String bookId) async {
+  Future<void> removeBook(
+    String bookId, {
+    EvidenceRetentionPolicy memoryRetentionPolicy =
+        EvidenceRetentionPolicy.keepSnippet,
+  }) async {
     final bookService = ref.read(bookServiceProvider);
     final bookmarkService = ref.read(bookmarkServiceProvider);
     final sourceScopeService = ref.read(sourceScopeServiceProvider);
@@ -475,14 +480,18 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
         languageCode: bookMeta.sourceLanguage,
       );
     }
-    await sourceScopeService.deleteBookSourceKeepLearningMemory(bookId);
+    if (memoryRetentionPolicy == EvidenceRetentionPolicy.deleteWithSource) {
+      await sourceScopeService.deleteBookSourceAndRelatedMemory(bookId);
+    } else {
+      await sourceScopeService.deleteBookSourceKeepLearningMemory(
+        bookId,
+        evidencePolicy: memoryRetentionPolicy,
+      );
+    }
     ref.read(bookCacheProvider).remove(bookId);
 
     if (state.activeBookId == bookId) {
-      state = state.copyWith(
-        activeBookId: null,
-        clearBook: true,
-      );
+      state = state.copyWith(activeBookId: null, clearBook: true);
     }
     state = state.copyWith(books: bookService.books);
   }
@@ -624,18 +633,14 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
         copiedPath,
         deleteCopiedSource: shouldDeleteCopiedSource,
       );
-      state = state.copyWith(
-        lastImportResult: BookImportResult.cancelled,
-      );
+      state = state.copyWith(lastImportResult: BookImportResult.cancelled);
       return BookImportResult.cancelled;
     } on _ImportCancelledException {
       await _cleanupCancelledImport(
         copiedPath,
         deleteCopiedSource: shouldDeleteCopiedSource,
       );
-      state = state.copyWith(
-        lastImportResult: BookImportResult.cancelled,
-      );
+      state = state.copyWith(lastImportResult: BookImportResult.cancelled);
       return BookImportResult.cancelled;
     } catch (e) {
       state = state.copyWith(
@@ -651,10 +656,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
   void cancelImport() {
     if (!state.isImportingBook || state.isCancellingImport) return;
     _importCancellationRequested = true;
-    state = state.copyWith(
-      isCancellingImport: true,
-      importStage: '正在取消导入...',
-    );
+    state = state.copyWith(isCancellingImport: true, importStage: '正在取消导入...');
     _activeImportParseTask?.cancel();
     _emitImportProgress();
   }
@@ -694,10 +696,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     return bookService.books.where((b) => b.id == bookId).firstOrNull;
   }
 
-  Future<void> setBookSourceLanguageOverride(
-    String bookId,
-    String code,
-  ) async {
+  Future<void> setBookSourceLanguageOverride(String bookId, String code) async {
     final normalized = LanguageRegistry.normalizeLanguageCode(code);
     if (normalized == null) return;
     final metadata = _metadataForBook(bookId);
@@ -768,11 +767,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
         if (exists) 'sizeBytes': file.lengthSync(),
       };
     } on FileSystemException {
-      return const {
-        'present': true,
-        'exists': false,
-        'accessError': true,
-      };
+      return const {'present': true, 'exists': false, 'accessError': true};
     }
   }
 
@@ -957,6 +952,4 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
 }
 
 final bookshelfNotifierProvider =
-    NotifierProvider<BookshelfNotifier, BookshelfState>(
-      BookshelfNotifier.new,
-    );
+    NotifierProvider<BookshelfNotifier, BookshelfState>(BookshelfNotifier.new);

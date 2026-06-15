@@ -2,6 +2,7 @@ import 'package:flow_read/models/reading_memory.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
 import 'package:flow_read/models/word_context_example.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_ids.dart';
+import 'package:flow_read/services/reading_memory/knowledge_retention_service.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
 import 'package:flow_read/services/reading_memory/source_scope_service.dart';
 import 'package:flow_read/services/reading_memory/word_memory_service.dart';
@@ -51,6 +52,163 @@ void main() {
     final deleted = await repository.sourceRecord(source.id);
     expect(deleted?.availability, SourceAvailability.deleted);
     expect(deleted?.deletedAt, DateTime.utc(2026, 6, 15, 8));
+  });
+
+  test(
+    'retention service deletes source cache and keeps metadata-only memory',
+    () async {
+      final repository = DriftReadingMemoryRepository(
+        db.readingMemoryDao,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 15, 9),
+      );
+      final sourceScope = SourceScopeService(
+        repository: repository,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 15, 8),
+      );
+      final memory = ReadingMemoryService(
+        repository: repository,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 15, 8),
+      );
+      final retention = KnowledgeRetentionService(
+        repository: repository,
+        clock: () => DateTime.utc(2026, 6, 15, 10),
+      );
+
+      final source = await sourceScope.upsertBookSource(
+        bookId: 'book-1',
+        title: 'Book One',
+      );
+      await sourceScope.upsertSourceScopeCache(
+        sourceId: source.id,
+        cacheType: 'chapter_summary',
+        payload: '{"summary":"cached"}',
+      );
+      await memory.recordLookup(
+        targetText: 'Reluctant',
+        canonical: 'reluctant',
+        sourceRef: MemorySourceRef(
+          sourceId: source.id,
+          sourceKind: SourceKind.book,
+          sourceTitleSnapshot: 'Book One',
+          bookId: 'book-1',
+        ),
+        sentence: 'He was reluctant to admit defeat.',
+      );
+
+      await retention.deleteSourceKeepLearningMemory(
+        source.id,
+        evidencePolicy: EvidenceRetentionPolicy.keepMetadataOnly,
+      );
+
+      expect(await repository.sourceScopeCacheForSource(source.id), isEmpty);
+      final deleted = await repository.sourceRecord(source.id);
+      expect(deleted?.availability, SourceAvailability.deleted);
+      expect(deleted?.deletedAt, DateTime.utc(2026, 6, 15, 10));
+
+      final evidences = await repository.evidencesForSource(source.id);
+      expect(evidences.single.shortExcerpt, isEmpty);
+      expect(evidences.single.sourceAvailability, SourceAvailability.deleted);
+      expect(
+        evidences.single.retentionPolicy,
+        EvidenceRetentionPolicy.keepMetadataOnly,
+      );
+      expect(
+        await repository.eventCountForCanonical(
+          languageCode: 'en',
+          canonicalKey: 'reluctant',
+          type: MemoryEventType.lookup,
+        ),
+        1,
+      );
+    },
+  );
+
+  test('retention service deletes source and related orphan memory', () async {
+    final repository = DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 9),
+    );
+    final sourceScope = SourceScopeService(
+      repository: repository,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 8),
+    );
+    final memory = ReadingMemoryService(
+      repository: repository,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 8),
+    );
+    final retention = KnowledgeRetentionService(repository: repository);
+
+    final source = await sourceScope.upsertBookSource(
+      bookId: 'book-1',
+      title: 'Book One',
+    );
+    await sourceScope.upsertSourceScopeCache(
+      sourceId: source.id,
+      cacheType: 'paragraph_index',
+      payload: '{"paragraphs":[]}',
+    );
+    await memory.recordLookup(
+      targetText: 'Reluctant',
+      canonical: 'reluctant',
+      sourceRef: MemorySourceRef(
+        sourceId: source.id,
+        sourceKind: SourceKind.book,
+        sourceTitleSnapshot: 'Book One',
+        bookId: 'book-1',
+      ),
+      sentence: 'He was reluctant to admit defeat.',
+    );
+    await memory.saveExplanation(
+      targetText: 'Reluctant',
+      canonical: 'reluctant',
+      explanation: 'reluctant to do means unwilling to do something.',
+      sourceRef: MemorySourceRef(
+        sourceId: source.id,
+        sourceKind: SourceKind.book,
+        sourceTitleSnapshot: 'Book One',
+        bookId: 'book-1',
+      ),
+    );
+    final entity = await repository.entityByCanonical(
+      languageCode: 'en',
+      type: KnowledgeEntityType.word,
+      canonicalKey: 'reluctant',
+    );
+    final evidence = (await repository.evidencesForEntity(entity!.id)).single;
+    await repository.upsertReviewCandidate(
+      ReviewCandidate(
+        id: 'candidate:1',
+        entityId: entity.id,
+        entityType: KnowledgeEntityType.word,
+        targetText: 'reluctant',
+        evidenceId: evidence.id,
+        priority: 0.7,
+        status: ReviewCandidateStatus.pending,
+        createdAt: DateTime.utc(2026, 6, 15, 8),
+        updatedAt: DateTime.utc(2026, 6, 15, 8),
+      ),
+    );
+
+    await retention.deleteSourceAndRelatedMemory(source.id);
+
+    expect(await repository.sourceRecord(source.id), isNull);
+    expect(await repository.sourceScopeCacheForSource(source.id), isEmpty);
+    expect(await repository.evidencesForSource(source.id), isEmpty);
+    expect(await repository.reviewCandidateById('candidate:1'), isNull);
+    expect(await repository.entityById(entity.id), isNull);
+    expect(
+      await repository.eventsForCanonical(
+        languageCode: 'en',
+        canonicalKey: 'reluctant',
+      ),
+      isEmpty,
+    );
   });
 
   test('records lookup and saved explanation into word memory card', () async {

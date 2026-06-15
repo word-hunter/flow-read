@@ -10,11 +10,14 @@ import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/learning_analytics_service.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_ids.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
+import 'package:flow_read/services/reading_memory/word_memory_service.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_context_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/storage/database/repositories/drift_learning_analytics_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_user_vocabulary_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_word_context_repository.dart';
 import 'package:flow_language/english/english.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -57,6 +60,22 @@ void main() {
       ),
     );
     await wordContext.init();
+    final userVocabulary = UserVocabularyService(
+      repository: DriftUserVocabularyRepository(
+        db.userVocabularyDao,
+        languageCode: 'en',
+      ),
+      readingMemory: memory,
+      languageCode: 'en',
+    );
+    await userVocabulary.init();
+    final wordMemory = WordMemoryService(
+      repository: memoryRepository,
+      userVocabulary: userVocabulary,
+      wordContext: wordContext,
+      languageCode: 'en',
+    );
+    await wordMemory.init();
 
     container = ProviderContainer(
       overrides: [
@@ -64,6 +83,8 @@ void main() {
         appDatabaseProvider.overrideWith((ref) async => db),
         wordRepositoryProvider.overrideWithValue(_MemoryWordRepository()),
         readingMemoryServiceProvider.overrideWithValue(memory),
+        userVocabularyServiceProvider.overrideWithValue(userVocabulary),
+        wordMemoryServiceProvider.overrideWithValue(wordMemory),
         learningAnalyticsServiceProvider.overrideWithValue(analytics),
         wordContextServiceProvider.overrideWithValue(wordContext),
         wordLevelServiceProvider.overrideWithValue(fakeWordLevelService()),
@@ -94,6 +115,7 @@ void main() {
           contextWordEnd: 16,
           trackReadingLookup: true,
         );
+    await _drainEventQueue();
 
     final events = await memoryRepository.eventsForCanonical(
       languageCode: 'en',
@@ -122,6 +144,15 @@ void main() {
 
     final analytics = container.read(learningAnalyticsServiceProvider);
     expect(analytics.lookupCountForChapter('book-1', 2), 1);
+
+    final lookupState = container.read(wordLookupNotifierProvider);
+    expect(lookupState.isLoadingWordMemory, isFalse);
+    expect(lookupState.wordMemoryCard?.canonical, 'reluctant');
+    expect(lookupState.wordMemoryCard?.lookupCount, 1);
+    expect(
+      lookupState.wordMemoryCard?.evidences.single.shortExcerpt,
+      contains('admit defeat'),
+    );
   });
 
   test('explicit lookup source records non-book memory evidence', () async {
@@ -175,6 +206,12 @@ void main() {
     expect(state.selectedWordTranslation, isNull);
     expect(state.selectedWordLookupResult?.request.query, 'beta');
   });
+}
+
+Future<void> _drainEventQueue() async {
+  for (var i = 0; i < 5; i += 1) {
+    await Future<void>.delayed(Duration.zero);
+  }
 }
 
 class _MemoryWordRepository implements WordRepository {

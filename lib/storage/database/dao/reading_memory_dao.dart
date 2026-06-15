@@ -46,6 +46,12 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  Future<void> deleteSourceRecord(String sourceId) {
+    return (delete(
+      sourceRecords,
+    )..where((row) => row.id.equals(sourceId))).go();
+  }
+
   Future<void> upsertEntity(KnowledgeEntitiesCompanion entry) {
     return into(knowledgeEntities).insertOnConflictUpdate(entry);
   }
@@ -81,10 +87,8 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     final query = select(knowledgeExplanations)
       ..where((row) => row.entityId.equals(entityId))
       ..orderBy([
-        (row) => OrderingTerm(
-          expression: row.createdAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
     return query.get();
@@ -101,10 +105,8 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     final query = select(knowledgeEvidences)
       ..where((row) => row.entityId.equals(entityId))
       ..orderBy([
-        (row) => OrderingTerm(
-          expression: row.createdAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
     return query.get();
@@ -126,10 +128,8 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
             row.canonicalKey.equals(canonicalKey),
       )
       ..orderBy([
-        (row) => OrderingTerm(
-          expression: row.createdAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
     return query.get();
@@ -153,6 +153,131 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     return row.read(count) ?? 0;
   }
 
+  Future<void> upsertSourceScopeCache(SourceScopeCacheCompanion entry) {
+    return into(sourceScopeCache).insertOnConflictUpdate(entry);
+  }
+
+  Future<List<SourceScopeCacheEntry>> sourceScopeCacheForSource(
+    String sourceId, {
+    String? cacheType,
+    int limit = 50,
+  }) {
+    final trimmedType = cacheType?.trim();
+    final query = select(sourceScopeCache)
+      ..where((row) {
+        var predicate = row.sourceId.equals(sourceId);
+        if (trimmedType != null && trimmedType.isNotEmpty) {
+          predicate = predicate & row.cacheType.equals(trimmedType);
+        }
+        return predicate;
+      })
+      ..orderBy([
+        (row) =>
+            OrderingTerm(expression: row.updatedAt, mode: OrderingMode.desc),
+      ])
+      ..limit(limit);
+    return query.get();
+  }
+
+  Future<void> deleteSourceScopeCacheForSource(
+    String sourceId, {
+    String? retentionPolicy,
+  }) {
+    final statement = delete(sourceScopeCache)
+      ..where((row) {
+        var predicate = row.sourceId.equals(sourceId);
+        if (retentionPolicy != null) {
+          predicate = predicate & row.retentionPolicy.equals(retentionPolicy);
+        }
+        return predicate;
+      });
+    return statement.go();
+  }
+
+  Future<List<KnowledgeEvidenceEntry>> evidencesForSource(
+    String sourceId, {
+    int limit = 50,
+  }) {
+    final query = select(knowledgeEvidences)
+      ..where((row) => row.sourceId.equals(sourceId))
+      ..orderBy([
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
+      ])
+      ..limit(limit);
+    return query.get();
+  }
+
+  Future<void> updateEvidencesForSource({
+    required String sourceId,
+    required String sourceAvailability,
+    String? retentionPolicy,
+    bool clearShortExcerpt = false,
+  }) {
+    return (update(
+      knowledgeEvidences,
+    )..where((row) => row.sourceId.equals(sourceId))).write(
+      KnowledgeEvidencesCompanion(
+        sourceAvailability: Value(sourceAvailability),
+        retentionPolicy: retentionPolicy == null
+            ? const Value.absent()
+            : Value(retentionPolicy),
+        shortExcerpt: clearShortExcerpt
+            ? const Value('')
+            : const Value.absent(),
+      ),
+    );
+  }
+
+  Future<void> deleteEvidencesForSource(String sourceId) {
+    return (delete(
+      knowledgeEvidences,
+    )..where((row) => row.sourceId.equals(sourceId))).go();
+  }
+
+  Future<void> deleteEventsForSource(String sourceId) {
+    return (delete(
+      memoryEvents,
+    )..where((row) => row.sourceId.equals(sourceId))).go();
+  }
+
+  Future<void> deleteReviewCandidatesForSourceEvidence(String sourceId) {
+    final evidenceIds = selectOnly(knowledgeEvidences)
+      ..addColumns([knowledgeEvidences.id])
+      ..where(knowledgeEvidences.sourceId.equals(sourceId));
+    return (delete(
+      reviewCandidates,
+    )..where((row) => row.evidenceId.isInQuery(evidenceIds))).go();
+  }
+
+  Future<List<String>> entityIdsWithOnlySourceEvidence(String sourceId) async {
+    final entityIdsQuery = selectOnly(knowledgeEvidences)
+      ..addColumns([knowledgeEvidences.entityId])
+      ..where(knowledgeEvidences.sourceId.equals(sourceId))
+      ..groupBy([knowledgeEvidences.entityId]);
+    final rows = await entityIdsQuery.get();
+    final entityIds = <String>[];
+    for (final row in rows) {
+      final entityId = row.read(knowledgeEvidences.entityId);
+      if (entityId == null) continue;
+      final total = await _evidenceCountForEntity(entityId);
+      final fromSource = await _evidenceCountForEntity(
+        entityId,
+        sourceId: sourceId,
+      );
+      if (total > 0 && total == fromSource) {
+        entityIds.add(entityId);
+      }
+    }
+    return entityIds;
+  }
+
+  Future<void> deleteEntitiesById(Iterable<String> entityIds) {
+    final ids = entityIds.toSet().toList(growable: false);
+    if (ids.isEmpty) return Future.value();
+    return (delete(knowledgeEntities)..where((row) => row.id.isIn(ids))).go();
+  }
+
   Future<void> upsertReviewCandidate(ReviewCandidatesCompanion entry) {
     return into(reviewCandidates).insertOnConflictUpdate(entry);
   }
@@ -174,14 +299,10 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     }
     query
       ..orderBy([
-        (row) => OrderingTerm(
-          expression: row.priority,
-          mode: OrderingMode.desc,
-        ),
-        (row) => OrderingTerm(
-          expression: row.updatedAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.priority, mode: OrderingMode.desc),
+        (row) =>
+            OrderingTerm(expression: row.updatedAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
     return query.get();
@@ -197,14 +318,10 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     }
     query
       ..orderBy([
-        (row) => OrderingTerm(
-          expression: row.priority,
-          mode: OrderingMode.desc,
-        ),
-        (row) => OrderingTerm(
-          expression: row.updatedAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.priority, mode: OrderingMode.desc),
+        (row) =>
+            OrderingTerm(expression: row.updatedAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
     return query.get();
@@ -250,9 +367,7 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     return row.read(count) ?? 0;
   }
 
-  Future<int> inspectorReviewCandidateCount({
-    required String language,
-  }) async {
+  Future<int> inspectorReviewCandidateCount({required String language}) async {
     final count = reviewCandidates.id.count();
     final query = selectOnly(reviewCandidates)..addColumns([count]);
     query.where(_hasLanguageEntity(reviewCandidates.entityId, language));
@@ -352,10 +467,8 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
         return predicate;
       })
       ..orderBy([
-        (row) => OrderingTerm(
-          expression: row.updatedAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.updatedAt, mode: OrderingMode.desc),
       ])
       ..limit(limit, offset: offset);
     return selectQuery.get();
@@ -390,10 +503,8 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
         return predicate;
       })
       ..orderBy([
-        (row) => OrderingTerm(
-          expression: row.updatedAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.updatedAt, mode: OrderingMode.desc),
       ])
       ..limit(limit, offset: offset);
     return selectQuery.get();
@@ -433,10 +544,8 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
         return predicate;
       })
       ..orderBy([
-        (row) => OrderingTerm(
-          expression: row.createdAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit, offset: offset);
     return selectQuery.get();
@@ -472,10 +581,8 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
         return predicate;
       })
       ..orderBy([
-        (row) => OrderingTerm(
-          expression: row.createdAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit, offset: offset);
     return selectQuery.get();
@@ -488,10 +595,8 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     final query = select(memoryEvents)
       ..where((row) => row.entityId.equals(entityId))
       ..orderBy([
-        (row) => OrderingTerm(
-          expression: row.createdAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
     return query.get();
@@ -504,14 +609,10 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     final query = select(reviewCandidates)
       ..where((row) => row.entityId.equals(entityId))
       ..orderBy([
-        (row) => OrderingTerm(
-          expression: row.priority,
-          mode: OrderingMode.desc,
-        ),
-        (row) => OrderingTerm(
-          expression: row.updatedAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.priority, mode: OrderingMode.desc),
+        (row) =>
+            OrderingTerm(expression: row.updatedAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
     return query.get();
@@ -525,6 +626,20 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
       ..addColumns([knowledgeEntities.id])
       ..where(knowledgeEntities.language.equals(language));
     return entityId.isInQuery(entityIds);
+  }
+
+  Future<int> _evidenceCountForEntity(
+    String entityId, {
+    String? sourceId,
+  }) async {
+    final count = knowledgeEvidences.id.count();
+    final query = selectOnly(knowledgeEvidences)..addColumns([count]);
+    query.where(knowledgeEvidences.entityId.equals(entityId));
+    if (sourceId != null) {
+      query.where(knowledgeEvidences.sourceId.equals(sourceId));
+    }
+    final row = await query.getSingle();
+    return row.read(count) ?? 0;
   }
 
   static String? _searchPattern(String? query) {

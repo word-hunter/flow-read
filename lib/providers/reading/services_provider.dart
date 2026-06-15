@@ -21,6 +21,7 @@ import '../../services/reader_layout_engine.dart';
 import '../../services/reading_config_service.dart';
 import '../../services/reading_insight_service.dart';
 import '../../services/reading_memory/context_retrieval_service.dart';
+import '../../services/reading_memory/knowledge_retention_service.dart';
 import '../../services/reading_memory/reading_memory_service.dart';
 import '../../services/reading_memory/review_candidate_service.dart';
 import '../../services/reading_memory/source_scope_service.dart';
@@ -189,6 +190,21 @@ final sourceScopeServiceProvider = Provider<SourceScopeService>((ref) {
   return service;
 });
 
+final knowledgeRetentionServiceProvider = Provider<KnowledgeRetentionService>((
+  ref,
+) {
+  final db = _requireAppDatabase();
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = KnowledgeRetentionService(
+    repository: DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: languageCode,
+    ),
+  );
+  unawaited(service.init());
+  return service;
+});
+
 final wordMemoryServiceProvider = Provider<WordMemoryService>((ref) {
   final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
@@ -273,10 +289,7 @@ final wordLevelServiceProvider = Provider<WordLevelService>((ref) {
       LanguageRegistry.instance.get(langCode) ??
       LanguageRegistry.instance.defaultModule!;
   final service = WordLevelService(
-    repository: DriftWordLevelRepository(
-      db.wordLevelDao,
-      db.settingsDao,
-    ),
+    repository: DriftWordLevelRepository(db.wordLevelDao, db.settingsDao),
     languageModule: languageModule,
   );
   unawaited(service.init());

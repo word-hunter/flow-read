@@ -34,6 +34,8 @@ class WordLookupState {
     this.isAnalyzingWord = false,
     this.visualDefinition,
     this.isLoadingVisualHint = false,
+    this.wordMemoryCard,
+    this.isLoadingWordMemory = false,
   });
 
   final String? selectedWord;
@@ -49,6 +51,8 @@ class WordLookupState {
   final bool isAnalyzingWord;
   final VisualDefinition? visualDefinition;
   final bool isLoadingVisualHint;
+  final WordMemoryCard? wordMemoryCard;
+  final bool isLoadingWordMemory;
 
   bool get canGoBackWordLookup => wordLookupHistory.isNotEmpty;
 
@@ -66,9 +70,12 @@ class WordLookupState {
     bool? isAnalyzingWord,
     VisualDefinition? visualDefinition,
     bool? isLoadingVisualHint,
+    WordMemoryCard? wordMemoryCard,
+    bool? isLoadingWordMemory,
     bool clearWordLookup = false,
     bool clearAIAnalysis = false,
     bool clearVisualHint = false,
+    bool clearWordMemory = false,
   }) {
     return WordLookupState(
       selectedWord: clearWordLookup
@@ -104,6 +111,12 @@ class WordLookupState {
       isLoadingVisualHint: clearWordLookup || clearVisualHint
           ? false
           : (isLoadingVisualHint ?? this.isLoadingVisualHint),
+      wordMemoryCard: clearWordLookup || clearWordMemory
+          ? null
+          : (wordMemoryCard ?? this.wordMemoryCard),
+      isLoadingWordMemory: clearWordLookup || clearWordMemory
+          ? false
+          : (isLoadingWordMemory ?? this.isLoadingWordMemory),
     );
   }
 
@@ -115,7 +128,9 @@ class WordLookupState {
         other.isLoadingWord == isLoadingWord &&
         other.isAnalyzingWord == isAnalyzingWord &&
         other.isLoadingVisualHint == isLoadingVisualHint &&
-        other.visualDefinition == visualDefinition;
+        other.visualDefinition == visualDefinition &&
+        other.wordMemoryCard == wordMemoryCard &&
+        other.isLoadingWordMemory == isLoadingWordMemory;
   }
 
   @override
@@ -126,6 +141,8 @@ class WordLookupState {
     isAnalyzingWord,
     isLoadingVisualHint,
     visualDefinition,
+    wordMemoryCard,
+    isLoadingWordMemory,
   );
 }
 
@@ -217,6 +234,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
       isLoadingWord: true,
       aiWordAnalysis: state.aiWordAnalysis,
       isAnalyzingWord: state.isAnalyzingWord,
+      isLoadingWordMemory: true,
     );
 
     final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
@@ -244,6 +262,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
           ),
     );
     if (requestVersion != _wordLookupRequestVersion) return;
+    unawaited(_loadWordMemoryCard(request, requestVersion));
 
     final glossaryResult = await _checkBookGlossary(request);
     if (glossaryResult != null) {
@@ -267,11 +286,13 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
     final history = List<DictionaryLookupResult>.from(state.wordLookupHistory)
       ..removeLast();
     final previous = state.wordLookupHistory.last;
-    _applyWordLookupResult(previous);
+    _applyWordLookupResult(previous, preserveWordMemory: false);
     state = state.copyWith(
       isLoadingWord: false,
       wordLookupHistory: history,
+      isLoadingWordMemory: true,
     );
+    unawaited(_loadWordMemoryCard(previous.request, _wordLookupRequestVersion));
   }
 
   void clearWordLookup() {
@@ -328,7 +349,10 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
     return module;
   }
 
-  void _applyWordLookupResult(DictionaryLookupResult result) {
+  void _applyWordLookupResult(
+    DictionaryLookupResult result, {
+    bool preserveWordMemory = true,
+  }) {
     state = WordLookupState(
       selectedWordLookupResult: result,
       selectedWord: result.request.displayWord,
@@ -343,7 +367,44 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
       isAnalyzingWord: state.isAnalyzingWord,
       visualDefinition: state.visualDefinition,
       isLoadingVisualHint: state.isLoadingVisualHint,
+      wordMemoryCard: preserveWordMemory ? state.wordMemoryCard : null,
+      isLoadingWordMemory: preserveWordMemory
+          ? state.isLoadingWordMemory
+          : false,
     );
+  }
+
+  Future<void> _loadWordMemoryCard(
+    DictionaryLookupRequest request,
+    int requestVersion,
+  ) async {
+    final canonical = ReadingMemoryIds.normalizeCanonical(
+      request.canonicalForm,
+    );
+    if (canonical.isEmpty) {
+      if (requestVersion == _wordLookupRequestVersion) {
+        state = state.copyWith(
+          clearWordMemory: true,
+          isLoadingWordMemory: false,
+        );
+      }
+      return;
+    }
+
+    try {
+      final card = await ref
+          .read(wordMemoryServiceProvider)
+          .getWordCard(
+            canonical: canonical,
+            displayText: request.displayWord,
+            languageCode: request.languageCode,
+          );
+      if (!ref.mounted || requestVersion != _wordLookupRequestVersion) return;
+      state = state.copyWith(wordMemoryCard: card, isLoadingWordMemory: false);
+    } on Object {
+      if (!ref.mounted || requestVersion != _wordLookupRequestVersion) return;
+      state = state.copyWith(clearWordMemory: true, isLoadingWordMemory: false);
+    }
   }
 
   Future<DictionaryLookupResult?> _checkBookGlossary(

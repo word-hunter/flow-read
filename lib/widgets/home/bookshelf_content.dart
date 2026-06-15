@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../../models/book_metadata.dart';
+import '../../models/reading_memory.dart';
 import '../../providers/reading/bookshelf_notifier.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/settings_provider.dart';
@@ -402,11 +403,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
           hintStyle: theme.textTheme.bodyMedium?.copyWith(
             color: city?.textSecondary ?? theme.colorScheme.onSurfaceVariant,
           ),
-          prefixIcon: Icon(
-            Icons.search,
-            size: 20,
-            color: city?.textSecondary,
-          ),
+          prefixIcon: Icon(Icons.search, size: 20, color: city?.textSecondary),
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -679,62 +676,105 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     BookshelfNotifier notifier,
     BookMetadata book,
   ) async {
-    final confirmed = await showDialog<bool>(
+    var selectedPolicy = EvidenceRetentionPolicy.keepSnippet;
+    final policy = await showDialog<EvidenceRetentionPolicy>(
       context: context,
       builder: (dialogContext) {
         final theme = Theme.of(dialogContext);
         final screenWidth = MediaQuery.sizeOf(dialogContext).width;
-        final dialogWidth = math.min(
-          360.0,
-          math.max(280.0, screenWidth - 80),
-        );
-        return FlowDialog(
-          title: const Text('移除书籍？'),
-          content: SizedBox(
-            width: dialogWidth,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('将从书架移除这本书：'),
-                const SizedBox(height: 8),
-                Text(
-                  book.title,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface,
-                  ),
+        final dialogWidth = math.min(360.0, math.max(280.0, screenWidth - 80));
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return FlowDialog(
+              title: const Text('移除书籍？'),
+              content: SizedBox(
+                width: dialogWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('将从书架移除这本书：'),
+                    const SizedBox(height: 8),
+                    Text(
+                      book.title,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '阅读进度、阅读书签、AI 缓存以及本地 EPUB/封面文件会被清空。请选择学习记忆的处理方式。',
+                    ),
+                    const SizedBox(height: 12),
+                    RadioGroup<EvidenceRetentionPolicy>(
+                      groupValue: selectedPolicy,
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setDialogState(() => selectedPolicy = value);
+                      },
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _BookRemovalPolicyTile(
+                            value: EvidenceRetentionPolicy.keepSnippet,
+                          ),
+                          _BookRemovalPolicyTile(
+                            value: EvidenceRetentionPolicy.keepMetadataOnly,
+                          ),
+                          _BookRemovalPolicyTile(
+                            value: EvidenceRetentionPolicy.deleteWithSource,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  '并清空该书的阅读进度、生词本、阅读书签、AI 缓存以及本地 EPUB/封面文件。此操作不可撤销。',
+              ),
+              actions: [
+                FlowButton.text(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('取消'),
+                ),
+                FlowButton.destructive(
+                  onPressed: () => Navigator.pop(dialogContext, selectedPolicy),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  child: Text(_removeBookActionLabel(selectedPolicy)),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            FlowButton.text(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('取消'),
-            ),
-            FlowButton.destructive(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.delete_outline, size: 18),
-              child: const Text('移除并清空'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
 
-    if (confirmed != true) return;
-    await notifier.removeBook(book.id);
+    if (policy == null) return;
+    await notifier.removeBook(book.id, memoryRetentionPolicy: policy);
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('已移除《${book.title}》')));
+    ).showSnackBar(SnackBar(content: Text(_removedBookMessage(book, policy))));
+  }
+
+  String _removeBookActionLabel(EvidenceRetentionPolicy policy) {
+    return switch (policy) {
+      EvidenceRetentionPolicy.keepSnippet => '移除书籍',
+      EvidenceRetentionPolicy.keepMetadataOnly => '移除并保留元数据',
+      EvidenceRetentionPolicy.deleteWithSource => '移除并删除记忆',
+    };
+  }
+
+  String _removedBookMessage(
+    BookMetadata book,
+    EvidenceRetentionPolicy policy,
+  ) {
+    return switch (policy) {
+      EvidenceRetentionPolicy.keepSnippet => '已移除《${book.title}》，学习记忆已保留',
+      EvidenceRetentionPolicy.keepMetadataOnly => '已移除《${book.title}》，仅保留学习元数据',
+      EvidenceRetentionPolicy.deleteWithSource => '已移除《${book.title}》及相关学习记忆',
+    };
   }
 
   Future<void> _renameBook(
@@ -799,11 +839,44 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   }
 }
 
-class _BookshelfLanguageSwitcher extends StatelessWidget {
-  const _BookshelfLanguageSwitcher({
-    required this.settings,
-    this.onChanged,
+class _BookRemovalPolicyTile extends StatelessWidget {
+  const _BookRemovalPolicyTile({
+    required this.value,
   });
+
+  final EvidenceRetentionPolicy value;
+
+  @override
+  Widget build(BuildContext context) {
+    return RadioListTile<EvidenceRetentionPolicy>(
+      value: value,
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      title: Text(_title),
+      subtitle: Text(_subtitle),
+    );
+  }
+
+  String get _title {
+    return switch (value) {
+      EvidenceRetentionPolicy.keepSnippet => '保留学习记忆和短例句',
+      EvidenceRetentionPolicy.keepMetadataOnly => '仅保留学习元数据',
+      EvidenceRetentionPolicy.deleteWithSource => '删除本书相关学习记忆',
+    };
+  }
+
+  String get _subtitle {
+    return switch (value) {
+      EvidenceRetentionPolicy.keepSnippet => '默认选项，单词状态、保存解释和短例句会继续可用。',
+      EvidenceRetentionPolicy.keepMetadataOnly => '保留单词状态、事件和来源记录，不再保留原文片段。',
+      EvidenceRetentionPolicy.deleteWithSource =>
+        '同时删除由这本书产生的证据、事件、缓存和仅来自本书的记忆。',
+    };
+  }
+}
+
+class _BookshelfLanguageSwitcher extends StatelessWidget {
+  const _BookshelfLanguageSwitcher({required this.settings, this.onChanged});
 
   final SettingsService settings;
   final VoidCallback? onChanged;

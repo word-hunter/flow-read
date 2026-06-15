@@ -51,6 +51,43 @@ abstract class ReadingMemoryRepository {
     MemoryEventType? type,
   });
 
+  Future<void> upsertSourceScopeCache(SourceScopeCacheItem item);
+
+  Future<List<SourceScopeCacheItem>> sourceScopeCacheForSource(
+    String sourceId, {
+    String? cacheType,
+    int limit = 50,
+  });
+
+  Future<void> deleteSourceScopeCacheForSource(
+    String sourceId, {
+    EvidenceRetentionPolicy? retentionPolicy,
+  });
+
+  Future<List<MemoryKnowledgeEvidence>> evidencesForSource(
+    String sourceId, {
+    int limit = 50,
+  });
+
+  Future<void> updateEvidencesForSource({
+    required String sourceId,
+    required SourceAvailability sourceAvailability,
+    EvidenceRetentionPolicy? retentionPolicy,
+    bool clearShortExcerpt = false,
+  });
+
+  Future<void> deleteEvidencesForSource(String sourceId);
+
+  Future<void> deleteEventsForSource(String sourceId);
+
+  Future<void> deleteReviewCandidatesForSourceEvidence(String sourceId);
+
+  Future<List<String>> entityIdsWithOnlySourceEvidence(String sourceId);
+
+  Future<void> deleteEntitiesById(Iterable<String> entityIds);
+
+  Future<void> deleteSourceRecord(String sourceId);
+
   Future<void> upsertReviewCandidate(ReviewCandidate candidate);
 
   Future<ReviewCandidate?> reviewCandidateById(String id);

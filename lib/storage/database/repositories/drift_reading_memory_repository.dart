@@ -199,6 +199,99 @@ final class DriftReadingMemoryRepository implements ReadingMemoryRepository {
   }
 
   @override
+  Future<void> upsertSourceScopeCache(SourceScopeCacheItem item) {
+    return _dao.upsertSourceScopeCache(
+      SourceScopeCacheCompanion(
+        id: Value(item.id),
+        sourceId: Value(item.sourceId),
+        cacheType: Value(item.cacheType.trim()),
+        payload: Value(item.payload),
+        retentionPolicy: Value(item.retentionPolicy.storageValue),
+        updatedAt: Value(_encodeDate(item.updatedAt)),
+      ),
+    );
+  }
+
+  @override
+  Future<List<SourceScopeCacheItem>> sourceScopeCacheForSource(
+    String sourceId, {
+    String? cacheType,
+    int limit = 50,
+  }) async {
+    final rows = await _dao.sourceScopeCacheForSource(
+      sourceId,
+      cacheType: cacheType,
+      limit: limit,
+    );
+    return rows.map(_sourceScopeCacheFromEntry).toList(growable: false);
+  }
+
+  @override
+  Future<void> deleteSourceScopeCacheForSource(
+    String sourceId, {
+    EvidenceRetentionPolicy? retentionPolicy,
+  }) {
+    return _dao.deleteSourceScopeCacheForSource(
+      sourceId,
+      retentionPolicy: retentionPolicy?.storageValue,
+    );
+  }
+
+  @override
+  Future<List<MemoryKnowledgeEvidence>> evidencesForSource(
+    String sourceId, {
+    int limit = 50,
+  }) async {
+    final rows = await _dao.evidencesForSource(sourceId, limit: limit);
+    return rows.map(_evidenceFromEntry).toList(growable: false);
+  }
+
+  @override
+  Future<void> updateEvidencesForSource({
+    required String sourceId,
+    required SourceAvailability sourceAvailability,
+    EvidenceRetentionPolicy? retentionPolicy,
+    bool clearShortExcerpt = false,
+  }) {
+    return _dao.updateEvidencesForSource(
+      sourceId: sourceId,
+      sourceAvailability: sourceAvailability.storageValue,
+      retentionPolicy: retentionPolicy?.storageValue,
+      clearShortExcerpt: clearShortExcerpt,
+    );
+  }
+
+  @override
+  Future<void> deleteEvidencesForSource(String sourceId) {
+    return _dao.deleteEvidencesForSource(sourceId);
+  }
+
+  @override
+  Future<void> deleteEventsForSource(String sourceId) {
+    return _dao.deleteEventsForSource(sourceId);
+  }
+
+  @override
+  Future<void> deleteReviewCandidatesForSourceEvidence(String sourceId) {
+    return _dao.deleteReviewCandidatesForSourceEvidence(sourceId);
+  }
+
+  @override
+  Future<List<String>> entityIdsWithOnlySourceEvidence(String sourceId) {
+    return _dao.entityIdsWithOnlySourceEvidence(sourceId);
+  }
+
+  @override
+  Future<void> deleteEntitiesById(Iterable<String> entityIds) {
+    return _dao.deleteEntitiesById(entityIds);
+  }
+
+  @override
+  Future<void> deleteSourceRecord(String sourceId) {
+    return _dao.deleteSourceRecord(sourceId);
+  }
+
+  @override
   Future<void> upsertReviewCandidate(ReviewCandidate candidate) {
     return _dao.upsertReviewCandidate(
       ReviewCandidatesCompanion(
@@ -320,9 +413,7 @@ final class DriftReadingMemoryRepository implements ReadingMemoryRepository {
       sourceAvailability: SourceAvailability.fromStorage(
         row.sourceAvailability,
       ),
-      retentionPolicy: EvidenceRetentionPolicy.fromStorage(
-        row.retentionPolicy,
-      ),
+      retentionPolicy: EvidenceRetentionPolicy.fromStorage(row.retentionPolicy),
       createdAt: _decodeDate(row.createdAt),
     );
   }
@@ -339,6 +430,19 @@ final class DriftReadingMemoryRepository implements ReadingMemoryRepository {
       sourceRefJson: row.sourceRefJson,
       metadataJson: row.metadataJson,
       createdAt: _decodeDate(row.createdAt),
+    );
+  }
+
+  static SourceScopeCacheItem _sourceScopeCacheFromEntry(
+    SourceScopeCacheEntry row,
+  ) {
+    return SourceScopeCacheItem(
+      id: row.id,
+      sourceId: row.sourceId,
+      cacheType: row.cacheType,
+      payload: row.payload,
+      retentionPolicy: EvidenceRetentionPolicy.fromStorage(row.retentionPolicy),
+      updatedAt: _decodeDate(row.updatedAt),
     );
   }
 

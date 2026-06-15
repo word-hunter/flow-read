@@ -193,10 +193,86 @@ void main() {
         'languageCode': 'en',
       });
       expect(sourceScope._deletedBookSources, ['book-1']);
+      expect(sourceScope._deletePolicies, [
+        EvidenceRetentionPolicy.keepSnippet,
+      ]);
       expect(bookCache.get('book-1'), isNull);
       expect(container.read(bookshelfNotifierProvider).books, isEmpty);
     },
   );
+
+  test('removeBook passes metadata-only retention policy', () async {
+    final metadata = _metadata(
+      id: 'book-1',
+      title: 'Memory Book',
+      sourcePath: '/tmp/memory-book.epub',
+    );
+    final sourceScope = _RecordingSourceScopeService();
+    final container = ProviderContainer(
+      overrides: [
+        bookServiceProvider.overrideWithValue(_FakeBookService([metadata])),
+        bookmarkServiceProvider.overrideWithValue(_RecordingBookmarkService()),
+        learningItemServiceProvider.overrideWithValue(
+          _RecordingLearningItemService(),
+        ),
+        sourceScopeServiceProvider.overrideWithValue(sourceScope),
+        aiCacheServiceProvider.overrideWithValue(_RecordingAICacheService()),
+        currentBookNotifierProvider.overrideWith(
+          _RecordingCurrentBookNotifier.new,
+        ),
+        vocabularyNotifierProvider.overrideWith(_NoopVocabularyNotifier.new),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container
+        .read(bookshelfNotifierProvider.notifier)
+        .removeBook(
+          'book-1',
+          memoryRetentionPolicy: EvidenceRetentionPolicy.keepMetadataOnly,
+        );
+
+    expect(sourceScope._deletedBookSources, ['book-1']);
+    expect(sourceScope._deletePolicies, [
+      EvidenceRetentionPolicy.keepMetadataOnly,
+    ]);
+    expect(sourceScope._deletedBookSourcesWithMemory, isEmpty);
+  });
+
+  test('removeBook can delete source-scoped memory', () async {
+    final metadata = _metadata(
+      id: 'book-1',
+      title: 'Memory Book',
+      sourcePath: '/tmp/memory-book.epub',
+    );
+    final sourceScope = _RecordingSourceScopeService();
+    final container = ProviderContainer(
+      overrides: [
+        bookServiceProvider.overrideWithValue(_FakeBookService([metadata])),
+        bookmarkServiceProvider.overrideWithValue(_RecordingBookmarkService()),
+        learningItemServiceProvider.overrideWithValue(
+          _RecordingLearningItemService(),
+        ),
+        sourceScopeServiceProvider.overrideWithValue(sourceScope),
+        aiCacheServiceProvider.overrideWithValue(_RecordingAICacheService()),
+        currentBookNotifierProvider.overrideWith(
+          _RecordingCurrentBookNotifier.new,
+        ),
+        vocabularyNotifierProvider.overrideWith(_NoopVocabularyNotifier.new),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container
+        .read(bookshelfNotifierProvider.notifier)
+        .removeBook(
+          'book-1',
+          memoryRetentionPolicy: EvidenceRetentionPolicy.deleteWithSource,
+        );
+
+    expect(sourceScope._deletedBookSources, isEmpty);
+    expect(sourceScope._deletedBookSourcesWithMemory, ['book-1']);
+  });
 }
 
 Book _book({required String title}) {
@@ -349,6 +425,8 @@ class _RecordingSourceScopeService extends SourceScopeService {
 
   final List<Map<String, String?>> _upsertedBookSources = [];
   final List<String> _deletedBookSources = [];
+  final List<EvidenceRetentionPolicy> _deletePolicies = [];
+  final List<String> _deletedBookSourcesWithMemory = [];
 
   @override
   Future<MemorySourceRecord> upsertBookSource({
@@ -377,8 +455,18 @@ class _RecordingSourceScopeService extends SourceScopeService {
   }
 
   @override
-  Future<void> deleteBookSourceKeepLearningMemory(String bookId) async {
+  Future<void> deleteBookSourceKeepLearningMemory(
+    String bookId, {
+    EvidenceRetentionPolicy evidencePolicy =
+        EvidenceRetentionPolicy.keepSnippet,
+  }) async {
     _deletedBookSources.add(bookId);
+    _deletePolicies.add(evidencePolicy);
+  }
+
+  @override
+  Future<void> deleteBookSourceAndRelatedMemory(String bookId) async {
+    _deletedBookSourcesWithMemory.add(bookId);
   }
 }
 
@@ -417,10 +505,7 @@ class _NoopBookmarkRepository implements BookmarkRepository {
   ) async {}
 
   @override
-  Future<void> putWordBookmarks(
-    String bookId,
-    String encodedBookmarks,
-  ) async {}
+  Future<void> putWordBookmarks(String bookId, String encodedBookmarks) async {}
 }
 
 class _NoopLearningItemRepository implements LearningItemRepository {
@@ -502,6 +587,37 @@ class _NoopReadingMemoryRepository implements ReadingMemoryRepository {
   Future<void> recordEvent(MemoryEvent event) async {}
 
   @override
+  Future<void> deleteEntitiesById(Iterable<String> entityIds) async {}
+
+  @override
+  Future<void> deleteEventsForSource(String sourceId) async {}
+
+  @override
+  Future<void> deleteEvidencesForSource(String sourceId) async {}
+
+  @override
+  Future<void> deleteReviewCandidatesForSourceEvidence(String sourceId) async {}
+
+  @override
+  Future<void> deleteSourceRecord(String sourceId) async {}
+
+  @override
+  Future<void> deleteSourceScopeCacheForSource(
+    String sourceId, {
+    EvidenceRetentionPolicy? retentionPolicy,
+  }) async {}
+
+  @override
+  Future<List<String>> entityIdsWithOnlySourceEvidence(String sourceId) async =>
+      const [];
+
+  @override
+  Future<List<MemoryKnowledgeEvidence>> evidencesForSource(
+    String sourceId, {
+    int limit = 50,
+  }) async => const [];
+
+  @override
   Future<List<ReviewCandidate>> reviewCandidates({
     ReviewCandidateStatus? status,
     int limit = 50,
@@ -528,6 +644,14 @@ class _NoopReadingMemoryRepository implements ReadingMemoryRepository {
   }) async {}
 
   @override
+  Future<void> updateEvidencesForSource({
+    required String sourceId,
+    required SourceAvailability sourceAvailability,
+    EvidenceRetentionPolicy? retentionPolicy,
+    bool clearShortExcerpt = false,
+  }) async {}
+
+  @override
   Future<void> upsertEntity(MemoryKnowledgeEntity entity) async {}
 
   @override
@@ -543,4 +667,14 @@ class _NoopReadingMemoryRepository implements ReadingMemoryRepository {
 
   @override
   Future<void> upsertSourceRecord(MemorySourceRecord record) async {}
+
+  @override
+  Future<void> upsertSourceScopeCache(SourceScopeCacheItem item) async {}
+
+  @override
+  Future<List<SourceScopeCacheItem>> sourceScopeCacheForSource(
+    String sourceId, {
+    String? cacheType,
+    int limit = 50,
+  }) async => const [];
 }
