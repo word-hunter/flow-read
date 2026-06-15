@@ -325,14 +325,23 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
   Future<void> removeBook(String bookId) async {
     final bookService = ref.read(bookServiceProvider);
     final bookmarkService = ref.read(bookmarkServiceProvider);
-    final learningItemService = ref.read(learningItemServiceProvider);
+    final sourceScopeService = ref.read(sourceScopeServiceProvider);
     final aiCache = ref.read(aiCacheServiceProvider);
+    final bookMeta = _bookMetaById(bookService.books, bookId);
 
     await bookService.removeBook(bookId);
     await bookmarkService.deleteWordBookmarks(bookId);
     await bookmarkService.deleteReadingBookmarks(bookId);
-    await learningItemService.deleteForBook(bookId);
     await aiCache.clearBookCache(bookId);
+    if (bookMeta != null) {
+      await sourceScopeService.upsertBookSource(
+        bookId: bookMeta.id,
+        title: bookMeta.title,
+        author: bookMeta.author,
+        languageCode: bookMeta.sourceLanguage,
+      );
+    }
+    await sourceScopeService.deleteBookSourceKeepLearningMemory(bookId);
     ref.read(bookCacheProvider).remove(bookId);
 
     if (state.activeBookId == bookId) {
@@ -342,6 +351,16 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
       );
     }
     state = state.copyWith(books: bookService.books);
+  }
+
+  static BookMetadata? _bookMetaById(
+    Iterable<BookMetadata> books,
+    String bookId,
+  ) {
+    for (final book in books) {
+      if (book.id == bookId) return book;
+    }
+    return null;
   }
 
   Future<void> renameBook(String bookId, String title) async {
@@ -408,8 +427,8 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
       final detectedLanguage = LanguageRegistry.normalizeLanguageCode(
         book.language,
       );
-      final sourceLanguage = detectedLanguage ??
-          ref.read(settingsProvider).activeSourceLanguage;
+      final sourceLanguage =
+          detectedLanguage ?? ref.read(settingsProvider).activeSourceLanguage;
       final languageConfidence = detectedLanguage == null ? null : 0.9;
 
       final metadata = restoredMeta == null
@@ -430,7 +449,10 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
               sourcePath: copiedPath,
               coverPath: coverPath ?? restoredMeta.coverPath,
               totalChapters: book.chapters.length,
-              sourceLanguage: detectedLanguage ?? restoredMeta.sourceLanguage ?? sourceLanguage,
+              sourceLanguage:
+                  detectedLanguage ??
+                  restoredMeta.sourceLanguage ??
+                  sourceLanguage,
               languageConfidence:
                   languageConfidence ?? restoredMeta.languageConfidence,
               currentChapter: _clampChapterIndex(

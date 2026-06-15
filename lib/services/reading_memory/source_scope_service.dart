@@ -97,6 +97,12 @@ class SourceScopeService {
     );
   }
 
+  Future<void> deleteBookSourceKeepLearningMemory(String bookId) {
+    return deleteSourceKeepLearningMemory(
+      ReadingMemoryIds.source(SourceKind.book, bookId),
+    );
+  }
+
   static String? _trimOrNull(String? value) {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
