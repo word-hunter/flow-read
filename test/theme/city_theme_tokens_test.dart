@@ -29,9 +29,9 @@ void main() {
 
     expect(city, isNotNull);
     expect(city!.activeBlue, const Color(0xFF0277FE));
-    expect(city.shellSurface, const Color(0xFFFEFAF3));
+    expect(city.shellSurface, const Color(0xFFFEFBF5));
     expect(surface, isNotNull);
-    expect(surface!.leftWorkspaceColor, const Color(0xFFFEFAF3));
+    expect(surface!.leftWorkspaceColor, const Color(0xFFFEFBF5));
     expect(surface.readerOpaqueSurface, const Color(0xFFFEFCF8));
   });
 

@@ -1,3 +1,5 @@
+import 'package:flow_read/theme/app_surface_tokens.dart';
+import 'package:flow_read/theme/city_theme_tokens.dart';
 import 'package:flow_read/widgets/home/home_sidebar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +25,41 @@ void main() {
 
     expect(find.text('RSS'), findsOneWidget);
     expect(find.text('浏览器'), findsNothing);
+    expect(find.text('Flow Read'), findsNothing);
+    expect(find.text('导航'), findsNothing);
+  });
+
+  testWidgets('sidebar uses requested warm shell background', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(
+          extensions: [
+            CityThemeTokens.sunny,
+            AppSurfaceTokens.cityLight(),
+          ],
+        ),
+        home: Scaffold(
+          body: HomeSidebar(
+            currentTab: 0,
+            onTabChanged: (_) {},
+            readingTimeSeconds: 0,
+            dailyReadingGoalSeconds: 3600,
+            onSettingsTap: () {},
+            onThemeToggle: () {},
+            nextThemeMode: ThemeMode.dark,
+            showRss: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Container && widget.color == const Color(0xFFFEFBF5),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('sidebar hides RSS entry when disabled', (tester) async {

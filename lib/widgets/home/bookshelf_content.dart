@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../../models/book_metadata.dart';
 import '../../providers/reading/bookshelf_notifier.dart';
-import '../../providers/reading/reading_time_notifier.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/epub_import_source.dart';
@@ -55,7 +54,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     final bookshelfState = ref.watch(bookshelfNotifierProvider);
     ref.watch(vocabularyNotifierProvider);
     final bookshelfNotifier = ref.read(bookshelfNotifierProvider.notifier);
-    final readingTimeNotifier = ref.read(readingTimeNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
     final allBooks = bookshelfState.books;
@@ -120,8 +118,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
           ],
           const SizedBox(height: 28),
           if (featuredBook != null) ...[
-            _buildSectionHeader(theme, title: '继续阅读'),
-            const SizedBox(height: 12),
             FeaturedBookCard(
               title: featuredBook.title,
               author: featuredBook.author,
@@ -129,9 +125,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
               progressPercent: (featuredBook.globalProgress * 100).toInt(),
               currentChapter: featuredBook.currentChapter,
               totalChapters: featuredBook.totalChapters,
-              readingTimeSeconds: readingTimeNotifier.readingTimeSecondsForBook(
-                featuredBook.id,
-              ),
               difficulty: bookshelfNotifier.difficultyForBook(featuredBook.id),
               isDifficultyLoading: bookshelfNotifier.isBookDifficultyLoading(
                 featuredBook.id,
@@ -384,38 +377,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     return SizedBox(width: width, child: field);
   }
 
-  Widget _buildSectionHeader(
-    ThemeData theme, {
-    required String title,
-    String? trailing,
-  }) {
-    final city = Theme.of(context).extension<CityThemeTokens>();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: city?.textPrimary ?? theme.colorScheme.onSurface,
-            ),
-          ),
-          if (trailing != null) ...[
-            const SizedBox(width: 10),
-            Text(
-              trailing,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color:
-                    city?.textSecondary ?? theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget _buildBookshelfHeader(
     ThemeData theme,
     BookshelfNotifier notifier, {
@@ -445,7 +406,8 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
         const SizedBox(width: 12),
         _BookshelfLanguageSwitcher(
           settings: settings,
-          onChanged: () => ref.read(bookshelfNotifierProvider.notifier).reloadBooks(),
+          onChanged: () =>
+              ref.read(bookshelfNotifierProvider.notifier).reloadBooks(),
         ),
       ],
     );

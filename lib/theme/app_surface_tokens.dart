@@ -79,7 +79,7 @@ class AppSurfaceTokens extends ThemeExtension<AppSurfaceTokens> {
     readerOpaqueSurface: Color(0xFFFEFCF8),
     readerControlSurface: Color(0xFFFEF9EF),
     assistantSurface: Color(0xFFFEF9EF),
-    leftWorkspaceColor: Color(0xFFFEFAF3),
+    leftWorkspaceColor: Color(0xFFFEFBF5),
     panelBorderColor: Color(0xFFEADBC6),
     panelShadowColor: Color(0x1AE5C99A),
     readerPageBorderColor: Color(0xFFEADBC6),

@@ -169,15 +169,12 @@ class _HomeSidebarState extends State<HomeSidebar> {
           tokens.leftWorkspaceColor,
       child: Column(
         children: [
-          SizedBox(height: topSpacing),
-          _buildBrandHeader(theme, cityTokens: cityTokens),
-          const SizedBox(height: 18),
+          SizedBox(height: topSpacing + 16),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 16),
               child: Column(
                 children: [
-                  _buildSectionLabel(theme, '导航', cityTokens: cityTokens),
                   _buildNavItems(theme, cityPreset, cityTokens: cityTokens),
                   const SizedBox(height: 28),
                   _buildSectionLabel(theme, '阅读目标', cityTokens: cityTokens),
@@ -226,28 +223,6 @@ class _HomeSidebarState extends State<HomeSidebar> {
           },
         );
       }),
-    );
-  }
-
-  Widget _buildBrandHeader(ThemeData theme, {CityThemeTokens? cityTokens}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Flow Read',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: cityTokens?.textPrimary ?? theme.colorScheme.primary,
-                fontWeight: FontWeight.w800,
-                height: 1,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -304,40 +279,40 @@ class _HomeSidebarState extends State<HomeSidebar> {
         : (isSelected ? FontWeight.w600 : FontWeight.normal);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 1),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
-        height: 56,
+        height: 46,
         decoration: BoxDecoration(
           color: selectedBg,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: city != null && isSelected
               ? [
                   BoxShadow(
                     color: city.activeBlue.withValues(alpha: 0.22),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
                   ),
                 ]
               : null,
         ),
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           child: InkWell(
             onTap: onTap,
             mouseCursor: SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               child: Row(
                 children: [
-                  Icon(icon, size: 22, color: iconColor),
-                  const SizedBox(width: 14),
+                  Icon(icon, size: 20, color: iconColor),
+                  const SizedBox(width: 12),
                   Text(
                     label,
-                    style: theme.textTheme.bodyLarge?.copyWith(
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: labelWeight,
                       color: textColor,
                     ),

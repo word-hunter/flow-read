@@ -36,7 +36,7 @@ class CityThemeTokens extends ThemeExtension<CityThemeTokens> {
     skyTop: Color(0xFF69BEFE),
     skyMid: Color(0xFFA6D9FD),
     skyBottom: Color(0xFFE9F5FB),
-    shellSurface: Color(0xFFFEFAF3),
+    shellSurface: Color(0xFFFEFBF5),
     cardSurface: Color(0xFFFEFCF8),
     panelSurface: Color(0xFFFEF9EF),
     warmBorder: Color(0xFFEADBC6),

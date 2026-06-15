@@ -72,7 +72,6 @@ void main() {
             progressPercent: 8,
             currentChapter: 0,
             totalChapters: 12,
-            readingTimeSeconds: 600,
             difficulty: _rating(BookDifficultyLevel.l5),
             onContinueReading: () {},
           ),
@@ -81,6 +80,8 @@ void main() {
     );
 
     expect(find.text('L5 · 暂不建议硬读'), findsOneWidget);
+    expect(find.text('本书已读'), findsNothing);
+    expect(find.text('上次章节'), findsNothing);
 
     final progress = tester.widget<LinearProgressIndicator>(
       find.byType(LinearProgressIndicator),

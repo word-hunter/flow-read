@@ -14,7 +14,6 @@ import '../widgets/home/home_sidebar.dart';
 import '../widgets/home/bookshelf_content.dart';
 import '../widgets/flow/flow_components.dart';
 import '../widgets/theme_transition.dart';
-import '../widgets/city/city_widgets.dart';
 import 'bookshelf_screen.dart';
 import 'rss_screen.dart';
 import 'vocabulary_screen.dart';
@@ -73,7 +72,6 @@ class HomeScreen extends riverpod.ConsumerWidget {
     final currentBookState = ref.watch(currentBookNotifierProvider);
     final currentBookNotifier = ref.read(currentBookNotifierProvider.notifier);
     final settings = ref.watch(settingsProvider);
-    final cityTokens = Theme.of(context).extension<CityThemeTokens>();
 
     Widget content;
     if (currentBookState.isReading && currentBookNotifier.hasBook) {
@@ -98,10 +96,6 @@ class HomeScreen extends riverpod.ConsumerWidget {
       );
     }
 
-    if (cityTokens != null) {
-      content = CityHomeBackground(child: content);
-    }
-
     return _ImportProgressHost(child: content);
   }
 
@@ -117,9 +111,7 @@ class HomeScreen extends riverpod.ConsumerWidget {
       currentBookState.currentTab,
       visibleTabs,
     );
-    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
-    final cityTokens = Theme.of(context).extension<CityThemeTokens>();
-    final useTransparentBg = cityPreset != null || cityTokens != null;
+    final backgroundColor = _homeBackgroundColor(context);
 
     final body = IndexedStack(
       index: selectedIndex,
@@ -127,18 +119,22 @@ class HomeScreen extends riverpod.ConsumerWidget {
     );
 
     return Scaffold(
-      backgroundColor: useTransparentBg ? Colors.transparent : null,
-      body: cityTokens == null
-          ? body
-          : ColoredBox(color: cityTokens.shellSurface, child: body),
+      backgroundColor: backgroundColor,
+      body: ColoredBox(color: backgroundColor, child: body),
       bottomNavigationBar: FlowSidebar.bottom(
-        backgroundColor: cityPreset?.surface.withValues(alpha: 0.88),
+        backgroundColor: backgroundColor,
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) =>
             currentBook.switchTab(visibleTabs[index]),
         destinations: _visibleWidgets(_navDestinations, visibleTabs),
       ),
     );
+  }
+
+  static Color _homeBackgroundColor(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.extension<CityThemeTokens>()?.shellSurface ??
+        theme.colorScheme.surface;
   }
 
   static List<int> _visibleTabs({required bool showRss}) {
@@ -554,45 +550,51 @@ class _WideHomeLayout extends riverpod.ConsumerWidget {
       visibleTabs,
     );
 
-    final useTransparentBg = cityPreset != null || cityTokens != null;
+    final backgroundColor = HomeScreen._homeBackgroundColor(context);
 
     return Scaffold(
-      backgroundColor: useTransparentBg ? Colors.transparent : null,
-      body: Row(
-        children: [
-          HomeSidebar(
-            currentTab: currentBookState.currentTab,
-            onTabChanged: currentBook.switchTab,
-            readingTimeSeconds: readingTime.weekReadingTimeSeconds,
-            monthReadingTimeSeconds: readingTime.monthReadingTimeSeconds,
-            weekDailyReadingSeconds: readingTime.weekDailyReadingSeconds,
-            monthDailyReadingSeconds: readingTime.monthDailyReadingSeconds,
-            goalDate: readingTime.readingGoalDate,
-            dailyReadingGoalSeconds: readingTime.dailyReadingGoalSeconds,
-            onSettingsTap: () =>
-                Navigator.pushNamed(context, SettingsScreen.routeName),
-            onThemeToggle: () =>
-                runThemeTransition(context, settings.toggleThemeMode),
-            nextThemeMode: settings.nextThemeMode,
-            showRss: showRss,
-          ),
-          VerticalDivider(
-            width: 1,
-            color:
-                cityTokens?.warmBorder ??
-                cityPreset?.outline.withValues(alpha: 0.70) ??
-                theme.colorScheme.outlineVariant,
-          ),
-          Expanded(
-            child: ColoredBox(
-              color: cityTokens?.shellSurface ?? Colors.transparent,
-              child: IndexedStack(
-                index: selectedIndex,
-                children: HomeScreen._visibleWidgets(_widePanels, visibleTabs),
+      backgroundColor: backgroundColor,
+      body: ColoredBox(
+        color: backgroundColor,
+        child: Row(
+          children: [
+            HomeSidebar(
+              currentTab: currentBookState.currentTab,
+              onTabChanged: currentBook.switchTab,
+              readingTimeSeconds: readingTime.weekReadingTimeSeconds,
+              monthReadingTimeSeconds: readingTime.monthReadingTimeSeconds,
+              weekDailyReadingSeconds: readingTime.weekDailyReadingSeconds,
+              monthDailyReadingSeconds: readingTime.monthDailyReadingSeconds,
+              goalDate: readingTime.readingGoalDate,
+              dailyReadingGoalSeconds: readingTime.dailyReadingGoalSeconds,
+              onSettingsTap: () =>
+                  Navigator.pushNamed(context, SettingsScreen.routeName),
+              onThemeToggle: () =>
+                  runThemeTransition(context, settings.toggleThemeMode),
+              nextThemeMode: settings.nextThemeMode,
+              showRss: showRss,
+            ),
+            VerticalDivider(
+              width: 1,
+              color:
+                  cityTokens?.warmBorder ??
+                  cityPreset?.outline.withValues(alpha: 0.70) ??
+                  theme.colorScheme.outlineVariant,
+            ),
+            Expanded(
+              child: ColoredBox(
+                color: backgroundColor,
+                child: IndexedStack(
+                  index: selectedIndex,
+                  children: HomeScreen._visibleWidgets(
+                    _widePanels,
+                    visibleTabs,
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

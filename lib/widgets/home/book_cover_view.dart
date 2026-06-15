@@ -8,8 +8,8 @@ class BookCoverView extends StatelessWidget {
   static const double borderRadius = 8;
   static const double shelfWidth = 128;
   static const double shelfHeight = 184;
-  static const double featuredWidth = 140;
-  static const double featuredHeight = 200;
+  static const double featuredWidth = 152;
+  static const double featuredHeight = 224;
   static const Size shelfSize = Size(shelfWidth, shelfHeight);
   static const Size featuredSize = Size(featuredWidth, featuredHeight);
   static const double tooltipMaxWidth = 420;
