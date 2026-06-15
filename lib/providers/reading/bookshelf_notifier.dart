@@ -410,14 +410,6 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     try {
       book = await ref.read(epubBookParserProvider)(meta.sourcePath);
     } catch (e, stackTrace) {
-      debugPrint(
-        '[Bookshelf] open book failed: '
-        'bookId=$bookId sourcePath=${meta.sourcePath} error=$e',
-      );
-      debugPrintStack(
-        label: '[Bookshelf] open book stack',
-        stackTrace: stackTrace,
-      );
       ref
           .read(appLoggerProvider)
           .event(
