@@ -82,6 +82,7 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 | `SourceScopeService` | 管理 book/rss/browser/manual 来源作用域与 tombstone（Drift `source_records`） |
 | `ReadingMemoryService` | Reading Memory 写入总入口，记录查词、词汇状态和保存解释事件 |
 | `WordMemoryService` | 聚合词汇状态、历史查词、上下文例句、保存解释和 evidence |
+| `ReadingMemoryInspectorService` | 本地开发调试用只读观测入口，聚合 Reading Memory 计数、列表和实体详情 |
 
 ### 5. 语音与发音
 
