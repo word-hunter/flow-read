@@ -6,8 +6,11 @@ import 'package:flow_language/flow_language.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/book.dart';
+import '../../models/reading_memory.dart';
 import '../../models/word_context_example.dart';
 import '../../services/compound_word_analyzer.dart';
+import '../../services/reading_memory/reading_memory_ids.dart';
 import '../../services/reading_search_service.dart';
 import '../../services/word_context_service.dart';
 import '../settings_provider.dart';
@@ -157,6 +160,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
     int? contextWordStart,
     int? contextWordEnd,
     bool trackReadingLookup = false,
+    MemorySourceRef? memorySourceRef,
   }) async {
     final activeModule = _activeLanguageModule;
     final normalizedContext = _normalizeLookupContext(
@@ -179,6 +183,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
         contextWordEnd: normalizedContext.wordEnd,
       ),
       trackReadingLookup: trackReadingLookup,
+      memorySourceRef: memorySourceRef,
     );
   }
 
@@ -200,6 +205,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
   Future<void> _lookupWord(
     DictionaryLookupRequest request, {
     bool trackReadingLookup = false,
+    MemorySourceRef? memorySourceRef,
   }) async {
     final requestVersion = ++_wordLookupRequestVersion;
     state = state.copyWith(
@@ -216,14 +222,28 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
 
     final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
     final book = ref.read(bookshelfNotifierProvider).book;
+    final currentChapter = ref.read(currentBookNotifierProvider).currentChapter;
     if (trackReadingLookup && activeBookId != null && book != null) {
       final analytics = ref.read(learningAnalyticsServiceProvider);
       await analytics.recordLookup(
         bookId: activeBookId,
-        chapterIndex: ref.read(currentBookNotifierProvider).currentChapter,
+        chapterIndex: currentChapter,
         word: request.displayWord,
       );
     }
+    await _recordReadingMemoryLookup(
+      request,
+      sourceRef:
+          memorySourceRef ??
+          _bookMemorySourceRef(
+            trackReadingLookup: trackReadingLookup,
+            activeBookId: activeBookId,
+            book: book,
+            chapterIndex: currentChapter,
+            contextWordStart: request.contextWordStart,
+            contextWordEnd: request.contextWordEnd,
+          ),
+    );
     if (requestVersion != _wordLookupRequestVersion) return;
 
     final glossaryResult = await _checkBookGlossary(request);
@@ -403,6 +423,57 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
       );
     }
     return snippets;
+  }
+
+  Future<void> _recordReadingMemoryLookup(
+    DictionaryLookupRequest request, {
+    required MemorySourceRef? sourceRef,
+  }) async {
+    if (sourceRef == null) return;
+    final memory = ref.read(readingMemoryServiceProvider);
+    await memory.recordLookup(
+      targetText: request.displayWord,
+      canonical: request.canonicalForm,
+      languageCode: request.languageCode,
+      sourceRef: sourceRef,
+      sentence: request.contextText,
+    );
+  }
+
+  MemorySourceRef? _bookMemorySourceRef({
+    required bool trackReadingLookup,
+    required String? activeBookId,
+    required Book? book,
+    required int chapterIndex,
+    required int? contextWordStart,
+    required int? contextWordEnd,
+  }) {
+    if (!trackReadingLookup || activeBookId == null || book == null) {
+      return null;
+    }
+    return MemorySourceRef(
+      sourceId: ReadingMemoryIds.source(SourceKind.book, activeBookId),
+      sourceKind: SourceKind.book,
+      sourceTitleSnapshot: book.title,
+      bookId: activeBookId,
+      chapterIndex: chapterIndex,
+      locationLocator: _wordLocationLocator(
+        chapterIndex: chapterIndex,
+        contextWordStart: contextWordStart,
+        contextWordEnd: contextWordEnd,
+      ),
+    );
+  }
+
+  String? _wordLocationLocator({
+    required int chapterIndex,
+    required int? contextWordStart,
+    required int? contextWordEnd,
+  }) {
+    if (contextWordStart == null || contextWordEnd == null) {
+      return 'chapter:$chapterIndex';
+    }
+    return 'chapter:$chapterIndex:word:$contextWordStart-$contextWordEnd';
   }
 
   String? _nonEmptyOrNull(String? value) {

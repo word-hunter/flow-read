@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 
 import '../../models/analysis_result.dart';
+import '../../models/reading_memory.dart';
 import 'package:flow_rss/flow_rss.dart';
 import '../../providers/reading/services_provider.dart';
 import '../../providers/reading/text_selection_notifier.dart';
@@ -12,6 +13,7 @@ import '../../providers/settings_provider.dart';
 import '../../services/analysis_service.dart';
 import '../../services/app_logger.dart';
 import 'package:flow_language/flow_language.dart';
+import '../../services/reading_memory/reading_memory_ids.dart';
 import '../../services/settings_service.dart';
 import '../../services/word_level_service.dart';
 import '../flow/flow_components.dart';
@@ -442,6 +444,12 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
       contextText: contextText,
       contextWordStart: contextWordStart,
       contextWordEnd: contextWordEnd,
+      memorySourceRef: MemorySourceRef(
+        sourceId: ReadingMemoryIds.source(SourceKind.rss, article.id),
+        sourceKind: SourceKind.rss,
+        sourceTitleSnapshot: article.title,
+        locationLocator: article.link,
+      ),
     );
     showFlowSheet(
       context: context,

@@ -5,12 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import 'package:flow_ai/flow_ai.dart';
 import '../models/analysis_result.dart';
+import '../models/reading_memory.dart';
 import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../services/analysis_service.dart';
+import '../services/reading_memory/reading_memory_ids.dart';
 import '../services/settings_service.dart';
 import '../services/web_content_service.dart';
 import '../theme/app_constants.dart';
@@ -125,6 +127,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
       contextText: contextText,
       contextWordStart: contextWordStart,
       contextWordEnd: contextWordEnd,
+      memorySourceRef: _browserMemorySourceRef(),
     );
     showFlowSheet(
       context: context,
@@ -143,6 +146,18 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
         .read(aiNotifierProvider.notifier)
         .analyzeSelectedTextAI(selectedText, sourceText: pageText);
     _showSelectedTextSheet(selectedText);
+  }
+
+  MemorySourceRef? _browserMemorySourceRef() {
+    final page = _page;
+    if (page == null) return null;
+    final url = page.url.toString();
+    return MemorySourceRef(
+      sourceId: ReadingMemoryIds.source(SourceKind.browser, url),
+      sourceKind: SourceKind.browser,
+      sourceTitleSnapshot: page.title.trim().isEmpty ? url : page.title,
+      locationLocator: url,
+    );
   }
 
   void _showSelectedTextSheet(String selectedText) {
