@@ -53,7 +53,7 @@ void main() {
   test('Drift storage opens with the current schema version', () async {
     final db = await createTestAppDatabase();
 
-    expect(db.schemaVersion, 1);
+    expect(db.schemaVersion, 2);
     expect(await db.settingsDao.allEntries(), isEmpty);
   });
 }

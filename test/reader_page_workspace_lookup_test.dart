@@ -8,6 +8,7 @@ import 'package:flow_read/models/book_metadata.dart';
 import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/models/content_block.dart';
 import 'package:flow_read/models/learning_item.dart';
+import 'package:flow_read/models/reading_memory.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
 import 'package:flow_read/models/word_level.dart';
 import 'package:flow_read/pages/reader_page.dart';
@@ -18,8 +19,12 @@ import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/learning_analytics_service.dart';
 import 'package:flow_read/services/learning_item_service.dart';
+import 'package:flow_read/services/reading_memory/context_retrieval_service.dart';
+import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
+import 'package:flow_read/services/reading_memory/word_memory_service.dart';
 import 'package:flow_read/services/reading_config_service.dart';
 import 'package:flow_read/services/reading_time_service.dart';
+import 'package:flow_read/services/review_schedule_service.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/screens/reading_desk_screen.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
@@ -30,6 +35,7 @@ import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
 import 'package:flow_read/storage/repositories/learning_analytics_repository.dart';
 import 'package:flow_read/storage/repositories/learning_item_repository.dart';
 import 'package:flow_read/storage/repositories/reading_config_repository.dart';
+import 'package:flow_read/storage/repositories/reading_memory_repository.dart';
 import 'package:flow_read/storage/repositories/reading_time_repository.dart';
 import 'package:flow_read/storage/repositories/user_vocabulary_repository.dart';
 import 'package:flow_read/storage/repositories/word_context_repository.dart';
@@ -458,6 +464,36 @@ Future<void> _pumpWorkspaceReader(
     repository: _MemoryUserVocabularyRepository(),
   );
   await userVocabulary.init();
+  final wordContext = WordContextService(
+    repository: _MemoryWordContextRepository(),
+  );
+  await wordContext.init();
+  final readingMemoryRepository = _NoopReadingMemoryRepository();
+  final readingMemory = ReadingMemoryService(
+    repository: readingMemoryRepository,
+    languageCode: 'en',
+  );
+  await readingMemory.init();
+  final wordMemory = WordMemoryService(
+    repository: readingMemoryRepository,
+    userVocabulary: userVocabulary,
+    wordContext: wordContext,
+    languageCode: 'en',
+  );
+  await wordMemory.init();
+  final contextRetrieval = ContextRetrievalService(
+    repository: readingMemoryRepository,
+    userVocabulary: userVocabulary,
+    languageCode: 'en',
+  );
+  final learningItem = LearningItemService(
+    repository: _MemoryLearningItemRepository(),
+  );
+  await learningItem.init();
+  final reviewSchedule = ReviewScheduleService(
+    learningItem,
+    readingMemory: readingMemory,
+  );
   final wordLevel = WordLevelService(
     repository: _MemoryWordLevelRepository(),
     languageModule: const EnglishLanguageModule(),
@@ -476,20 +512,20 @@ Future<void> _pumpWorkspaceReader(
         readingConfigServiceProvider.overrideWithValue(readingConfig),
         readingTimeServiceProvider.overrideWithValue(readingTime),
         userVocabularyServiceProvider.overrideWithValue(userVocabulary),
+        readingMemoryServiceProvider.overrideWithValue(readingMemory),
+        wordMemoryServiceProvider.overrideWithValue(wordMemory),
+        contextRetrievalServiceProvider.overrideWithValue(contextRetrieval),
+        reviewScheduleServiceProvider.overrideWithValue(reviewSchedule),
         wordLevelServiceProvider.overrideWithValue(wordLevel),
         wordRepositoryProvider.overrideWithValue(_MemoryWordRepository()),
-        wordContextServiceProvider.overrideWithValue(
-          WordContextService(repository: _MemoryWordContextRepository()),
-        ),
+        wordContextServiceProvider.overrideWithValue(wordContext),
         learningAnalyticsServiceProvider.overrideWithValue(
           LearningAnalyticsService(
             repository: _MemoryLearningAnalyticsRepository(),
             languageModule: const EnglishLanguageModule(),
           ),
         ),
-        learningItemServiceProvider.overrideWithValue(
-          LearningItemService(repository: _MemoryLearningItemRepository()),
-        ),
+        learningItemServiceProvider.overrideWithValue(learningItem),
         if (aiActionController != null)
           aiActionControllerProvider.overrideWithValue(aiActionController),
       ],
@@ -964,4 +1000,143 @@ class _MemoryLearningItemRepository implements LearningItemRepository {
 
   @override
   Future<void> close() async {}
+}
+
+class _NoopReadingMemoryRepository implements ReadingMemoryRepository {
+  @override
+  Future<void> init() async {}
+
+  @override
+  Future<void> close() async {}
+
+  @override
+  Future<MemoryKnowledgeEntity?> entityByCanonical({
+    required String languageCode,
+    required KnowledgeEntityType type,
+    required String canonicalKey,
+  }) async => null;
+
+  @override
+  Future<MemoryKnowledgeEntity?> entityById(String id) async => null;
+
+  @override
+  Future<int> eventCountForCanonical({
+    required String languageCode,
+    required String canonicalKey,
+    MemoryEventType? type,
+  }) async => 0;
+
+  @override
+  Future<List<MemoryEvent>> eventsForCanonical({
+    required String languageCode,
+    required String canonicalKey,
+    int limit = 20,
+  }) async => const [];
+
+  @override
+  Future<List<MemoryKnowledgeEvidence>> evidencesForEntity(
+    String entityId, {
+    int limit = 20,
+  }) async => const [];
+
+  @override
+  Future<List<MemoryKnowledgeExplanation>> explanationsForEntity(
+    String entityId, {
+    int limit = 20,
+  }) async => const [];
+
+  @override
+  Future<void> recordEvent(MemoryEvent event) async {}
+
+  @override
+  Future<void> deleteEntitiesById(Iterable<String> entityIds) async {}
+
+  @override
+  Future<void> deleteEventsForSource(String sourceId) async {}
+
+  @override
+  Future<void> deleteEvidencesForSource(String sourceId) async {}
+
+  @override
+  Future<void> deleteReviewCandidatesForSourceEvidence(String sourceId) async {}
+
+  @override
+  Future<void> deleteSourceRecord(String sourceId) async {}
+
+  @override
+  Future<void> deleteSourceScopeCacheForSource(
+    String sourceId, {
+    EvidenceRetentionPolicy? retentionPolicy,
+  }) async {}
+
+  @override
+  Future<List<String>> entityIdsWithOnlySourceEvidence(String sourceId) async =>
+      const [];
+
+  @override
+  Future<List<MemoryKnowledgeEvidence>> evidencesForSource(
+    String sourceId, {
+    int limit = 50,
+  }) async => const [];
+
+  @override
+  Future<List<ReviewCandidate>> reviewCandidates({
+    ReviewCandidateStatus? status,
+    int limit = 50,
+  }) async => const [];
+
+  @override
+  Future<ReviewCandidate?> reviewCandidateById(String id) async => null;
+
+  @override
+  Future<List<ReviewCandidate>> reviewCandidatesForEntity(
+    String entityId, {
+    ReviewCandidateStatus? status,
+    int limit = 20,
+  }) async => const [];
+
+  @override
+  Future<MemorySourceRecord?> sourceRecord(String id) async => null;
+
+  @override
+  Future<void> updateSourceAvailability({
+    required String sourceId,
+    required SourceAvailability availability,
+    DateTime? deletedAt,
+  }) async {}
+
+  @override
+  Future<void> updateEvidencesForSource({
+    required String sourceId,
+    required SourceAvailability sourceAvailability,
+    EvidenceRetentionPolicy? retentionPolicy,
+    bool clearShortExcerpt = false,
+  }) async {}
+
+  @override
+  Future<void> upsertEntity(MemoryKnowledgeEntity entity) async {}
+
+  @override
+  Future<void> upsertEvidence(MemoryKnowledgeEvidence evidence) async {}
+
+  @override
+  Future<void> upsertExplanation(
+    MemoryKnowledgeExplanation explanation,
+  ) async {}
+
+  @override
+  Future<void> upsertReviewCandidate(ReviewCandidate candidate) async {}
+
+  @override
+  Future<void> upsertSourceRecord(MemorySourceRecord record) async {}
+
+  @override
+  Future<void> upsertSourceScopeCache(SourceScopeCacheItem item) async {}
+
+  @override
+  Future<List<SourceScopeCacheItem>> sourceScopeCacheForSource(
+    String sourceId, {
+    String? cacheType,
+    int limit = 50,
+  }) async => const [];
 }
