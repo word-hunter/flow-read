@@ -144,4 +144,55 @@ void main() {
       'entity:en:word:reluctant',
     );
   });
+
+  test(
+    'user vocabulary status changes are mirrored to reading memory',
+    () async {
+      final memoryRepository = DriftReadingMemoryRepository(
+        db.readingMemoryDao,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 15, 9),
+      );
+      var tick = 0;
+      DateTime nextTime() {
+        return DateTime.utc(2026, 6, 15, 8).add(Duration(minutes: tick++));
+      }
+
+      final memory = ReadingMemoryService(
+        repository: memoryRepository,
+        languageCode: 'en',
+        clock: nextTime,
+      );
+      final userVocabulary = UserVocabularyService(
+        repository: DriftUserVocabularyRepository(
+          db.userVocabularyDao,
+          languageCode: 'en',
+        ),
+        readingMemory: memory,
+        languageCode: 'en',
+      );
+      await userVocabulary.init();
+
+      await userVocabulary.setLearning('Reluctant');
+      await userVocabulary.setKnown('Reluctant');
+      await userVocabulary.setUnknown('Reluctant');
+
+      final events = await memoryRepository.eventsForCanonical(
+        languageCode: 'en',
+        canonicalKey: 'reluctant',
+      );
+      expect(events.map((event) => event.type), [
+        MemoryEventType.markUnknown,
+        MemoryEventType.markKnown,
+        MemoryEventType.markLearning,
+      ]);
+      final entity = await memoryRepository.entityByCanonical(
+        languageCode: 'en',
+        type: KnowledgeEntityType.word,
+        canonicalKey: 'reluctant',
+      );
+      expect(entity?.masteryState, KnowledgeMasteryState.unknown);
+      expect(userVocabulary.getStatus('reluctant'), isNull);
+    },
+  );
 }

@@ -103,6 +103,7 @@ class ReadingMemoryService {
       masteryState: _masteryStateForStatus(status),
       languageCode: languageCode,
       now: now,
+      preserveExistingMastery: false,
     );
     await _upsertSourceRef(sourceRef, languageCode: languageCode, now: now);
 
@@ -186,6 +187,7 @@ class ReadingMemoryService {
     required DateTime now,
     String? languageCode,
     KnowledgeMasteryState masteryState = KnowledgeMasteryState.unknown,
+    bool preserveExistingMastery = true,
   }) async {
     final language = _language(languageCode);
     final existing = await _repository.entityByCanonical(
@@ -206,7 +208,9 @@ class ReadingMemoryService {
       canonicalKey: canonicalKey,
       displayText: existing?.displayText ?? targetText.trim(),
       normalizedText: canonicalKey,
-      masteryState: masteryState == KnowledgeMasteryState.unknown
+      masteryState:
+          preserveExistingMastery &&
+              masteryState == KnowledgeMasteryState.unknown
           ? existing?.masteryState ?? masteryState
           : masteryState,
       confidence: existing?.confidence ?? 0,

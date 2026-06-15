@@ -137,6 +137,7 @@ final userVocabularyServiceProvider = Provider<UserVocabularyService>((ref) {
           ? bootstrappedUserVocabularyValues
           : const {},
     ),
+    readingMemory: ref.watch(readingMemoryServiceProvider),
     languageCode: languageCode,
   );
   unawaited(service.init());

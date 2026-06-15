@@ -1,17 +1,21 @@
 import '../models/user_vocabulary.dart';
 import '../storage/repositories/user_vocabulary_repository.dart';
+import 'reading_memory/reading_memory_service.dart';
 
 class UserVocabularyService {
   static const emptyRevisionSignature = '811c9dc5';
 
   UserVocabularyService({
     required UserVocabularyRepository repository,
+    ReadingMemoryService? readingMemory,
     String? languageCode,
   }) : languageCode = _normalizeLanguageCode(languageCode),
-       _repository = repository;
+       _repository = repository,
+       _readingMemory = readingMemory;
 
   final String languageCode;
   final UserVocabularyRepository _repository;
+  final ReadingMemoryService? _readingMemory;
 
   Future<void> init() async {
     await _repository.init();
@@ -62,14 +66,17 @@ class UserVocabularyService {
 
   Future<void> setKnown(String word) async {
     await _repository.setStatus(word, UserWordStatus.known);
+    await _recordMemoryStatus(word, UserWordStatus.known);
   }
 
   Future<void> setLearning(String word) async {
     await _repository.setStatus(word, UserWordStatus.learning);
+    await _recordMemoryStatus(word, UserWordStatus.learning);
   }
 
   Future<void> setUnknown(String word) async {
     await _repository.remove(word);
+    await _recordMemoryStatus(word, null);
   }
 
   Future<void> close() async {
@@ -79,5 +86,14 @@ class UserVocabularyService {
   static String _normalizeLanguageCode(String? code) {
     final normalized = code?.trim().toLowerCase() ?? '';
     return normalized.isEmpty ? 'en' : normalized;
+  }
+
+  Future<void> _recordMemoryStatus(String word, UserWordStatus? status) async {
+    await _readingMemory?.recordVocabularyStatus(
+      targetText: word,
+      canonical: word,
+      status: status,
+      languageCode: languageCode,
+    );
   }
 }
