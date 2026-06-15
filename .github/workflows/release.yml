@@ -65,7 +65,7 @@ jobs:
           echo "number=$build_number" >> "$GITHUB_OUTPUT"
 
       - name: Test
-        run: flutter test
+        run: flutter test --exclude-tags benchmark
 
       - name: Build macOS app
         run: flutter build macos --release --build-name "${{ steps.flutter_build.outputs.name }}" --build-number "${{ steps.flutter_build.outputs.number }}"

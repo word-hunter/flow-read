@@ -38,7 +38,7 @@ echo "pre-push: running Dart analyzer..."
 run_dart analyze
 
 echo "pre-push: running Flutter test suite excluding benchmarks and network tests..."
-run_flutter test --exclude-tags benchmark --exclude-tags network
+run_flutter test --exclude-tags 'benchmark || network'
 
 echo "pre-push: running EPUB core tests..."
 (
