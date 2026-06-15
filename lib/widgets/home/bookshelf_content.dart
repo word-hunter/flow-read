@@ -31,6 +31,7 @@ class BookshelfContent extends riverpod.ConsumerStatefulWidget {
 
 class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   final TextEditingController _searchController = TextEditingController();
+  final Map<String, Future<List<String>>> _featuredExcerptFutures = {};
   String _searchQuery = '';
   _BookSortMode _sortMode = _BookSortMode.recent;
   Timer? _debounce;
@@ -118,24 +119,36 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
           ],
           const SizedBox(height: 28),
           if (featuredBook != null) ...[
-            FeaturedBookCard(
-              title: featuredBook.title,
-              author: featuredBook.author,
-              coverBytes: bookshelfNotifier.getCoverBytes(featuredBook.id),
-              progressPercent: (featuredBook.globalProgress * 100).toInt(),
-              currentChapter: featuredBook.currentChapter,
-              totalChapters: featuredBook.totalChapters,
-              difficulty: bookshelfNotifier.difficultyForBook(featuredBook.id),
-              isDifficultyLoading: bookshelfNotifier.isBookDifficultyLoading(
-                featuredBook.id,
-              ),
-              forceDefaultCover: settings.forceDefaultBookCover,
-              lastReadAt: featuredBook.lastReadAt,
-              onContinueReading: () =>
-                  _openBook(bookshelfState, bookshelfNotifier, featuredBook.id),
-              onRename: () => _renameBook(bookshelfNotifier, featuredBook),
-              onRemove: () =>
-                  _confirmRemoveBook(bookshelfNotifier, featuredBook),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final shouldLoadExcerpts = constraints.maxWidth >= 920;
+                if (!shouldLoadExcerpts) {
+                  return _buildFeaturedBookCard(
+                    state: bookshelfState,
+                    notifier: bookshelfNotifier,
+                    settings: settings,
+                    featuredBook: featuredBook,
+                  );
+                }
+
+                return FutureBuilder<List<String>>(
+                  future: _featuredExcerptFutureFor(
+                    featuredBook,
+                    bookshelfNotifier,
+                  ),
+                  builder: (context, snapshot) {
+                    return _buildFeaturedBookCard(
+                      state: bookshelfState,
+                      notifier: bookshelfNotifier,
+                      settings: settings,
+                      featuredBook: featuredBook,
+                      readingExcerpts: snapshot.data ?? const [],
+                      isLoadingReadingExcerpts:
+                          snapshot.connectionState != ConnectionState.done,
+                    );
+                  },
+                );
+              },
             ),
             const SizedBox(height: 34),
           ],
@@ -182,6 +195,52 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
       if (!mounted) return;
       unawaited(notifier.ensureBookDifficulties(books));
     });
+  }
+
+  Widget _buildFeaturedBookCard({
+    required BookshelfState state,
+    required BookshelfNotifier notifier,
+    required SettingsService settings,
+    required BookMetadata featuredBook,
+    List<String> readingExcerpts = const [],
+    bool isLoadingReadingExcerpts = false,
+  }) {
+    return FeaturedBookCard(
+      title: featuredBook.title,
+      author: featuredBook.author,
+      coverBytes: notifier.getCoverBytes(featuredBook.id),
+      progressPercent: (featuredBook.globalProgress * 100).toInt(),
+      currentChapter: featuredBook.currentChapter,
+      totalChapters: featuredBook.totalChapters,
+      readingExcerpts: readingExcerpts,
+      isLoadingReadingExcerpts: isLoadingReadingExcerpts,
+      difficulty: notifier.difficultyForBook(featuredBook.id),
+      isDifficultyLoading: notifier.isBookDifficultyLoading(featuredBook.id),
+      forceDefaultCover: settings.forceDefaultBookCover,
+      lastReadAt: featuredBook.lastReadAt,
+      onContinueReading: () => _openBook(state, notifier, featuredBook.id),
+      onRename: () => _renameBook(notifier, featuredBook),
+      onRemove: () => _confirmRemoveBook(notifier, featuredBook),
+    );
+  }
+
+  Future<List<String>> _featuredExcerptFutureFor(
+    BookMetadata book,
+    BookshelfNotifier notifier,
+  ) {
+    final key = [
+      book.id,
+      book.currentChapter,
+      book.totalChapters,
+      book.lastReadAt?.millisecondsSinceEpoch ?? 0,
+    ].join(':');
+    final cached = _featuredExcerptFutures[key];
+    if (cached != null) return cached;
+
+    if (_featuredExcerptFutures.length >= 12) {
+      _featuredExcerptFutures.remove(_featuredExcerptFutures.keys.first);
+    }
+    return _featuredExcerptFutures[key] = notifier.previewExcerptsForBook(book);
   }
 
   List<BookMetadata> _sortedBooks(

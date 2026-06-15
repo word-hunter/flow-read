@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:epub_reader_core/epub_reader_core.dart' as core;
 import 'package:flutter/foundation.dart';
@@ -17,6 +18,112 @@ import '../settings_provider.dart';
 import 'current_book_notifier.dart';
 import 'services_provider.dart';
 import 'vocabulary_notifier.dart';
+
+const _previewExcerptMinLength = 72;
+const _previewExcerptMaxLength = 220;
+
+@visibleForTesting
+List<String> buildBookPreviewExcerpts(
+  Book book, {
+  required int currentChapter,
+  int limit = 6,
+  Random? random,
+}) {
+  if (book.chapters.isEmpty || limit <= 0) return const [];
+
+  final safeChapter = max(0, min(currentChapter, book.chapters.length - 1));
+  final chapterIndexes = <int>[
+    safeChapter,
+    for (var index = 0; index < book.chapters.length; index += 1)
+      if (index != safeChapter) index,
+  ];
+  final candidates = <String>[];
+  for (final index in chapterIndexes) {
+    candidates.addAll(_previewExcerptsFromText(book.chapters[index].plainText));
+    if (candidates.length >= limit * 4) break;
+  }
+
+  final unique = <String>[];
+  final seen = <String>{};
+  for (final candidate in candidates) {
+    final key = candidate.toLowerCase();
+    if (seen.add(key)) unique.add(candidate);
+  }
+  unique.shuffle(random ?? Random());
+  return unique.take(limit).toList(growable: false);
+}
+
+List<String> _previewExcerptsFromText(String text) {
+  final paragraphs = text
+      .split(RegExp(r'(?:\r?\n){2,}'))
+      .map(_normalizePreviewExcerpt)
+      .where((item) => item.length >= _previewExcerptMinLength)
+      .map(_trimPreviewExcerpt)
+      .toList();
+  if (paragraphs.isNotEmpty) return paragraphs;
+
+  final sentences = _splitPreviewSentences(_normalizePreviewExcerpt(text));
+  final excerpts = <String>[];
+  var buffer = '';
+  for (final sentence in sentences) {
+    if (sentence.length < 24) continue;
+    buffer = buffer.isEmpty ? sentence : '$buffer $sentence';
+    if (buffer.length >= _previewExcerptMinLength) {
+      excerpts.add(_trimPreviewExcerpt(buffer));
+      buffer = '';
+    }
+  }
+  if (buffer.length >= _previewExcerptMinLength) {
+    excerpts.add(_trimPreviewExcerpt(buffer));
+  }
+  return excerpts;
+}
+
+String _normalizePreviewExcerpt(String text) {
+  return text.replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
+String _trimPreviewExcerpt(String text) {
+  final normalized = _normalizePreviewExcerpt(text);
+  if (normalized.length <= _previewExcerptMaxLength) return normalized;
+  final wordBoundary = normalized.lastIndexOf(' ', _previewExcerptMaxLength);
+  final end = wordBoundary >= _previewExcerptMinLength
+      ? wordBoundary
+      : _previewExcerptMaxLength;
+  return '${normalized.substring(0, end).trimRight()}…';
+}
+
+List<String> _splitPreviewSentences(String text) {
+  final sentences = <String>[];
+  final buffer = StringBuffer();
+  for (var index = 0; index < text.length; index += 1) {
+    final char = text[index];
+    buffer.write(char);
+    if (!_isPreviewSentenceEnd(char)) continue;
+
+    final nextIndex = index + 1;
+    if (nextIndex < text.length && text[nextIndex].trim().isNotEmpty) {
+      continue;
+    }
+
+    final sentence = buffer.toString().trim();
+    if (sentence.isNotEmpty) sentences.add(sentence);
+    buffer.clear();
+  }
+
+  final tail = buffer.toString().trim();
+  if (tail.isNotEmpty) sentences.add(tail);
+  return sentences;
+}
+
+bool _isPreviewSentenceEnd(String char) {
+  return char == '.' ||
+      char == '!' ||
+      char == '?' ||
+      char == '。' ||
+      char == '！' ||
+      char == '？';
+}
 
 class _ImportCancelledException implements Exception {
   const _ImportCancelledException();
@@ -237,6 +344,33 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
   Future<void> ensureBookDifficulties(Iterable<BookMetadata> books) => ref
       .read(vocabularyNotifierProvider.notifier)
       .ensureBookDifficulties(books);
+
+  Future<List<String>> previewExcerptsForBook(BookMetadata metadata) async {
+    try {
+      final cachedBook = ref.read(bookCacheProvider).get(metadata.id);
+      final book =
+          cachedBook ??
+          await ref.read(epubBookParserProvider)(metadata.sourcePath);
+      if (cachedBook == null) {
+        ref.read(bookCacheProvider).put(metadata.id, book);
+      }
+
+      return buildBookPreviewExcerpts(
+        book,
+        currentChapter: metadata.currentChapter,
+      );
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[Bookshelf] preview excerpts failed: '
+        'bookId=${metadata.id} sourcePath=${metadata.sourcePath} error=$error',
+      );
+      debugPrintStack(
+        label: '[Bookshelf] preview excerpts stack',
+        stackTrace: stackTrace,
+      );
+      return const [];
+    }
+  }
 
   Future<bool> switchToBook(String bookId) async {
     if (bookId == state.activeBookId && state.book != null) return true;

@@ -6,10 +6,10 @@ import 'default_book_cover.dart';
 
 class BookCoverView extends StatelessWidget {
   static const double borderRadius = 8;
-  static const double shelfWidth = 128;
-  static const double shelfHeight = 184;
-  static const double featuredWidth = 152;
-  static const double featuredHeight = 224;
+  static const double shelfWidth = 136;
+  static const double shelfHeight = 196;
+  static const double featuredWidth = 172;
+  static const double featuredHeight = 254;
   static const Size shelfSize = Size(shelfWidth, shelfHeight);
   static const Size featuredSize = Size(featuredWidth, featuredHeight);
   static const double tooltipMaxWidth = 420;

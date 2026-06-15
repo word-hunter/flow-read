@@ -11,7 +11,8 @@ import 'home_hover_surface.dart';
 enum BookShelfAction { open, rename, remove }
 
 class BookShelfItem extends StatefulWidget {
-  static const double itemHeight = 274;
+  static const double itemWidth = 164;
+  static const double itemHeight = 286;
 
   final String title;
   final String author;
@@ -61,7 +62,7 @@ class _BookShelfItemState extends State<BookShelfItem> {
         onSecondaryTapDown: (details) =>
             _showContextMenu(context, details.globalPosition),
         child: SizedBox(
-          width: 156,
+          width: BookShelfItem.itemWidth,
           height: BookShelfItem.itemHeight,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
