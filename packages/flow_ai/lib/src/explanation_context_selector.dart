@@ -11,6 +11,7 @@ class ExplanationContextBundle {
   final List<String> learningWords;
   final List<String> repeatedLookupWords;
   final List<String> savedExplanations;
+  final List<BookTermContext> bookTerms;
 
   const ExplanationContextBundle({
     required this.currentSentence,
@@ -23,6 +24,7 @@ class ExplanationContextBundle {
     this.learningWords = const [],
     this.repeatedLookupWords = const [],
     this.savedExplanations = const [],
+    this.bookTerms = const [],
   });
 
   bool get isEmpty =>
@@ -33,7 +35,8 @@ class ExplanationContextBundle {
       knownWords.isEmpty &&
       learningWords.isEmpty &&
       repeatedLookupWords.isEmpty &&
-      savedExplanations.isEmpty;
+      savedExplanations.isEmpty &&
+      bookTerms.isEmpty;
 
   String formatForPrompt() {
     final parts = <String>[];
@@ -63,6 +66,17 @@ class ExplanationContextBundle {
           lines.add('      - $dev');
         }
         parts.addAll(lines);
+      }
+    }
+
+    if (bookTerms.isNotEmpty) {
+      parts.add('Book-specific terms in the current text:');
+      for (final term in bookTerms.take(5)) {
+        final canonical =
+            term.canonicalForm != null && term.canonicalForm!.isNotEmpty
+            ? ' (${term.canonicalForm})'
+            : '';
+        parts.add('  · ${term.word}$canonical: ${term.explanation}');
       }
     }
 
@@ -99,6 +113,18 @@ class ExplanationContextBundle {
 
     return parts.join('\n');
   }
+}
+
+class BookTermContext {
+  final String word;
+  final String? canonicalForm;
+  final String explanation;
+
+  const BookTermContext({
+    required this.word,
+    this.canonicalForm,
+    required this.explanation,
+  });
 }
 
 class RelevantEvent {

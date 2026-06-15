@@ -1,22 +1,38 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flow_ai/flow_ai.dart';
+import 'package:flow_read/models/book_glossary_entry.dart';
 import 'package:flow_read/models/reading_memory.dart';
+import 'package:flow_read/services/book_glossary_service.dart';
+import 'package:flow_read/services/character_registry.dart';
 import 'package:flow_read/services/reading_memory/context_retrieval_service.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
-import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/app_database.dart'
+    hide BookGlossaryEntry, CharacterRegistryEntry;
+import 'package:flow_read/storage/database/dao/book_glossary_dao.dart';
+import 'package:flow_read/storage/database/repositories/drift_character_registry_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_user_vocabulary_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  late Directory tempDir;
   late AppDatabase db;
 
   setUp(() async {
+    tempDir = await Directory.systemTemp.createTemp(
+      'flow_read_context_retrieval_test_',
+    );
     db = await AppDatabase.createInMemory();
   });
 
   tearDown(() async {
     await db.close();
+    if (await tempDir.exists()) {
+      await tempDir.delete(recursive: true);
+    }
   });
 
   test('builds MVP learning memory context for word analysis', () async {
@@ -146,6 +162,166 @@ void main() {
         enriched.contextBundle!.savedExplanations.single,
         contains('slowly highlights'),
       );
+    },
+  );
+
+  test(
+    'adds spoiler-safe book insight context from summaries and registry',
+    () async {
+      final memoryRepository = DriftReadingMemoryRepository(
+        db.readingMemoryDao,
+        languageCode: 'en',
+      );
+      final userVocabulary = UserVocabularyService(
+        repository: DriftUserVocabularyRepository(
+          db.userVocabularyDao,
+          languageCode: 'en',
+        ),
+        languageCode: 'en',
+      );
+      await userVocabulary.init();
+
+      final cache = AICacheService(
+        documentsDirectoryProvider: () async => tempDir,
+      );
+      await cache.init();
+      await cache.saveSummary(
+        'book-1',
+        0,
+        'zh',
+        jsonEncode(
+          const AISummary(
+            events: [
+              SummaryEvent(
+                description: 'Ned finds a direwolf near Winterfell.',
+                source: 'The direwolf lay in the snow.',
+                significance: 'This links the children to the northern house.',
+                confidence: 'high',
+              ),
+            ],
+            characterDevelopments: [
+              CharacterDevelopment(
+                character: 'Eddard Stark',
+                change: 'Ned handles the discovery with caution.',
+                source: 'Ned knelt beside the direwolf.',
+                confidence: 'high',
+              ),
+            ],
+            keyVocabulary: [],
+            readingGuidance: '',
+          ).toJson(),
+        ),
+      );
+      await cache.saveSummary(
+        'book-1',
+        3,
+        'zh',
+        jsonEncode(
+          const AISummary(
+            events: [
+              SummaryEvent(
+                description: 'The direwolf later reveals a future betrayal.',
+                source: 'Future chapter.',
+                significance: 'This would spoil a later twist.',
+                confidence: 'high',
+              ),
+            ],
+            characterDevelopments: [
+              CharacterDevelopment(
+                character: 'Future Person',
+                change: 'Future Person exposes the betrayal.',
+                source: 'Future chapter.',
+                confidence: 'high',
+              ),
+            ],
+            keyVocabulary: [],
+            readingGuidance: '',
+          ).toJson(),
+        ),
+      );
+
+      final glossary = BookGlossaryService(BookGlossaryDao(db));
+      await glossary.saveEntry(
+        BookGlossaryEntry.create(
+          bookId: 'book-1',
+          word: 'direwolf',
+          explanation: 'A large wolf tied to the northern family emblem.',
+          createdAt: DateTime.utc(2026, 6, 15),
+        ),
+      );
+
+      final characterWriter = CharacterRegistry(
+        repository: DriftCharacterRegistryRepository(db.characterRegistryDao),
+      );
+      await characterWriter.init();
+      await characterWriter.addEntry(
+        'book-1',
+        CharacterRegistryEntry(
+          canonicalName: 'Eddard Stark',
+          aliases: const {'Ned'},
+          firstAppearanceChapter: 0,
+          updatedAt: DateTime.utc(2026, 6, 15),
+        ),
+      );
+      await characterWriter.addEntry(
+        'book-1',
+        CharacterRegistryEntry(
+          canonicalName: 'Future Person',
+          aliases: const {'Future Person'},
+          firstAppearanceChapter: 3,
+          updatedAt: DateTime.utc(2026, 6, 15),
+        ),
+      );
+
+      final service = ContextRetrievalService(
+        repository: memoryRepository,
+        userVocabulary: userVocabulary,
+        cacheService: cache,
+        glossaryService: glossary,
+        characterRegistry: CharacterRegistry(
+          repository: DriftCharacterRegistryRepository(db.characterRegistryDao),
+        ),
+        languageCode: 'en',
+      );
+
+      final bundle = await service.buildForContext(
+        AIContextSnapshot(
+          source: AIContextSource.readerSelectedText,
+          bookId: 'book-1',
+          chapterIndex: 1,
+          selectedText: 'Ned looked at the direwolf near Winterfell.',
+          surroundingPassage: 'Ned looked at the direwolf near Winterfell.',
+          spoilerBoundary: SpoilerBoundary.chapter(
+            bookId: 'book-1',
+            chapterIndex: 1,
+            scope: AIContextScope.readSoFar,
+          ),
+        ),
+      );
+
+      expect(
+        bundle.relatedEvents.map((event) => event.description),
+        contains('Ned finds a direwolf near Winterfell.'),
+      );
+      expect(
+        bundle.relatedEvents.map((event) => event.description).join('\n'),
+        isNot(contains('future betrayal')),
+      );
+      expect(bundle.mentionedCharacters.map((character) => character.name), [
+        'Eddard Stark',
+      ]);
+      expect(
+        bundle.mentionedCharacters.single.developments,
+        contains('Aliases: Ned'),
+      );
+      expect(bundle.bookTerms.map((term) => term.word), ['direwolf']);
+
+      final formatted = bundle.formatForPrompt();
+      expect(formatted, contains('Related story events from earlier chapters'));
+      expect(formatted, contains('Characters mentioned in the current text'));
+      expect(formatted, contains('Book-specific terms in the current text'));
+      expect(formatted, isNot(contains('Future Person')));
+      expect(formatted, isNot(contains('later twist')));
     },
   );
 }

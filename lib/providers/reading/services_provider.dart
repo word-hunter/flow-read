@@ -216,6 +216,9 @@ final contextRetrievalServiceProvider = Provider<ContextRetrievalService>((
       languageCode: languageCode,
     ),
     userVocabulary: ref.watch(userVocabularyServiceProvider),
+    cacheService: ref.watch(aiCacheServiceProvider),
+    glossaryService: ref.watch(bookGlossaryServiceProvider),
+    characterRegistry: ref.watch(characterRegistryProvider),
     languageCode: languageCode,
   );
 });
