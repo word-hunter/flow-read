@@ -1,10 +1,14 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flow_read/models/learning_item.dart';
+import 'package:flow_read/models/reading_memory.dart';
 import 'package:flow_read/services/learning_item_service.dart';
+import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
 import 'package:flow_read/services/review_schedule_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/storage/database/repositories/drift_learning_item_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/test_storage.dart';
@@ -13,6 +17,8 @@ void main() {
   late Directory tempDir;
   late AppDatabase db;
   late LearningItemService learningItems;
+  late DriftReadingMemoryRepository memoryRepository;
+  late ReadingMemoryService readingMemory;
   late ReviewScheduleService schedule;
 
   final now = DateTime.utc(2026, 5, 21, 9);
@@ -33,7 +39,22 @@ void main() {
       clock: () => now,
     );
     await learningItems.init();
-    schedule = ReviewScheduleService(learningItems, clock: () => now);
+    memoryRepository = DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: 'en',
+      clock: () => now,
+    );
+    readingMemory = ReadingMemoryService(
+      repository: memoryRepository,
+      languageCode: 'en',
+      clock: () => now,
+    );
+    await readingMemory.init();
+    schedule = ReviewScheduleService(
+      learningItems,
+      clock: () => now,
+      readingMemory: readingMemory,
+    );
   });
 
   tearDown(() async {
@@ -72,6 +93,63 @@ void main() {
     expect(updated.lastResult, LearningReviewResult.remembered);
     expect(updated.nextReviewAt, now.add(const Duration(days: 1)));
     expect(schedule.dueCount(), 0);
+  });
+
+  test('writes review results back to reading memory mastery', () async {
+    final item = await _saveWord(learningItems, source, 'flow');
+
+    await schedule.recordReview(item.id, LearningReviewResult.remembered);
+    var entity = await memoryRepository.entityByCanonical(
+      languageCode: 'en',
+      type: KnowledgeEntityType.word,
+      canonicalKey: 'flow',
+    );
+    expect(entity?.masteryState, KnowledgeMasteryState.learning);
+
+    await schedule.recordReview(item.id, LearningReviewResult.remembered);
+    entity = await memoryRepository.entityByCanonical(
+      languageCode: 'en',
+      type: KnowledgeEntityType.word,
+      canonicalKey: 'flow',
+    );
+    expect(entity?.masteryState, KnowledgeMasteryState.mastered);
+
+    await schedule.recordReview(item.id, LearningReviewResult.missed);
+    entity = await memoryRepository.entityByCanonical(
+      languageCode: 'en',
+      type: KnowledgeEntityType.word,
+      canonicalKey: 'flow',
+    );
+    expect(entity?.masteryState, KnowledgeMasteryState.learning);
+
+    final events = await memoryRepository.eventsForCanonical(
+      languageCode: 'en',
+      canonicalKey: 'flow',
+    );
+    expect(events, hasLength(3));
+    expect(
+      events.every((event) => event.type == MemoryEventType.review),
+      isTrue,
+    );
+    final metadata = events
+        .map((event) => jsonDecode(event.metadataJson) as Map<String, dynamic>)
+        .toList();
+    expect(
+      metadata.map((item) => item['reviewResult']),
+      contains(LearningReviewResult.missed.name),
+    );
+    expect(
+      metadata.where(
+        (item) => item['reviewResult'] == LearningReviewResult.remembered.name,
+      ),
+      hasLength(2),
+    );
+    expect(
+      metadata.singleWhere(
+        (item) => item['reviewResult'] == LearningReviewResult.missed.name,
+      )['reviewCount'],
+      2,
+    );
   });
 
   test('builds a mistake card from a wrong chapter answer', () async {

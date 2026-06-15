@@ -335,7 +335,10 @@ final learningAnalyticsServiceProvider = Provider<LearningAnalyticsService>((
 });
 
 final reviewScheduleServiceProvider = Provider<ReviewScheduleService>((ref) {
-  return ReviewScheduleService(ref.read(learningItemServiceProvider));
+  return ReviewScheduleService(
+    ref.read(learningItemServiceProvider),
+    readingMemory: ref.watch(readingMemoryServiceProvider),
+  );
 });
 
 final pronunciationServiceProvider = Provider<PronunciationService>((ref) {

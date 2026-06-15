@@ -76,7 +76,7 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 | `WordContextService` | 单词在书中出现位置的上下文（Drift `word_contexts`） |
 | `LearningItemService` | 学习条目持久化（Drift `learning_items`） |
 | `LearningAnalyticsService` | 查词频率分析、章节报告、周报（Drift `learning_analytics`） |
-| `ReviewScheduleService` | 间隔重复调度 |
+| `ReviewScheduleService` | 间隔重复调度，并将复习结果写回 Reading Memory masteryState |
 | `ReviewService` | 复习题目生成 |
 | `ReviewCandidateService` | 从保存解释、重复查词和学习中词生成复习候选（Drift `review_candidates`） |
 | `SourceScopeService` | 管理 book/rss/browser/manual 来源作用域与 tombstone（Drift `source_records`） |

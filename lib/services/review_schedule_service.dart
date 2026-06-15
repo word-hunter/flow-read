@@ -1,5 +1,6 @@
 import '../models/learning_item.dart';
 import 'learning_item_service.dart';
+import 'reading_memory/reading_memory_service.dart';
 
 enum LearningReviewCardType { wordMeaning, fillBlank, questionMistake }
 
@@ -38,11 +39,14 @@ class ReviewScheduleService {
     this._learningItems, {
     DateTime Function()? clock,
     this.sessionLimit = 10,
-  }) : _clock = clock ?? DateTime.now;
+    ReadingMemoryService? readingMemory,
+  }) : _clock = clock ?? DateTime.now,
+       _readingMemory = readingMemory;
 
   final LearningItemService _learningItems;
   final DateTime Function() _clock;
   final int sessionLimit;
+  final ReadingMemoryService? _readingMemory;
 
   int dueCount({DateTime? now}) {
     return _dueItems(now: now, limit: null).length;
@@ -83,6 +87,7 @@ class ReviewScheduleService {
       lastResult: result,
     );
     await _learningItems.saveItem(updated);
+    await _readingMemory?.recordLearningReview(item: updated, result: result);
     return updated;
   }
 

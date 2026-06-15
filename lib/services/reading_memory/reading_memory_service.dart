@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../models/learning_item.dart';
 import '../../models/reading_memory.dart';
 import '../../models/user_vocabulary.dart';
 import '../../storage/repositories/reading_memory_repository.dart';
@@ -195,6 +196,63 @@ class ReadingMemoryService {
     return saved;
   }
 
+  Future<MemoryEvent?> recordLearningReview({
+    required LearningItem item,
+    required LearningReviewResult result,
+    String? languageCode,
+  }) async {
+    if (item.type == LearningItemType.questionMistake) return null;
+
+    final targetText = _learningItemTargetText(item);
+    final canonical = _canonical(
+      item.canonicalKey.trim().isNotEmpty ? item.canonicalKey : targetText,
+    );
+    if (targetText.isEmpty || canonical.isEmpty) return null;
+
+    final type = _knowledgeTypeForLearningItem(item.type);
+    final language = _language(languageCode);
+    final existing = await _repository.entityByCanonical(
+      languageCode: language,
+      type: type,
+      canonicalKey: canonical,
+    );
+    final now = _now();
+    final masteryState = _masteryStateForReview(
+      result: result,
+      reviewCount: item.reviewCount,
+      existing: existing?.masteryState,
+    );
+    final entity = await _ensureEntity(
+      targetText: targetText,
+      canonicalKey: canonical,
+      type: type,
+      masteryState: masteryState,
+      languageCode: language,
+      now: now,
+      preserveExistingMastery: false,
+    );
+    final event = MemoryEvent(
+      id: _nextId('event:${MemoryEventType.review.storageValue}', now),
+      type: MemoryEventType.review,
+      languageCode: language,
+      entityId: entity.id,
+      targetText: targetText,
+      canonicalKey: canonical,
+      sourceRefJson: '{}',
+      metadataJson: jsonEncode({
+        'learningItemId': item.id,
+        'learningItemType': item.type.name,
+        'reviewResult': result.name,
+        'reviewCount': item.reviewCount,
+        if (item.bookId.trim().isNotEmpty) 'bookId': item.bookId.trim(),
+        if (item.chapterIndex >= 0) 'chapterIndex': item.chapterIndex,
+      }),
+      createdAt: now,
+    );
+    await _repository.recordEvent(event);
+    return event;
+  }
+
   Future<MemoryKnowledgeEntity> _ensureEntity({
     required String targetText,
     required String canonicalKey,
@@ -279,6 +337,41 @@ class ReadingMemoryService {
       UserWordStatus.known => KnowledgeMasteryState.mastered,
       null => KnowledgeMasteryState.unknown,
     };
+  }
+
+  static KnowledgeMasteryState _masteryStateForReview({
+    required LearningReviewResult result,
+    required int reviewCount,
+    KnowledgeMasteryState? existing,
+  }) {
+    return switch (result) {
+      LearningReviewResult.missed => KnowledgeMasteryState.learning,
+      LearningReviewResult.remembered =>
+        reviewCount >= 2
+            ? KnowledgeMasteryState.mastered
+            : existing == KnowledgeMasteryState.mastered
+            ? KnowledgeMasteryState.mastered
+            : KnowledgeMasteryState.learning,
+      LearningReviewResult.newItem => existing ?? KnowledgeMasteryState.unknown,
+    };
+  }
+
+  static KnowledgeEntityType _knowledgeTypeForLearningItem(
+    LearningItemType type,
+  ) {
+    return switch (type) {
+      LearningItemType.word => KnowledgeEntityType.word,
+      LearningItemType.sentence => KnowledgeEntityType.sentence,
+      LearningItemType.grammar => KnowledgeEntityType.grammar,
+      LearningItemType.expression => KnowledgeEntityType.phrase,
+      LearningItemType.questionMistake => KnowledgeEntityType.sentence,
+    };
+  }
+
+  static String _learningItemTargetText(LearningItem item) {
+    final content = item.content.trim();
+    if (content.isNotEmpty) return content;
+    return item.title.trim();
   }
 
   static String _encodeSourceRef(MemorySourceRef? sourceRef) {
