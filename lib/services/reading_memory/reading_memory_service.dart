@@ -5,19 +5,23 @@ import '../../models/user_vocabulary.dart';
 import '../../storage/repositories/reading_memory_repository.dart';
 import '../../storage/repositories/repository_language.dart';
 import 'reading_memory_ids.dart';
+import 'review_candidate_service.dart';
 
 class ReadingMemoryService {
   ReadingMemoryService({
     required ReadingMemoryRepository repository,
     String? languageCode,
     DateTime Function()? clock,
+    ReviewCandidateService? reviewCandidates,
   }) : _repository = repository,
        _languageCode = normalizeRepositoryLanguageCode(languageCode),
-       _clock = clock ?? DateTime.now;
+       _clock = clock ?? DateTime.now,
+       _reviewCandidates = reviewCandidates;
 
   final ReadingMemoryRepository _repository;
   final String _languageCode;
   final DateTime Function() _clock;
+  final ReviewCandidateService? _reviewCandidates;
   int _sequence = 0;
 
   Future<void> init() {
@@ -58,24 +62,28 @@ class ReadingMemoryService {
     );
     await _repository.recordEvent(event);
 
+    MemoryKnowledgeEvidence? evidence;
     if (sourceRef != null && excerpt != null) {
-      await _repository.upsertEvidence(
-        MemoryKnowledgeEvidence(
-          id: _nextId('evidence:lookup', now),
-          entityId: entity.id,
-          sourceId: sourceRef.sourceId,
-          sourceKind: sourceRef.sourceKind,
-          bookId: sourceRef.bookId,
-          chapterIndex: sourceRef.chapterIndex,
-          locationLocator: sourceRef.locationLocator,
-          shortExcerpt: excerpt,
-          sourceTitleSnapshot: sourceRef.sourceTitleSnapshot,
-          sourceAvailability: sourceRef.sourceAvailability,
-          retentionPolicy: EvidenceRetentionPolicy.keepSnippet,
-          createdAt: now,
-        ),
+      evidence = MemoryKnowledgeEvidence(
+        id: _nextId('evidence:lookup', now),
+        entityId: entity.id,
+        sourceId: sourceRef.sourceId,
+        sourceKind: sourceRef.sourceKind,
+        bookId: sourceRef.bookId,
+        chapterIndex: sourceRef.chapterIndex,
+        locationLocator: sourceRef.locationLocator,
+        shortExcerpt: excerpt,
+        sourceTitleSnapshot: sourceRef.sourceTitleSnapshot,
+        sourceAvailability: sourceRef.sourceAvailability,
+        retentionPolicy: EvidenceRetentionPolicy.keepSnippet,
+        createdAt: now,
       );
+      await _repository.upsertEvidence(evidence);
     }
+    await _reviewCandidates?.ensureForLookup(
+      entity: entity,
+      evidence: evidence,
+    );
 
     return event;
   }
@@ -120,6 +128,9 @@ class ReadingMemoryService {
       createdAt: now,
     );
     await _repository.recordEvent(event);
+    if (status == UserWordStatus.learning) {
+      await _reviewCandidates?.ensureForLearningEntity(entity);
+    }
     return event;
   }
 
@@ -176,6 +187,10 @@ class ReadingMemoryService {
         }),
         createdAt: now,
       ),
+    );
+    await _reviewCandidates?.ensureForSavedExplanation(
+      entity: entity,
+      explanation: saved,
     );
     return saved;
   }

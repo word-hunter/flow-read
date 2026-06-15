@@ -502,6 +502,22 @@ class _NoopReadingMemoryRepository implements ReadingMemoryRepository {
   Future<void> recordEvent(MemoryEvent event) async {}
 
   @override
+  Future<List<ReviewCandidate>> reviewCandidates({
+    ReviewCandidateStatus? status,
+    int limit = 50,
+  }) async => const [];
+
+  @override
+  Future<ReviewCandidate?> reviewCandidateById(String id) async => null;
+
+  @override
+  Future<List<ReviewCandidate>> reviewCandidatesForEntity(
+    String entityId, {
+    ReviewCandidateStatus? status,
+    int limit = 20,
+  }) async => const [];
+
+  @override
   Future<MemorySourceRecord?> sourceRecord(String id) async => null;
 
   @override

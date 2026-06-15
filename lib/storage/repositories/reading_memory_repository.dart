@@ -53,5 +53,18 @@ abstract class ReadingMemoryRepository {
 
   Future<void> upsertReviewCandidate(ReviewCandidate candidate);
 
+  Future<ReviewCandidate?> reviewCandidateById(String id);
+
+  Future<List<ReviewCandidate>> reviewCandidatesForEntity(
+    String entityId, {
+    ReviewCandidateStatus? status,
+    int limit = 20,
+  });
+
+  Future<List<ReviewCandidate>> reviewCandidates({
+    ReviewCandidateStatus? status,
+    int limit = 50,
+  });
+
   Future<void> close();
 }

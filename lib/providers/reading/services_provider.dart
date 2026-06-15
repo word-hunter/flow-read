@@ -22,6 +22,7 @@ import '../../services/reading_config_service.dart';
 import '../../services/reading_insight_service.dart';
 import '../../services/reading_memory/context_retrieval_service.dart';
 import '../../services/reading_memory/reading_memory_service.dart';
+import '../../services/reading_memory/review_candidate_service.dart';
 import '../../services/reading_memory/source_scope_service.dart';
 import '../../services/reading_memory/word_memory_service.dart';
 import '../../services/reading_time_service.dart';
@@ -149,6 +150,21 @@ final readingMemoryServiceProvider = Provider<ReadingMemoryService>((ref) {
   final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
   final service = ReadingMemoryService(
+    repository: DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: languageCode,
+    ),
+    languageCode: languageCode,
+    reviewCandidates: ref.watch(reviewCandidateServiceProvider),
+  );
+  unawaited(service.init());
+  return service;
+});
+
+final reviewCandidateServiceProvider = Provider<ReviewCandidateService>((ref) {
+  final db = _requireAppDatabase();
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final service = ReviewCandidateService(
     repository: DriftReadingMemoryRepository(
       db.readingMemoryDao,
       languageCode: languageCode,

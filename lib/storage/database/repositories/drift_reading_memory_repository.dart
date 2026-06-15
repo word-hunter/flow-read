@@ -218,6 +218,38 @@ final class DriftReadingMemoryRepository implements ReadingMemoryRepository {
   }
 
   @override
+  Future<ReviewCandidate?> reviewCandidateById(String id) async {
+    final row = await _dao.reviewCandidateById(id);
+    return row == null ? null : _reviewCandidateFromEntry(row);
+  }
+
+  @override
+  Future<List<ReviewCandidate>> reviewCandidatesForEntity(
+    String entityId, {
+    ReviewCandidateStatus? status,
+    int limit = 20,
+  }) async {
+    final rows = await _dao.reviewCandidatesForEntity(
+      entityId,
+      status: status?.storageValue,
+      limit: limit,
+    );
+    return rows.map(_reviewCandidateFromEntry).toList(growable: false);
+  }
+
+  @override
+  Future<List<ReviewCandidate>> reviewCandidates({
+    ReviewCandidateStatus? status,
+    int limit = 50,
+  }) async {
+    final rows = await _dao.reviewCandidatesByStatus(
+      status: status?.storageValue,
+      limit: limit,
+    );
+    return rows.map(_reviewCandidateFromEntry).toList(growable: false);
+  }
+
+  @override
   Future<void> close() async {}
 
   String _language(String languageCode) {
@@ -307,6 +339,22 @@ final class DriftReadingMemoryRepository implements ReadingMemoryRepository {
       sourceRefJson: row.sourceRefJson,
       metadataJson: row.metadataJson,
       createdAt: _decodeDate(row.createdAt),
+    );
+  }
+
+  static ReviewCandidate _reviewCandidateFromEntry(ReviewCandidateEntry row) {
+    return ReviewCandidate(
+      id: row.id,
+      entityId: row.entityId,
+      entityType: KnowledgeEntityType.fromStorage(row.entityType),
+      targetText: row.targetText,
+      explanationId: row.explanationId,
+      evidenceId: row.evidenceId,
+      suggestedQuestionType: row.suggestedQuestionType,
+      priority: row.priority,
+      status: ReviewCandidateStatus.fromStorage(row.status),
+      createdAt: _decodeDate(row.createdAt),
+      updatedAt: _decodeDate(row.updatedAt),
     );
   }
 

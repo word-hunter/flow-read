@@ -156,4 +156,57 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
   Future<void> upsertReviewCandidate(ReviewCandidatesCompanion entry) {
     return into(reviewCandidates).insertOnConflictUpdate(entry);
   }
+
+  Future<ReviewCandidateEntry?> reviewCandidateById(String id) {
+    final query = select(reviewCandidates)..where((row) => row.id.equals(id));
+    return query.getSingleOrNull();
+  }
+
+  Future<List<ReviewCandidateEntry>> reviewCandidatesForEntity(
+    String entityId, {
+    String? status,
+    int limit = 20,
+  }) {
+    final query = select(reviewCandidates)
+      ..where((row) => row.entityId.equals(entityId));
+    if (status != null) {
+      query.where((row) => row.status.equals(status));
+    }
+    query
+      ..orderBy([
+        (row) => OrderingTerm(
+          expression: row.priority,
+          mode: OrderingMode.desc,
+        ),
+        (row) => OrderingTerm(
+          expression: row.updatedAt,
+          mode: OrderingMode.desc,
+        ),
+      ])
+      ..limit(limit);
+    return query.get();
+  }
+
+  Future<List<ReviewCandidateEntry>> reviewCandidatesByStatus({
+    String? status,
+    int limit = 50,
+  }) {
+    final query = select(reviewCandidates);
+    if (status != null) {
+      query.where((row) => row.status.equals(status));
+    }
+    query
+      ..orderBy([
+        (row) => OrderingTerm(
+          expression: row.priority,
+          mode: OrderingMode.desc,
+        ),
+        (row) => OrderingTerm(
+          expression: row.updatedAt,
+          mode: OrderingMode.desc,
+        ),
+      ])
+      ..limit(limit);
+    return query.get();
+  }
 }
