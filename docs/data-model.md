@@ -2,7 +2,7 @@
 
 > @source lib/models/ lib/storage/database/tables.dart packages/flow_ai/lib/src/models/ packages/flow_dictionary/lib/src/ packages/flow_rss/lib/src/rss_models.dart
 
-Last updated: 2026-06-14
+Last updated: 2026-06-15
 
 ## Runtime Persistence
 
@@ -26,6 +26,13 @@ Generated model adapters are no longer part of the runtime model contract.
 | RSS | `rss_subscriptions`, `rss_articles` | `RssFeedSubscription`, `RssArticle` |
 | Book glossary | `book_glossary` | `BookGlossaryEntry` |
 | Characters | `character_registry` | `CharacterRegistryEntry` |
+| Reading memory sources | `source_records` | `MemorySourceRecord` |
+| Reading memory entities | `knowledge_entities` | `MemoryKnowledgeEntity` |
+| Reading memory explanations | `knowledge_explanations` | `MemoryKnowledgeExplanation` |
+| Reading memory evidences | `knowledge_evidences` | `MemoryKnowledgeEvidence` |
+| Reading memory events | `memory_events` | `MemoryEvent` |
+| Source scope cache | `source_scope_cache` | `SourceScopeCacheEntry` |
+| Review candidates | `review_candidates` | `ReviewCandidate` |
 | Settings | `settings` | `SettingsService` values |
 
 ## Reader Models
@@ -51,6 +58,12 @@ Generated model adapters are no longer part of the runtime model contract.
 | `LearningItem` | Review/practice item with scheduling metadata |
 | `WordContextExample` | Imported or captured sentence context |
 | `BookGlossaryEntry` | Per-book glossary explanation and access timestamps |
+| `MemorySourceRecord` | Book/RSS/browser/manual source scope metadata and tombstone state |
+| `MemoryKnowledgeEntity` | Long-term word/phrase/pattern/book-term memory identity |
+| `MemoryKnowledgeExplanation` | User/AI/dictionary/generated explanation attached to an entity |
+| `MemoryKnowledgeEvidence` | Short source citation connecting an entity to reading context |
+| `MemoryEvent` | Lookup, AI, vocabulary, review, and bookmark learning signal |
+| `ReviewCandidate` | Memory-derived candidate that may later become a review item |
 
 ## AI Models
 

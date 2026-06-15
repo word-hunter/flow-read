@@ -11,6 +11,7 @@ import 'dao/character_registry_dao.dart';
 import 'dao/dictionary_cache_dao.dart';
 import 'dao/learning_analytics_dao.dart';
 import 'dao/learning_item_dao.dart';
+import 'dao/reading_memory_dao.dart';
 import 'dao/reading_config_dao.dart';
 import 'dao/reading_time_dao.dart';
 import 'dao/rss_dao.dart';
@@ -24,7 +25,7 @@ part 'app_database.g.dart';
 
 const _dbFileName = 'flow_read.db';
 
-const _schemaVersion = 1;
+const _schemaVersion = 2;
 
 @DriftDatabase(
   tables: [
@@ -43,6 +44,13 @@ const _schemaVersion = 1;
     RssArticles,
     BookGlossary,
     CharacterRegistry,
+    SourceRecords,
+    KnowledgeEntities,
+    KnowledgeExplanations,
+    KnowledgeEvidences,
+    MemoryEvents,
+    SourceScopeCache,
+    ReviewCandidates,
     Settings,
   ],
   daos: [
@@ -53,6 +61,7 @@ const _schemaVersion = 1;
     DictionaryCacheDao,
     LearningAnalyticsDao,
     LearningItemDao,
+    ReadingMemoryDao,
     ReadingConfigDao,
     ReadingTimeDao,
     RssDao,
@@ -90,4 +99,20 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   int get schemaVersion => _schemaVersion;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(sourceRecords);
+        await m.createTable(knowledgeEntities);
+        await m.createTable(knowledgeExplanations);
+        await m.createTable(knowledgeEvidences);
+        await m.createTable(memoryEvents);
+        await m.createTable(sourceScopeCache);
+        await m.createTable(reviewCandidates);
+      }
+    },
+  );
 }

@@ -2,14 +2,14 @@
 
 > @source lib/storage/legacy_backup_box_names.dart lib/storage/storage_bootstrap.dart lib/storage/database/app_database.dart lib/storage/database/bootstrap.dart lib/storage/database/tables.dart lib/services/backup_service.dart
 
-Last updated: 2026-06-13
+Last updated: 2026-06-15
 
 ## Runtime Schema
 
 Flow Read runtime storage is Drift-only.
 
 - Database file: `flow_read.db`
-- Current Drift schema version: `1`
+- Current Drift schema version: `2`
 - Startup entrypoint: `bootstrapStorage()`
 - Runtime source of truth: Drift DAOs and repository interfaces
 - Legacy backup compatibility: `.flow.bak` still serializes data under `boxes` keys defined by `LegacyBackupBoxNames`
@@ -38,6 +38,13 @@ repositories/snapshot providers for the app.
 | `rss_articles` | RssDao | RSS article cache and read/favorite/read-later flags |
 | `book_glossary` | BookGlossaryDao | Per-book glossary entries |
 | `character_registry` | CharacterRegistryDao | Character registry payloads |
+| `source_records` | ReadingMemoryDao | Book/RSS/browser/manual source scope records and tombstones |
+| `knowledge_entities` | ReadingMemoryDao | Long-term word/phrase/pattern/book-term memory identities |
+| `knowledge_explanations` | ReadingMemoryDao | Saved user/AI/dictionary/generated explanations |
+| `knowledge_evidences` | ReadingMemoryDao | Short citations connecting entities to source context |
+| `memory_events` | ReadingMemoryDao | Lookup, AI, vocabulary, review, and bookmark learning signals |
+| `source_scope_cache` | ReadingMemoryDao | Deletable source-scoped cache payloads |
+| `review_candidates` | ReadingMemoryDao | Memory-derived candidates for future review conversion |
 | `settings` | SettingsDao | App settings |
 
 ## Legacy Backup Keys

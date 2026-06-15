@@ -7625,6 +7625,4345 @@ class CharacterRegistryCompanion
   }
 }
 
+class $SourceRecordsTable extends SourceRecords
+    with TableInfo<$SourceRecordsTable, SourceRecordEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SourceRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceKindMeta = const VerificationMeta(
+    'sourceKind',
+  );
+  @override
+  late final GeneratedColumn<String> sourceKind = GeneratedColumn<String>(
+    'source_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleSnapshotMeta = const VerificationMeta(
+    'titleSnapshot',
+  );
+  @override
+  late final GeneratedColumn<String> titleSnapshot = GeneratedColumn<String>(
+    'title_snapshot',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _authorSnapshotMeta = const VerificationMeta(
+    'authorSnapshot',
+  );
+  @override
+  late final GeneratedColumn<String> authorSnapshot = GeneratedColumn<String>(
+    'author_snapshot',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _languageMeta = const VerificationMeta(
+    'language',
+  );
+  @override
+  late final GeneratedColumn<String> language = GeneratedColumn<String>(
+    'language_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(kDefaultLang),
+  );
+  static const VerificationMeta _fingerprintMeta = const VerificationMeta(
+    'fingerprint',
+  );
+  @override
+  late final GeneratedColumn<String> fingerprint = GeneratedColumn<String>(
+    'fingerprint',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _availabilityMeta = const VerificationMeta(
+    'availability',
+  );
+  @override
+  late final GeneratedColumn<String> availability = GeneratedColumn<String>(
+    'availability',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('available'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: nowIso,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: nowIso,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAt = GeneratedColumn<String>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sourceKind,
+    titleSnapshot,
+    authorSnapshot,
+    language,
+    fingerprint,
+    availability,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'source_records';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SourceRecordEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('source_kind')) {
+      context.handle(
+        _sourceKindMeta,
+        sourceKind.isAcceptableOrUnknown(data['source_kind']!, _sourceKindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceKindMeta);
+    }
+    if (data.containsKey('title_snapshot')) {
+      context.handle(
+        _titleSnapshotMeta,
+        titleSnapshot.isAcceptableOrUnknown(
+          data['title_snapshot']!,
+          _titleSnapshotMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_titleSnapshotMeta);
+    }
+    if (data.containsKey('author_snapshot')) {
+      context.handle(
+        _authorSnapshotMeta,
+        authorSnapshot.isAcceptableOrUnknown(
+          data['author_snapshot']!,
+          _authorSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('language_id')) {
+      context.handle(
+        _languageMeta,
+        language.isAcceptableOrUnknown(data['language_id']!, _languageMeta),
+      );
+    }
+    if (data.containsKey('fingerprint')) {
+      context.handle(
+        _fingerprintMeta,
+        fingerprint.isAcceptableOrUnknown(
+          data['fingerprint']!,
+          _fingerprintMeta,
+        ),
+      );
+    }
+    if (data.containsKey('availability')) {
+      context.handle(
+        _availabilityMeta,
+        availability.isAcceptableOrUnknown(
+          data['availability']!,
+          _availabilityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SourceRecordEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SourceRecordEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      sourceKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_kind'],
+      )!,
+      titleSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title_snapshot'],
+      )!,
+      authorSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}author_snapshot'],
+      ),
+      language: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}language_id'],
+      )!,
+      fingerprint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fingerprint'],
+      ),
+      availability: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}availability'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $SourceRecordsTable createAlias(String alias) {
+    return $SourceRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class SourceRecordEntry extends DataClass
+    implements Insertable<SourceRecordEntry> {
+  final String id;
+  final String sourceKind;
+  final String titleSnapshot;
+  final String? authorSnapshot;
+  final String language;
+  final String? fingerprint;
+  final String availability;
+  final String createdAt;
+  final String updatedAt;
+  final String? deletedAt;
+  const SourceRecordEntry({
+    required this.id,
+    required this.sourceKind,
+    required this.titleSnapshot,
+    this.authorSnapshot,
+    required this.language,
+    this.fingerprint,
+    required this.availability,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['source_kind'] = Variable<String>(sourceKind);
+    map['title_snapshot'] = Variable<String>(titleSnapshot);
+    if (!nullToAbsent || authorSnapshot != null) {
+      map['author_snapshot'] = Variable<String>(authorSnapshot);
+    }
+    map['language_id'] = Variable<String>(language);
+    if (!nullToAbsent || fingerprint != null) {
+      map['fingerprint'] = Variable<String>(fingerprint);
+    }
+    map['availability'] = Variable<String>(availability);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<String>(deletedAt);
+    }
+    return map;
+  }
+
+  SourceRecordsCompanion toCompanion(bool nullToAbsent) {
+    return SourceRecordsCompanion(
+      id: Value(id),
+      sourceKind: Value(sourceKind),
+      titleSnapshot: Value(titleSnapshot),
+      authorSnapshot: authorSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(authorSnapshot),
+      language: Value(language),
+      fingerprint: fingerprint == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fingerprint),
+      availability: Value(availability),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory SourceRecordEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SourceRecordEntry(
+      id: serializer.fromJson<String>(json['id']),
+      sourceKind: serializer.fromJson<String>(json['sourceKind']),
+      titleSnapshot: serializer.fromJson<String>(json['titleSnapshot']),
+      authorSnapshot: serializer.fromJson<String?>(json['authorSnapshot']),
+      language: serializer.fromJson<String>(json['language']),
+      fingerprint: serializer.fromJson<String?>(json['fingerprint']),
+      availability: serializer.fromJson<String>(json['availability']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+      deletedAt: serializer.fromJson<String?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'sourceKind': serializer.toJson<String>(sourceKind),
+      'titleSnapshot': serializer.toJson<String>(titleSnapshot),
+      'authorSnapshot': serializer.toJson<String?>(authorSnapshot),
+      'language': serializer.toJson<String>(language),
+      'fingerprint': serializer.toJson<String?>(fingerprint),
+      'availability': serializer.toJson<String>(availability),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+      'deletedAt': serializer.toJson<String?>(deletedAt),
+    };
+  }
+
+  SourceRecordEntry copyWith({
+    String? id,
+    String? sourceKind,
+    String? titleSnapshot,
+    Value<String?> authorSnapshot = const Value.absent(),
+    String? language,
+    Value<String?> fingerprint = const Value.absent(),
+    String? availability,
+    String? createdAt,
+    String? updatedAt,
+    Value<String?> deletedAt = const Value.absent(),
+  }) => SourceRecordEntry(
+    id: id ?? this.id,
+    sourceKind: sourceKind ?? this.sourceKind,
+    titleSnapshot: titleSnapshot ?? this.titleSnapshot,
+    authorSnapshot: authorSnapshot.present
+        ? authorSnapshot.value
+        : this.authorSnapshot,
+    language: language ?? this.language,
+    fingerprint: fingerprint.present ? fingerprint.value : this.fingerprint,
+    availability: availability ?? this.availability,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  SourceRecordEntry copyWithCompanion(SourceRecordsCompanion data) {
+    return SourceRecordEntry(
+      id: data.id.present ? data.id.value : this.id,
+      sourceKind: data.sourceKind.present
+          ? data.sourceKind.value
+          : this.sourceKind,
+      titleSnapshot: data.titleSnapshot.present
+          ? data.titleSnapshot.value
+          : this.titleSnapshot,
+      authorSnapshot: data.authorSnapshot.present
+          ? data.authorSnapshot.value
+          : this.authorSnapshot,
+      language: data.language.present ? data.language.value : this.language,
+      fingerprint: data.fingerprint.present
+          ? data.fingerprint.value
+          : this.fingerprint,
+      availability: data.availability.present
+          ? data.availability.value
+          : this.availability,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SourceRecordEntry(')
+          ..write('id: $id, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('titleSnapshot: $titleSnapshot, ')
+          ..write('authorSnapshot: $authorSnapshot, ')
+          ..write('language: $language, ')
+          ..write('fingerprint: $fingerprint, ')
+          ..write('availability: $availability, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    sourceKind,
+    titleSnapshot,
+    authorSnapshot,
+    language,
+    fingerprint,
+    availability,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SourceRecordEntry &&
+          other.id == this.id &&
+          other.sourceKind == this.sourceKind &&
+          other.titleSnapshot == this.titleSnapshot &&
+          other.authorSnapshot == this.authorSnapshot &&
+          other.language == this.language &&
+          other.fingerprint == this.fingerprint &&
+          other.availability == this.availability &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class SourceRecordsCompanion extends UpdateCompanion<SourceRecordEntry> {
+  final Value<String> id;
+  final Value<String> sourceKind;
+  final Value<String> titleSnapshot;
+  final Value<String?> authorSnapshot;
+  final Value<String> language;
+  final Value<String?> fingerprint;
+  final Value<String> availability;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<String?> deletedAt;
+  final Value<int> rowid;
+  const SourceRecordsCompanion({
+    this.id = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.titleSnapshot = const Value.absent(),
+    this.authorSnapshot = const Value.absent(),
+    this.language = const Value.absent(),
+    this.fingerprint = const Value.absent(),
+    this.availability = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SourceRecordsCompanion.insert({
+    required String id,
+    required String sourceKind,
+    required String titleSnapshot,
+    this.authorSnapshot = const Value.absent(),
+    this.language = const Value.absent(),
+    this.fingerprint = const Value.absent(),
+    this.availability = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       sourceKind = Value(sourceKind),
+       titleSnapshot = Value(titleSnapshot);
+  static Insertable<SourceRecordEntry> custom({
+    Expression<String>? id,
+    Expression<String>? sourceKind,
+    Expression<String>? titleSnapshot,
+    Expression<String>? authorSnapshot,
+    Expression<String>? language,
+    Expression<String>? fingerprint,
+    Expression<String>? availability,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sourceKind != null) 'source_kind': sourceKind,
+      if (titleSnapshot != null) 'title_snapshot': titleSnapshot,
+      if (authorSnapshot != null) 'author_snapshot': authorSnapshot,
+      if (language != null) 'language_id': language,
+      if (fingerprint != null) 'fingerprint': fingerprint,
+      if (availability != null) 'availability': availability,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SourceRecordsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? sourceKind,
+    Value<String>? titleSnapshot,
+    Value<String?>? authorSnapshot,
+    Value<String>? language,
+    Value<String?>? fingerprint,
+    Value<String>? availability,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<String?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return SourceRecordsCompanion(
+      id: id ?? this.id,
+      sourceKind: sourceKind ?? this.sourceKind,
+      titleSnapshot: titleSnapshot ?? this.titleSnapshot,
+      authorSnapshot: authorSnapshot ?? this.authorSnapshot,
+      language: language ?? this.language,
+      fingerprint: fingerprint ?? this.fingerprint,
+      availability: availability ?? this.availability,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (sourceKind.present) {
+      map['source_kind'] = Variable<String>(sourceKind.value);
+    }
+    if (titleSnapshot.present) {
+      map['title_snapshot'] = Variable<String>(titleSnapshot.value);
+    }
+    if (authorSnapshot.present) {
+      map['author_snapshot'] = Variable<String>(authorSnapshot.value);
+    }
+    if (language.present) {
+      map['language_id'] = Variable<String>(language.value);
+    }
+    if (fingerprint.present) {
+      map['fingerprint'] = Variable<String>(fingerprint.value);
+    }
+    if (availability.present) {
+      map['availability'] = Variable<String>(availability.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<String>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SourceRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('titleSnapshot: $titleSnapshot, ')
+          ..write('authorSnapshot: $authorSnapshot, ')
+          ..write('language: $language, ')
+          ..write('fingerprint: $fingerprint, ')
+          ..write('availability: $availability, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $KnowledgeEntitiesTable extends KnowledgeEntities
+    with TableInfo<$KnowledgeEntitiesTable, KnowledgeEntityEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $KnowledgeEntitiesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _languageMeta = const VerificationMeta(
+    'language',
+  );
+  @override
+  late final GeneratedColumn<String> language = GeneratedColumn<String>(
+    'language_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(kDefaultLang),
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _canonicalKeyMeta = const VerificationMeta(
+    'canonicalKey',
+  );
+  @override
+  late final GeneratedColumn<String> canonicalKey = GeneratedColumn<String>(
+    'canonical_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _displayTextMeta = const VerificationMeta(
+    'displayText',
+  );
+  @override
+  late final GeneratedColumn<String> displayText = GeneratedColumn<String>(
+    'display_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _normalizedTextMeta = const VerificationMeta(
+    'normalizedText',
+  );
+  @override
+  late final GeneratedColumn<String> normalizedText = GeneratedColumn<String>(
+    'normalized_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _masteryStateMeta = const VerificationMeta(
+    'masteryState',
+  );
+  @override
+  late final GeneratedColumn<String> masteryState = GeneratedColumn<String>(
+    'mastery_state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('unknown'),
+  );
+  static const VerificationMeta _confidenceMeta = const VerificationMeta(
+    'confidence',
+  );
+  @override
+  late final GeneratedColumn<double> confidence = GeneratedColumn<double>(
+    'confidence',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(kZeroReal),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: nowIso,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: nowIso,
+  );
+  static const VerificationMeta _lastAccessedAtMeta = const VerificationMeta(
+    'lastAccessedAt',
+  );
+  @override
+  late final GeneratedColumn<String> lastAccessedAt = GeneratedColumn<String>(
+    'last_accessed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    language,
+    type,
+    canonicalKey,
+    displayText,
+    normalizedText,
+    masteryState,
+    confidence,
+    createdAt,
+    updatedAt,
+    lastAccessedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'knowledge_entities';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<KnowledgeEntityEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('language_id')) {
+      context.handle(
+        _languageMeta,
+        language.isAcceptableOrUnknown(data['language_id']!, _languageMeta),
+      );
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('canonical_key')) {
+      context.handle(
+        _canonicalKeyMeta,
+        canonicalKey.isAcceptableOrUnknown(
+          data['canonical_key']!,
+          _canonicalKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_canonicalKeyMeta);
+    }
+    if (data.containsKey('display_text')) {
+      context.handle(
+        _displayTextMeta,
+        displayText.isAcceptableOrUnknown(
+          data['display_text']!,
+          _displayTextMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_displayTextMeta);
+    }
+    if (data.containsKey('normalized_text')) {
+      context.handle(
+        _normalizedTextMeta,
+        normalizedText.isAcceptableOrUnknown(
+          data['normalized_text']!,
+          _normalizedTextMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_normalizedTextMeta);
+    }
+    if (data.containsKey('mastery_state')) {
+      context.handle(
+        _masteryStateMeta,
+        masteryState.isAcceptableOrUnknown(
+          data['mastery_state']!,
+          _masteryStateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('confidence')) {
+      context.handle(
+        _confidenceMeta,
+        confidence.isAcceptableOrUnknown(data['confidence']!, _confidenceMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('last_accessed_at')) {
+      context.handle(
+        _lastAccessedAtMeta,
+        lastAccessedAt.isAcceptableOrUnknown(
+          data['last_accessed_at']!,
+          _lastAccessedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  KnowledgeEntityEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return KnowledgeEntityEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      language: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}language_id'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      canonicalKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}canonical_key'],
+      )!,
+      displayText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}display_text'],
+      )!,
+      normalizedText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}normalized_text'],
+      )!,
+      masteryState: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mastery_state'],
+      )!,
+      confidence: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}confidence'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      lastAccessedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_accessed_at'],
+      ),
+    );
+  }
+
+  @override
+  $KnowledgeEntitiesTable createAlias(String alias) {
+    return $KnowledgeEntitiesTable(attachedDatabase, alias);
+  }
+}
+
+class KnowledgeEntityEntry extends DataClass
+    implements Insertable<KnowledgeEntityEntry> {
+  final String id;
+  final String language;
+  final String type;
+  final String canonicalKey;
+  final String displayText;
+  final String normalizedText;
+  final String masteryState;
+  final double confidence;
+  final String createdAt;
+  final String updatedAt;
+  final String? lastAccessedAt;
+  const KnowledgeEntityEntry({
+    required this.id,
+    required this.language,
+    required this.type,
+    required this.canonicalKey,
+    required this.displayText,
+    required this.normalizedText,
+    required this.masteryState,
+    required this.confidence,
+    required this.createdAt,
+    required this.updatedAt,
+    this.lastAccessedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['language_id'] = Variable<String>(language);
+    map['type'] = Variable<String>(type);
+    map['canonical_key'] = Variable<String>(canonicalKey);
+    map['display_text'] = Variable<String>(displayText);
+    map['normalized_text'] = Variable<String>(normalizedText);
+    map['mastery_state'] = Variable<String>(masteryState);
+    map['confidence'] = Variable<double>(confidence);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    if (!nullToAbsent || lastAccessedAt != null) {
+      map['last_accessed_at'] = Variable<String>(lastAccessedAt);
+    }
+    return map;
+  }
+
+  KnowledgeEntitiesCompanion toCompanion(bool nullToAbsent) {
+    return KnowledgeEntitiesCompanion(
+      id: Value(id),
+      language: Value(language),
+      type: Value(type),
+      canonicalKey: Value(canonicalKey),
+      displayText: Value(displayText),
+      normalizedText: Value(normalizedText),
+      masteryState: Value(masteryState),
+      confidence: Value(confidence),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      lastAccessedAt: lastAccessedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastAccessedAt),
+    );
+  }
+
+  factory KnowledgeEntityEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return KnowledgeEntityEntry(
+      id: serializer.fromJson<String>(json['id']),
+      language: serializer.fromJson<String>(json['language']),
+      type: serializer.fromJson<String>(json['type']),
+      canonicalKey: serializer.fromJson<String>(json['canonicalKey']),
+      displayText: serializer.fromJson<String>(json['displayText']),
+      normalizedText: serializer.fromJson<String>(json['normalizedText']),
+      masteryState: serializer.fromJson<String>(json['masteryState']),
+      confidence: serializer.fromJson<double>(json['confidence']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+      lastAccessedAt: serializer.fromJson<String?>(json['lastAccessedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'language': serializer.toJson<String>(language),
+      'type': serializer.toJson<String>(type),
+      'canonicalKey': serializer.toJson<String>(canonicalKey),
+      'displayText': serializer.toJson<String>(displayText),
+      'normalizedText': serializer.toJson<String>(normalizedText),
+      'masteryState': serializer.toJson<String>(masteryState),
+      'confidence': serializer.toJson<double>(confidence),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+      'lastAccessedAt': serializer.toJson<String?>(lastAccessedAt),
+    };
+  }
+
+  KnowledgeEntityEntry copyWith({
+    String? id,
+    String? language,
+    String? type,
+    String? canonicalKey,
+    String? displayText,
+    String? normalizedText,
+    String? masteryState,
+    double? confidence,
+    String? createdAt,
+    String? updatedAt,
+    Value<String?> lastAccessedAt = const Value.absent(),
+  }) => KnowledgeEntityEntry(
+    id: id ?? this.id,
+    language: language ?? this.language,
+    type: type ?? this.type,
+    canonicalKey: canonicalKey ?? this.canonicalKey,
+    displayText: displayText ?? this.displayText,
+    normalizedText: normalizedText ?? this.normalizedText,
+    masteryState: masteryState ?? this.masteryState,
+    confidence: confidence ?? this.confidence,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    lastAccessedAt: lastAccessedAt.present
+        ? lastAccessedAt.value
+        : this.lastAccessedAt,
+  );
+  KnowledgeEntityEntry copyWithCompanion(KnowledgeEntitiesCompanion data) {
+    return KnowledgeEntityEntry(
+      id: data.id.present ? data.id.value : this.id,
+      language: data.language.present ? data.language.value : this.language,
+      type: data.type.present ? data.type.value : this.type,
+      canonicalKey: data.canonicalKey.present
+          ? data.canonicalKey.value
+          : this.canonicalKey,
+      displayText: data.displayText.present
+          ? data.displayText.value
+          : this.displayText,
+      normalizedText: data.normalizedText.present
+          ? data.normalizedText.value
+          : this.normalizedText,
+      masteryState: data.masteryState.present
+          ? data.masteryState.value
+          : this.masteryState,
+      confidence: data.confidence.present
+          ? data.confidence.value
+          : this.confidence,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      lastAccessedAt: data.lastAccessedAt.present
+          ? data.lastAccessedAt.value
+          : this.lastAccessedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeEntityEntry(')
+          ..write('id: $id, ')
+          ..write('language: $language, ')
+          ..write('type: $type, ')
+          ..write('canonicalKey: $canonicalKey, ')
+          ..write('displayText: $displayText, ')
+          ..write('normalizedText: $normalizedText, ')
+          ..write('masteryState: $masteryState, ')
+          ..write('confidence: $confidence, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastAccessedAt: $lastAccessedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    language,
+    type,
+    canonicalKey,
+    displayText,
+    normalizedText,
+    masteryState,
+    confidence,
+    createdAt,
+    updatedAt,
+    lastAccessedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is KnowledgeEntityEntry &&
+          other.id == this.id &&
+          other.language == this.language &&
+          other.type == this.type &&
+          other.canonicalKey == this.canonicalKey &&
+          other.displayText == this.displayText &&
+          other.normalizedText == this.normalizedText &&
+          other.masteryState == this.masteryState &&
+          other.confidence == this.confidence &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.lastAccessedAt == this.lastAccessedAt);
+}
+
+class KnowledgeEntitiesCompanion extends UpdateCompanion<KnowledgeEntityEntry> {
+  final Value<String> id;
+  final Value<String> language;
+  final Value<String> type;
+  final Value<String> canonicalKey;
+  final Value<String> displayText;
+  final Value<String> normalizedText;
+  final Value<String> masteryState;
+  final Value<double> confidence;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<String?> lastAccessedAt;
+  final Value<int> rowid;
+  const KnowledgeEntitiesCompanion({
+    this.id = const Value.absent(),
+    this.language = const Value.absent(),
+    this.type = const Value.absent(),
+    this.canonicalKey = const Value.absent(),
+    this.displayText = const Value.absent(),
+    this.normalizedText = const Value.absent(),
+    this.masteryState = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.lastAccessedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  KnowledgeEntitiesCompanion.insert({
+    required String id,
+    this.language = const Value.absent(),
+    required String type,
+    required String canonicalKey,
+    required String displayText,
+    required String normalizedText,
+    this.masteryState = const Value.absent(),
+    this.confidence = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.lastAccessedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       type = Value(type),
+       canonicalKey = Value(canonicalKey),
+       displayText = Value(displayText),
+       normalizedText = Value(normalizedText);
+  static Insertable<KnowledgeEntityEntry> custom({
+    Expression<String>? id,
+    Expression<String>? language,
+    Expression<String>? type,
+    Expression<String>? canonicalKey,
+    Expression<String>? displayText,
+    Expression<String>? normalizedText,
+    Expression<String>? masteryState,
+    Expression<double>? confidence,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<String>? lastAccessedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (language != null) 'language_id': language,
+      if (type != null) 'type': type,
+      if (canonicalKey != null) 'canonical_key': canonicalKey,
+      if (displayText != null) 'display_text': displayText,
+      if (normalizedText != null) 'normalized_text': normalizedText,
+      if (masteryState != null) 'mastery_state': masteryState,
+      if (confidence != null) 'confidence': confidence,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (lastAccessedAt != null) 'last_accessed_at': lastAccessedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  KnowledgeEntitiesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? language,
+    Value<String>? type,
+    Value<String>? canonicalKey,
+    Value<String>? displayText,
+    Value<String>? normalizedText,
+    Value<String>? masteryState,
+    Value<double>? confidence,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<String?>? lastAccessedAt,
+    Value<int>? rowid,
+  }) {
+    return KnowledgeEntitiesCompanion(
+      id: id ?? this.id,
+      language: language ?? this.language,
+      type: type ?? this.type,
+      canonicalKey: canonicalKey ?? this.canonicalKey,
+      displayText: displayText ?? this.displayText,
+      normalizedText: normalizedText ?? this.normalizedText,
+      masteryState: masteryState ?? this.masteryState,
+      confidence: confidence ?? this.confidence,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      lastAccessedAt: lastAccessedAt ?? this.lastAccessedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (language.present) {
+      map['language_id'] = Variable<String>(language.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (canonicalKey.present) {
+      map['canonical_key'] = Variable<String>(canonicalKey.value);
+    }
+    if (displayText.present) {
+      map['display_text'] = Variable<String>(displayText.value);
+    }
+    if (normalizedText.present) {
+      map['normalized_text'] = Variable<String>(normalizedText.value);
+    }
+    if (masteryState.present) {
+      map['mastery_state'] = Variable<String>(masteryState.value);
+    }
+    if (confidence.present) {
+      map['confidence'] = Variable<double>(confidence.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (lastAccessedAt.present) {
+      map['last_accessed_at'] = Variable<String>(lastAccessedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeEntitiesCompanion(')
+          ..write('id: $id, ')
+          ..write('language: $language, ')
+          ..write('type: $type, ')
+          ..write('canonicalKey: $canonicalKey, ')
+          ..write('displayText: $displayText, ')
+          ..write('normalizedText: $normalizedText, ')
+          ..write('masteryState: $masteryState, ')
+          ..write('confidence: $confidence, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('lastAccessedAt: $lastAccessedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $KnowledgeExplanationsTable extends KnowledgeExplanations
+    with TableInfo<$KnowledgeExplanationsTable, KnowledgeExplanationEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $KnowledgeExplanationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _explanationMeta = const VerificationMeta(
+    'explanation',
+  );
+  @override
+  late final GeneratedColumn<String> explanation = GeneratedColumn<String>(
+    'explanation',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _explanationSourceMeta = const VerificationMeta(
+    'explanationSource',
+  );
+  @override
+  late final GeneratedColumn<String> explanationSource =
+      GeneratedColumn<String>(
+        'explanation_source',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _targetLanguageMeta = const VerificationMeta(
+    'targetLanguage',
+  );
+  @override
+  late final GeneratedColumn<String> targetLanguage = GeneratedColumn<String>(
+    'target_language',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('zh'),
+  );
+  static const VerificationMeta _promptVersionMeta = const VerificationMeta(
+    'promptVersion',
+  );
+  @override
+  late final GeneratedColumn<String> promptVersion = GeneratedColumn<String>(
+    'prompt_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: nowIso,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: nowIso,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    entityId,
+    explanation,
+    explanationSource,
+    targetLanguage,
+    promptVersion,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'knowledge_explanations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<KnowledgeExplanationEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('explanation')) {
+      context.handle(
+        _explanationMeta,
+        explanation.isAcceptableOrUnknown(
+          data['explanation']!,
+          _explanationMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_explanationMeta);
+    }
+    if (data.containsKey('explanation_source')) {
+      context.handle(
+        _explanationSourceMeta,
+        explanationSource.isAcceptableOrUnknown(
+          data['explanation_source']!,
+          _explanationSourceMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_explanationSourceMeta);
+    }
+    if (data.containsKey('target_language')) {
+      context.handle(
+        _targetLanguageMeta,
+        targetLanguage.isAcceptableOrUnknown(
+          data['target_language']!,
+          _targetLanguageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('prompt_version')) {
+      context.handle(
+        _promptVersionMeta,
+        promptVersion.isAcceptableOrUnknown(
+          data['prompt_version']!,
+          _promptVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  KnowledgeExplanationEntry map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return KnowledgeExplanationEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      explanation: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}explanation'],
+      )!,
+      explanationSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}explanation_source'],
+      )!,
+      targetLanguage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_language'],
+      )!,
+      promptVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}prompt_version'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $KnowledgeExplanationsTable createAlias(String alias) {
+    return $KnowledgeExplanationsTable(attachedDatabase, alias);
+  }
+}
+
+class KnowledgeExplanationEntry extends DataClass
+    implements Insertable<KnowledgeExplanationEntry> {
+  final String id;
+  final String entityId;
+  final String explanation;
+  final String explanationSource;
+  final String targetLanguage;
+  final String? promptVersion;
+  final String createdAt;
+  final String updatedAt;
+  const KnowledgeExplanationEntry({
+    required this.id,
+    required this.entityId,
+    required this.explanation,
+    required this.explanationSource,
+    required this.targetLanguage,
+    this.promptVersion,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['entity_id'] = Variable<String>(entityId);
+    map['explanation'] = Variable<String>(explanation);
+    map['explanation_source'] = Variable<String>(explanationSource);
+    map['target_language'] = Variable<String>(targetLanguage);
+    if (!nullToAbsent || promptVersion != null) {
+      map['prompt_version'] = Variable<String>(promptVersion);
+    }
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  KnowledgeExplanationsCompanion toCompanion(bool nullToAbsent) {
+    return KnowledgeExplanationsCompanion(
+      id: Value(id),
+      entityId: Value(entityId),
+      explanation: Value(explanation),
+      explanationSource: Value(explanationSource),
+      targetLanguage: Value(targetLanguage),
+      promptVersion: promptVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(promptVersion),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory KnowledgeExplanationEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return KnowledgeExplanationEntry(
+      id: serializer.fromJson<String>(json['id']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      explanation: serializer.fromJson<String>(json['explanation']),
+      explanationSource: serializer.fromJson<String>(json['explanationSource']),
+      targetLanguage: serializer.fromJson<String>(json['targetLanguage']),
+      promptVersion: serializer.fromJson<String?>(json['promptVersion']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'entityId': serializer.toJson<String>(entityId),
+      'explanation': serializer.toJson<String>(explanation),
+      'explanationSource': serializer.toJson<String>(explanationSource),
+      'targetLanguage': serializer.toJson<String>(targetLanguage),
+      'promptVersion': serializer.toJson<String?>(promptVersion),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  KnowledgeExplanationEntry copyWith({
+    String? id,
+    String? entityId,
+    String? explanation,
+    String? explanationSource,
+    String? targetLanguage,
+    Value<String?> promptVersion = const Value.absent(),
+    String? createdAt,
+    String? updatedAt,
+  }) => KnowledgeExplanationEntry(
+    id: id ?? this.id,
+    entityId: entityId ?? this.entityId,
+    explanation: explanation ?? this.explanation,
+    explanationSource: explanationSource ?? this.explanationSource,
+    targetLanguage: targetLanguage ?? this.targetLanguage,
+    promptVersion: promptVersion.present
+        ? promptVersion.value
+        : this.promptVersion,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  KnowledgeExplanationEntry copyWithCompanion(
+    KnowledgeExplanationsCompanion data,
+  ) {
+    return KnowledgeExplanationEntry(
+      id: data.id.present ? data.id.value : this.id,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      explanation: data.explanation.present
+          ? data.explanation.value
+          : this.explanation,
+      explanationSource: data.explanationSource.present
+          ? data.explanationSource.value
+          : this.explanationSource,
+      targetLanguage: data.targetLanguage.present
+          ? data.targetLanguage.value
+          : this.targetLanguage,
+      promptVersion: data.promptVersion.present
+          ? data.promptVersion.value
+          : this.promptVersion,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeExplanationEntry(')
+          ..write('id: $id, ')
+          ..write('entityId: $entityId, ')
+          ..write('explanation: $explanation, ')
+          ..write('explanationSource: $explanationSource, ')
+          ..write('targetLanguage: $targetLanguage, ')
+          ..write('promptVersion: $promptVersion, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    entityId,
+    explanation,
+    explanationSource,
+    targetLanguage,
+    promptVersion,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is KnowledgeExplanationEntry &&
+          other.id == this.id &&
+          other.entityId == this.entityId &&
+          other.explanation == this.explanation &&
+          other.explanationSource == this.explanationSource &&
+          other.targetLanguage == this.targetLanguage &&
+          other.promptVersion == this.promptVersion &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class KnowledgeExplanationsCompanion
+    extends UpdateCompanion<KnowledgeExplanationEntry> {
+  final Value<String> id;
+  final Value<String> entityId;
+  final Value<String> explanation;
+  final Value<String> explanationSource;
+  final Value<String> targetLanguage;
+  final Value<String?> promptVersion;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const KnowledgeExplanationsCompanion({
+    this.id = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.explanation = const Value.absent(),
+    this.explanationSource = const Value.absent(),
+    this.targetLanguage = const Value.absent(),
+    this.promptVersion = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  KnowledgeExplanationsCompanion.insert({
+    required String id,
+    required String entityId,
+    required String explanation,
+    required String explanationSource,
+    this.targetLanguage = const Value.absent(),
+    this.promptVersion = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       entityId = Value(entityId),
+       explanation = Value(explanation),
+       explanationSource = Value(explanationSource);
+  static Insertable<KnowledgeExplanationEntry> custom({
+    Expression<String>? id,
+    Expression<String>? entityId,
+    Expression<String>? explanation,
+    Expression<String>? explanationSource,
+    Expression<String>? targetLanguage,
+    Expression<String>? promptVersion,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entityId != null) 'entity_id': entityId,
+      if (explanation != null) 'explanation': explanation,
+      if (explanationSource != null) 'explanation_source': explanationSource,
+      if (targetLanguage != null) 'target_language': targetLanguage,
+      if (promptVersion != null) 'prompt_version': promptVersion,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  KnowledgeExplanationsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? entityId,
+    Value<String>? explanation,
+    Value<String>? explanationSource,
+    Value<String>? targetLanguage,
+    Value<String?>? promptVersion,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return KnowledgeExplanationsCompanion(
+      id: id ?? this.id,
+      entityId: entityId ?? this.entityId,
+      explanation: explanation ?? this.explanation,
+      explanationSource: explanationSource ?? this.explanationSource,
+      targetLanguage: targetLanguage ?? this.targetLanguage,
+      promptVersion: promptVersion ?? this.promptVersion,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (explanation.present) {
+      map['explanation'] = Variable<String>(explanation.value);
+    }
+    if (explanationSource.present) {
+      map['explanation_source'] = Variable<String>(explanationSource.value);
+    }
+    if (targetLanguage.present) {
+      map['target_language'] = Variable<String>(targetLanguage.value);
+    }
+    if (promptVersion.present) {
+      map['prompt_version'] = Variable<String>(promptVersion.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeExplanationsCompanion(')
+          ..write('id: $id, ')
+          ..write('entityId: $entityId, ')
+          ..write('explanation: $explanation, ')
+          ..write('explanationSource: $explanationSource, ')
+          ..write('targetLanguage: $targetLanguage, ')
+          ..write('promptVersion: $promptVersion, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $KnowledgeEvidencesTable extends KnowledgeEvidences
+    with TableInfo<$KnowledgeEvidencesTable, KnowledgeEvidenceEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $KnowledgeEvidencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceKindMeta = const VerificationMeta(
+    'sourceKind',
+  );
+  @override
+  late final GeneratedColumn<String> sourceKind = GeneratedColumn<String>(
+    'source_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
+  @override
+  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
+    'book_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _chapterIndexMeta = const VerificationMeta(
+    'chapterIndex',
+  );
+  @override
+  late final GeneratedColumn<int> chapterIndex = GeneratedColumn<int>(
+    'chapter_index',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _locationLocatorMeta = const VerificationMeta(
+    'locationLocator',
+  );
+  @override
+  late final GeneratedColumn<String> locationLocator = GeneratedColumn<String>(
+    'location_locator',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _shortExcerptMeta = const VerificationMeta(
+    'shortExcerpt',
+  );
+  @override
+  late final GeneratedColumn<String> shortExcerpt = GeneratedColumn<String>(
+    'short_excerpt',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(kEmptyStr),
+  );
+  static const VerificationMeta _excerptHashMeta = const VerificationMeta(
+    'excerptHash',
+  );
+  @override
+  late final GeneratedColumn<String> excerptHash = GeneratedColumn<String>(
+    'excerpt_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceTitleSnapshotMeta =
+      const VerificationMeta('sourceTitleSnapshot');
+  @override
+  late final GeneratedColumn<String> sourceTitleSnapshot =
+      GeneratedColumn<String>(
+        'source_title_snapshot',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(kEmptyStr),
+      );
+  static const VerificationMeta _sourceAvailabilityMeta =
+      const VerificationMeta('sourceAvailability');
+  @override
+  late final GeneratedColumn<String> sourceAvailability =
+      GeneratedColumn<String>(
+        'source_availability',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('available'),
+      );
+  static const VerificationMeta _retentionPolicyMeta = const VerificationMeta(
+    'retentionPolicy',
+  );
+  @override
+  late final GeneratedColumn<String> retentionPolicy = GeneratedColumn<String>(
+    'retention_policy',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('keepSnippet'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: nowIso,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    entityId,
+    sourceId,
+    sourceKind,
+    bookId,
+    chapterIndex,
+    locationLocator,
+    shortExcerpt,
+    excerptHash,
+    sourceTitleSnapshot,
+    sourceAvailability,
+    retentionPolicy,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'knowledge_evidences';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<KnowledgeEvidenceEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    }
+    if (data.containsKey('source_kind')) {
+      context.handle(
+        _sourceKindMeta,
+        sourceKind.isAcceptableOrUnknown(data['source_kind']!, _sourceKindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceKindMeta);
+    }
+    if (data.containsKey('book_id')) {
+      context.handle(
+        _bookIdMeta,
+        bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta),
+      );
+    }
+    if (data.containsKey('chapter_index')) {
+      context.handle(
+        _chapterIndexMeta,
+        chapterIndex.isAcceptableOrUnknown(
+          data['chapter_index']!,
+          _chapterIndexMeta,
+        ),
+      );
+    }
+    if (data.containsKey('location_locator')) {
+      context.handle(
+        _locationLocatorMeta,
+        locationLocator.isAcceptableOrUnknown(
+          data['location_locator']!,
+          _locationLocatorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('short_excerpt')) {
+      context.handle(
+        _shortExcerptMeta,
+        shortExcerpt.isAcceptableOrUnknown(
+          data['short_excerpt']!,
+          _shortExcerptMeta,
+        ),
+      );
+    }
+    if (data.containsKey('excerpt_hash')) {
+      context.handle(
+        _excerptHashMeta,
+        excerptHash.isAcceptableOrUnknown(
+          data['excerpt_hash']!,
+          _excerptHashMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source_title_snapshot')) {
+      context.handle(
+        _sourceTitleSnapshotMeta,
+        sourceTitleSnapshot.isAcceptableOrUnknown(
+          data['source_title_snapshot']!,
+          _sourceTitleSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source_availability')) {
+      context.handle(
+        _sourceAvailabilityMeta,
+        sourceAvailability.isAcceptableOrUnknown(
+          data['source_availability']!,
+          _sourceAvailabilityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('retention_policy')) {
+      context.handle(
+        _retentionPolicyMeta,
+        retentionPolicy.isAcceptableOrUnknown(
+          data['retention_policy']!,
+          _retentionPolicyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  KnowledgeEvidenceEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return KnowledgeEvidenceEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      ),
+      sourceKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_kind'],
+      )!,
+      bookId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}book_id'],
+      ),
+      chapterIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}chapter_index'],
+      ),
+      locationLocator: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}location_locator'],
+      ),
+      shortExcerpt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}short_excerpt'],
+      )!,
+      excerptHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}excerpt_hash'],
+      ),
+      sourceTitleSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_title_snapshot'],
+      )!,
+      sourceAvailability: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_availability'],
+      )!,
+      retentionPolicy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}retention_policy'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $KnowledgeEvidencesTable createAlias(String alias) {
+    return $KnowledgeEvidencesTable(attachedDatabase, alias);
+  }
+}
+
+class KnowledgeEvidenceEntry extends DataClass
+    implements Insertable<KnowledgeEvidenceEntry> {
+  final String id;
+  final String entityId;
+  final String? sourceId;
+  final String sourceKind;
+  final String? bookId;
+  final int? chapterIndex;
+  final String? locationLocator;
+  final String shortExcerpt;
+  final String? excerptHash;
+  final String sourceTitleSnapshot;
+  final String sourceAvailability;
+  final String retentionPolicy;
+  final String createdAt;
+  const KnowledgeEvidenceEntry({
+    required this.id,
+    required this.entityId,
+    this.sourceId,
+    required this.sourceKind,
+    this.bookId,
+    this.chapterIndex,
+    this.locationLocator,
+    required this.shortExcerpt,
+    this.excerptHash,
+    required this.sourceTitleSnapshot,
+    required this.sourceAvailability,
+    required this.retentionPolicy,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['entity_id'] = Variable<String>(entityId);
+    if (!nullToAbsent || sourceId != null) {
+      map['source_id'] = Variable<String>(sourceId);
+    }
+    map['source_kind'] = Variable<String>(sourceKind);
+    if (!nullToAbsent || bookId != null) {
+      map['book_id'] = Variable<String>(bookId);
+    }
+    if (!nullToAbsent || chapterIndex != null) {
+      map['chapter_index'] = Variable<int>(chapterIndex);
+    }
+    if (!nullToAbsent || locationLocator != null) {
+      map['location_locator'] = Variable<String>(locationLocator);
+    }
+    map['short_excerpt'] = Variable<String>(shortExcerpt);
+    if (!nullToAbsent || excerptHash != null) {
+      map['excerpt_hash'] = Variable<String>(excerptHash);
+    }
+    map['source_title_snapshot'] = Variable<String>(sourceTitleSnapshot);
+    map['source_availability'] = Variable<String>(sourceAvailability);
+    map['retention_policy'] = Variable<String>(retentionPolicy);
+    map['created_at'] = Variable<String>(createdAt);
+    return map;
+  }
+
+  KnowledgeEvidencesCompanion toCompanion(bool nullToAbsent) {
+    return KnowledgeEvidencesCompanion(
+      id: Value(id),
+      entityId: Value(entityId),
+      sourceId: sourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceId),
+      sourceKind: Value(sourceKind),
+      bookId: bookId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bookId),
+      chapterIndex: chapterIndex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chapterIndex),
+      locationLocator: locationLocator == null && nullToAbsent
+          ? const Value.absent()
+          : Value(locationLocator),
+      shortExcerpt: Value(shortExcerpt),
+      excerptHash: excerptHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(excerptHash),
+      sourceTitleSnapshot: Value(sourceTitleSnapshot),
+      sourceAvailability: Value(sourceAvailability),
+      retentionPolicy: Value(retentionPolicy),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory KnowledgeEvidenceEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return KnowledgeEvidenceEntry(
+      id: serializer.fromJson<String>(json['id']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      sourceId: serializer.fromJson<String?>(json['sourceId']),
+      sourceKind: serializer.fromJson<String>(json['sourceKind']),
+      bookId: serializer.fromJson<String?>(json['bookId']),
+      chapterIndex: serializer.fromJson<int?>(json['chapterIndex']),
+      locationLocator: serializer.fromJson<String?>(json['locationLocator']),
+      shortExcerpt: serializer.fromJson<String>(json['shortExcerpt']),
+      excerptHash: serializer.fromJson<String?>(json['excerptHash']),
+      sourceTitleSnapshot: serializer.fromJson<String>(
+        json['sourceTitleSnapshot'],
+      ),
+      sourceAvailability: serializer.fromJson<String>(
+        json['sourceAvailability'],
+      ),
+      retentionPolicy: serializer.fromJson<String>(json['retentionPolicy']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'entityId': serializer.toJson<String>(entityId),
+      'sourceId': serializer.toJson<String?>(sourceId),
+      'sourceKind': serializer.toJson<String>(sourceKind),
+      'bookId': serializer.toJson<String?>(bookId),
+      'chapterIndex': serializer.toJson<int?>(chapterIndex),
+      'locationLocator': serializer.toJson<String?>(locationLocator),
+      'shortExcerpt': serializer.toJson<String>(shortExcerpt),
+      'excerptHash': serializer.toJson<String?>(excerptHash),
+      'sourceTitleSnapshot': serializer.toJson<String>(sourceTitleSnapshot),
+      'sourceAvailability': serializer.toJson<String>(sourceAvailability),
+      'retentionPolicy': serializer.toJson<String>(retentionPolicy),
+      'createdAt': serializer.toJson<String>(createdAt),
+    };
+  }
+
+  KnowledgeEvidenceEntry copyWith({
+    String? id,
+    String? entityId,
+    Value<String?> sourceId = const Value.absent(),
+    String? sourceKind,
+    Value<String?> bookId = const Value.absent(),
+    Value<int?> chapterIndex = const Value.absent(),
+    Value<String?> locationLocator = const Value.absent(),
+    String? shortExcerpt,
+    Value<String?> excerptHash = const Value.absent(),
+    String? sourceTitleSnapshot,
+    String? sourceAvailability,
+    String? retentionPolicy,
+    String? createdAt,
+  }) => KnowledgeEvidenceEntry(
+    id: id ?? this.id,
+    entityId: entityId ?? this.entityId,
+    sourceId: sourceId.present ? sourceId.value : this.sourceId,
+    sourceKind: sourceKind ?? this.sourceKind,
+    bookId: bookId.present ? bookId.value : this.bookId,
+    chapterIndex: chapterIndex.present ? chapterIndex.value : this.chapterIndex,
+    locationLocator: locationLocator.present
+        ? locationLocator.value
+        : this.locationLocator,
+    shortExcerpt: shortExcerpt ?? this.shortExcerpt,
+    excerptHash: excerptHash.present ? excerptHash.value : this.excerptHash,
+    sourceTitleSnapshot: sourceTitleSnapshot ?? this.sourceTitleSnapshot,
+    sourceAvailability: sourceAvailability ?? this.sourceAvailability,
+    retentionPolicy: retentionPolicy ?? this.retentionPolicy,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  KnowledgeEvidenceEntry copyWithCompanion(KnowledgeEvidencesCompanion data) {
+    return KnowledgeEvidenceEntry(
+      id: data.id.present ? data.id.value : this.id,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      sourceKind: data.sourceKind.present
+          ? data.sourceKind.value
+          : this.sourceKind,
+      bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      chapterIndex: data.chapterIndex.present
+          ? data.chapterIndex.value
+          : this.chapterIndex,
+      locationLocator: data.locationLocator.present
+          ? data.locationLocator.value
+          : this.locationLocator,
+      shortExcerpt: data.shortExcerpt.present
+          ? data.shortExcerpt.value
+          : this.shortExcerpt,
+      excerptHash: data.excerptHash.present
+          ? data.excerptHash.value
+          : this.excerptHash,
+      sourceTitleSnapshot: data.sourceTitleSnapshot.present
+          ? data.sourceTitleSnapshot.value
+          : this.sourceTitleSnapshot,
+      sourceAvailability: data.sourceAvailability.present
+          ? data.sourceAvailability.value
+          : this.sourceAvailability,
+      retentionPolicy: data.retentionPolicy.present
+          ? data.retentionPolicy.value
+          : this.retentionPolicy,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeEvidenceEntry(')
+          ..write('id: $id, ')
+          ..write('entityId: $entityId, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('bookId: $bookId, ')
+          ..write('chapterIndex: $chapterIndex, ')
+          ..write('locationLocator: $locationLocator, ')
+          ..write('shortExcerpt: $shortExcerpt, ')
+          ..write('excerptHash: $excerptHash, ')
+          ..write('sourceTitleSnapshot: $sourceTitleSnapshot, ')
+          ..write('sourceAvailability: $sourceAvailability, ')
+          ..write('retentionPolicy: $retentionPolicy, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    entityId,
+    sourceId,
+    sourceKind,
+    bookId,
+    chapterIndex,
+    locationLocator,
+    shortExcerpt,
+    excerptHash,
+    sourceTitleSnapshot,
+    sourceAvailability,
+    retentionPolicy,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is KnowledgeEvidenceEntry &&
+          other.id == this.id &&
+          other.entityId == this.entityId &&
+          other.sourceId == this.sourceId &&
+          other.sourceKind == this.sourceKind &&
+          other.bookId == this.bookId &&
+          other.chapterIndex == this.chapterIndex &&
+          other.locationLocator == this.locationLocator &&
+          other.shortExcerpt == this.shortExcerpt &&
+          other.excerptHash == this.excerptHash &&
+          other.sourceTitleSnapshot == this.sourceTitleSnapshot &&
+          other.sourceAvailability == this.sourceAvailability &&
+          other.retentionPolicy == this.retentionPolicy &&
+          other.createdAt == this.createdAt);
+}
+
+class KnowledgeEvidencesCompanion
+    extends UpdateCompanion<KnowledgeEvidenceEntry> {
+  final Value<String> id;
+  final Value<String> entityId;
+  final Value<String?> sourceId;
+  final Value<String> sourceKind;
+  final Value<String?> bookId;
+  final Value<int?> chapterIndex;
+  final Value<String?> locationLocator;
+  final Value<String> shortExcerpt;
+  final Value<String?> excerptHash;
+  final Value<String> sourceTitleSnapshot;
+  final Value<String> sourceAvailability;
+  final Value<String> retentionPolicy;
+  final Value<String> createdAt;
+  final Value<int> rowid;
+  const KnowledgeEvidencesCompanion({
+    this.id = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.sourceKind = const Value.absent(),
+    this.bookId = const Value.absent(),
+    this.chapterIndex = const Value.absent(),
+    this.locationLocator = const Value.absent(),
+    this.shortExcerpt = const Value.absent(),
+    this.excerptHash = const Value.absent(),
+    this.sourceTitleSnapshot = const Value.absent(),
+    this.sourceAvailability = const Value.absent(),
+    this.retentionPolicy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  KnowledgeEvidencesCompanion.insert({
+    required String id,
+    required String entityId,
+    this.sourceId = const Value.absent(),
+    required String sourceKind,
+    this.bookId = const Value.absent(),
+    this.chapterIndex = const Value.absent(),
+    this.locationLocator = const Value.absent(),
+    this.shortExcerpt = const Value.absent(),
+    this.excerptHash = const Value.absent(),
+    this.sourceTitleSnapshot = const Value.absent(),
+    this.sourceAvailability = const Value.absent(),
+    this.retentionPolicy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       entityId = Value(entityId),
+       sourceKind = Value(sourceKind);
+  static Insertable<KnowledgeEvidenceEntry> custom({
+    Expression<String>? id,
+    Expression<String>? entityId,
+    Expression<String>? sourceId,
+    Expression<String>? sourceKind,
+    Expression<String>? bookId,
+    Expression<int>? chapterIndex,
+    Expression<String>? locationLocator,
+    Expression<String>? shortExcerpt,
+    Expression<String>? excerptHash,
+    Expression<String>? sourceTitleSnapshot,
+    Expression<String>? sourceAvailability,
+    Expression<String>? retentionPolicy,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entityId != null) 'entity_id': entityId,
+      if (sourceId != null) 'source_id': sourceId,
+      if (sourceKind != null) 'source_kind': sourceKind,
+      if (bookId != null) 'book_id': bookId,
+      if (chapterIndex != null) 'chapter_index': chapterIndex,
+      if (locationLocator != null) 'location_locator': locationLocator,
+      if (shortExcerpt != null) 'short_excerpt': shortExcerpt,
+      if (excerptHash != null) 'excerpt_hash': excerptHash,
+      if (sourceTitleSnapshot != null)
+        'source_title_snapshot': sourceTitleSnapshot,
+      if (sourceAvailability != null) 'source_availability': sourceAvailability,
+      if (retentionPolicy != null) 'retention_policy': retentionPolicy,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  KnowledgeEvidencesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? entityId,
+    Value<String?>? sourceId,
+    Value<String>? sourceKind,
+    Value<String?>? bookId,
+    Value<int?>? chapterIndex,
+    Value<String?>? locationLocator,
+    Value<String>? shortExcerpt,
+    Value<String?>? excerptHash,
+    Value<String>? sourceTitleSnapshot,
+    Value<String>? sourceAvailability,
+    Value<String>? retentionPolicy,
+    Value<String>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return KnowledgeEvidencesCompanion(
+      id: id ?? this.id,
+      entityId: entityId ?? this.entityId,
+      sourceId: sourceId ?? this.sourceId,
+      sourceKind: sourceKind ?? this.sourceKind,
+      bookId: bookId ?? this.bookId,
+      chapterIndex: chapterIndex ?? this.chapterIndex,
+      locationLocator: locationLocator ?? this.locationLocator,
+      shortExcerpt: shortExcerpt ?? this.shortExcerpt,
+      excerptHash: excerptHash ?? this.excerptHash,
+      sourceTitleSnapshot: sourceTitleSnapshot ?? this.sourceTitleSnapshot,
+      sourceAvailability: sourceAvailability ?? this.sourceAvailability,
+      retentionPolicy: retentionPolicy ?? this.retentionPolicy,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (sourceKind.present) {
+      map['source_kind'] = Variable<String>(sourceKind.value);
+    }
+    if (bookId.present) {
+      map['book_id'] = Variable<String>(bookId.value);
+    }
+    if (chapterIndex.present) {
+      map['chapter_index'] = Variable<int>(chapterIndex.value);
+    }
+    if (locationLocator.present) {
+      map['location_locator'] = Variable<String>(locationLocator.value);
+    }
+    if (shortExcerpt.present) {
+      map['short_excerpt'] = Variable<String>(shortExcerpt.value);
+    }
+    if (excerptHash.present) {
+      map['excerpt_hash'] = Variable<String>(excerptHash.value);
+    }
+    if (sourceTitleSnapshot.present) {
+      map['source_title_snapshot'] = Variable<String>(
+        sourceTitleSnapshot.value,
+      );
+    }
+    if (sourceAvailability.present) {
+      map['source_availability'] = Variable<String>(sourceAvailability.value);
+    }
+    if (retentionPolicy.present) {
+      map['retention_policy'] = Variable<String>(retentionPolicy.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('KnowledgeEvidencesCompanion(')
+          ..write('id: $id, ')
+          ..write('entityId: $entityId, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('sourceKind: $sourceKind, ')
+          ..write('bookId: $bookId, ')
+          ..write('chapterIndex: $chapterIndex, ')
+          ..write('locationLocator: $locationLocator, ')
+          ..write('shortExcerpt: $shortExcerpt, ')
+          ..write('excerptHash: $excerptHash, ')
+          ..write('sourceTitleSnapshot: $sourceTitleSnapshot, ')
+          ..write('sourceAvailability: $sourceAvailability, ')
+          ..write('retentionPolicy: $retentionPolicy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MemoryEventsTable extends MemoryEvents
+    with TableInfo<$MemoryEventsTable, MemoryEventEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemoryEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _eventTypeMeta = const VerificationMeta(
+    'eventType',
+  );
+  @override
+  late final GeneratedColumn<String> eventType = GeneratedColumn<String>(
+    'event_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _languageMeta = const VerificationMeta(
+    'language',
+  );
+  @override
+  late final GeneratedColumn<String> language = GeneratedColumn<String>(
+    'language_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(kDefaultLang),
+  );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _targetTextMeta = const VerificationMeta(
+    'targetText',
+  );
+  @override
+  late final GeneratedColumn<String> targetText = GeneratedColumn<String>(
+    'target_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(kEmptyStr),
+  );
+  static const VerificationMeta _canonicalKeyMeta = const VerificationMeta(
+    'canonicalKey',
+  );
+  @override
+  late final GeneratedColumn<String> canonicalKey = GeneratedColumn<String>(
+    'canonical_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(kEmptyStr),
+  );
+  static const VerificationMeta _sourceRefJsonMeta = const VerificationMeta(
+    'sourceRefJson',
+  );
+  @override
+  late final GeneratedColumn<String> sourceRefJson = GeneratedColumn<String>(
+    'source_ref_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _metadataJsonMeta = const VerificationMeta(
+    'metadataJson',
+  );
+  @override
+  late final GeneratedColumn<String> metadataJson = GeneratedColumn<String>(
+    'metadata_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: nowIso,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    eventType,
+    language,
+    sourceId,
+    entityId,
+    targetText,
+    canonicalKey,
+    sourceRefJson,
+    metadataJson,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'memory_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MemoryEventEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('event_type')) {
+      context.handle(
+        _eventTypeMeta,
+        eventType.isAcceptableOrUnknown(data['event_type']!, _eventTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventTypeMeta);
+    }
+    if (data.containsKey('language_id')) {
+      context.handle(
+        _languageMeta,
+        language.isAcceptableOrUnknown(data['language_id']!, _languageMeta),
+      );
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    }
+    if (data.containsKey('target_text')) {
+      context.handle(
+        _targetTextMeta,
+        targetText.isAcceptableOrUnknown(data['target_text']!, _targetTextMeta),
+      );
+    }
+    if (data.containsKey('canonical_key')) {
+      context.handle(
+        _canonicalKeyMeta,
+        canonicalKey.isAcceptableOrUnknown(
+          data['canonical_key']!,
+          _canonicalKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('source_ref_json')) {
+      context.handle(
+        _sourceRefJsonMeta,
+        sourceRefJson.isAcceptableOrUnknown(
+          data['source_ref_json']!,
+          _sourceRefJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('metadata_json')) {
+      context.handle(
+        _metadataJsonMeta,
+        metadataJson.isAcceptableOrUnknown(
+          data['metadata_json']!,
+          _metadataJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MemoryEventEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MemoryEventEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      eventType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_type'],
+      )!,
+      language: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}language_id'],
+      )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      ),
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      ),
+      targetText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_text'],
+      )!,
+      canonicalKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}canonical_key'],
+      )!,
+      sourceRefJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_ref_json'],
+      )!,
+      metadataJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}metadata_json'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $MemoryEventsTable createAlias(String alias) {
+    return $MemoryEventsTable(attachedDatabase, alias);
+  }
+}
+
+class MemoryEventEntry extends DataClass
+    implements Insertable<MemoryEventEntry> {
+  final String id;
+  final String eventType;
+  final String language;
+  final String? sourceId;
+  final String? entityId;
+  final String targetText;
+  final String canonicalKey;
+  final String sourceRefJson;
+  final String metadataJson;
+  final String createdAt;
+  const MemoryEventEntry({
+    required this.id,
+    required this.eventType,
+    required this.language,
+    this.sourceId,
+    this.entityId,
+    required this.targetText,
+    required this.canonicalKey,
+    required this.sourceRefJson,
+    required this.metadataJson,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['event_type'] = Variable<String>(eventType);
+    map['language_id'] = Variable<String>(language);
+    if (!nullToAbsent || sourceId != null) {
+      map['source_id'] = Variable<String>(sourceId);
+    }
+    if (!nullToAbsent || entityId != null) {
+      map['entity_id'] = Variable<String>(entityId);
+    }
+    map['target_text'] = Variable<String>(targetText);
+    map['canonical_key'] = Variable<String>(canonicalKey);
+    map['source_ref_json'] = Variable<String>(sourceRefJson);
+    map['metadata_json'] = Variable<String>(metadataJson);
+    map['created_at'] = Variable<String>(createdAt);
+    return map;
+  }
+
+  MemoryEventsCompanion toCompanion(bool nullToAbsent) {
+    return MemoryEventsCompanion(
+      id: Value(id),
+      eventType: Value(eventType),
+      language: Value(language),
+      sourceId: sourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceId),
+      entityId: entityId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(entityId),
+      targetText: Value(targetText),
+      canonicalKey: Value(canonicalKey),
+      sourceRefJson: Value(sourceRefJson),
+      metadataJson: Value(metadataJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory MemoryEventEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MemoryEventEntry(
+      id: serializer.fromJson<String>(json['id']),
+      eventType: serializer.fromJson<String>(json['eventType']),
+      language: serializer.fromJson<String>(json['language']),
+      sourceId: serializer.fromJson<String?>(json['sourceId']),
+      entityId: serializer.fromJson<String?>(json['entityId']),
+      targetText: serializer.fromJson<String>(json['targetText']),
+      canonicalKey: serializer.fromJson<String>(json['canonicalKey']),
+      sourceRefJson: serializer.fromJson<String>(json['sourceRefJson']),
+      metadataJson: serializer.fromJson<String>(json['metadataJson']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'eventType': serializer.toJson<String>(eventType),
+      'language': serializer.toJson<String>(language),
+      'sourceId': serializer.toJson<String?>(sourceId),
+      'entityId': serializer.toJson<String?>(entityId),
+      'targetText': serializer.toJson<String>(targetText),
+      'canonicalKey': serializer.toJson<String>(canonicalKey),
+      'sourceRefJson': serializer.toJson<String>(sourceRefJson),
+      'metadataJson': serializer.toJson<String>(metadataJson),
+      'createdAt': serializer.toJson<String>(createdAt),
+    };
+  }
+
+  MemoryEventEntry copyWith({
+    String? id,
+    String? eventType,
+    String? language,
+    Value<String?> sourceId = const Value.absent(),
+    Value<String?> entityId = const Value.absent(),
+    String? targetText,
+    String? canonicalKey,
+    String? sourceRefJson,
+    String? metadataJson,
+    String? createdAt,
+  }) => MemoryEventEntry(
+    id: id ?? this.id,
+    eventType: eventType ?? this.eventType,
+    language: language ?? this.language,
+    sourceId: sourceId.present ? sourceId.value : this.sourceId,
+    entityId: entityId.present ? entityId.value : this.entityId,
+    targetText: targetText ?? this.targetText,
+    canonicalKey: canonicalKey ?? this.canonicalKey,
+    sourceRefJson: sourceRefJson ?? this.sourceRefJson,
+    metadataJson: metadataJson ?? this.metadataJson,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  MemoryEventEntry copyWithCompanion(MemoryEventsCompanion data) {
+    return MemoryEventEntry(
+      id: data.id.present ? data.id.value : this.id,
+      eventType: data.eventType.present ? data.eventType.value : this.eventType,
+      language: data.language.present ? data.language.value : this.language,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      targetText: data.targetText.present
+          ? data.targetText.value
+          : this.targetText,
+      canonicalKey: data.canonicalKey.present
+          ? data.canonicalKey.value
+          : this.canonicalKey,
+      sourceRefJson: data.sourceRefJson.present
+          ? data.sourceRefJson.value
+          : this.sourceRefJson,
+      metadataJson: data.metadataJson.present
+          ? data.metadataJson.value
+          : this.metadataJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryEventEntry(')
+          ..write('id: $id, ')
+          ..write('eventType: $eventType, ')
+          ..write('language: $language, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('entityId: $entityId, ')
+          ..write('targetText: $targetText, ')
+          ..write('canonicalKey: $canonicalKey, ')
+          ..write('sourceRefJson: $sourceRefJson, ')
+          ..write('metadataJson: $metadataJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    eventType,
+    language,
+    sourceId,
+    entityId,
+    targetText,
+    canonicalKey,
+    sourceRefJson,
+    metadataJson,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MemoryEventEntry &&
+          other.id == this.id &&
+          other.eventType == this.eventType &&
+          other.language == this.language &&
+          other.sourceId == this.sourceId &&
+          other.entityId == this.entityId &&
+          other.targetText == this.targetText &&
+          other.canonicalKey == this.canonicalKey &&
+          other.sourceRefJson == this.sourceRefJson &&
+          other.metadataJson == this.metadataJson &&
+          other.createdAt == this.createdAt);
+}
+
+class MemoryEventsCompanion extends UpdateCompanion<MemoryEventEntry> {
+  final Value<String> id;
+  final Value<String> eventType;
+  final Value<String> language;
+  final Value<String?> sourceId;
+  final Value<String?> entityId;
+  final Value<String> targetText;
+  final Value<String> canonicalKey;
+  final Value<String> sourceRefJson;
+  final Value<String> metadataJson;
+  final Value<String> createdAt;
+  final Value<int> rowid;
+  const MemoryEventsCompanion({
+    this.id = const Value.absent(),
+    this.eventType = const Value.absent(),
+    this.language = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.targetText = const Value.absent(),
+    this.canonicalKey = const Value.absent(),
+    this.sourceRefJson = const Value.absent(),
+    this.metadataJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MemoryEventsCompanion.insert({
+    required String id,
+    required String eventType,
+    this.language = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.targetText = const Value.absent(),
+    this.canonicalKey = const Value.absent(),
+    this.sourceRefJson = const Value.absent(),
+    this.metadataJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       eventType = Value(eventType);
+  static Insertable<MemoryEventEntry> custom({
+    Expression<String>? id,
+    Expression<String>? eventType,
+    Expression<String>? language,
+    Expression<String>? sourceId,
+    Expression<String>? entityId,
+    Expression<String>? targetText,
+    Expression<String>? canonicalKey,
+    Expression<String>? sourceRefJson,
+    Expression<String>? metadataJson,
+    Expression<String>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (eventType != null) 'event_type': eventType,
+      if (language != null) 'language_id': language,
+      if (sourceId != null) 'source_id': sourceId,
+      if (entityId != null) 'entity_id': entityId,
+      if (targetText != null) 'target_text': targetText,
+      if (canonicalKey != null) 'canonical_key': canonicalKey,
+      if (sourceRefJson != null) 'source_ref_json': sourceRefJson,
+      if (metadataJson != null) 'metadata_json': metadataJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MemoryEventsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? eventType,
+    Value<String>? language,
+    Value<String?>? sourceId,
+    Value<String?>? entityId,
+    Value<String>? targetText,
+    Value<String>? canonicalKey,
+    Value<String>? sourceRefJson,
+    Value<String>? metadataJson,
+    Value<String>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return MemoryEventsCompanion(
+      id: id ?? this.id,
+      eventType: eventType ?? this.eventType,
+      language: language ?? this.language,
+      sourceId: sourceId ?? this.sourceId,
+      entityId: entityId ?? this.entityId,
+      targetText: targetText ?? this.targetText,
+      canonicalKey: canonicalKey ?? this.canonicalKey,
+      sourceRefJson: sourceRefJson ?? this.sourceRefJson,
+      metadataJson: metadataJson ?? this.metadataJson,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (eventType.present) {
+      map['event_type'] = Variable<String>(eventType.value);
+    }
+    if (language.present) {
+      map['language_id'] = Variable<String>(language.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (targetText.present) {
+      map['target_text'] = Variable<String>(targetText.value);
+    }
+    if (canonicalKey.present) {
+      map['canonical_key'] = Variable<String>(canonicalKey.value);
+    }
+    if (sourceRefJson.present) {
+      map['source_ref_json'] = Variable<String>(sourceRefJson.value);
+    }
+    if (metadataJson.present) {
+      map['metadata_json'] = Variable<String>(metadataJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('eventType: $eventType, ')
+          ..write('language: $language, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('entityId: $entityId, ')
+          ..write('targetText: $targetText, ')
+          ..write('canonicalKey: $canonicalKey, ')
+          ..write('sourceRefJson: $sourceRefJson, ')
+          ..write('metadataJson: $metadataJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SourceScopeCacheTable extends SourceScopeCache
+    with TableInfo<$SourceScopeCacheTable, SourceScopeCacheEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SourceScopeCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cacheTypeMeta = const VerificationMeta(
+    'cacheType',
+  );
+  @override
+  late final GeneratedColumn<String> cacheType = GeneratedColumn<String>(
+    'cache_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _retentionPolicyMeta = const VerificationMeta(
+    'retentionPolicy',
+  );
+  @override
+  late final GeneratedColumn<String> retentionPolicy = GeneratedColumn<String>(
+    'retention_policy',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('deleteWithSource'),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: nowIso,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sourceId,
+    cacheType,
+    payload,
+    retentionPolicy,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'source_scope_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SourceScopeCacheEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceIdMeta);
+    }
+    if (data.containsKey('cache_type')) {
+      context.handle(
+        _cacheTypeMeta,
+        cacheType.isAcceptableOrUnknown(data['cache_type']!, _cacheTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cacheTypeMeta);
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    if (data.containsKey('retention_policy')) {
+      context.handle(
+        _retentionPolicyMeta,
+        retentionPolicy.isAcceptableOrUnknown(
+          data['retention_policy']!,
+          _retentionPolicyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SourceScopeCacheEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SourceScopeCacheEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      )!,
+      cacheType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cache_type'],
+      )!,
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      )!,
+      retentionPolicy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}retention_policy'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SourceScopeCacheTable createAlias(String alias) {
+    return $SourceScopeCacheTable(attachedDatabase, alias);
+  }
+}
+
+class SourceScopeCacheEntry extends DataClass
+    implements Insertable<SourceScopeCacheEntry> {
+  final String id;
+  final String sourceId;
+  final String cacheType;
+  final String payload;
+  final String retentionPolicy;
+  final String updatedAt;
+  const SourceScopeCacheEntry({
+    required this.id,
+    required this.sourceId,
+    required this.cacheType,
+    required this.payload,
+    required this.retentionPolicy,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['source_id'] = Variable<String>(sourceId);
+    map['cache_type'] = Variable<String>(cacheType);
+    map['payload'] = Variable<String>(payload);
+    map['retention_policy'] = Variable<String>(retentionPolicy);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  SourceScopeCacheCompanion toCompanion(bool nullToAbsent) {
+    return SourceScopeCacheCompanion(
+      id: Value(id),
+      sourceId: Value(sourceId),
+      cacheType: Value(cacheType),
+      payload: Value(payload),
+      retentionPolicy: Value(retentionPolicy),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SourceScopeCacheEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SourceScopeCacheEntry(
+      id: serializer.fromJson<String>(json['id']),
+      sourceId: serializer.fromJson<String>(json['sourceId']),
+      cacheType: serializer.fromJson<String>(json['cacheType']),
+      payload: serializer.fromJson<String>(json['payload']),
+      retentionPolicy: serializer.fromJson<String>(json['retentionPolicy']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'sourceId': serializer.toJson<String>(sourceId),
+      'cacheType': serializer.toJson<String>(cacheType),
+      'payload': serializer.toJson<String>(payload),
+      'retentionPolicy': serializer.toJson<String>(retentionPolicy),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  SourceScopeCacheEntry copyWith({
+    String? id,
+    String? sourceId,
+    String? cacheType,
+    String? payload,
+    String? retentionPolicy,
+    String? updatedAt,
+  }) => SourceScopeCacheEntry(
+    id: id ?? this.id,
+    sourceId: sourceId ?? this.sourceId,
+    cacheType: cacheType ?? this.cacheType,
+    payload: payload ?? this.payload,
+    retentionPolicy: retentionPolicy ?? this.retentionPolicy,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SourceScopeCacheEntry copyWithCompanion(SourceScopeCacheCompanion data) {
+    return SourceScopeCacheEntry(
+      id: data.id.present ? data.id.value : this.id,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      cacheType: data.cacheType.present ? data.cacheType.value : this.cacheType,
+      payload: data.payload.present ? data.payload.value : this.payload,
+      retentionPolicy: data.retentionPolicy.present
+          ? data.retentionPolicy.value
+          : this.retentionPolicy,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SourceScopeCacheEntry(')
+          ..write('id: $id, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('cacheType: $cacheType, ')
+          ..write('payload: $payload, ')
+          ..write('retentionPolicy: $retentionPolicy, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, sourceId, cacheType, payload, retentionPolicy, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SourceScopeCacheEntry &&
+          other.id == this.id &&
+          other.sourceId == this.sourceId &&
+          other.cacheType == this.cacheType &&
+          other.payload == this.payload &&
+          other.retentionPolicy == this.retentionPolicy &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SourceScopeCacheCompanion extends UpdateCompanion<SourceScopeCacheEntry> {
+  final Value<String> id;
+  final Value<String> sourceId;
+  final Value<String> cacheType;
+  final Value<String> payload;
+  final Value<String> retentionPolicy;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const SourceScopeCacheCompanion({
+    this.id = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.cacheType = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.retentionPolicy = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SourceScopeCacheCompanion.insert({
+    required String id,
+    required String sourceId,
+    required String cacheType,
+    required String payload,
+    this.retentionPolicy = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       sourceId = Value(sourceId),
+       cacheType = Value(cacheType),
+       payload = Value(payload);
+  static Insertable<SourceScopeCacheEntry> custom({
+    Expression<String>? id,
+    Expression<String>? sourceId,
+    Expression<String>? cacheType,
+    Expression<String>? payload,
+    Expression<String>? retentionPolicy,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sourceId != null) 'source_id': sourceId,
+      if (cacheType != null) 'cache_type': cacheType,
+      if (payload != null) 'payload': payload,
+      if (retentionPolicy != null) 'retention_policy': retentionPolicy,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SourceScopeCacheCompanion copyWith({
+    Value<String>? id,
+    Value<String>? sourceId,
+    Value<String>? cacheType,
+    Value<String>? payload,
+    Value<String>? retentionPolicy,
+    Value<String>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SourceScopeCacheCompanion(
+      id: id ?? this.id,
+      sourceId: sourceId ?? this.sourceId,
+      cacheType: cacheType ?? this.cacheType,
+      payload: payload ?? this.payload,
+      retentionPolicy: retentionPolicy ?? this.retentionPolicy,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (cacheType.present) {
+      map['cache_type'] = Variable<String>(cacheType.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (retentionPolicy.present) {
+      map['retention_policy'] = Variable<String>(retentionPolicy.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SourceScopeCacheCompanion(')
+          ..write('id: $id, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('cacheType: $cacheType, ')
+          ..write('payload: $payload, ')
+          ..write('retentionPolicy: $retentionPolicy, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReviewCandidatesTable extends ReviewCandidates
+    with TableInfo<$ReviewCandidatesTable, ReviewCandidateEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReviewCandidatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _targetTextMeta = const VerificationMeta(
+    'targetText',
+  );
+  @override
+  late final GeneratedColumn<String> targetText = GeneratedColumn<String>(
+    'target_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _explanationIdMeta = const VerificationMeta(
+    'explanationId',
+  );
+  @override
+  late final GeneratedColumn<String> explanationId = GeneratedColumn<String>(
+    'explanation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _evidenceIdMeta = const VerificationMeta(
+    'evidenceId',
+  );
+  @override
+  late final GeneratedColumn<String> evidenceId = GeneratedColumn<String>(
+    'evidence_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _suggestedQuestionTypeMeta =
+      const VerificationMeta('suggestedQuestionType');
+  @override
+  late final GeneratedColumn<String> suggestedQuestionType =
+      GeneratedColumn<String>(
+        'suggested_question_type',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _priorityMeta = const VerificationMeta(
+    'priority',
+  );
+  @override
+  late final GeneratedColumn<double> priority = GeneratedColumn<double>(
+    'priority',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(kZeroReal),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<String> createdAt = GeneratedColumn<String>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: nowIso,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAt = GeneratedColumn<String>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    clientDefault: nowIso,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    entityId,
+    entityType,
+    targetText,
+    explanationId,
+    evidenceId,
+    suggestedQuestionType,
+    priority,
+    status,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'review_candidates';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReviewCandidateEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('target_text')) {
+      context.handle(
+        _targetTextMeta,
+        targetText.isAcceptableOrUnknown(data['target_text']!, _targetTextMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_targetTextMeta);
+    }
+    if (data.containsKey('explanation_id')) {
+      context.handle(
+        _explanationIdMeta,
+        explanationId.isAcceptableOrUnknown(
+          data['explanation_id']!,
+          _explanationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('evidence_id')) {
+      context.handle(
+        _evidenceIdMeta,
+        evidenceId.isAcceptableOrUnknown(data['evidence_id']!, _evidenceIdMeta),
+      );
+    }
+    if (data.containsKey('suggested_question_type')) {
+      context.handle(
+        _suggestedQuestionTypeMeta,
+        suggestedQuestionType.isAcceptableOrUnknown(
+          data['suggested_question_type']!,
+          _suggestedQuestionTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('priority')) {
+      context.handle(
+        _priorityMeta,
+        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReviewCandidateEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReviewCandidateEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      targetText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_text'],
+      )!,
+      explanationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}explanation_id'],
+      ),
+      evidenceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}evidence_id'],
+      ),
+      suggestedQuestionType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}suggested_question_type'],
+      ),
+      priority: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}priority'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ReviewCandidatesTable createAlias(String alias) {
+    return $ReviewCandidatesTable(attachedDatabase, alias);
+  }
+}
+
+class ReviewCandidateEntry extends DataClass
+    implements Insertable<ReviewCandidateEntry> {
+  final String id;
+  final String entityId;
+  final String entityType;
+  final String targetText;
+  final String? explanationId;
+  final String? evidenceId;
+  final String? suggestedQuestionType;
+  final double priority;
+  final String status;
+  final String createdAt;
+  final String updatedAt;
+  const ReviewCandidateEntry({
+    required this.id,
+    required this.entityId,
+    required this.entityType,
+    required this.targetText,
+    this.explanationId,
+    this.evidenceId,
+    this.suggestedQuestionType,
+    required this.priority,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['entity_id'] = Variable<String>(entityId);
+    map['entity_type'] = Variable<String>(entityType);
+    map['target_text'] = Variable<String>(targetText);
+    if (!nullToAbsent || explanationId != null) {
+      map['explanation_id'] = Variable<String>(explanationId);
+    }
+    if (!nullToAbsent || evidenceId != null) {
+      map['evidence_id'] = Variable<String>(evidenceId);
+    }
+    if (!nullToAbsent || suggestedQuestionType != null) {
+      map['suggested_question_type'] = Variable<String>(suggestedQuestionType);
+    }
+    map['priority'] = Variable<double>(priority);
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<String>(createdAt);
+    map['updated_at'] = Variable<String>(updatedAt);
+    return map;
+  }
+
+  ReviewCandidatesCompanion toCompanion(bool nullToAbsent) {
+    return ReviewCandidatesCompanion(
+      id: Value(id),
+      entityId: Value(entityId),
+      entityType: Value(entityType),
+      targetText: Value(targetText),
+      explanationId: explanationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(explanationId),
+      evidenceId: evidenceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(evidenceId),
+      suggestedQuestionType: suggestedQuestionType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(suggestedQuestionType),
+      priority: Value(priority),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ReviewCandidateEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReviewCandidateEntry(
+      id: serializer.fromJson<String>(json['id']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      targetText: serializer.fromJson<String>(json['targetText']),
+      explanationId: serializer.fromJson<String?>(json['explanationId']),
+      evidenceId: serializer.fromJson<String?>(json['evidenceId']),
+      suggestedQuestionType: serializer.fromJson<String?>(
+        json['suggestedQuestionType'],
+      ),
+      priority: serializer.fromJson<double>(json['priority']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<String>(json['createdAt']),
+      updatedAt: serializer.fromJson<String>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'entityId': serializer.toJson<String>(entityId),
+      'entityType': serializer.toJson<String>(entityType),
+      'targetText': serializer.toJson<String>(targetText),
+      'explanationId': serializer.toJson<String?>(explanationId),
+      'evidenceId': serializer.toJson<String?>(evidenceId),
+      'suggestedQuestionType': serializer.toJson<String?>(
+        suggestedQuestionType,
+      ),
+      'priority': serializer.toJson<double>(priority),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<String>(createdAt),
+      'updatedAt': serializer.toJson<String>(updatedAt),
+    };
+  }
+
+  ReviewCandidateEntry copyWith({
+    String? id,
+    String? entityId,
+    String? entityType,
+    String? targetText,
+    Value<String?> explanationId = const Value.absent(),
+    Value<String?> evidenceId = const Value.absent(),
+    Value<String?> suggestedQuestionType = const Value.absent(),
+    double? priority,
+    String? status,
+    String? createdAt,
+    String? updatedAt,
+  }) => ReviewCandidateEntry(
+    id: id ?? this.id,
+    entityId: entityId ?? this.entityId,
+    entityType: entityType ?? this.entityType,
+    targetText: targetText ?? this.targetText,
+    explanationId: explanationId.present
+        ? explanationId.value
+        : this.explanationId,
+    evidenceId: evidenceId.present ? evidenceId.value : this.evidenceId,
+    suggestedQuestionType: suggestedQuestionType.present
+        ? suggestedQuestionType.value
+        : this.suggestedQuestionType,
+    priority: priority ?? this.priority,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ReviewCandidateEntry copyWithCompanion(ReviewCandidatesCompanion data) {
+    return ReviewCandidateEntry(
+      id: data.id.present ? data.id.value : this.id,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      targetText: data.targetText.present
+          ? data.targetText.value
+          : this.targetText,
+      explanationId: data.explanationId.present
+          ? data.explanationId.value
+          : this.explanationId,
+      evidenceId: data.evidenceId.present
+          ? data.evidenceId.value
+          : this.evidenceId,
+      suggestedQuestionType: data.suggestedQuestionType.present
+          ? data.suggestedQuestionType.value
+          : this.suggestedQuestionType,
+      priority: data.priority.present ? data.priority.value : this.priority,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewCandidateEntry(')
+          ..write('id: $id, ')
+          ..write('entityId: $entityId, ')
+          ..write('entityType: $entityType, ')
+          ..write('targetText: $targetText, ')
+          ..write('explanationId: $explanationId, ')
+          ..write('evidenceId: $evidenceId, ')
+          ..write('suggestedQuestionType: $suggestedQuestionType, ')
+          ..write('priority: $priority, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    entityId,
+    entityType,
+    targetText,
+    explanationId,
+    evidenceId,
+    suggestedQuestionType,
+    priority,
+    status,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReviewCandidateEntry &&
+          other.id == this.id &&
+          other.entityId == this.entityId &&
+          other.entityType == this.entityType &&
+          other.targetText == this.targetText &&
+          other.explanationId == this.explanationId &&
+          other.evidenceId == this.evidenceId &&
+          other.suggestedQuestionType == this.suggestedQuestionType &&
+          other.priority == this.priority &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ReviewCandidatesCompanion extends UpdateCompanion<ReviewCandidateEntry> {
+  final Value<String> id;
+  final Value<String> entityId;
+  final Value<String> entityType;
+  final Value<String> targetText;
+  final Value<String?> explanationId;
+  final Value<String?> evidenceId;
+  final Value<String?> suggestedQuestionType;
+  final Value<double> priority;
+  final Value<String> status;
+  final Value<String> createdAt;
+  final Value<String> updatedAt;
+  final Value<int> rowid;
+  const ReviewCandidatesCompanion({
+    this.id = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.targetText = const Value.absent(),
+    this.explanationId = const Value.absent(),
+    this.evidenceId = const Value.absent(),
+    this.suggestedQuestionType = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReviewCandidatesCompanion.insert({
+    required String id,
+    required String entityId,
+    required String entityType,
+    required String targetText,
+    this.explanationId = const Value.absent(),
+    this.evidenceId = const Value.absent(),
+    this.suggestedQuestionType = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       entityId = Value(entityId),
+       entityType = Value(entityType),
+       targetText = Value(targetText);
+  static Insertable<ReviewCandidateEntry> custom({
+    Expression<String>? id,
+    Expression<String>? entityId,
+    Expression<String>? entityType,
+    Expression<String>? targetText,
+    Expression<String>? explanationId,
+    Expression<String>? evidenceId,
+    Expression<String>? suggestedQuestionType,
+    Expression<double>? priority,
+    Expression<String>? status,
+    Expression<String>? createdAt,
+    Expression<String>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entityId != null) 'entity_id': entityId,
+      if (entityType != null) 'entity_type': entityType,
+      if (targetText != null) 'target_text': targetText,
+      if (explanationId != null) 'explanation_id': explanationId,
+      if (evidenceId != null) 'evidence_id': evidenceId,
+      if (suggestedQuestionType != null)
+        'suggested_question_type': suggestedQuestionType,
+      if (priority != null) 'priority': priority,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReviewCandidatesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? entityId,
+    Value<String>? entityType,
+    Value<String>? targetText,
+    Value<String?>? explanationId,
+    Value<String?>? evidenceId,
+    Value<String?>? suggestedQuestionType,
+    Value<double>? priority,
+    Value<String>? status,
+    Value<String>? createdAt,
+    Value<String>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ReviewCandidatesCompanion(
+      id: id ?? this.id,
+      entityId: entityId ?? this.entityId,
+      entityType: entityType ?? this.entityType,
+      targetText: targetText ?? this.targetText,
+      explanationId: explanationId ?? this.explanationId,
+      evidenceId: evidenceId ?? this.evidenceId,
+      suggestedQuestionType:
+          suggestedQuestionType ?? this.suggestedQuestionType,
+      priority: priority ?? this.priority,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (targetText.present) {
+      map['target_text'] = Variable<String>(targetText.value);
+    }
+    if (explanationId.present) {
+      map['explanation_id'] = Variable<String>(explanationId.value);
+    }
+    if (evidenceId.present) {
+      map['evidence_id'] = Variable<String>(evidenceId.value);
+    }
+    if (suggestedQuestionType.present) {
+      map['suggested_question_type'] = Variable<String>(
+        suggestedQuestionType.value,
+      );
+    }
+    if (priority.present) {
+      map['priority'] = Variable<double>(priority.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<String>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<String>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewCandidatesCompanion(')
+          ..write('id: $id, ')
+          ..write('entityId: $entityId, ')
+          ..write('entityType: $entityType, ')
+          ..write('targetText: $targetText, ')
+          ..write('explanationId: $explanationId, ')
+          ..write('evidenceId: $evidenceId, ')
+          ..write('suggestedQuestionType: $suggestedQuestionType, ')
+          ..write('priority: $priority, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SettingsTable extends Settings
     with TableInfo<$SettingsTable, SettingsEntry> {
   @override
@@ -7859,6 +12198,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $BookGlossaryTable bookGlossary = $BookGlossaryTable(this);
   late final $CharacterRegistryTable characterRegistry =
       $CharacterRegistryTable(this);
+  late final $SourceRecordsTable sourceRecords = $SourceRecordsTable(this);
+  late final $KnowledgeEntitiesTable knowledgeEntities =
+      $KnowledgeEntitiesTable(this);
+  late final $KnowledgeExplanationsTable knowledgeExplanations =
+      $KnowledgeExplanationsTable(this);
+  late final $KnowledgeEvidencesTable knowledgeEvidences =
+      $KnowledgeEvidencesTable(this);
+  late final $MemoryEventsTable memoryEvents = $MemoryEventsTable(this);
+  late final $SourceScopeCacheTable sourceScopeCache = $SourceScopeCacheTable(
+    this,
+  );
+  late final $ReviewCandidatesTable reviewCandidates = $ReviewCandidatesTable(
+    this,
+  );
   late final $SettingsTable settings = $SettingsTable(this);
   late final Index idxBooksLanguage = Index(
     'idx_books_language',
@@ -7936,6 +12289,58 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_glossary_word',
     'CREATE INDEX idx_glossary_word ON book_glossary (word)',
   );
+  late final Index idxSourceRecordsKind = Index(
+    'idx_source_records_kind',
+    'CREATE INDEX idx_source_records_kind ON source_records (source_kind)',
+  );
+  late final Index idxSourceRecordsAvailability = Index(
+    'idx_source_records_availability',
+    'CREATE INDEX idx_source_records_availability ON source_records (availability)',
+  );
+  late final Index idxKnowledgeEntityKey = Index(
+    'idx_knowledge_entity_key',
+    'CREATE UNIQUE INDEX idx_knowledge_entity_key ON knowledge_entities (language_id, type, canonical_key)',
+  );
+  late final Index idxKnowledgeEntityType = Index(
+    'idx_knowledge_entity_type',
+    'CREATE INDEX idx_knowledge_entity_type ON knowledge_entities (type)',
+  );
+  late final Index idxKnowledgeExplanationsEntity = Index(
+    'idx_knowledge_explanations_entity',
+    'CREATE INDEX idx_knowledge_explanations_entity ON knowledge_explanations (entity_id)',
+  );
+  late final Index idxKnowledgeEvidencesEntity = Index(
+    'idx_knowledge_evidences_entity',
+    'CREATE INDEX idx_knowledge_evidences_entity ON knowledge_evidences (entity_id)',
+  );
+  late final Index idxKnowledgeEvidencesSource = Index(
+    'idx_knowledge_evidences_source',
+    'CREATE INDEX idx_knowledge_evidences_source ON knowledge_evidences (source_id)',
+  );
+  late final Index idxMemoryEventsCanonical = Index(
+    'idx_memory_events_canonical',
+    'CREATE INDEX idx_memory_events_canonical ON memory_events (language_id, canonical_key)',
+  );
+  late final Index idxMemoryEventsSource = Index(
+    'idx_memory_events_source',
+    'CREATE INDEX idx_memory_events_source ON memory_events (source_id)',
+  );
+  late final Index idxMemoryEventsCreated = Index(
+    'idx_memory_events_created',
+    'CREATE INDEX idx_memory_events_created ON memory_events (created_at)',
+  );
+  late final Index idxSourceScopeCacheSource = Index(
+    'idx_source_scope_cache_source',
+    'CREATE INDEX idx_source_scope_cache_source ON source_scope_cache (source_id)',
+  );
+  late final Index idxReviewCandidatesEntity = Index(
+    'idx_review_candidates_entity',
+    'CREATE INDEX idx_review_candidates_entity ON review_candidates (entity_id)',
+  );
+  late final Index idxReviewCandidatesStatus = Index(
+    'idx_review_candidates_status',
+    'CREATE INDEX idx_review_candidates_status ON review_candidates (status)',
+  );
   late final BookDao bookDao = BookDao(this as AppDatabase);
   late final BookGlossaryDao bookGlossaryDao = BookGlossaryDao(
     this as AppDatabase,
@@ -7951,6 +12356,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this as AppDatabase,
   );
   late final LearningItemDao learningItemDao = LearningItemDao(
+    this as AppDatabase,
+  );
+  late final ReadingMemoryDao readingMemoryDao = ReadingMemoryDao(
     this as AppDatabase,
   );
   late final ReadingConfigDao readingConfigDao = ReadingConfigDao(
@@ -7988,6 +12396,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     rssArticles,
     bookGlossary,
     characterRegistry,
+    sourceRecords,
+    knowledgeEntities,
+    knowledgeExplanations,
+    knowledgeEvidences,
+    memoryEvents,
+    sourceScopeCache,
+    reviewCandidates,
     settings,
     idxBooksLanguage,
     idxBooksLastRead,
@@ -8008,6 +12423,19 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxRssArticlesLater,
     idxGlossaryBook,
     idxGlossaryWord,
+    idxSourceRecordsKind,
+    idxSourceRecordsAvailability,
+    idxKnowledgeEntityKey,
+    idxKnowledgeEntityType,
+    idxKnowledgeExplanationsEntity,
+    idxKnowledgeEvidencesEntity,
+    idxKnowledgeEvidencesSource,
+    idxMemoryEventsCanonical,
+    idxMemoryEventsSource,
+    idxMemoryEventsCreated,
+    idxSourceScopeCacheSource,
+    idxReviewCandidatesEntity,
+    idxReviewCandidatesStatus,
   ];
 }
 
@@ -11966,6 +16394,2187 @@ typedef $$CharacterRegistryTableProcessedTableManager =
       CharacterRegistryEntry,
       PrefetchHooks Function()
     >;
+typedef $$SourceRecordsTableCreateCompanionBuilder =
+    SourceRecordsCompanion Function({
+      required String id,
+      required String sourceKind,
+      required String titleSnapshot,
+      Value<String?> authorSnapshot,
+      Value<String> language,
+      Value<String?> fingerprint,
+      Value<String> availability,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$SourceRecordsTableUpdateCompanionBuilder =
+    SourceRecordsCompanion Function({
+      Value<String> id,
+      Value<String> sourceKind,
+      Value<String> titleSnapshot,
+      Value<String?> authorSnapshot,
+      Value<String> language,
+      Value<String?> fingerprint,
+      Value<String> availability,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$SourceRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $SourceRecordsTable> {
+  $$SourceRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get titleSnapshot => $composableBuilder(
+    column: $table.titleSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get authorSnapshot => $composableBuilder(
+    column: $table.authorSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SourceRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SourceRecordsTable> {
+  $$SourceRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get titleSnapshot => $composableBuilder(
+    column: $table.titleSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get authorSnapshot => $composableBuilder(
+    column: $table.authorSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SourceRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SourceRecordsTable> {
+  $$SourceRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get titleSnapshot => $composableBuilder(
+    column: $table.titleSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get authorSnapshot => $composableBuilder(
+    column: $table.authorSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get language =>
+      $composableBuilder(column: $table.language, builder: (column) => column);
+
+  GeneratedColumn<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get availability => $composableBuilder(
+    column: $table.availability,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$SourceRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SourceRecordsTable,
+          SourceRecordEntry,
+          $$SourceRecordsTableFilterComposer,
+          $$SourceRecordsTableOrderingComposer,
+          $$SourceRecordsTableAnnotationComposer,
+          $$SourceRecordsTableCreateCompanionBuilder,
+          $$SourceRecordsTableUpdateCompanionBuilder,
+          (
+            SourceRecordEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $SourceRecordsTable,
+              SourceRecordEntry
+            >,
+          ),
+          SourceRecordEntry,
+          PrefetchHooks Function()
+        > {
+  $$SourceRecordsTableTableManager(_$AppDatabase db, $SourceRecordsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SourceRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SourceRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SourceRecordsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> sourceKind = const Value.absent(),
+                Value<String> titleSnapshot = const Value.absent(),
+                Value<String?> authorSnapshot = const Value.absent(),
+                Value<String> language = const Value.absent(),
+                Value<String?> fingerprint = const Value.absent(),
+                Value<String> availability = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SourceRecordsCompanion(
+                id: id,
+                sourceKind: sourceKind,
+                titleSnapshot: titleSnapshot,
+                authorSnapshot: authorSnapshot,
+                language: language,
+                fingerprint: fingerprint,
+                availability: availability,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String sourceKind,
+                required String titleSnapshot,
+                Value<String?> authorSnapshot = const Value.absent(),
+                Value<String> language = const Value.absent(),
+                Value<String?> fingerprint = const Value.absent(),
+                Value<String> availability = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SourceRecordsCompanion.insert(
+                id: id,
+                sourceKind: sourceKind,
+                titleSnapshot: titleSnapshot,
+                authorSnapshot: authorSnapshot,
+                language: language,
+                fingerprint: fingerprint,
+                availability: availability,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SourceRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SourceRecordsTable,
+      SourceRecordEntry,
+      $$SourceRecordsTableFilterComposer,
+      $$SourceRecordsTableOrderingComposer,
+      $$SourceRecordsTableAnnotationComposer,
+      $$SourceRecordsTableCreateCompanionBuilder,
+      $$SourceRecordsTableUpdateCompanionBuilder,
+      (
+        SourceRecordEntry,
+        BaseReferences<_$AppDatabase, $SourceRecordsTable, SourceRecordEntry>,
+      ),
+      SourceRecordEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$KnowledgeEntitiesTableCreateCompanionBuilder =
+    KnowledgeEntitiesCompanion Function({
+      required String id,
+      Value<String> language,
+      required String type,
+      required String canonicalKey,
+      required String displayText,
+      required String normalizedText,
+      Value<String> masteryState,
+      Value<double> confidence,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> lastAccessedAt,
+      Value<int> rowid,
+    });
+typedef $$KnowledgeEntitiesTableUpdateCompanionBuilder =
+    KnowledgeEntitiesCompanion Function({
+      Value<String> id,
+      Value<String> language,
+      Value<String> type,
+      Value<String> canonicalKey,
+      Value<String> displayText,
+      Value<String> normalizedText,
+      Value<String> masteryState,
+      Value<double> confidence,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<String?> lastAccessedAt,
+      Value<int> rowid,
+    });
+
+class $$KnowledgeEntitiesTableFilterComposer
+    extends Composer<_$AppDatabase, $KnowledgeEntitiesTable> {
+  $$KnowledgeEntitiesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get canonicalKey => $composableBuilder(
+    column: $table.canonicalKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get displayText => $composableBuilder(
+    column: $table.displayText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get normalizedText => $composableBuilder(
+    column: $table.normalizedText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get masteryState => $composableBuilder(
+    column: $table.masteryState,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastAccessedAt => $composableBuilder(
+    column: $table.lastAccessedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$KnowledgeEntitiesTableOrderingComposer
+    extends Composer<_$AppDatabase, $KnowledgeEntitiesTable> {
+  $$KnowledgeEntitiesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get canonicalKey => $composableBuilder(
+    column: $table.canonicalKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get displayText => $composableBuilder(
+    column: $table.displayText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get normalizedText => $composableBuilder(
+    column: $table.normalizedText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get masteryState => $composableBuilder(
+    column: $table.masteryState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastAccessedAt => $composableBuilder(
+    column: $table.lastAccessedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$KnowledgeEntitiesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $KnowledgeEntitiesTable> {
+  $$KnowledgeEntitiesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get language =>
+      $composableBuilder(column: $table.language, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get canonicalKey => $composableBuilder(
+    column: $table.canonicalKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get displayText => $composableBuilder(
+    column: $table.displayText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get normalizedText => $composableBuilder(
+    column: $table.normalizedText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get masteryState => $composableBuilder(
+    column: $table.masteryState,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get confidence => $composableBuilder(
+    column: $table.confidence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get lastAccessedAt => $composableBuilder(
+    column: $table.lastAccessedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$KnowledgeEntitiesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $KnowledgeEntitiesTable,
+          KnowledgeEntityEntry,
+          $$KnowledgeEntitiesTableFilterComposer,
+          $$KnowledgeEntitiesTableOrderingComposer,
+          $$KnowledgeEntitiesTableAnnotationComposer,
+          $$KnowledgeEntitiesTableCreateCompanionBuilder,
+          $$KnowledgeEntitiesTableUpdateCompanionBuilder,
+          (
+            KnowledgeEntityEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $KnowledgeEntitiesTable,
+              KnowledgeEntityEntry
+            >,
+          ),
+          KnowledgeEntityEntry,
+          PrefetchHooks Function()
+        > {
+  $$KnowledgeEntitiesTableTableManager(
+    _$AppDatabase db,
+    $KnowledgeEntitiesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$KnowledgeEntitiesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$KnowledgeEntitiesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$KnowledgeEntitiesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> language = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> canonicalKey = const Value.absent(),
+                Value<String> displayText = const Value.absent(),
+                Value<String> normalizedText = const Value.absent(),
+                Value<String> masteryState = const Value.absent(),
+                Value<double> confidence = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> lastAccessedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeEntitiesCompanion(
+                id: id,
+                language: language,
+                type: type,
+                canonicalKey: canonicalKey,
+                displayText: displayText,
+                normalizedText: normalizedText,
+                masteryState: masteryState,
+                confidence: confidence,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                lastAccessedAt: lastAccessedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String> language = const Value.absent(),
+                required String type,
+                required String canonicalKey,
+                required String displayText,
+                required String normalizedText,
+                Value<String> masteryState = const Value.absent(),
+                Value<double> confidence = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<String?> lastAccessedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeEntitiesCompanion.insert(
+                id: id,
+                language: language,
+                type: type,
+                canonicalKey: canonicalKey,
+                displayText: displayText,
+                normalizedText: normalizedText,
+                masteryState: masteryState,
+                confidence: confidence,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                lastAccessedAt: lastAccessedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$KnowledgeEntitiesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $KnowledgeEntitiesTable,
+      KnowledgeEntityEntry,
+      $$KnowledgeEntitiesTableFilterComposer,
+      $$KnowledgeEntitiesTableOrderingComposer,
+      $$KnowledgeEntitiesTableAnnotationComposer,
+      $$KnowledgeEntitiesTableCreateCompanionBuilder,
+      $$KnowledgeEntitiesTableUpdateCompanionBuilder,
+      (
+        KnowledgeEntityEntry,
+        BaseReferences<
+          _$AppDatabase,
+          $KnowledgeEntitiesTable,
+          KnowledgeEntityEntry
+        >,
+      ),
+      KnowledgeEntityEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$KnowledgeExplanationsTableCreateCompanionBuilder =
+    KnowledgeExplanationsCompanion Function({
+      required String id,
+      required String entityId,
+      required String explanation,
+      required String explanationSource,
+      Value<String> targetLanguage,
+      Value<String?> promptVersion,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$KnowledgeExplanationsTableUpdateCompanionBuilder =
+    KnowledgeExplanationsCompanion Function({
+      Value<String> id,
+      Value<String> entityId,
+      Value<String> explanation,
+      Value<String> explanationSource,
+      Value<String> targetLanguage,
+      Value<String?> promptVersion,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$KnowledgeExplanationsTableFilterComposer
+    extends Composer<_$AppDatabase, $KnowledgeExplanationsTable> {
+  $$KnowledgeExplanationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get explanation => $composableBuilder(
+    column: $table.explanation,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get explanationSource => $composableBuilder(
+    column: $table.explanationSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetLanguage => $composableBuilder(
+    column: $table.targetLanguage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get promptVersion => $composableBuilder(
+    column: $table.promptVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$KnowledgeExplanationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $KnowledgeExplanationsTable> {
+  $$KnowledgeExplanationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get explanation => $composableBuilder(
+    column: $table.explanation,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get explanationSource => $composableBuilder(
+    column: $table.explanationSource,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetLanguage => $composableBuilder(
+    column: $table.targetLanguage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get promptVersion => $composableBuilder(
+    column: $table.promptVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$KnowledgeExplanationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $KnowledgeExplanationsTable> {
+  $$KnowledgeExplanationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get explanation => $composableBuilder(
+    column: $table.explanation,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get explanationSource => $composableBuilder(
+    column: $table.explanationSource,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get targetLanguage => $composableBuilder(
+    column: $table.targetLanguage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get promptVersion => $composableBuilder(
+    column: $table.promptVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$KnowledgeExplanationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $KnowledgeExplanationsTable,
+          KnowledgeExplanationEntry,
+          $$KnowledgeExplanationsTableFilterComposer,
+          $$KnowledgeExplanationsTableOrderingComposer,
+          $$KnowledgeExplanationsTableAnnotationComposer,
+          $$KnowledgeExplanationsTableCreateCompanionBuilder,
+          $$KnowledgeExplanationsTableUpdateCompanionBuilder,
+          (
+            KnowledgeExplanationEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $KnowledgeExplanationsTable,
+              KnowledgeExplanationEntry
+            >,
+          ),
+          KnowledgeExplanationEntry,
+          PrefetchHooks Function()
+        > {
+  $$KnowledgeExplanationsTableTableManager(
+    _$AppDatabase db,
+    $KnowledgeExplanationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$KnowledgeExplanationsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$KnowledgeExplanationsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$KnowledgeExplanationsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<String> explanation = const Value.absent(),
+                Value<String> explanationSource = const Value.absent(),
+                Value<String> targetLanguage = const Value.absent(),
+                Value<String?> promptVersion = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeExplanationsCompanion(
+                id: id,
+                entityId: entityId,
+                explanation: explanation,
+                explanationSource: explanationSource,
+                targetLanguage: targetLanguage,
+                promptVersion: promptVersion,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String entityId,
+                required String explanation,
+                required String explanationSource,
+                Value<String> targetLanguage = const Value.absent(),
+                Value<String?> promptVersion = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeExplanationsCompanion.insert(
+                id: id,
+                entityId: entityId,
+                explanation: explanation,
+                explanationSource: explanationSource,
+                targetLanguage: targetLanguage,
+                promptVersion: promptVersion,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$KnowledgeExplanationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $KnowledgeExplanationsTable,
+      KnowledgeExplanationEntry,
+      $$KnowledgeExplanationsTableFilterComposer,
+      $$KnowledgeExplanationsTableOrderingComposer,
+      $$KnowledgeExplanationsTableAnnotationComposer,
+      $$KnowledgeExplanationsTableCreateCompanionBuilder,
+      $$KnowledgeExplanationsTableUpdateCompanionBuilder,
+      (
+        KnowledgeExplanationEntry,
+        BaseReferences<
+          _$AppDatabase,
+          $KnowledgeExplanationsTable,
+          KnowledgeExplanationEntry
+        >,
+      ),
+      KnowledgeExplanationEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$KnowledgeEvidencesTableCreateCompanionBuilder =
+    KnowledgeEvidencesCompanion Function({
+      required String id,
+      required String entityId,
+      Value<String?> sourceId,
+      required String sourceKind,
+      Value<String?> bookId,
+      Value<int?> chapterIndex,
+      Value<String?> locationLocator,
+      Value<String> shortExcerpt,
+      Value<String?> excerptHash,
+      Value<String> sourceTitleSnapshot,
+      Value<String> sourceAvailability,
+      Value<String> retentionPolicy,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+typedef $$KnowledgeEvidencesTableUpdateCompanionBuilder =
+    KnowledgeEvidencesCompanion Function({
+      Value<String> id,
+      Value<String> entityId,
+      Value<String?> sourceId,
+      Value<String> sourceKind,
+      Value<String?> bookId,
+      Value<int?> chapterIndex,
+      Value<String?> locationLocator,
+      Value<String> shortExcerpt,
+      Value<String?> excerptHash,
+      Value<String> sourceTitleSnapshot,
+      Value<String> sourceAvailability,
+      Value<String> retentionPolicy,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+
+class $$KnowledgeEvidencesTableFilterComposer
+    extends Composer<_$AppDatabase, $KnowledgeEvidencesTable> {
+  $$KnowledgeEvidencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bookId => $composableBuilder(
+    column: $table.bookId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get locationLocator => $composableBuilder(
+    column: $table.locationLocator,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get shortExcerpt => $composableBuilder(
+    column: $table.shortExcerpt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get excerptHash => $composableBuilder(
+    column: $table.excerptHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceTitleSnapshot => $composableBuilder(
+    column: $table.sourceTitleSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceAvailability => $composableBuilder(
+    column: $table.sourceAvailability,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get retentionPolicy => $composableBuilder(
+    column: $table.retentionPolicy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$KnowledgeEvidencesTableOrderingComposer
+    extends Composer<_$AppDatabase, $KnowledgeEvidencesTable> {
+  $$KnowledgeEvidencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bookId => $composableBuilder(
+    column: $table.bookId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get locationLocator => $composableBuilder(
+    column: $table.locationLocator,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get shortExcerpt => $composableBuilder(
+    column: $table.shortExcerpt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get excerptHash => $composableBuilder(
+    column: $table.excerptHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceTitleSnapshot => $composableBuilder(
+    column: $table.sourceTitleSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceAvailability => $composableBuilder(
+    column: $table.sourceAvailability,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get retentionPolicy => $composableBuilder(
+    column: $table.retentionPolicy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$KnowledgeEvidencesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $KnowledgeEvidencesTable> {
+  $$KnowledgeEvidencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceKind => $composableBuilder(
+    column: $table.sourceKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bookId =>
+      $composableBuilder(column: $table.bookId, builder: (column) => column);
+
+  GeneratedColumn<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get locationLocator => $composableBuilder(
+    column: $table.locationLocator,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get shortExcerpt => $composableBuilder(
+    column: $table.shortExcerpt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get excerptHash => $composableBuilder(
+    column: $table.excerptHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceTitleSnapshot => $composableBuilder(
+    column: $table.sourceTitleSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceAvailability => $composableBuilder(
+    column: $table.sourceAvailability,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get retentionPolicy => $composableBuilder(
+    column: $table.retentionPolicy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$KnowledgeEvidencesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $KnowledgeEvidencesTable,
+          KnowledgeEvidenceEntry,
+          $$KnowledgeEvidencesTableFilterComposer,
+          $$KnowledgeEvidencesTableOrderingComposer,
+          $$KnowledgeEvidencesTableAnnotationComposer,
+          $$KnowledgeEvidencesTableCreateCompanionBuilder,
+          $$KnowledgeEvidencesTableUpdateCompanionBuilder,
+          (
+            KnowledgeEvidenceEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $KnowledgeEvidencesTable,
+              KnowledgeEvidenceEntry
+            >,
+          ),
+          KnowledgeEvidenceEntry,
+          PrefetchHooks Function()
+        > {
+  $$KnowledgeEvidencesTableTableManager(
+    _$AppDatabase db,
+    $KnowledgeEvidencesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$KnowledgeEvidencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$KnowledgeEvidencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$KnowledgeEvidencesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<String?> sourceId = const Value.absent(),
+                Value<String> sourceKind = const Value.absent(),
+                Value<String?> bookId = const Value.absent(),
+                Value<int?> chapterIndex = const Value.absent(),
+                Value<String?> locationLocator = const Value.absent(),
+                Value<String> shortExcerpt = const Value.absent(),
+                Value<String?> excerptHash = const Value.absent(),
+                Value<String> sourceTitleSnapshot = const Value.absent(),
+                Value<String> sourceAvailability = const Value.absent(),
+                Value<String> retentionPolicy = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeEvidencesCompanion(
+                id: id,
+                entityId: entityId,
+                sourceId: sourceId,
+                sourceKind: sourceKind,
+                bookId: bookId,
+                chapterIndex: chapterIndex,
+                locationLocator: locationLocator,
+                shortExcerpt: shortExcerpt,
+                excerptHash: excerptHash,
+                sourceTitleSnapshot: sourceTitleSnapshot,
+                sourceAvailability: sourceAvailability,
+                retentionPolicy: retentionPolicy,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String entityId,
+                Value<String?> sourceId = const Value.absent(),
+                required String sourceKind,
+                Value<String?> bookId = const Value.absent(),
+                Value<int?> chapterIndex = const Value.absent(),
+                Value<String?> locationLocator = const Value.absent(),
+                Value<String> shortExcerpt = const Value.absent(),
+                Value<String?> excerptHash = const Value.absent(),
+                Value<String> sourceTitleSnapshot = const Value.absent(),
+                Value<String> sourceAvailability = const Value.absent(),
+                Value<String> retentionPolicy = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => KnowledgeEvidencesCompanion.insert(
+                id: id,
+                entityId: entityId,
+                sourceId: sourceId,
+                sourceKind: sourceKind,
+                bookId: bookId,
+                chapterIndex: chapterIndex,
+                locationLocator: locationLocator,
+                shortExcerpt: shortExcerpt,
+                excerptHash: excerptHash,
+                sourceTitleSnapshot: sourceTitleSnapshot,
+                sourceAvailability: sourceAvailability,
+                retentionPolicy: retentionPolicy,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$KnowledgeEvidencesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $KnowledgeEvidencesTable,
+      KnowledgeEvidenceEntry,
+      $$KnowledgeEvidencesTableFilterComposer,
+      $$KnowledgeEvidencesTableOrderingComposer,
+      $$KnowledgeEvidencesTableAnnotationComposer,
+      $$KnowledgeEvidencesTableCreateCompanionBuilder,
+      $$KnowledgeEvidencesTableUpdateCompanionBuilder,
+      (
+        KnowledgeEvidenceEntry,
+        BaseReferences<
+          _$AppDatabase,
+          $KnowledgeEvidencesTable,
+          KnowledgeEvidenceEntry
+        >,
+      ),
+      KnowledgeEvidenceEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$MemoryEventsTableCreateCompanionBuilder =
+    MemoryEventsCompanion Function({
+      required String id,
+      required String eventType,
+      Value<String> language,
+      Value<String?> sourceId,
+      Value<String?> entityId,
+      Value<String> targetText,
+      Value<String> canonicalKey,
+      Value<String> sourceRefJson,
+      Value<String> metadataJson,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+typedef $$MemoryEventsTableUpdateCompanionBuilder =
+    MemoryEventsCompanion Function({
+      Value<String> id,
+      Value<String> eventType,
+      Value<String> language,
+      Value<String?> sourceId,
+      Value<String?> entityId,
+      Value<String> targetText,
+      Value<String> canonicalKey,
+      Value<String> sourceRefJson,
+      Value<String> metadataJson,
+      Value<String> createdAt,
+      Value<int> rowid,
+    });
+
+class $$MemoryEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $MemoryEventsTable> {
+  $$MemoryEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetText => $composableBuilder(
+    column: $table.targetText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get canonicalKey => $composableBuilder(
+    column: $table.canonicalKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceRefJson => $composableBuilder(
+    column: $table.sourceRefJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MemoryEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MemoryEventsTable> {
+  $$MemoryEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get eventType => $composableBuilder(
+    column: $table.eventType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetText => $composableBuilder(
+    column: $table.targetText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get canonicalKey => $composableBuilder(
+    column: $table.canonicalKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceRefJson => $composableBuilder(
+    column: $table.sourceRefJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MemoryEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MemoryEventsTable> {
+  $$MemoryEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get eventType =>
+      $composableBuilder(column: $table.eventType, builder: (column) => column);
+
+  GeneratedColumn<String> get language =>
+      $composableBuilder(column: $table.language, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get targetText => $composableBuilder(
+    column: $table.targetText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get canonicalKey => $composableBuilder(
+    column: $table.canonicalKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceRefJson => $composableBuilder(
+    column: $table.sourceRefJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get metadataJson => $composableBuilder(
+    column: $table.metadataJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$MemoryEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MemoryEventsTable,
+          MemoryEventEntry,
+          $$MemoryEventsTableFilterComposer,
+          $$MemoryEventsTableOrderingComposer,
+          $$MemoryEventsTableAnnotationComposer,
+          $$MemoryEventsTableCreateCompanionBuilder,
+          $$MemoryEventsTableUpdateCompanionBuilder,
+          (
+            MemoryEventEntry,
+            BaseReferences<_$AppDatabase, $MemoryEventsTable, MemoryEventEntry>,
+          ),
+          MemoryEventEntry,
+          PrefetchHooks Function()
+        > {
+  $$MemoryEventsTableTableManager(_$AppDatabase db, $MemoryEventsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemoryEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemoryEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemoryEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> eventType = const Value.absent(),
+                Value<String> language = const Value.absent(),
+                Value<String?> sourceId = const Value.absent(),
+                Value<String?> entityId = const Value.absent(),
+                Value<String> targetText = const Value.absent(),
+                Value<String> canonicalKey = const Value.absent(),
+                Value<String> sourceRefJson = const Value.absent(),
+                Value<String> metadataJson = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MemoryEventsCompanion(
+                id: id,
+                eventType: eventType,
+                language: language,
+                sourceId: sourceId,
+                entityId: entityId,
+                targetText: targetText,
+                canonicalKey: canonicalKey,
+                sourceRefJson: sourceRefJson,
+                metadataJson: metadataJson,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String eventType,
+                Value<String> language = const Value.absent(),
+                Value<String?> sourceId = const Value.absent(),
+                Value<String?> entityId = const Value.absent(),
+                Value<String> targetText = const Value.absent(),
+                Value<String> canonicalKey = const Value.absent(),
+                Value<String> sourceRefJson = const Value.absent(),
+                Value<String> metadataJson = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MemoryEventsCompanion.insert(
+                id: id,
+                eventType: eventType,
+                language: language,
+                sourceId: sourceId,
+                entityId: entityId,
+                targetText: targetText,
+                canonicalKey: canonicalKey,
+                sourceRefJson: sourceRefJson,
+                metadataJson: metadataJson,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MemoryEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MemoryEventsTable,
+      MemoryEventEntry,
+      $$MemoryEventsTableFilterComposer,
+      $$MemoryEventsTableOrderingComposer,
+      $$MemoryEventsTableAnnotationComposer,
+      $$MemoryEventsTableCreateCompanionBuilder,
+      $$MemoryEventsTableUpdateCompanionBuilder,
+      (
+        MemoryEventEntry,
+        BaseReferences<_$AppDatabase, $MemoryEventsTable, MemoryEventEntry>,
+      ),
+      MemoryEventEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$SourceScopeCacheTableCreateCompanionBuilder =
+    SourceScopeCacheCompanion Function({
+      required String id,
+      required String sourceId,
+      required String cacheType,
+      required String payload,
+      Value<String> retentionPolicy,
+      Value<String> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SourceScopeCacheTableUpdateCompanionBuilder =
+    SourceScopeCacheCompanion Function({
+      Value<String> id,
+      Value<String> sourceId,
+      Value<String> cacheType,
+      Value<String> payload,
+      Value<String> retentionPolicy,
+      Value<String> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$SourceScopeCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $SourceScopeCacheTable> {
+  $$SourceScopeCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cacheType => $composableBuilder(
+    column: $table.cacheType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get retentionPolicy => $composableBuilder(
+    column: $table.retentionPolicy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SourceScopeCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $SourceScopeCacheTable> {
+  $$SourceScopeCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cacheType => $composableBuilder(
+    column: $table.cacheType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get retentionPolicy => $composableBuilder(
+    column: $table.retentionPolicy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SourceScopeCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SourceScopeCacheTable> {
+  $$SourceScopeCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get cacheType =>
+      $composableBuilder(column: $table.cacheType, builder: (column) => column);
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<String> get retentionPolicy => $composableBuilder(
+    column: $table.retentionPolicy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SourceScopeCacheTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SourceScopeCacheTable,
+          SourceScopeCacheEntry,
+          $$SourceScopeCacheTableFilterComposer,
+          $$SourceScopeCacheTableOrderingComposer,
+          $$SourceScopeCacheTableAnnotationComposer,
+          $$SourceScopeCacheTableCreateCompanionBuilder,
+          $$SourceScopeCacheTableUpdateCompanionBuilder,
+          (
+            SourceScopeCacheEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $SourceScopeCacheTable,
+              SourceScopeCacheEntry
+            >,
+          ),
+          SourceScopeCacheEntry,
+          PrefetchHooks Function()
+        > {
+  $$SourceScopeCacheTableTableManager(
+    _$AppDatabase db,
+    $SourceScopeCacheTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SourceScopeCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SourceScopeCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SourceScopeCacheTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> sourceId = const Value.absent(),
+                Value<String> cacheType = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<String> retentionPolicy = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SourceScopeCacheCompanion(
+                id: id,
+                sourceId: sourceId,
+                cacheType: cacheType,
+                payload: payload,
+                retentionPolicy: retentionPolicy,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String sourceId,
+                required String cacheType,
+                required String payload,
+                Value<String> retentionPolicy = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SourceScopeCacheCompanion.insert(
+                id: id,
+                sourceId: sourceId,
+                cacheType: cacheType,
+                payload: payload,
+                retentionPolicy: retentionPolicy,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SourceScopeCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SourceScopeCacheTable,
+      SourceScopeCacheEntry,
+      $$SourceScopeCacheTableFilterComposer,
+      $$SourceScopeCacheTableOrderingComposer,
+      $$SourceScopeCacheTableAnnotationComposer,
+      $$SourceScopeCacheTableCreateCompanionBuilder,
+      $$SourceScopeCacheTableUpdateCompanionBuilder,
+      (
+        SourceScopeCacheEntry,
+        BaseReferences<
+          _$AppDatabase,
+          $SourceScopeCacheTable,
+          SourceScopeCacheEntry
+        >,
+      ),
+      SourceScopeCacheEntry,
+      PrefetchHooks Function()
+    >;
+typedef $$ReviewCandidatesTableCreateCompanionBuilder =
+    ReviewCandidatesCompanion Function({
+      required String id,
+      required String entityId,
+      required String entityType,
+      required String targetText,
+      Value<String?> explanationId,
+      Value<String?> evidenceId,
+      Value<String?> suggestedQuestionType,
+      Value<double> priority,
+      Value<String> status,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ReviewCandidatesTableUpdateCompanionBuilder =
+    ReviewCandidatesCompanion Function({
+      Value<String> id,
+      Value<String> entityId,
+      Value<String> entityType,
+      Value<String> targetText,
+      Value<String?> explanationId,
+      Value<String?> evidenceId,
+      Value<String?> suggestedQuestionType,
+      Value<double> priority,
+      Value<String> status,
+      Value<String> createdAt,
+      Value<String> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$ReviewCandidatesTableFilterComposer
+    extends Composer<_$AppDatabase, $ReviewCandidatesTable> {
+  $$ReviewCandidatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetText => $composableBuilder(
+    column: $table.targetText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get explanationId => $composableBuilder(
+    column: $table.explanationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get evidenceId => $composableBuilder(
+    column: $table.evidenceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get suggestedQuestionType => $composableBuilder(
+    column: $table.suggestedQuestionType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReviewCandidatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReviewCandidatesTable> {
+  $$ReviewCandidatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get targetText => $composableBuilder(
+    column: $table.targetText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get explanationId => $composableBuilder(
+    column: $table.explanationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get evidenceId => $composableBuilder(
+    column: $table.evidenceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get suggestedQuestionType => $composableBuilder(
+    column: $table.suggestedQuestionType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReviewCandidatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReviewCandidatesTable> {
+  $$ReviewCandidatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get targetText => $composableBuilder(
+    column: $table.targetText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get explanationId => $composableBuilder(
+    column: $table.explanationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get evidenceId => $composableBuilder(
+    column: $table.evidenceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get suggestedQuestionType => $composableBuilder(
+    column: $table.suggestedQuestionType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ReviewCandidatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReviewCandidatesTable,
+          ReviewCandidateEntry,
+          $$ReviewCandidatesTableFilterComposer,
+          $$ReviewCandidatesTableOrderingComposer,
+          $$ReviewCandidatesTableAnnotationComposer,
+          $$ReviewCandidatesTableCreateCompanionBuilder,
+          $$ReviewCandidatesTableUpdateCompanionBuilder,
+          (
+            ReviewCandidateEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $ReviewCandidatesTable,
+              ReviewCandidateEntry
+            >,
+          ),
+          ReviewCandidateEntry,
+          PrefetchHooks Function()
+        > {
+  $$ReviewCandidatesTableTableManager(
+    _$AppDatabase db,
+    $ReviewCandidatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReviewCandidatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReviewCandidatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReviewCandidatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<String> targetText = const Value.absent(),
+                Value<String?> explanationId = const Value.absent(),
+                Value<String?> evidenceId = const Value.absent(),
+                Value<String?> suggestedQuestionType = const Value.absent(),
+                Value<double> priority = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReviewCandidatesCompanion(
+                id: id,
+                entityId: entityId,
+                entityType: entityType,
+                targetText: targetText,
+                explanationId: explanationId,
+                evidenceId: evidenceId,
+                suggestedQuestionType: suggestedQuestionType,
+                priority: priority,
+                status: status,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String entityId,
+                required String entityType,
+                required String targetText,
+                Value<String?> explanationId = const Value.absent(),
+                Value<String?> evidenceId = const Value.absent(),
+                Value<String?> suggestedQuestionType = const Value.absent(),
+                Value<double> priority = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> createdAt = const Value.absent(),
+                Value<String> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReviewCandidatesCompanion.insert(
+                id: id,
+                entityId: entityId,
+                entityType: entityType,
+                targetText: targetText,
+                explanationId: explanationId,
+                evidenceId: evidenceId,
+                suggestedQuestionType: suggestedQuestionType,
+                priority: priority,
+                status: status,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReviewCandidatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReviewCandidatesTable,
+      ReviewCandidateEntry,
+      $$ReviewCandidatesTableFilterComposer,
+      $$ReviewCandidatesTableOrderingComposer,
+      $$ReviewCandidatesTableAnnotationComposer,
+      $$ReviewCandidatesTableCreateCompanionBuilder,
+      $$ReviewCandidatesTableUpdateCompanionBuilder,
+      (
+        ReviewCandidateEntry,
+        BaseReferences<
+          _$AppDatabase,
+          $ReviewCandidatesTable,
+          ReviewCandidateEntry
+        >,
+      ),
+      ReviewCandidateEntry,
+      PrefetchHooks Function()
+    >;
 typedef $$SettingsTableCreateCompanionBuilder =
     SettingsCompanion Function({
       required String key,
@@ -12139,6 +18748,20 @@ class $AppDatabaseManager {
       $$BookGlossaryTableTableManager(_db, _db.bookGlossary);
   $$CharacterRegistryTableTableManager get characterRegistry =>
       $$CharacterRegistryTableTableManager(_db, _db.characterRegistry);
+  $$SourceRecordsTableTableManager get sourceRecords =>
+      $$SourceRecordsTableTableManager(_db, _db.sourceRecords);
+  $$KnowledgeEntitiesTableTableManager get knowledgeEntities =>
+      $$KnowledgeEntitiesTableTableManager(_db, _db.knowledgeEntities);
+  $$KnowledgeExplanationsTableTableManager get knowledgeExplanations =>
+      $$KnowledgeExplanationsTableTableManager(_db, _db.knowledgeExplanations);
+  $$KnowledgeEvidencesTableTableManager get knowledgeEvidences =>
+      $$KnowledgeEvidencesTableTableManager(_db, _db.knowledgeEvidences);
+  $$MemoryEventsTableTableManager get memoryEvents =>
+      $$MemoryEventsTableTableManager(_db, _db.memoryEvents);
+  $$SourceScopeCacheTableTableManager get sourceScopeCache =>
+      $$SourceScopeCacheTableTableManager(_db, _db.sourceScopeCache);
+  $$ReviewCandidatesTableTableManager get reviewCandidates =>
+      $$ReviewCandidatesTableTableManager(_db, _db.reviewCandidates);
   $$SettingsTableTableManager get settings =>
       $$SettingsTableTableManager(_db, _db.settings);
 }

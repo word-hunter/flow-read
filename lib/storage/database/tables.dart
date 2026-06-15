@@ -36,8 +36,9 @@ class BookEntries extends Table {
   RealColumn get globalProgress =>
       real().named('global_progress').withDefault(const Constant(kZeroReal))();
 
-  IntColumn get currentChapter =>
-      integer().named('current_chapter').withDefault(const Constant(kZeroInt))();
+  IntColumn get currentChapter => integer()
+      .named('current_chapter')
+      .withDefault(const Constant(kZeroInt))();
 
   RealColumn get chapterProgress =>
       real().named('chapter_progress').withDefault(const Constant(kZeroReal))();
@@ -47,10 +48,9 @@ class BookEntries extends Table {
   RealColumn get chapterScrollOffset =>
       real().named('chapter_scroll_offset').nullable()();
 
-  TextColumn get sourceLanguage =>
-      text()
-          .named('source_language')
-          .withDefault(const Constant(kDefaultLang))();
+  TextColumn get sourceLanguage => text()
+      .named('source_language')
+      .withDefault(const Constant(kDefaultLang))();
 
   TextColumn get sourceLanguageOverride =>
       text().named('source_language_override').nullable()();
@@ -91,7 +91,10 @@ class BookEntries extends Table {
 // ---------------------------------------------------------------------------
 
 @DataClassName('UserVocabulary')
-@TableIndex(name: 'idx_user_vocab_lang_canonical', columns: {#language, #canonical})
+@TableIndex(
+  name: 'idx_user_vocab_lang_canonical',
+  columns: {#language, #canonical},
+)
 @TableIndex(name: 'idx_user_vocab_status', columns: {#status})
 class UserVocabularies extends Table {
   TextColumn get id => text()();
@@ -121,9 +124,9 @@ class UserVocabularies extends Table {
 
   @override
   List<String> get customConstraints => [
-        'CHECK(status IN (\'known\', \'learning\'))',
-        'FOREIGN KEY (source_book_id) REFERENCES books(id) ON DELETE SET NULL',
-      ];
+    'CHECK(status IN (\'known\', \'learning\'))',
+    'FOREIGN KEY (source_book_id) REFERENCES books(id) ON DELETE SET NULL',
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -146,16 +149,15 @@ class WordBookmarks extends Table {
 
   TextColumn get context => text().withDefault(const Constant(kEmptyStr))();
 
-  TextColumn get addedAt =>
-      text().named('added_at').clientDefault(nowIso)();
+  TextColumn get addedAt => text().named('added_at').clientDefault(nowIso)();
 
   @override
   Set<Column> get primaryKey => {id};
 
   @override
   List<String> get customConstraints => [
-        'FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE',
-      ];
+    'FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE',
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -188,8 +190,8 @@ class ReadingBookmarks extends Table {
 
   @override
   List<String> get customConstraints => [
-        'FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE',
-      ];
+    'FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE',
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -311,9 +313,7 @@ class LearningItems extends Table {
       integer().named('review_count').withDefault(const Constant(kZeroInt))();
 
   TextColumn get lastResult =>
-      text()
-          .named('last_result')
-          .withDefault(const Constant('newItem'))();
+      text().named('last_result').withDefault(const Constant('newItem'))();
 
   TextColumn get createdAt =>
       text().named('created_at').clientDefault(nowIso)();
@@ -326,11 +326,11 @@ class LearningItems extends Table {
 
   @override
   List<String> get customConstraints => [
-        'CHECK(type IN (\'word\', \'sentence\', \'grammar\','
-            ' \'expression\', \'questionMistake\'))',
-        'CHECK(last_result IN (\'newItem\', \'remembered\', \'missed\'))',
-        'FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE SET NULL',
-      ];
+    'CHECK(type IN (\'word\', \'sentence\', \'grammar\','
+        ' \'expression\', \'questionMistake\'))',
+    'CHECK(last_result IN (\'newItem\', \'remembered\', \'missed\'))',
+    'FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE SET NULL',
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -368,8 +368,8 @@ class WordLevels extends Table {
 
   @override
   List<String> get customConstraints => [
-        'CHECK(level_index BETWEEN 0 AND 6)',
-      ];
+    'CHECK(level_index BETWEEN 0 AND 6)',
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -448,9 +448,9 @@ class RssArticles extends Table {
 
   @override
   List<String> get customConstraints => [
-        'FOREIGN KEY (subscription_id) REFERENCES rss_subscriptions(id) '
-            'ON DELETE CASCADE',
-      ];
+    'FOREIGN KEY (subscription_id) REFERENCES rss_subscriptions(id) '
+        'ON DELETE CASCADE',
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -471,8 +471,7 @@ class BookGlossary extends Table {
 
   TextColumn get explanation => text().withDefault(const Constant(kEmptyStr))();
 
-  TextColumn get sourceContext =>
-      text().named('source_context').nullable()();
+  TextColumn get sourceContext => text().named('source_context').nullable()();
 
   TextColumn get createdAt =>
       text().named('created_at').clientDefault(nowIso)();
@@ -485,8 +484,8 @@ class BookGlossary extends Table {
 
   @override
   List<String> get customConstraints => [
-        'FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE',
-      ];
+    'FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE',
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -504,7 +503,343 @@ class CharacterRegistry extends Table {
 }
 
 // ---------------------------------------------------------------------------
-// Table 16: settings
+// Table 16: source_records
+// ---------------------------------------------------------------------------
+
+@DataClassName('SourceRecordEntry')
+@TableIndex(name: 'idx_source_records_kind', columns: {#sourceKind})
+@TableIndex(name: 'idx_source_records_availability', columns: {#availability})
+class SourceRecords extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get sourceKind => text().named('source_kind')();
+
+  TextColumn get titleSnapshot => text().named('title_snapshot')();
+
+  TextColumn get authorSnapshot => text().named('author_snapshot').nullable()();
+
+  TextColumn get language =>
+      text().named('language_id').withDefault(const Constant(kDefaultLang))();
+
+  TextColumn get fingerprint => text().nullable()();
+
+  TextColumn get availability =>
+      text().withDefault(const Constant('available'))();
+
+  TextColumn get createdAt =>
+      text().named('created_at').clientDefault(nowIso)();
+
+  TextColumn get updatedAt =>
+      text().named('updated_at').clientDefault(nowIso)();
+
+  TextColumn get deletedAt => text().named('deleted_at').nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK(source_kind IN (\'book\', \'rss\', \'browser\', \'manual\','
+        ' \'ai\'))',
+    'CHECK(availability IN (\'available\', \'archived\', \'deleted\'))',
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Table 17: knowledge_entities
+// ---------------------------------------------------------------------------
+
+@DataClassName('KnowledgeEntityEntry')
+@TableIndex(
+  name: 'idx_knowledge_entity_key',
+  columns: {#language, #type, #canonicalKey},
+  unique: true,
+)
+@TableIndex(name: 'idx_knowledge_entity_type', columns: {#type})
+class KnowledgeEntities extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get language =>
+      text().named('language_id').withDefault(const Constant(kDefaultLang))();
+
+  TextColumn get type => text()();
+
+  TextColumn get canonicalKey => text().named('canonical_key')();
+
+  TextColumn get displayText => text().named('display_text')();
+
+  TextColumn get normalizedText => text().named('normalized_text')();
+
+  TextColumn get masteryState =>
+      text().named('mastery_state').withDefault(const Constant('unknown'))();
+
+  RealColumn get confidence => real().withDefault(const Constant(kZeroReal))();
+
+  TextColumn get createdAt =>
+      text().named('created_at').clientDefault(nowIso)();
+
+  TextColumn get updatedAt =>
+      text().named('updated_at').clientDefault(nowIso)();
+
+  TextColumn get lastAccessedAt =>
+      text().named('last_accessed_at').nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK(type IN (\'word\', \'phrase\', \'pattern\', \'grammar\','
+        ' \'concept\', \'character\', \'book_term\', \'sentence\'))',
+    'CHECK(mastery_state IN (\'unknown\', \'learning\', \'mastered\'))',
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Table 18: knowledge_explanations
+// ---------------------------------------------------------------------------
+
+@DataClassName('KnowledgeExplanationEntry')
+@TableIndex(
+  name: 'idx_knowledge_explanations_entity',
+  columns: {#entityId},
+)
+class KnowledgeExplanations extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get entityId => text().named('entity_id')();
+
+  TextColumn get explanation => text()();
+
+  TextColumn get explanationSource => text().named('explanation_source')();
+
+  TextColumn get targetLanguage =>
+      text().named('target_language').withDefault(const Constant('zh'))();
+
+  TextColumn get promptVersion => text().named('prompt_version').nullable()();
+
+  TextColumn get createdAt =>
+      text().named('created_at').clientDefault(nowIso)();
+
+  TextColumn get updatedAt =>
+      text().named('updated_at').clientDefault(nowIso)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK(explanation_source IN (\'ai\', \'user\', \'dictionary\','
+        ' \'generated\'))',
+    'FOREIGN KEY (entity_id) REFERENCES knowledge_entities(id) '
+        'ON DELETE CASCADE',
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Table 19: knowledge_evidences
+// ---------------------------------------------------------------------------
+
+@DataClassName('KnowledgeEvidenceEntry')
+@TableIndex(name: 'idx_knowledge_evidences_entity', columns: {#entityId})
+@TableIndex(name: 'idx_knowledge_evidences_source', columns: {#sourceId})
+class KnowledgeEvidences extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get entityId => text().named('entity_id')();
+
+  TextColumn get sourceId => text().named('source_id').nullable()();
+
+  TextColumn get sourceKind => text().named('source_kind')();
+
+  TextColumn get bookId => text().named('book_id').nullable()();
+
+  IntColumn get chapterIndex => integer().named('chapter_index').nullable()();
+
+  TextColumn get locationLocator =>
+      text().named('location_locator').nullable()();
+
+  TextColumn get shortExcerpt =>
+      text().named('short_excerpt').withDefault(const Constant(kEmptyStr))();
+
+  TextColumn get excerptHash => text().named('excerpt_hash').nullable()();
+
+  TextColumn get sourceTitleSnapshot => text()
+      .named('source_title_snapshot')
+      .withDefault(
+        const Constant(kEmptyStr),
+      )();
+
+  TextColumn get sourceAvailability => text()
+      .named('source_availability')
+      .withDefault(const Constant('available'))();
+
+  TextColumn get retentionPolicy => text()
+      .named('retention_policy')
+      .withDefault(const Constant('keepSnippet'))();
+
+  TextColumn get createdAt =>
+      text().named('created_at').clientDefault(nowIso)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK(source_kind IN (\'book\', \'rss\', \'browser\', \'manual\','
+        ' \'ai\'))',
+    'CHECK(source_availability IN (\'available\', \'archived\','
+        ' \'deleted\'))',
+    'CHECK(retention_policy IN (\'deleteWithSource\', \'keepSnippet\','
+        ' \'keepMetadataOnly\'))',
+    'FOREIGN KEY (entity_id) REFERENCES knowledge_entities(id) '
+        'ON DELETE CASCADE',
+    'FOREIGN KEY (source_id) REFERENCES source_records(id) '
+        'ON DELETE SET NULL',
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Table 20: memory_events
+// ---------------------------------------------------------------------------
+
+@DataClassName('MemoryEventEntry')
+@TableIndex(
+  name: 'idx_memory_events_canonical',
+  columns: {#language, #canonicalKey},
+)
+@TableIndex(name: 'idx_memory_events_source', columns: {#sourceId})
+@TableIndex(name: 'idx_memory_events_created', columns: {#createdAt})
+class MemoryEvents extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get eventType => text().named('event_type')();
+
+  TextColumn get language =>
+      text().named('language_id').withDefault(const Constant(kDefaultLang))();
+
+  TextColumn get sourceId => text().named('source_id').nullable()();
+
+  TextColumn get entityId => text().named('entity_id').nullable()();
+
+  TextColumn get targetText =>
+      text().named('target_text').withDefault(const Constant(kEmptyStr))();
+
+  TextColumn get canonicalKey =>
+      text().named('canonical_key').withDefault(const Constant(kEmptyStr))();
+
+  TextColumn get sourceRefJson =>
+      text().named('source_ref_json').withDefault(const Constant('{}'))();
+
+  TextColumn get metadataJson =>
+      text().named('metadata_json').withDefault(const Constant('{}'))();
+
+  TextColumn get createdAt =>
+      text().named('created_at').clientDefault(nowIso)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK(event_type IN (\'lookup\', \'ai_analyze\','
+        ' \'save_explanation\', \'mark_learning\', \'mark_known\','
+        ' \'mark_unknown\', \'review\', \'bookmark\'))',
+    'FOREIGN KEY (source_id) REFERENCES source_records(id) '
+        'ON DELETE SET NULL',
+    'FOREIGN KEY (entity_id) REFERENCES knowledge_entities(id) '
+        'ON DELETE SET NULL',
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Table 21: source_scope_cache
+// ---------------------------------------------------------------------------
+
+@DataClassName('SourceScopeCacheEntry')
+@TableIndex(name: 'idx_source_scope_cache_source', columns: {#sourceId})
+class SourceScopeCache extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get sourceId => text().named('source_id')();
+
+  TextColumn get cacheType => text().named('cache_type')();
+
+  TextColumn get payload => text()();
+
+  TextColumn get retentionPolicy => text()
+      .named('retention_policy')
+      .withDefault(const Constant('deleteWithSource'))();
+
+  TextColumn get updatedAt =>
+      text().named('updated_at').clientDefault(nowIso)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK(retention_policy IN (\'deleteWithSource\', \'keepSnippet\','
+        ' \'keepMetadataOnly\'))',
+    'FOREIGN KEY (source_id) REFERENCES source_records(id) '
+        'ON DELETE CASCADE',
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Table 22: review_candidates
+// ---------------------------------------------------------------------------
+
+@DataClassName('ReviewCandidateEntry')
+@TableIndex(name: 'idx_review_candidates_entity', columns: {#entityId})
+@TableIndex(name: 'idx_review_candidates_status', columns: {#status})
+class ReviewCandidates extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get entityId => text().named('entity_id')();
+
+  TextColumn get entityType => text().named('entity_type')();
+
+  TextColumn get targetText => text().named('target_text')();
+
+  TextColumn get explanationId => text().named('explanation_id').nullable()();
+
+  TextColumn get evidenceId => text().named('evidence_id').nullable()();
+
+  TextColumn get suggestedQuestionType =>
+      text().named('suggested_question_type').nullable()();
+
+  RealColumn get priority => real().withDefault(const Constant(kZeroReal))();
+
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+
+  TextColumn get createdAt =>
+      text().named('created_at').clientDefault(nowIso)();
+
+  TextColumn get updatedAt =>
+      text().named('updated_at').clientDefault(nowIso)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+    'CHECK(entity_type IN (\'word\', \'phrase\', \'pattern\','
+        ' \'grammar\', \'concept\', \'character\', \'book_term\','
+        ' \'sentence\'))',
+    'CHECK(status IN (\'pending\', \'accepted\', \'dismissed\','
+        ' \'converted\'))',
+    'FOREIGN KEY (entity_id) REFERENCES knowledge_entities(id) '
+        'ON DELETE CASCADE',
+    'FOREIGN KEY (explanation_id) REFERENCES knowledge_explanations(id) '
+        'ON DELETE SET NULL',
+    'FOREIGN KEY (evidence_id) REFERENCES knowledge_evidences(id) '
+        'ON DELETE SET NULL',
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Table 23: settings
 // ---------------------------------------------------------------------------
 
 @DataClassName('SettingsEntry')
