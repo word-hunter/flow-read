@@ -2,7 +2,7 @@
 
 > @source lib/providers/reading/services_provider.dart lib/providers/settings_provider.dart lib/providers/reading/ai_notifier.dart packages/flow_ai/lib/src/ai_assistant_action_registry.dart packages/flow_ai/lib/src/ai_assistant_controller.dart
 
-Last updated: 2026-06-14
+Last updated: 2026-06-15
 
 ## Provider 层级
 
@@ -51,6 +51,7 @@ ProviderScope
 
 已新增 `AIAssistantActionRegistry`，负责根据 `AIContextSnapshot` 判断动作可用性，并把统一动作路由到现有 `PromptBuilder` 方法。
 已新增 `AIAssistantController` / `AIActionController` 生命周期基础类；阅读器右侧 `AIAssistantPanel` 已开始使用轻量 session/message 状态承载动作结果和连续追问。旧 `ReadingProvider` 中的 AI 字段仍按下表逐步收敛。
+已新增 `contextRetrievalServiceProvider`，由 `AIAssistantController.contextResolver` 在动作执行前注入 Reading Memory 学习上下文。
 
 以下 AI 状态将从 `ReadingProvider` 中迁出至 `AIActionController`：
 

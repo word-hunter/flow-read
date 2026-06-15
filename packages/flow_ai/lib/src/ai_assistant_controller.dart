@@ -20,12 +20,19 @@ import 'ai_service.dart';
 import 'llm_client.dart';
 import 'prompt_builder.dart';
 
+typedef AIAssistantContextResolver =
+    FutureOr<AIContextSnapshot> Function(
+      AIContextSnapshot context,
+      AIAssistantActionType action,
+    );
+
 class AIAssistantController extends ChangeNotifier {
   AIAssistantController({
     required this.registry,
     required this.automationSettings,
     required this.insightProfile,
     required this.actionController,
+    this.contextResolver,
   });
 
   static const int maxRecentSessions = 20;
@@ -44,6 +51,7 @@ class AIAssistantController extends ChangeNotifier {
   final AIAutomationSettings automationSettings;
   final ReadingInsightProfile insightProfile;
   final AIActionController actionController;
+  final AIAssistantContextResolver? contextResolver;
 
   List<AIAssistantActionType> get availableActions {
     final context = _currentContext;
@@ -105,11 +113,17 @@ class AIAssistantController extends ChangeNotifier {
     AIAssistantActionType action, {
     String? followUpQuestion,
   }) async {
-    final context = _currentContext;
+    var context = _currentContext;
     if (context == null) return;
-    _currentSession ??= _createSession(context);
     final question = followUpQuestion?.trim();
     final isFollowUp = question != null && question.isNotEmpty;
+    final targetAction = isFollowUp ? AIAssistantActionType.chat : action;
+    context = await _resolveContext(context, targetAction);
+    _currentContext = context;
+    _currentSession ??= _createSession(context);
+    if (_currentSession != null && _currentSession!.anchor != context) {
+      _currentSession = _currentSession!.copyWith(anchor: context);
+    }
     if (isFollowUp) {
       _appendMessage(
         AIChatMessageRole.user,
@@ -118,7 +132,6 @@ class AIAssistantController extends ChangeNotifier {
         context: context,
       );
     }
-    final targetAction = isFollowUp ? AIAssistantActionType.chat : action;
     final prompt = registry.buildPrompt(
       targetAction,
       context,
@@ -133,6 +146,20 @@ class AIAssistantController extends ChangeNotifier {
       action: targetAction,
       context: context,
     );
+  }
+
+  Future<AIContextSnapshot> _resolveContext(
+    AIContextSnapshot context,
+    AIAssistantActionType action,
+  ) async {
+    final resolver = contextResolver;
+    if (resolver == null) return context;
+    try {
+      return await resolver(context, action);
+    } catch (error) {
+      debugPrint('[AI] context retrieval failed: $error');
+      return context;
+    }
   }
 
   void clear() {

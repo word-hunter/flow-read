@@ -49,6 +49,7 @@ class AIAssistantActionRegistry {
           sourceLanguage: sourceLanguage,
           outputLanguage: outputLanguage,
           spoilerBoundary: spoilerBoundary,
+          contextBundle: context.contextBundle?.formatForPrompt(),
         ),
       ),
       AIAssistantActionType.translate => promptBuilder.buildTranslation(
@@ -79,6 +80,7 @@ class AIAssistantActionRegistry {
           sourceLanguage: sourceLanguage,
           outputLanguage: outputLanguage,
           spoilerBoundary: spoilerBoundary,
+          contextBundle: context.contextBundle?.formatForPrompt(),
         ),
       ),
       AIAssistantActionType.articleQA => promptBuilder.buildArticleAnswer(
@@ -213,7 +215,11 @@ class AIAssistantActionRegistry {
       ArticlePromptRequest(
         surfaceLabel: _chatSurfaceLabel(context),
         title: _chatTitle(context),
-        text: _chatContextText(context),
+        text: [
+          _chatContextText(context),
+          if (context.contextBundle?.isEmpty == false)
+            'Personal Learning Memory Context:\n${context.contextBundle!.formatForPrompt()}',
+        ].where((part) => part.trim().isNotEmpty).join('\n\n'),
         question: followUpQuestion ?? '',
         sourceLanguage: sourceLanguage,
         outputLanguage: outputLanguage,

@@ -186,6 +186,7 @@ class TextAnalysisPromptRequest {
   final SourceLanguage sourceLanguage;
   final OutputLanguage outputLanguage;
   final SpoilerBoundary spoilerBoundary;
+  final String? contextBundle;
 
   const TextAnalysisPromptRequest({
     required this.selectedText,
@@ -193,6 +194,7 @@ class TextAnalysisPromptRequest {
     required this.sourceLanguage,
     required this.outputLanguage,
     required this.spoilerBoundary,
+    this.contextBundle,
   });
 }
 
@@ -217,6 +219,7 @@ class WordAnalysisPromptRequest {
   final SourceLanguage sourceLanguage;
   final OutputLanguage outputLanguage;
   final SpoilerBoundary spoilerBoundary;
+  final String? contextBundle;
 
   const WordAnalysisPromptRequest({
     required this.word,
@@ -225,6 +228,7 @@ class WordAnalysisPromptRequest {
     required this.sourceLanguage,
     required this.outputLanguage,
     required this.spoilerBoundary,
+    this.contextBundle,
   });
 }
 
@@ -375,7 +379,7 @@ class PromptSections {
 }
 
 class PromptBuilder {
-  static const currentPromptVersion = 1;
+  static const currentPromptVersion = 2;
 
   final String? userProfile;
 
@@ -560,6 +564,7 @@ $vocabList''';
   }
 
   PromptBuildResult buildTextAnalysis(TextAnalysisPromptRequest request) {
+    final contextStr = _contextBundleSection(request.contextBundle);
     final sourceFocus = request.sourceLanguage == SourceLanguage.japanese
         ? 'particles, predicates, omitted subjects, register, kanji/kana choices, and context-sensitive readings'
         : 'sentence structure, clauses, grammar, vocabulary, collocations, and expressions';
@@ -603,7 +608,8 @@ $vocabList''';
   "reading_tip": "One key reading insight (${request.outputLanguage.promptLabel})"
 }'''),
       'Limits: at most 3 structure notes, 3 grammar points, 5 vocabulary notes, and 3 expression notes. '
-          'Each source field must be copied from the selected text.',
+          'Each source field must be copied from the selected text. '
+          'Use personal learning memory only when it is directly relevant.',
     ].join('\n\n');
 
     final userPrompt =
@@ -621,7 +627,7 @@ current_unit: ${request.spoilerBoundary.currentUnitId}
 "${request.selectedText}"
 
 ## Current Passage (for reference only)
-"${request.currentPassage}"''';
+"${request.currentPassage}"$contextStr''';
 
     return _result(request, systemPrompt, userPrompt);
   }
@@ -655,6 +661,7 @@ ${request.selectedText}''';
   }
 
   PromptBuildResult buildWordAnalysis(WordAnalysisPromptRequest request) {
+    final contextStr = _contextBundleSection(request.contextBundle);
     final systemPrompt = [
       _preamble(
         sourceLanguage: request.sourceLanguage,
@@ -676,7 +683,8 @@ ${request.selectedText}''';
   ],
   "memory_tip": "A memorable way to remember this item (${request.outputLanguage.promptLabel})"
 }'''),
-      'Rules: focus on this context, keep usage tips practical, and cite or reuse source words where helpful.',
+      'Rules: focus on this context, keep usage tips practical, and cite or reuse source words where helpful. '
+          'Use personal learning memory only when it helps avoid repeating known material or reuse saved explanations.',
     ].join('\n\n');
 
     final userPrompt =
@@ -697,7 +705,7 @@ ${request.word}
 "${request.sentence}"
 
 ## Local Context
-"${request.chapterContext}"''';
+"${request.chapterContext}"$contextStr''';
 
     return _result(request, systemPrompt, userPrompt);
   }
@@ -797,10 +805,10 @@ ${request.currentPassage}$occurrenceLines$characterLines''';
   PromptBuildResult buildParagraphInsight(
     ParagraphInsightPromptRequest request,
   ) {
-    final contextStr = request.contextBundle != null &&
-            request.contextBundle!.isNotEmpty
-        ? '\n\n## Additional Context from Earlier Chapters\n${request.contextBundle}'
-        : '';
+    final contextStr = _contextBundleSection(
+      request.contextBundle,
+      title: 'Additional Context from Earlier Chapters',
+    );
 
     final systemPrompt = [
       _preamble(
@@ -840,11 +848,14 @@ ${request.paragraphText}$contextStr''';
   PromptBuildResult buildCharacterMerge(CharacterMergePromptRequest request) {
     final spoilerBoundary = SpoilerBoundary.currentPassage();
     final entriesJson = request.characterEntries
-        .map((e) => '{'
-            '"name": "${e["name"]}", '
-            '"first_seen_chapter": ${e["firstSeenChapter"] ?? 0}, '
-            '"developments": ${jsonEncode(e["developments"] ?? [])}'
-            '}')
+        .map(
+          (e) =>
+              '{'
+              '"name": "${e["name"]}", '
+              '"first_seen_chapter": ${e["firstSeenChapter"] ?? 0}, '
+              '"developments": ${jsonEncode(e["developments"] ?? [])}'
+              '}',
+        )
         .join(',\n');
 
     final systemPrompt = [
@@ -927,5 +938,11 @@ Return JSON array of suggestions like:
       outputLanguage: outputLanguage,
       spoilerBoundary: spoilerBoundary,
     );
+  }
+
+  String _contextBundleSection(String? contextBundle, {String? title}) {
+    final trimmed = contextBundle?.trim();
+    if (trimmed == null || trimmed.isEmpty) return '';
+    return '\n\n## ${title ?? 'Personal Learning Memory Context'}\n$trimmed';
   }
 }

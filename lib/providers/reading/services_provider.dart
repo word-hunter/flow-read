@@ -20,6 +20,7 @@ import '../../services/pronunciation_service.dart';
 import '../../services/reader_layout_engine.dart';
 import '../../services/reading_config_service.dart';
 import '../../services/reading_insight_service.dart';
+import '../../services/reading_memory/context_retrieval_service.dart';
 import '../../services/reading_memory/reading_memory_service.dart';
 import '../../services/reading_memory/source_scope_service.dart';
 import '../../services/reading_memory/word_memory_service.dart';
@@ -186,6 +187,21 @@ final wordMemoryServiceProvider = Provider<WordMemoryService>((ref) {
   );
   unawaited(service.init());
   return service;
+});
+
+final contextRetrievalServiceProvider = Provider<ContextRetrievalService>((
+  ref,
+) {
+  final db = _requireAppDatabase();
+  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  return ContextRetrievalService(
+    repository: DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: languageCode,
+    ),
+    userVocabulary: ref.watch(userVocabularyServiceProvider),
+    languageCode: languageCode,
+  );
 });
 
 final dictionarySourceRegistryProvider = Provider<DictionarySourceRegistry>((
@@ -360,6 +376,7 @@ final aiAssistantControllerProvider = Provider<AIAssistantController>((ref) {
     automationSettings: ref.watch(aiAutomationSettingsProvider),
     insightProfile: const ReadingInsightProfile(),
     actionController: ref.watch(aiActionControllerProvider),
+    contextResolver: ref.watch(contextRetrievalServiceProvider).enrichContext,
   );
   ref.onDispose(() => assistant.dispose());
   return assistant;

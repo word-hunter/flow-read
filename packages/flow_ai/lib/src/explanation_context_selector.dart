@@ -7,6 +7,10 @@ class ExplanationContextBundle {
   final List<RelevantEvent> relatedEvents;
   final List<RelevantCharacter> mentionedCharacters;
   final List<String> historyLookups;
+  final List<String> knownWords;
+  final List<String> learningWords;
+  final List<String> repeatedLookupWords;
+  final List<String> savedExplanations;
 
   const ExplanationContextBundle({
     required this.currentSentence,
@@ -15,13 +19,21 @@ class ExplanationContextBundle {
     this.relatedEvents = const [],
     this.mentionedCharacters = const [],
     this.historyLookups = const [],
+    this.knownWords = const [],
+    this.learningWords = const [],
+    this.repeatedLookupWords = const [],
+    this.savedExplanations = const [],
   });
 
   bool get isEmpty =>
       sameWordOccurrences.isEmpty &&
       relatedEvents.isEmpty &&
       mentionedCharacters.isEmpty &&
-      historyLookups.isEmpty;
+      historyLookups.isEmpty &&
+      knownWords.isEmpty &&
+      learningWords.isEmpty &&
+      repeatedLookupWords.isEmpty &&
+      savedExplanations.isEmpty;
 
   String formatForPrompt() {
     final parts = <String>[];
@@ -58,6 +70,30 @@ class ExplanationContextBundle {
       parts.add('Previous word lookups in this book:');
       for (final lookup in historyLookups.take(3)) {
         parts.add('  · $lookup');
+      }
+    }
+
+    if (knownWords.isNotEmpty ||
+        learningWords.isNotEmpty ||
+        repeatedLookupWords.isNotEmpty ||
+        savedExplanations.isNotEmpty) {
+      parts.add('Personal learning memory:');
+      if (knownWords.isNotEmpty) {
+        parts.add('  · Known words: ${knownWords.take(12).join(', ')}');
+      }
+      if (learningWords.isNotEmpty) {
+        parts.add('  · Learning words: ${learningWords.take(12).join(', ')}');
+      }
+      if (repeatedLookupWords.isNotEmpty) {
+        parts.add(
+          '  · Repeated lookups: ${repeatedLookupWords.take(8).join(', ')}',
+        );
+      }
+      if (savedExplanations.isNotEmpty) {
+        parts.add('  · Saved AI explanations:');
+        for (final explanation in savedExplanations.take(5)) {
+          parts.add('      - $explanation');
+        }
       }
     }
 
@@ -99,8 +135,11 @@ class ExplanationContextSelector {
   }) {
     final sameWord = _findSameWordOccurrences(selectedText, storyline);
     final events = _findRelatedEvents(selectedText, storyline, chapterIndex);
-    final characters =
-        _findMentionedCharacters(selectedText, characterCards, chapterIndex);
+    final characters = _findMentionedCharacters(
+      selectedText,
+      characterCards,
+      chapterIndex,
+    );
     final lookups = historyLookups ?? const [];
 
     return ExplanationContextBundle(
@@ -118,8 +157,11 @@ class ExplanationContextSelector {
     BookStoryline? storyline,
   ) {
     if (storyline == null) return const [];
-    final words =
-        text.toLowerCase().split(RegExp(r'\s+')).where((w) => w.length > 3).toSet();
+    final words = text
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.length > 3)
+        .toSet();
 
     final occurrences = <String>[];
     for (final event in storyline.events) {
@@ -192,12 +234,28 @@ class ExplanationContextSelector {
   }
 
   static Set<String> _extractKeywords(String text) {
-    final words =
-        text.toLowerCase().split(RegExp(r'[^a-zA-Z]+')).where((w) => w.length > 3).toSet();
+    final words = text
+        .toLowerCase()
+        .split(RegExp(r'[^a-zA-Z]+'))
+        .where((w) => w.length > 3)
+        .toSet();
     // Remove common words
     final stopWords = {
-      'that', 'this', 'with', 'from', 'were', 'they', 'have', 'been',
-      'would', 'could', 'there', 'about', 'which', 'what', 'when',
+      'that',
+      'this',
+      'with',
+      'from',
+      'were',
+      'they',
+      'have',
+      'been',
+      'would',
+      'could',
+      'there',
+      'about',
+      'which',
+      'what',
+      'when',
     };
     words.removeAll(stopWords);
     return words;

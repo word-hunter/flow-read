@@ -170,8 +170,73 @@ void main() {
     },
   );
 
+  test(
+    'AIAssistantController resolves learning context before prompt build',
+    () async {
+      final service = _service(settings, (request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final userPrompt = body['messages'].last['content'] as String;
+        expect(userPrompt, contains('Personal Learning Memory Context'));
+        expect(userPrompt, contains('Learning words: reluctant'));
+        return _chatResponse(
+          jsonEncode({
+            'translation': '译文',
+            'structure_notes': const [],
+            'grammar_points': const [],
+            'vocabulary_notes': const [],
+            'reading_tip': '提示',
+          }),
+        );
+      });
+      final actionController = AIActionController(aiService: service);
+      final assistant = AIAssistantController(
+        registry: const AIAssistantActionRegistry(
+          promptBuilder: PromptBuilder(),
+        ),
+        automationSettings: const AIAutomationSettings(),
+        insightProfile: const ReadingInsightProfile(),
+        actionController: actionController,
+        contextResolver: (context, action) async {
+          expect(action, AIAssistantActionType.explain);
+          return context.copyWith(
+            contextBundle: const ExplanationContextBundle(
+              currentSentence: 'He was reluctant to answer.',
+              surroundingText: 'He was reluctant to answer.',
+              learningWords: ['reluctant'],
+              savedExplanations: [
+                'reluctant: unwilling to do something.',
+              ],
+            ),
+          );
+        },
+      );
+      addTearDown(actionController.dispose);
+      addTearDown(assistant.dispose);
+
+      assistant.setContext(
+        AIContextSnapshot(
+          source: AIContextSource.readerSelectedText,
+          selectedText: 'He was reluctant to answer.',
+          surroundingPassage: 'He was reluctant to answer.',
+        ),
+      );
+
+      await assistant.executeAction(AIAssistantActionType.explain);
+
+      expect(assistant.currentContext?.contextBundle?.learningWords, [
+        'reluctant',
+      ]);
+      expect(actionController.lastResult, isA<AITextAnalysisResult>());
+    },
+  );
+
   test('AIAssistantController appends follow-up messages to session', () async {
-    final service = _service(settings, (_) async => _chatResponse('answer'));
+    final service = _service(settings, (request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final userPrompt = body['messages'].last['content'] as String;
+      expect(userPrompt, contains('## Question\nWhy slowly?'));
+      return _chatResponse('answer');
+    });
     final actionController = AIActionController(aiService: service);
     final assistant = AIAssistantController(
       registry: const AIAssistantActionRegistry(

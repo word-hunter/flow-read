@@ -46,6 +46,43 @@ void main() {
     expect(prompt.systemPrompt, isNot(contains('English reading tutor')));
   });
 
+  test('text and word analysis prompts include learning memory context', () {
+    final textPrompt = const PromptBuilder().buildTextAnalysis(
+      TextAnalysisPromptRequest(
+        selectedText: 'He was reluctant to admit defeat.',
+        currentPassage: 'He was reluctant to admit defeat.',
+        sourceLanguage: SourceLanguage.english,
+        outputLanguage: OutputLanguage.zhHans,
+        spoilerBoundary: SpoilerBoundary.currentPassage(),
+        contextBundle:
+            'Personal learning memory:\n  · Learning words: reluctant',
+      ),
+    );
+    final wordPrompt = const PromptBuilder().buildWordAnalysis(
+      WordAnalysisPromptRequest(
+        word: 'reluctant',
+        sentence: 'He was reluctant to admit defeat.',
+        chapterContext: 'He was reluctant to admit defeat.',
+        sourceLanguage: SourceLanguage.english,
+        outputLanguage: OutputLanguage.zhHans,
+        spoilerBoundary: SpoilerBoundary.currentPassage(),
+        contextBundle:
+            'Personal learning memory:\n  · Saved AI explanations:\n      - reluctant: unwilling to do something',
+      ),
+    );
+
+    expect(
+      textPrompt.userPrompt,
+      contains('## Personal Learning Memory Context'),
+    );
+    expect(textPrompt.userPrompt, contains('Learning words: reluctant'));
+    expect(
+      wordPrompt.userPrompt,
+      contains('## Personal Learning Memory Context'),
+    );
+    expect(wordPrompt.userPrompt, contains('Saved AI explanations'));
+  });
+
   test('chapter preview prompt uses only opening excerpt', () {
     final prompt = const PromptBuilder().buildChapterPreview(
       ChapterPreviewPromptRequest(

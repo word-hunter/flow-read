@@ -49,6 +49,7 @@ DictionaryManagerService.lookup(word, languageCode)
 | `LLMClient` | HTTP 调用 LLM API，支持多 provider（DeepSeek/OpenAI 等），带重试 |
 | `AIService` | 封装 LLMClient + PromptBuilder，提供 5 种 AI 能力入口 |
 | `PromptBuilder` | 构建 typed system/user prompt，注入 spoiler boundary、language、learningFocus |
+| `ContextRetrievalService` | 从 Reading Memory 和用户词汇状态构造 AI 学习记忆上下文包 |
 | `AICacheService` | 基于文件的 AI 响应缓存，key 含 contentHash/promptVersion/sourceLanguage/outputLanguage |
 | `CharacterRegistry` | 角色规范名、别名和用户覆盖管理（Drift `character_registry`） |
 | `AIDebugTraceRecorder` | 开发期 AI 请求/缓存 trace JSONL 输出，受 `FLOW_AI_DEBUG_TRACE` 控制 |
@@ -59,6 +60,7 @@ AI 调用链：
 
 ```
 UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
+  → ContextRetrievalService.enrichContext()（助手面板动作）
   → AIService.analyzeText() / generateSummary()
     → PromptBuilder.buildTextAnalysis() / buildChapterSummary()
     → AICacheService.load() / save()
@@ -122,6 +124,7 @@ ReadingProvider（总调度）
 ├── ReadingMemoryService
 ├── SourceScopeService
 ├── WordMemoryService
+├── ContextRetrievalService
 ├── DictionaryManagerService
 │   ├── CollinsRepository
 │   ├── WordNetRepository
