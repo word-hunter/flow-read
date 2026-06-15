@@ -208,16 +208,15 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
     MemorySourceRef? memorySourceRef,
   }) async {
     final requestVersion = ++_wordLookupRequestVersion;
-    state = state.copyWith(
+    state = WordLookupState(
       selectedWord: request.displayWord,
-      selectedWordTranslation: null,
       selectedWordContext: request.contextText,
       selectedWordContextStart: request.contextWordStart,
       selectedWordContextEnd: request.contextWordEnd,
-      selectedWordEntry: null,
-      selectedWordLookupResult: null,
+      wordLookupHistory: state.wordLookupHistory,
       isLoadingWord: true,
-      clearVisualHint: true,
+      aiWordAnalysis: state.aiWordAnalysis,
+      isAnalyzingWord: state.isAnalyzingWord,
     );
 
     final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
@@ -330,7 +329,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
   }
 
   void _applyWordLookupResult(DictionaryLookupResult result) {
-    state = state.copyWith(
+    state = WordLookupState(
       selectedWordLookupResult: result,
       selectedWord: result.request.displayWord,
       selectedWordContext: result.request.contextText,
@@ -338,6 +337,12 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
       selectedWordContextEnd: result.request.contextWordEnd,
       selectedWordEntry: result.entry,
       selectedWordTranslation: result.primaryDefinition,
+      wordLookupHistory: state.wordLookupHistory,
+      isLoadingWord: state.isLoadingWord,
+      aiWordAnalysis: state.aiWordAnalysis,
+      isAnalyzingWord: state.isAnalyzingWord,
+      visualDefinition: state.visualDefinition,
+      isLoadingVisualHint: state.isLoadingVisualHint,
     );
   }
 

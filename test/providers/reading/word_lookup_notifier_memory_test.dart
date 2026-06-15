@@ -20,6 +20,8 @@ import 'package:flow_language/english/english.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/fake_word_level_service.dart';
+
 void main() {
   late AppDatabase db;
   late DriftReadingMemoryRepository memoryRepository;
@@ -64,6 +66,7 @@ void main() {
         readingMemoryServiceProvider.overrideWithValue(memory),
         learningAnalyticsServiceProvider.overrideWithValue(analytics),
         wordContextServiceProvider.overrideWithValue(wordContext),
+        wordLevelServiceProvider.overrideWithValue(fakeWordLevelService()),
         bookshelfNotifierProvider.overrideWith(
           () => _ReaderBookshelfNotifier(_book()),
         ),
@@ -153,6 +156,25 @@ void main() {
     expect(evidences.single.bookId, isNull);
     expect(evidences.single.shortExcerpt, contains('regulatory scrutiny'));
   });
+
+  test('lookup without dictionary entry clears previous source link', () async {
+    final lookup = container.read(wordLookupNotifierProvider.notifier);
+
+    await lookup.lookupWord('Alpha', canonicalForm: 'alpha');
+    expect(container.read(wordLookupNotifierProvider).selectedWord, 'Alpha');
+    expect(
+      container.read(wordLookupNotifierProvider).selectedWordEntry?.sourceUrl,
+      'https://dictionary.example/alpha',
+    );
+
+    await lookup.lookupWord('Beta', canonicalForm: 'beta');
+
+    final state = container.read(wordLookupNotifierProvider);
+    expect(state.selectedWord, 'Beta');
+    expect(state.selectedWordEntry, isNull);
+    expect(state.selectedWordTranslation, isNull);
+    expect(state.selectedWordLookupResult?.request.query, 'beta');
+  });
 }
 
 class _MemoryWordRepository implements WordRepository {
@@ -161,12 +183,15 @@ class _MemoryWordRepository implements WordRepository {
     String word, {
     String languageCode = 'en',
   }) async {
+    if (word.toLowerCase().trim() == 'beta') return null;
+
     return DictionaryEntry(
       word: word,
       meanings: [
-        Meaning(partOfSpeech: 'n.', definitions: ['definition']),
+        Meaning(partOfSpeech: 'n.', definitions: ['definition for $word']),
       ],
       sourceName: 'Test',
+      sourceUrl: 'https://dictionary.example/$word',
     );
   }
 }
