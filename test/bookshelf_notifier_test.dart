@@ -146,6 +146,44 @@ void main() {
   );
 
   test(
+    'missing-source repair ignores same-title books with readable sources',
+    () {
+      final existing = _metadata(
+        id: 'book-1',
+        title: 'Memory Book',
+        sourcePath: '/tmp/memory-book.epub',
+      );
+
+      final candidate = findMissingSourceRepairCandidate(
+        existingBooks: [existing],
+        importedBook: _book(title: 'Memory Book'),
+        hasReadableSource: (_) => true,
+      );
+
+      expect(candidate, isNull);
+    },
+  );
+
+  test(
+    'missing-source repair reuses same-title books only when source is lost',
+    () {
+      final existing = _metadata(
+        id: 'book-1',
+        title: 'Memory Book',
+        sourcePath: '/tmp/memory-book.epub',
+      );
+
+      final candidate = findMissingSourceRepairCandidate(
+        existingBooks: [existing],
+        importedBook: _book(title: 'Memory Book'),
+        hasReadableSource: (_) => false,
+      );
+
+      expect(candidate, same(existing));
+    },
+  );
+
+  test(
     'removeBook keeps learning memory and tombstones the book source',
     () async {
       final metadata = _metadata(

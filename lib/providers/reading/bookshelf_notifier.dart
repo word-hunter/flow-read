@@ -927,20 +927,46 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
 
   Future<BookMetadata?> _findMissingSourceRepairCandidate(Book book) async {
     final bookService = ref.read(bookServiceProvider);
-    final existing = bookService.books;
-    return existing.cast<BookMetadata?>().firstWhere(
-      (meta) =>
-          meta != null &&
-          _normalizeBookIdentity(meta.title) ==
-              _normalizeBookIdentity(book.title) &&
-          meta.author == book.author,
-      orElse: () => null,
+    return findMissingSourceRepairCandidate(
+      existingBooks: bookService.books,
+      importedBook: book,
     );
   }
+}
 
-  String _normalizeBookIdentity(String title) {
-    return title.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+@visibleForTesting
+BookMetadata? findMissingSourceRepairCandidate({
+  required Iterable<BookMetadata> existingBooks,
+  required Book importedBook,
+  bool Function(String sourcePath) hasReadableSource = hasReadableBookSource,
+}) {
+  for (final meta in existingBooks) {
+    final sameIdentity =
+        _normalizeBookIdentity(meta.title) ==
+            _normalizeBookIdentity(importedBook.title) &&
+        meta.author == importedBook.author;
+    if (sameIdentity && !hasReadableSource(meta.sourcePath)) {
+      return meta;
+    }
   }
+  return null;
+}
+
+@visibleForTesting
+bool hasReadableBookSource(String sourcePath) {
+  final trimmed = sourcePath.trim();
+  if (trimmed.isEmpty) return false;
+
+  final file = File(trimmed);
+  try {
+    return file.existsSync() && file.lengthSync() > 0;
+  } on FileSystemException {
+    return false;
+  }
+}
+
+String _normalizeBookIdentity(String title) {
+  return title.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
 }
 
 final bookshelfNotifierProvider =
