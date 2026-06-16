@@ -8,6 +8,7 @@ import '../providers/reading/services_provider.dart';
 import '../services/reading_memory/reading_memory_ids.dart';
 import '../utils/ai_explanation_memory_formatter.dart';
 import 'flow/flow_components.dart';
+import 'markdown_message.dart';
 
 class AIAssistantPanel extends HookWidget {
   const AIAssistantPanel({
@@ -938,7 +939,7 @@ class _InlineMessageContent extends StatelessWidget {
       );
       return _SaveableMarkdownMessage(payload: payload, text: message.content);
     }
-    return _MarkdownMessage(text: message.content);
+    return FlowMarkdownMessage(text: message.content);
   }
 }
 
@@ -951,7 +952,7 @@ class _SaveableMarkdownMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!payload.isValid) {
-      return _MarkdownMessage(text: text);
+      return FlowMarkdownMessage(text: text);
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -961,7 +962,7 @@ class _SaveableMarkdownMessage extends StatelessWidget {
           payload: payload,
         ),
         const SizedBox(height: 8),
-        _MarkdownMessage(text: text),
+        FlowMarkdownMessage(text: text),
       ],
     );
   }
@@ -1157,254 +1158,6 @@ String? _nonEmptyOrNull(String? value) {
   final trimmed = value?.trim();
   if (trimmed == null || trimmed.isEmpty) return null;
   return trimmed;
-}
-
-class _MarkdownMessage extends StatelessWidget {
-  const _MarkdownMessage({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final baseStyle = theme.textTheme.bodySmall?.copyWith(height: 1.55);
-    final blocks = _markdownBlocks(text.trim());
-    if (blocks.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    if (blocks.length == 1 && blocks.single is _MarkdownParagraphBlock) {
-      final paragraph = blocks.single as _MarkdownParagraphBlock;
-      if (!_hasMarkdownInline(paragraph.text)) {
-        return Text(paragraph.text, style: baseStyle);
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < blocks.length; i += 1) ...[
-          if (i > 0) const SizedBox(height: 10),
-          _MarkdownBlockView(block: blocks[i], baseStyle: baseStyle),
-        ],
-      ],
-    );
-  }
-}
-
-class _MarkdownBlockView extends StatelessWidget {
-  const _MarkdownBlockView({required this.block, required this.baseStyle});
-
-  final _MarkdownBlock block;
-  final TextStyle? baseStyle;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final current = block;
-    if (current is _MarkdownHeadingBlock) {
-      final style = theme.textTheme.labelLarge?.copyWith(
-        fontWeight: FontWeight.w800,
-        height: 1.35,
-      );
-      return _MarkdownInlineText(text: current.text, style: style);
-    }
-    if (current is _MarkdownListBlock) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final item in current.items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 18,
-                    child: Text(
-                      item.marker,
-                      style: baseStyle?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: _MarkdownInlineText(
-                      text: item.text,
-                      style: baseStyle,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      );
-    }
-    if (current is _MarkdownParagraphBlock) {
-      return _MarkdownInlineText(text: current.text, style: baseStyle);
-    }
-    return const SizedBox.shrink();
-  }
-}
-
-class _MarkdownInlineText extends StatelessWidget {
-  const _MarkdownInlineText({required this.text, required this.style});
-
-  final String text;
-  final TextStyle? style;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_hasMarkdownInline(text)) {
-      return Text(text, style: style);
-    }
-    return Text.rich(
-      TextSpan(
-        style: style,
-        children: _inlineMarkdownSpans(context, text, style),
-      ),
-    );
-  }
-}
-
-sealed class _MarkdownBlock {
-  const _MarkdownBlock();
-}
-
-class _MarkdownParagraphBlock extends _MarkdownBlock {
-  const _MarkdownParagraphBlock(this.text);
-
-  final String text;
-}
-
-class _MarkdownHeadingBlock extends _MarkdownBlock {
-  const _MarkdownHeadingBlock(this.text);
-
-  final String text;
-}
-
-class _MarkdownListBlock extends _MarkdownBlock {
-  const _MarkdownListBlock(this.items);
-
-  final List<_MarkdownListItem> items;
-}
-
-class _MarkdownListItem {
-  const _MarkdownListItem({required this.marker, required this.text});
-
-  final String marker;
-  final String text;
-}
-
-List<_MarkdownBlock> _markdownBlocks(String source) {
-  if (source.isEmpty) return const [];
-  final lines = source.replaceAll('\r\n', '\n').split('\n');
-  final blocks = <_MarkdownBlock>[];
-  final paragraph = <String>[];
-  final listItems = <_MarkdownListItem>[];
-
-  void flushParagraph() {
-    if (paragraph.isEmpty) return;
-    blocks.add(_MarkdownParagraphBlock(paragraph.join('\n').trim()));
-    paragraph.clear();
-  }
-
-  void flushList() {
-    if (listItems.isEmpty) return;
-    blocks.add(_MarkdownListBlock(List.unmodifiable(listItems)));
-    listItems.clear();
-  }
-
-  for (final rawLine in lines) {
-    final line = rawLine.trimRight();
-    final trimmed = line.trim();
-    if (trimmed.isEmpty) {
-      flushParagraph();
-      flushList();
-      continue;
-    }
-
-    final heading = RegExp(r'^(#{1,6})\s+(.+)$').firstMatch(trimmed);
-    if (heading != null) {
-      flushParagraph();
-      flushList();
-      blocks.add(_MarkdownHeadingBlock(heading.group(2)!.trim()));
-      continue;
-    }
-
-    final listMatch = RegExp(
-      r'^((?:[-*•])|(?:\d+\.))\s+(.+)$',
-    ).firstMatch(trimmed);
-    if (listMatch != null) {
-      flushParagraph();
-      listItems.add(
-        _MarkdownListItem(
-          marker: listMatch.group(1)!.contains('.') ? listMatch.group(1)! : '•',
-          text: listMatch.group(2)!.trim(),
-        ),
-      );
-      continue;
-    }
-
-    flushList();
-    paragraph.add(trimmed);
-  }
-
-  flushParagraph();
-  flushList();
-  return blocks;
-}
-
-bool _hasMarkdownInline(String value) {
-  return value.contains('**') || value.contains('`') || value.contains('*');
-}
-
-List<TextSpan> _inlineMarkdownSpans(
-  BuildContext context,
-  String source,
-  TextStyle? baseStyle,
-) {
-  final theme = Theme.of(context);
-  final spans = <TextSpan>[];
-  final pattern = RegExp(r'(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)');
-  var cursor = 0;
-
-  for (final match in pattern.allMatches(source)) {
-    if (match.start > cursor) {
-      spans.add(TextSpan(text: source.substring(cursor, match.start)));
-    }
-    final token = match.group(0)!;
-    if (token.startsWith('**')) {
-      spans.add(
-        TextSpan(
-          text: token.substring(2, token.length - 2),
-          style: baseStyle?.copyWith(fontWeight: FontWeight.w800),
-        ),
-      );
-    } else if (token.startsWith('`')) {
-      spans.add(
-        TextSpan(
-          text: token.substring(1, token.length - 1),
-          style: baseStyle?.copyWith(
-            fontFamily: 'monospace',
-            backgroundColor: theme.colorScheme.surfaceContainerHighest,
-          ),
-        ),
-      );
-    } else {
-      spans.add(
-        TextSpan(
-          text: token.substring(1, token.length - 1),
-          style: baseStyle?.copyWith(fontStyle: FontStyle.italic),
-        ),
-      );
-    }
-    cursor = match.end;
-  }
-
-  if (cursor < source.length) {
-    spans.add(TextSpan(text: source.substring(cursor)));
-  }
-  return spans;
 }
 
 class _CitationPanel extends StatelessWidget {

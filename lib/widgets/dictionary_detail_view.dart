@@ -12,6 +12,7 @@ import '../services/external_url_launcher.dart';
 import '../services/word_level_service.dart';
 import 'flow/flow_components.dart';
 import 'imported_word_examples.dart';
+import 'markdown_message.dart';
 import 'pronunciation_button.dart';
 import 'visual_hint_card.dart';
 
@@ -811,7 +812,7 @@ class _PrimaryDefinition extends StatelessWidget {
           color: theme.colorScheme.primary.withValues(alpha: 0.12),
         ),
       ),
-      child: _InteractiveDictionaryText(
+      child: FlowMarkdownMessage(
         text: text,
         currentWord: currentWord,
         onLookupWord: onLookupWord,

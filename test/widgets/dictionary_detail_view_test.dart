@@ -34,6 +34,44 @@ void main() {
     expect(lookedUpWord, 'river');
   });
 
+  testWidgets('renders AI primary definition markdown and keeps word lookup', (
+    tester,
+  ) async {
+    String? lookedUpWord;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DictionaryDetailView(
+            word: 'hippopotomonstrosesquipedaliophobia',
+            entry: null,
+            primaryDefinition: '**Pip**\n- `knows` long words',
+            isLoading: false,
+            onLookupWord: (word) => lookedUpWord = word,
+          ),
+        ),
+      ),
+    );
+
+    final richText = tester
+        .widgetList<RichText>(find.byType(RichText))
+        .map((widget) => widget.text.toPlainText())
+        .join('\n');
+    expect(richText, contains('Pip'));
+    expect(richText, contains('knows long words'));
+    expect(richText, isNot(contains('**')));
+    expect(richText, isNot(contains('`')));
+
+    final pipFinder = find.byWidgetPredicate(
+      (widget) => widget is RichText && widget.text.toPlainText() == 'Pip',
+    );
+    final pipRect = tester.getRect(pipFinder);
+    await tester.tapAt(pipRect.center);
+    await tester.pump();
+
+    expect(lookedUpWord, 'pip');
+  });
+
   testWidgets('shows personal word memory in dictionary detail view', (
     tester,
   ) async {
