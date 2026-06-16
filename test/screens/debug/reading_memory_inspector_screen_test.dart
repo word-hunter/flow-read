@@ -33,6 +33,9 @@ void main() {
     expect(find.text('Reading Memory Inspector'), findsOneWidget);
     expect(find.text('Entities'), findsOneWidget);
     expect(find.text('Events'), findsOneWidget);
+    expect(find.text('来源'), findsOneWidget);
+    expect(find.text('证据'), findsOneWidget);
+    expect(find.text('事件'), findsOneWidget);
 
     await tester.tap(find.text('实体'));
     await tester.pumpAndSettle();
@@ -48,6 +51,46 @@ void main() {
 
     expect(find.text('reluctant'), findsOneWidget);
     expect(find.text('by and large'), findsNothing);
+
+    await tester.tap(find.text('来源'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('The Great Gatsby'), findsOneWidget);
+    expect(find.textContaining('book:gatsby'), findsOneWidget);
+
+    await tester.tap(find.text('证据'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('He was reluctant to admit defeat.'), findsOneWidget);
+    expect(find.textContaining('chapter:2:sentence:12'), findsOneWidget);
+
+    await tester.tap(find.text('事件'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reluctant'), findsOneWidget);
+    expect(find.text('lookup'), findsOneWidget);
+
+    await tester.tap(find.text('实体'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('reluctant'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('实体详情'), findsOneWidget);
+    expect(find.text('保存的解释'), findsOneWidget);
+    expect(
+      find.text('reluctant to do means unwilling to do something.'),
+      findsOneWidget,
+    );
+    await tester.scrollUntilVisible(
+      find.text('复习候选'),
+      240,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('复习候选'), findsOneWidget);
+    expect(find.text('question: cloze'), findsOneWidget);
+    expect(find.text('reluctant'), findsWidgets);
   });
 }
 
@@ -58,6 +101,7 @@ Future<void> _seedEntities(DriftReadingMemoryRepository repository) async {
       id: 'book:gatsby',
       sourceKind: SourceKind.book,
       titleSnapshot: 'The Great Gatsby',
+      authorSnapshot: 'F. Scott Fitzgerald',
       languageCode: 'en',
       createdAt: now,
       updatedAt: now,
@@ -88,6 +132,34 @@ Future<void> _seedEntities(DriftReadingMemoryRepository repository) async {
       updatedAt: now,
     ),
   );
+  await repository.upsertExplanation(
+    MemoryKnowledgeExplanation(
+      id: 'explanation:reluctant',
+      entityId: 'entity:en:word:reluctant',
+      explanation: 'reluctant to do means unwilling to do something.',
+      source: ExplanationSource.ai,
+      targetLanguage: 'zh',
+      promptVersion: 'text-analysis-v1',
+      createdAt: now.add(const Duration(minutes: 1)),
+      updatedAt: now.add(const Duration(minutes: 1)),
+    ),
+  );
+  await repository.upsertEvidence(
+    MemoryKnowledgeEvidence(
+      id: 'evidence:reluctant',
+      entityId: 'entity:en:word:reluctant',
+      sourceId: 'book:gatsby',
+      sourceKind: SourceKind.book,
+      bookId: 'gatsby',
+      chapterIndex: 2,
+      locationLocator: 'chapter:2:sentence:12',
+      shortExcerpt: 'He was reluctant to admit defeat.',
+      sourceTitleSnapshot: 'The Great Gatsby',
+      sourceAvailability: SourceAvailability.available,
+      retentionPolicy: EvidenceRetentionPolicy.keepSnippet,
+      createdAt: now.add(const Duration(minutes: 2)),
+    ),
+  );
   await repository.recordEvent(
     MemoryEvent(
       id: 'event:lookup:reluctant',
@@ -97,7 +169,23 @@ Future<void> _seedEntities(DriftReadingMemoryRepository repository) async {
       entityId: 'entity:en:word:reluctant',
       targetText: 'Reluctant',
       canonicalKey: 'reluctant',
-      createdAt: now,
+      sourceRefJson: '{"chapterIndex":2}',
+      createdAt: now.add(const Duration(minutes: 3)),
+    ),
+  );
+  await repository.upsertReviewCandidate(
+    ReviewCandidate(
+      id: 'candidate:reluctant',
+      entityId: 'entity:en:word:reluctant',
+      entityType: KnowledgeEntityType.word,
+      targetText: 'reluctant',
+      evidenceId: 'evidence:reluctant',
+      explanationId: 'explanation:reluctant',
+      suggestedQuestionType: 'cloze',
+      priority: 0.8,
+      status: ReviewCandidateStatus.pending,
+      createdAt: now.add(const Duration(minutes: 4)),
+      updatedAt: now.add(const Duration(minutes: 4)),
     ),
   );
 }
