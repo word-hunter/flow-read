@@ -674,22 +674,25 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     required String language,
     int limit = 20,
   }) async {
-    final query = selectOnly(knowledgeEvidences)
-      ..addColumns([knowledgeEvidences.id])
-      ..where(_orphanEvidenceEntityPredicate(language))
+    final rows = await inspectorOrphanEvidenceEntityRows(
+      language: language,
+      limit: limit,
+    );
+    return rows.map((row) => row.id).toList(growable: false);
+  }
+
+  Future<List<KnowledgeEvidenceEntry>> inspectorOrphanEvidenceEntityRows({
+    required String language,
+    int limit = 20,
+  }) {
+    final query = select(knowledgeEvidences)
+      ..where((row) => _orphanEvidenceEntityPredicate(language))
       ..orderBy([
-        OrderingTerm(
-          expression: knowledgeEvidences.createdAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
-    final rows = await query.get();
-    return [
-      for (final row in rows)
-        if (row.read(knowledgeEvidences.id) != null)
-          row.read(knowledgeEvidences.id)!,
-    ];
+    return query.get();
   }
 
   Future<int> inspectorOrphanEventEntityCount({
@@ -706,21 +709,25 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     required String language,
     int limit = 20,
   }) async {
-    final query = selectOnly(memoryEvents)
-      ..addColumns([memoryEvents.id])
-      ..where(_orphanEventEntityPredicate(language))
+    final rows = await inspectorOrphanEventEntityRows(
+      language: language,
+      limit: limit,
+    );
+    return rows.map((row) => row.id).toList(growable: false);
+  }
+
+  Future<List<MemoryEventEntry>> inspectorOrphanEventEntityRows({
+    required String language,
+    int limit = 20,
+  }) {
+    final query = select(memoryEvents)
+      ..where((row) => _orphanEventEntityPredicate(language))
       ..orderBy([
-        OrderingTerm(
-          expression: memoryEvents.createdAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
-    final rows = await query.get();
-    return [
-      for (final row in rows)
-        if (row.read(memoryEvents.id) != null) row.read(memoryEvents.id)!,
-    ];
+    return query.get();
   }
 
   Future<int> inspectorMissingEvidenceSourceCount({
@@ -737,22 +744,25 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     required String language,
     int limit = 20,
   }) async {
-    final query = selectOnly(knowledgeEvidences)
-      ..addColumns([knowledgeEvidences.id])
-      ..where(_missingEvidenceSourcePredicate(language))
+    final rows = await inspectorMissingEvidenceSourceRows(
+      language: language,
+      limit: limit,
+    );
+    return rows.map((row) => row.id).toList(growable: false);
+  }
+
+  Future<List<KnowledgeEvidenceEntry>> inspectorMissingEvidenceSourceRows({
+    required String language,
+    int limit = 20,
+  }) {
+    final query = select(knowledgeEvidences)
+      ..where((row) => _missingEvidenceSourcePredicate(language))
       ..orderBy([
-        OrderingTerm(
-          expression: knowledgeEvidences.createdAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
-    final rows = await query.get();
-    return [
-      for (final row in rows)
-        if (row.read(knowledgeEvidences.id) != null)
-          row.read(knowledgeEvidences.id)!,
-    ];
+    return query.get();
   }
 
   Future<int> inspectorMissingEventSourceCount({
@@ -769,21 +779,25 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     required String language,
     int limit = 20,
   }) async {
-    final query = selectOnly(memoryEvents)
-      ..addColumns([memoryEvents.id])
-      ..where(_missingEventSourcePredicate(language))
+    final rows = await inspectorMissingEventSourceRows(
+      language: language,
+      limit: limit,
+    );
+    return rows.map((row) => row.id).toList(growable: false);
+  }
+
+  Future<List<MemoryEventEntry>> inspectorMissingEventSourceRows({
+    required String language,
+    int limit = 20,
+  }) {
+    final query = select(memoryEvents)
+      ..where((row) => _missingEventSourcePredicate(language))
       ..orderBy([
-        OrderingTerm(
-          expression: memoryEvents.createdAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
-    final rows = await query.get();
-    return [
-      for (final row in rows)
-        if (row.read(memoryEvents.id) != null) row.read(memoryEvents.id)!,
-    ];
+    return query.get();
   }
 
   Future<int> inspectorDeletedSourceSnippetCount({
@@ -800,22 +814,25 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     required String language,
     int limit = 20,
   }) async {
-    final query = selectOnly(knowledgeEvidences)
-      ..addColumns([knowledgeEvidences.id])
-      ..where(_deletedSourceSnippetPredicate(language))
+    final rows = await inspectorDeletedSourceSnippetRows(
+      language: language,
+      limit: limit,
+    );
+    return rows.map((row) => row.id).toList(growable: false);
+  }
+
+  Future<List<KnowledgeEvidenceEntry>> inspectorDeletedSourceSnippetRows({
+    required String language,
+    int limit = 20,
+  }) {
+    final query = select(knowledgeEvidences)
+      ..where((row) => _deletedSourceSnippetPredicate(language))
       ..orderBy([
-        OrderingTerm(
-          expression: knowledgeEvidences.createdAt,
-          mode: OrderingMode.desc,
-        ),
+        (row) =>
+            OrderingTerm(expression: row.createdAt, mode: OrderingMode.desc),
       ])
       ..limit(limit);
-    final rows = await query.get();
-    return [
-      for (final row in rows)
-        if (row.read(knowledgeEvidences.id) != null)
-          row.read(knowledgeEvidences.id)!,
-    ];
+    return query.get();
   }
 
   Expression<bool> _hasLanguageEntity(

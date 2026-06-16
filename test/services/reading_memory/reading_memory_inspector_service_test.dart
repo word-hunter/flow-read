@@ -145,6 +145,35 @@ void main() {
       'evidence:deleted-snippet',
     ]);
     expect(checks.where((check) => check.hasIssues), hasLength(5));
+
+    final evidenceDetail = await inspector.healthCheckDetail(
+      'missing_evidence_source',
+    );
+    expect(evidenceDetail, isNotNull);
+    expect(evidenceDetail!.check.title, '证据缺失来源');
+    expect(evidenceDetail.issues.single.recordKind, 'evidence');
+    expect(evidenceDetail.issues.single.recordId, 'evidence:missing-source');
+    expect(
+      evidenceDetail.issues.single.summary,
+      'This evidence points to a missing source.',
+    );
+    expect(evidenceDetail.issues.single.fields['sourceId'], 'book:missing');
+    expect(
+      evidenceDetail.issues.single.fields['entityId'],
+      'entity:en:word:reluctant',
+    );
+
+    final eventDetail = await inspector.healthCheckDetail(
+      'orphan_event_entity',
+    );
+    expect(eventDetail, isNotNull);
+    expect(eventDetail!.issues.single.recordKind, 'event');
+    expect(eventDetail.issues.single.recordId, 'event:orphan-entity');
+    expect(
+      eventDetail.issues.single.fields['entityId'],
+      'entity:en:word:missing',
+    );
+    expect(await inspector.healthCheckDetail('unknown_code'), isNull);
   });
 }
 

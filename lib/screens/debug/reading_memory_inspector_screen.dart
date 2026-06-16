@@ -392,7 +392,12 @@ class _HealthSection extends StatelessWidget {
           0,
           (sum, check) => sum + check.count,
         );
-        return _HealthCheckList(issueCount: issueCount, checks: checks);
+        return _HealthCheckList(
+          service: service,
+          languageCode: languageCode,
+          issueCount: issueCount,
+          checks: checks,
+        );
       },
     );
   }
@@ -427,8 +432,15 @@ class _HealthLoading extends StatelessWidget {
 }
 
 class _HealthCheckList extends StatelessWidget {
-  const _HealthCheckList({required this.issueCount, required this.checks});
+  const _HealthCheckList({
+    required this.service,
+    required this.languageCode,
+    required this.issueCount,
+    required this.checks,
+  });
 
+  final ReadingMemoryInspectorService service;
+  final String languageCode;
   final int issueCount;
   final List<ReadingMemoryHealthCheck> checks;
 
@@ -471,8 +483,120 @@ class _HealthCheckList extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             for (final check in checks) ...[
-              _HealthCheckTile(check: check),
+              _HealthCheckTile(
+                check: check,
+                onTap: check.hasIssues
+                    ? () => _showHealthDetail(context, check.code)
+                    : null,
+              ),
               if (check != checks.last) const Divider(height: 18),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showHealthDetail(BuildContext context, String code) {
+    showFlowSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return FlowSheet(
+          maxWidth: 760,
+          title: const Text('健康项详情'),
+          child: SizedBox(
+            height: MediaQuery.sizeOf(sheetContext).height * 0.78,
+            child: FutureBuilder<ReadingMemoryHealthCheckDetail?>(
+              future: service.healthCheckDetail(
+                code,
+                languageCode: languageCode,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return _ErrorState(message: snapshot.error.toString());
+                }
+                final detail = snapshot.data;
+                if (detail == null) {
+                  return const _EmptyState(message: '健康项不存在');
+                }
+                return _HealthDetailView(detail: detail);
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HealthCheckTile extends StatelessWidget {
+  const _HealthCheckTile({required this.check, required this.onTap});
+
+  final ReadingMemoryHealthCheck check;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = check.hasIssues
+        ? theme.colorScheme.error
+        : theme.colorScheme.onSurfaceVariant;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  check.hasIssues
+                      ? Icons.warning_amber_outlined
+                      : Icons.check_circle_outline,
+                  size: 18,
+                  color: color,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    check.title,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (check.hasIssues)
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                const SizedBox(width: 4),
+                _ValueChip(label: check.count.toString()),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              check.description,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (check.sampleIds.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final id in check.sampleIds) _ValueChip(label: id),
+                ],
+              ),
             ],
           ],
         ),
@@ -481,58 +605,63 @@ class _HealthCheckList extends StatelessWidget {
   }
 }
 
-class _HealthCheckTile extends StatelessWidget {
-  const _HealthCheckTile({required this.check});
+class _HealthDetailView extends StatelessWidget {
+  const _HealthDetailView({required this.detail});
 
-  final ReadingMemoryHealthCheck check;
+  final ReadingMemoryHealthCheckDetail detail;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = check.hasIssues
-        ? theme.colorScheme.error
-        : theme.colorScheme.onSurfaceVariant;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final check = detail.check;
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 8),
       children: [
-        Row(
-          children: [
-            Icon(
-              check.hasIssues
-                  ? Icons.warning_amber_outlined
-                  : Icons.check_circle_outline,
-              size: 18,
-              color: color,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                check.title,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            _ValueChip(label: check.count.toString()),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          check.description,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        if (check.sampleIds.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
+        _DetailSection(
+          title: check.title,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final id in check.sampleIds) _ValueChip(label: id),
+              Text(check.description),
+              const SizedBox(height: 8),
+              _KeyValueList(
+                rows: [
+                  _InfoRow('code', check.code),
+                  _InfoRow('count', check.count.toString()),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
+        _DetailSection(
+          title: '异常记录',
+          emptyMessage: '暂无异常记录',
+          isEmpty: detail.issues.isEmpty,
+          child: _DetailList(
+            itemCount: detail.issues.length,
+            itemBuilder: (context, index) {
+              return _HealthIssueTile(issue: detail.issues[index]);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HealthIssueTile extends StatelessWidget {
+  const _HealthIssueTile({required this.issue});
+
+  final ReadingMemoryHealthIssue issue;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DetailTile(
+      title: issue.summary,
+      rows: [
+        _InfoRow('kind', issue.recordKind),
+        _InfoRow('id', issue.recordId),
+        for (final entry in issue.fields.entries)
+          _InfoRow(entry.key, _compactJson(entry.value)),
       ],
     );
   }

@@ -79,6 +79,30 @@ final class ReadingMemoryHealthCheck {
   bool get hasIssues => count > 0;
 }
 
+final class ReadingMemoryHealthCheckDetail {
+  const ReadingMemoryHealthCheckDetail({
+    required this.check,
+    required this.issues,
+  });
+
+  final ReadingMemoryHealthCheck check;
+  final List<ReadingMemoryHealthIssue> issues;
+}
+
+final class ReadingMemoryHealthIssue {
+  const ReadingMemoryHealthIssue({
+    required this.recordKind,
+    required this.recordId,
+    required this.summary,
+    required this.fields,
+  });
+
+  final String recordKind;
+  final String recordId;
+  final String summary;
+  final Map<String, String> fields;
+}
+
 class ReadingMemoryInspectorService {
   ReadingMemoryInspectorService({
     required ReadingMemoryDao dao,
@@ -358,6 +382,86 @@ class ReadingMemoryInspectorService {
     ];
   }
 
+  Future<ReadingMemoryHealthCheckDetail?> healthCheckDetail(
+    String code, {
+    int limit = 20,
+    String? languageCode,
+  }) async {
+    final trimmedCode = code.trim();
+    final language = _language(languageCode);
+    final safeLimit = _limit(limit);
+    final checks = await healthChecks(
+      sampleLimit: safeLimit,
+      languageCode: language,
+    );
+    final matching = checks.where((check) => check.code == trimmedCode);
+    if (matching.isEmpty) return null;
+    final check = matching.single;
+    final issues = switch (trimmedCode) {
+      'orphan_evidence_entity' =>
+        (await _dao.inspectorOrphanEvidenceEntityRows(
+          language: language,
+          limit: safeLimit,
+        )).map(
+          (row) => _healthIssueFromEvidence(
+            row,
+            recordKind: 'evidence',
+            summaryFallback: '证据缺失实体',
+          ),
+        ),
+      'orphan_event_entity' =>
+        (await _dao.inspectorOrphanEventEntityRows(
+          language: language,
+          limit: safeLimit,
+        )).map(
+          (row) => _healthIssueFromEvent(
+            row,
+            recordKind: 'event',
+            summaryFallback: '事件缺失实体',
+          ),
+        ),
+      'missing_evidence_source' =>
+        (await _dao.inspectorMissingEvidenceSourceRows(
+          language: language,
+          limit: safeLimit,
+        )).map(
+          (row) => _healthIssueFromEvidence(
+            row,
+            recordKind: 'evidence',
+            summaryFallback: '证据缺失来源',
+          ),
+        ),
+      'missing_event_source' =>
+        (await _dao.inspectorMissingEventSourceRows(
+          language: language,
+          limit: safeLimit,
+        )).map(
+          (row) => _healthIssueFromEvent(
+            row,
+            recordKind: 'event',
+            summaryFallback: '事件缺失来源',
+          ),
+        ),
+      'deleted_source_retains_snippet' =>
+        (await _dao.inspectorDeletedSourceSnippetRows(
+          language: language,
+          limit: safeLimit,
+        )).map(
+          (row) => _healthIssueFromEvidence(
+            row,
+            recordKind: 'evidence',
+            summaryFallback: '删除来源仍保留摘录',
+          ),
+        ),
+      _ => const Iterable<ReadingMemoryHealthIssue>.empty(),
+    };
+
+    return ReadingMemoryHealthCheckDetail(
+      check: check,
+      issues: issues.toList(growable: false),
+    );
+  }
+
   String _language(String? languageCode) {
     return normalizeRepositoryLanguageCode(languageCode ?? _languageCode);
   }
@@ -508,6 +612,67 @@ class ReadingMemoryInspectorService {
       createdAt: _decodeDate(row.createdAt),
       updatedAt: _decodeDate(row.updatedAt),
     );
+  }
+
+  static ReadingMemoryHealthIssue _healthIssueFromEvidence(
+    KnowledgeEvidenceEntry row, {
+    required String recordKind,
+    required String summaryFallback,
+  }) {
+    return ReadingMemoryHealthIssue(
+      recordKind: recordKind,
+      recordId: row.id,
+      summary: _firstNonEmpty([
+        row.shortExcerpt,
+        row.sourceTitleSnapshot,
+      ], summaryFallback),
+      fields: {
+        'entityId': row.entityId,
+        if (_hasText(row.sourceId)) 'sourceId': row.sourceId!,
+        'sourceKind': row.sourceKind,
+        'sourceAvailability': row.sourceAvailability,
+        'retentionPolicy': row.retentionPolicy,
+        if (_hasText(row.sourceTitleSnapshot))
+          'sourceTitle': row.sourceTitleSnapshot,
+        if (_hasText(row.locationLocator)) 'locator': row.locationLocator!,
+        if (_hasText(row.bookId)) 'bookId': row.bookId!,
+      },
+    );
+  }
+
+  static ReadingMemoryHealthIssue _healthIssueFromEvent(
+    MemoryEventEntry row, {
+    required String recordKind,
+    required String summaryFallback,
+  }) {
+    return ReadingMemoryHealthIssue(
+      recordKind: recordKind,
+      recordId: row.id,
+      summary: _firstNonEmpty([
+        row.targetText,
+        row.canonicalKey,
+      ], summaryFallback),
+      fields: {
+        'eventType': row.eventType,
+        'language': row.language,
+        if (_hasText(row.entityId)) 'entityId': row.entityId!,
+        if (_hasText(row.sourceId)) 'sourceId': row.sourceId!,
+        if (_hasText(row.canonicalKey)) 'canonicalKey': row.canonicalKey,
+        if (_hasText(row.sourceRefJson)) 'sourceRef': row.sourceRefJson,
+        if (_hasText(row.metadataJson)) 'metadata': row.metadataJson,
+      },
+    );
+  }
+
+  static String _firstNonEmpty(List<String?> values, String fallback) {
+    for (final value in values) {
+      if (_hasText(value)) return value!.trim();
+    }
+    return fallback;
+  }
+
+  static bool _hasText(String? value) {
+    return value != null && value.trim().isNotEmpty;
   }
 
   static DateTime _decodeDate(String value) {

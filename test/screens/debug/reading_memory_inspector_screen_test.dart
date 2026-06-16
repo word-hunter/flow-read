@@ -104,6 +104,52 @@ void main() {
     expect(find.text('question: cloze'), findsOneWidget);
     expect(find.text('reluctant'), findsWidgets);
   });
+
+  testWidgets('opens health check detail for sampled issue', (tester) async {
+    final db = await AppDatabase.createInMemory();
+    addTearDown(db.close);
+
+    final repository = DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: 'en',
+    );
+    await _seedEntities(repository);
+    await _seedHealthIssue(repository);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReadingMemoryInspectorView(
+          service: ReadingMemoryInspectorService(
+            dao: db.readingMemoryDao,
+            languageCode: 'en',
+          ),
+          languageCode: 'en',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('issues: 1'), findsOneWidget);
+    expect(find.text('证据缺失来源'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('证据缺失来源'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('证据缺失来源'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('健康项详情'), findsOneWidget);
+    expect(find.text('异常记录'), findsOneWidget);
+    expect(
+      find.text('This evidence points to a missing source.'),
+      findsOneWidget,
+    );
+    expect(find.text('id: evidence:missing-source'), findsOneWidget);
+    expect(find.text('sourceId: book:missing'), findsOneWidget);
+  });
 }
 
 Future<void> _seedEntities(DriftReadingMemoryRepository repository) async {
@@ -198,6 +244,25 @@ Future<void> _seedEntities(DriftReadingMemoryRepository repository) async {
       status: ReviewCandidateStatus.pending,
       createdAt: now.add(const Duration(minutes: 4)),
       updatedAt: now.add(const Duration(minutes: 4)),
+    ),
+  );
+}
+
+Future<void> _seedHealthIssue(
+  DriftReadingMemoryRepository repository,
+) async {
+  final now = DateTime.utc(2026, 6, 16, 9);
+  await repository.upsertEvidence(
+    MemoryKnowledgeEvidence(
+      id: 'evidence:missing-source',
+      entityId: 'entity:en:word:reluctant',
+      sourceId: 'book:missing',
+      sourceKind: SourceKind.book,
+      shortExcerpt: 'This evidence points to a missing source.',
+      sourceTitleSnapshot: 'Missing Book',
+      sourceAvailability: SourceAvailability.available,
+      retentionPolicy: EvidenceRetentionPolicy.keepSnippet,
+      createdAt: now,
     ),
   );
 }
