@@ -253,6 +253,8 @@ class _OverviewPane extends StatelessWidget {
           children: [
             _CountGrid(overview: overview),
             const SizedBox(height: 16),
+            _HealthSection(service: service, languageCode: languageCode),
+            const SizedBox(height: 16),
             _DistributionSection(
               title: '实体类型',
               values: overview.entityCountsByType.map(
@@ -362,6 +364,200 @@ class _CountTile extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HealthSection extends StatelessWidget {
+  const _HealthSection({required this.service, required this.languageCode});
+
+  final ReadingMemoryInspectorService service;
+  final String languageCode;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<ReadingMemoryHealthCheck>>(
+      future: service.healthChecks(languageCode: languageCode),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _HealthLoading();
+        }
+        if (snapshot.hasError) {
+          return _HealthError(message: snapshot.error.toString());
+        }
+        final checks = snapshot.requireData;
+        final issueCount = checks.fold<int>(
+          0,
+          (sum, check) => sum + check.count,
+        );
+        return _HealthCheckList(issueCount: issueCount, checks: checks);
+      },
+    );
+  }
+}
+
+class _HealthLoading extends StatelessWidget {
+  const _HealthLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Row(
+          children: [
+            SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 10),
+            Text('健康检查'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HealthCheckList extends StatelessWidget {
+  const _HealthCheckList({required this.issueCount, required this.checks});
+
+  final int issueCount;
+  final List<ReadingMemoryHealthCheck> checks;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final statusColor = issueCount == 0
+        ? theme.colorScheme.primary
+        : theme.colorScheme.error;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  issueCount == 0
+                      ? Icons.verified_outlined
+                      : Icons.error_outline,
+                  size: 20,
+                  color: statusColor,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '健康检查',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                _ValueChip(label: 'issues: $issueCount'),
+              ],
+            ),
+            const SizedBox(height: 12),
+            for (final check in checks) ...[
+              _HealthCheckTile(check: check),
+              if (check != checks.last) const Divider(height: 18),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HealthCheckTile extends StatelessWidget {
+  const _HealthCheckTile({required this.check});
+
+  final ReadingMemoryHealthCheck check;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = check.hasIssues
+        ? theme.colorScheme.error
+        : theme.colorScheme.onSurfaceVariant;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              check.hasIssues
+                  ? Icons.warning_amber_outlined
+                  : Icons.check_circle_outline,
+              size: 18,
+              color: color,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                check.title,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            _ValueChip(label: check.count.toString()),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          check.description,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        if (check.sampleIds.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final id in check.sampleIds) _ValueChip(label: id),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _HealthError extends StatelessWidget {
+  const _HealthError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          '健康检查失败：$message',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.error,
+          ),
         ),
       ),
     );
@@ -766,13 +962,52 @@ class _SourcesPane extends StatelessWidget {
                 itemCount: sources.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
-                  return _SourceTile(source: sources[index]);
+                  final source = sources[index];
+                  return _SourceTile(
+                    source: source,
+                    onTap: () => _showSourceDetail(context, source.id),
+                  );
                 },
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  void _showSourceDetail(BuildContext context, String sourceId) {
+    showFlowSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return FlowSheet(
+          maxWidth: 760,
+          title: const Text('来源详情'),
+          child: SizedBox(
+            height: MediaQuery.sizeOf(sheetContext).height * 0.78,
+            child: FutureBuilder<ReadingMemorySourceDetail?>(
+              future: service.sourceDetail(
+                sourceId,
+                languageCode: languageCode,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return _ErrorState(message: snapshot.error.toString());
+                }
+                final detail = snapshot.data;
+                if (detail == null) {
+                  return const _EmptyState(message: '来源不存在');
+                }
+                return _SourceDetailView(detail: detail);
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1092,14 +1327,16 @@ class _EventTypeDropdown extends StatelessWidget {
 }
 
 class _SourceTile extends StatelessWidget {
-  const _SourceTile({required this.source});
+  const _SourceTile({required this.source, required this.onTap});
 
   final MemorySourceRecord source;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return _TileSurface(
       child: ListTile(
+        onTap: onTap,
         title: Text(
           source.titleSnapshot,
           maxLines: 1,
@@ -1226,6 +1463,91 @@ class _EventTile extends StatelessWidget {
         ),
         trailing: _ValueChip(label: event.type.storageValue),
       ),
+    );
+  }
+}
+
+class _SourceDetailView extends StatelessWidget {
+  const _SourceDetailView({required this.detail});
+
+  final ReadingMemorySourceDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final source = detail.source;
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 8),
+      children: [
+        _DetailSection(
+          title: source.titleSnapshot,
+          child: _KeyValueList(
+            rows: [
+              _InfoRow('id', source.id),
+              _InfoRow('kind', source.sourceKind.storageValue),
+              _InfoRow('availability', source.availability.storageValue),
+              _InfoRow('language', source.languageCode),
+              _InfoRow('updated', _formatDateTime(source.updatedAt)),
+              if (_hasText(source.authorSnapshot))
+                _InfoRow('author', source.authorSnapshot!),
+            ],
+          ),
+        ),
+        _DetailSection(
+          title: '关联实体',
+          emptyMessage: '暂无实体',
+          isEmpty: detail.entities.isEmpty,
+          child: _DetailList(
+            itemCount: detail.entities.length,
+            itemBuilder: (context, index) {
+              final entity = detail.entities[index];
+              return _EntitySummaryTile(entity: entity);
+            },
+          ),
+        ),
+        _DetailSection(
+          title: '证据',
+          emptyMessage: '暂无证据',
+          isEmpty: detail.evidences.isEmpty,
+          child: _DetailList(
+            itemCount: detail.evidences.length,
+            itemBuilder: (context, index) {
+              final evidence = detail.evidences[index];
+              return _EvidenceDetailTile(evidence: evidence);
+            },
+          ),
+        ),
+        _DetailSection(
+          title: '最近事件',
+          emptyMessage: '暂无事件',
+          isEmpty: detail.recentEvents.isEmpty,
+          child: _DetailList(
+            itemCount: detail.recentEvents.length,
+            itemBuilder: (context, index) {
+              final event = detail.recentEvents[index];
+              return _EventDetailTile(event: event);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EntitySummaryTile extends StatelessWidget {
+  const _EntitySummaryTile({required this.entity});
+
+  final MemoryKnowledgeEntity entity;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DetailTile(
+      title: entity.displayText,
+      rows: [
+        _InfoRow('id', entity.id),
+        _InfoRow('type', entity.type.storageValue),
+        _InfoRow('canonical', entity.canonicalKey),
+        _InfoRow('mastery', entity.masteryState.storageValue),
+      ],
     );
   }
 }

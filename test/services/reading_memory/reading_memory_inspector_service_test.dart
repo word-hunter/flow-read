@@ -103,6 +103,48 @@ void main() {
       detail.reviewCandidates.single.status,
       ReviewCandidateStatus.pending,
     );
+
+    final sourceDetail = await inspector.sourceDetail('book:gatsby');
+    expect(sourceDetail, isNotNull);
+    expect(sourceDetail!.source.titleSnapshot, 'The Great Gatsby');
+    expect(sourceDetail.entities.map((entity) => entity.id), [
+      'entity:en:word:reluctant',
+    ]);
+    expect(sourceDetail.evidences.single.id, 'evidence:reluctant');
+    expect(sourceDetail.recentEvents.map((event) => event.id), [
+      'event:save-explanation:reluctant',
+      'event:lookup:reluctant',
+    ]);
+  });
+
+  test('reports inspector health issues with stable samples', () async {
+    await _seedMemory(repository);
+    await _seedHealthIssues(repository);
+
+    final checks = await inspector.healthChecks();
+    final byCode = {for (final check in checks) check.code: check};
+
+    expect(byCode['orphan_evidence_entity']!.count, 1);
+    expect(byCode['orphan_evidence_entity']!.sampleIds, [
+      'evidence:orphan-entity',
+    ]);
+    expect(byCode['orphan_event_entity']!.count, 1);
+    expect(byCode['orphan_event_entity']!.sampleIds, [
+      'event:orphan-entity',
+    ]);
+    expect(byCode['missing_evidence_source']!.count, 1);
+    expect(byCode['missing_evidence_source']!.sampleIds, [
+      'evidence:missing-source',
+    ]);
+    expect(byCode['missing_event_source']!.count, 1);
+    expect(byCode['missing_event_source']!.sampleIds, [
+      'event:missing-source',
+    ]);
+    expect(byCode['deleted_source_retains_snippet']!.count, 1);
+    expect(byCode['deleted_source_retains_snippet']!.sampleIds, [
+      'evidence:deleted-snippet',
+    ]);
+    expect(checks.where((check) => check.hasIssues), hasLength(5));
   });
 }
 
@@ -286,6 +328,75 @@ Future<void> _seedMemory(DriftReadingMemoryRepository repository) async {
       status: ReviewCandidateStatus.pending,
       createdAt: now.add(const Duration(minutes: 8)),
       updatedAt: now.add(const Duration(minutes: 8)),
+    ),
+  );
+}
+
+Future<void> _seedHealthIssues(
+  DriftReadingMemoryRepository repository,
+) async {
+  final now = DateTime.utc(2026, 6, 15, 9);
+  await repository.upsertEvidence(
+    MemoryKnowledgeEvidence(
+      id: 'evidence:orphan-entity',
+      entityId: 'entity:en:word:missing',
+      sourceId: 'book:gatsby',
+      sourceKind: SourceKind.book,
+      shortExcerpt: 'This evidence points to a missing entity.',
+      sourceTitleSnapshot: 'The Great Gatsby',
+      sourceAvailability: SourceAvailability.available,
+      retentionPolicy: EvidenceRetentionPolicy.keepSnippet,
+      createdAt: now,
+    ),
+  );
+  await repository.recordEvent(
+    MemoryEvent(
+      id: 'event:orphan-entity',
+      type: MemoryEventType.lookup,
+      languageCode: 'en',
+      sourceId: 'book:gatsby',
+      entityId: 'entity:en:word:missing',
+      targetText: 'missing',
+      canonicalKey: 'missing',
+      createdAt: now,
+    ),
+  );
+  await repository.upsertEvidence(
+    MemoryKnowledgeEvidence(
+      id: 'evidence:missing-source',
+      entityId: 'entity:en:word:reluctant',
+      sourceId: 'book:missing',
+      sourceKind: SourceKind.book,
+      shortExcerpt: 'This evidence points to a missing source.',
+      sourceTitleSnapshot: 'Missing Book',
+      sourceAvailability: SourceAvailability.available,
+      retentionPolicy: EvidenceRetentionPolicy.keepSnippet,
+      createdAt: now.add(const Duration(minutes: 1)),
+    ),
+  );
+  await repository.recordEvent(
+    MemoryEvent(
+      id: 'event:missing-source',
+      type: MemoryEventType.lookup,
+      languageCode: 'en',
+      sourceId: 'book:missing',
+      entityId: 'entity:en:word:reluctant',
+      targetText: 'reluctant',
+      canonicalKey: 'reluctant',
+      createdAt: now.add(const Duration(minutes: 1)),
+    ),
+  );
+  await repository.upsertEvidence(
+    MemoryKnowledgeEvidence(
+      id: 'evidence:deleted-snippet',
+      entityId: 'entity:en:word:reluctant',
+      sourceId: 'rss:article-1',
+      sourceKind: SourceKind.rss,
+      shortExcerpt: 'This deleted source still keeps a snippet.',
+      sourceTitleSnapshot: 'Article One',
+      sourceAvailability: SourceAvailability.deleted,
+      retentionPolicy: EvidenceRetentionPolicy.keepSnippet,
+      createdAt: now.add(const Duration(minutes: 2)),
     ),
   );
 }

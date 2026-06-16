@@ -47,6 +47,38 @@ final class ReadingMemoryEntityDetail {
   final List<ReviewCandidate> reviewCandidates;
 }
 
+final class ReadingMemorySourceDetail {
+  const ReadingMemorySourceDetail({
+    required this.source,
+    required this.entities,
+    required this.evidences,
+    required this.recentEvents,
+  });
+
+  final MemorySourceRecord source;
+  final List<MemoryKnowledgeEntity> entities;
+  final List<MemoryKnowledgeEvidence> evidences;
+  final List<MemoryEvent> recentEvents;
+}
+
+final class ReadingMemoryHealthCheck {
+  const ReadingMemoryHealthCheck({
+    required this.code,
+    required this.title,
+    required this.description,
+    required this.count,
+    required this.sampleIds,
+  });
+
+  final String code;
+  final String title;
+  final String description;
+  final int count;
+  final List<String> sampleIds;
+
+  bool get hasIssues => count > 0;
+}
+
 class ReadingMemoryInspectorService {
   ReadingMemoryInspectorService({
     required ReadingMemoryDao dao,
@@ -172,6 +204,50 @@ class ReadingMemoryInspectorService {
     return rows.map(_eventFromEntry).toList(growable: false);
   }
 
+  Future<ReadingMemorySourceDetail?> sourceDetail(
+    String sourceId, {
+    int limit = 20,
+    String? languageCode,
+  }) async {
+    final language = _language(languageCode);
+    final sourceRow = await _dao.sourceRecord(sourceId);
+    if (sourceRow == null || sourceRow.language != language) return null;
+    final safeLimit = _limit(limit);
+    final rows = await Future.wait<List<Object>>([
+      _dao.inspectorEntitiesForSource(
+        language: language,
+        sourceId: sourceId,
+        limit: safeLimit,
+      ),
+      _dao.inspectorEvidences(
+        language: language,
+        sourceId: sourceId,
+        limit: safeLimit,
+      ),
+      _dao.inspectorEvents(
+        language: language,
+        sourceId: sourceId,
+        limit: safeLimit,
+      ),
+    ]);
+
+    return ReadingMemorySourceDetail(
+      source: _sourceRecordFromEntry(sourceRow),
+      entities: rows[0]
+          .cast<KnowledgeEntityEntry>()
+          .map(_entityFromEntry)
+          .toList(growable: false),
+      evidences: rows[1]
+          .cast<KnowledgeEvidenceEntry>()
+          .map(_evidenceFromEntry)
+          .toList(growable: false),
+      recentEvents: rows[2]
+          .cast<MemoryEventEntry>()
+          .map(_eventFromEntry)
+          .toList(growable: false),
+    );
+  }
+
   Future<ReadingMemoryEntityDetail?> entityDetail(
     String entityId, {
     int limit = 20,
@@ -205,6 +281,81 @@ class ReadingMemoryInspectorService {
           .map(_reviewCandidateFromEntry)
           .toList(growable: false),
     );
+  }
+
+  Future<List<ReadingMemoryHealthCheck>> healthChecks({
+    int sampleLimit = 5,
+    String? languageCode,
+  }) async {
+    final language = _language(languageCode);
+    final limit = _limit(sampleLimit);
+    final counts = await Future.wait<int>([
+      _dao.inspectorOrphanEvidenceEntityCount(language: language),
+      _dao.inspectorOrphanEventEntityCount(language: language),
+      _dao.inspectorMissingEvidenceSourceCount(language: language),
+      _dao.inspectorMissingEventSourceCount(language: language),
+      _dao.inspectorDeletedSourceSnippetCount(language: language),
+    ]);
+    final samples = await Future.wait<List<String>>([
+      _dao.inspectorOrphanEvidenceEntityIds(
+        language: language,
+        limit: limit,
+      ),
+      _dao.inspectorOrphanEventEntityIds(
+        language: language,
+        limit: limit,
+      ),
+      _dao.inspectorMissingEvidenceSourceIds(
+        language: language,
+        limit: limit,
+      ),
+      _dao.inspectorMissingEventSourceIds(
+        language: language,
+        limit: limit,
+      ),
+      _dao.inspectorDeletedSourceSnippetIds(
+        language: language,
+        limit: limit,
+      ),
+    ]);
+
+    return [
+      ReadingMemoryHealthCheck(
+        code: 'orphan_evidence_entity',
+        title: '证据缺失实体',
+        description: 'knowledge_evidences.entity_id 指向不存在的实体。',
+        count: counts[0],
+        sampleIds: samples[0],
+      ),
+      ReadingMemoryHealthCheck(
+        code: 'orphan_event_entity',
+        title: '事件缺失实体',
+        description: 'memory_events.entity_id 指向不存在的实体。',
+        count: counts[1],
+        sampleIds: samples[1],
+      ),
+      ReadingMemoryHealthCheck(
+        code: 'missing_evidence_source',
+        title: '证据缺失来源',
+        description: 'knowledge_evidences.source_id 指向不存在的来源记录。',
+        count: counts[2],
+        sampleIds: samples[2],
+      ),
+      ReadingMemoryHealthCheck(
+        code: 'missing_event_source',
+        title: '事件缺失来源',
+        description: 'memory_events.source_id 指向不存在的来源记录。',
+        count: counts[3],
+        sampleIds: samples[3],
+      ),
+      ReadingMemoryHealthCheck(
+        code: 'deleted_source_retains_snippet',
+        title: '删除来源仍保留摘录',
+        description: 'source_availability=deleted 的证据仍保留 short_excerpt。',
+        count: counts[4],
+        sampleIds: samples[4],
+      ),
+    ];
   }
 
   String _language(String? languageCode) {

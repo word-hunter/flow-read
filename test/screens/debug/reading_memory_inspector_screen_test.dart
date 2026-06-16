@@ -36,6 +36,8 @@ void main() {
     expect(find.text('来源'), findsOneWidget);
     expect(find.text('证据'), findsOneWidget);
     expect(find.text('事件'), findsOneWidget);
+    expect(find.text('健康检查'), findsOneWidget);
+    expect(find.text('issues: 0'), findsOneWidget);
 
     await tester.tap(find.text('实体'));
     await tester.pumpAndSettle();
@@ -57,6 +59,16 @@ void main() {
 
     expect(find.text('The Great Gatsby'), findsOneWidget);
     expect(find.textContaining('book:gatsby'), findsOneWidget);
+    await tester.tap(find.text('The Great Gatsby'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('来源详情'), findsOneWidget);
+    expect(find.text('关联实体'), findsOneWidget);
+    expect(find.text('id: book:gatsby'), findsOneWidget);
+    expect(find.text('id: entity:en:word:reluctant'), findsOneWidget);
+
+    Navigator.of(tester.element(find.text('来源详情'))).pop();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('证据'));
     await tester.pumpAndSettle();
