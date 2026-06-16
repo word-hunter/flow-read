@@ -27,6 +27,30 @@ void main() {
       expect(shape.borderRadius, BorderRadius.circular(4));
     });
 
+    testWidgets('FlowButton opts out of ambient text selection', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _ShellHost(
+          shellId: ShellId.windows,
+          child: SelectionArea(
+            child: FlowButton.secondary(
+              onPressed: () {},
+              child: const Text('重试'),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.ancestor(
+          of: find.text('重试'),
+          matching: find.byType(SelectionContainer),
+        ),
+        findsNWidgets(2),
+      );
+    });
+
     testWidgets('FlowButton uses macOS HIG self-drawn button', (tester) async {
       await tester.pumpWidget(
         _ShellHost(

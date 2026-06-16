@@ -313,7 +313,7 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
       return;
     }
 
-    var result = await _wordRepo.lookupRequest(request);
+    var result = await _lookupDictionary(request);
     if (requestVersion != _wordLookupRequestVersion) return;
     result = await _withDictionaryFallbacks(result);
     if (requestVersion != _wordLookupRequestVersion) return;
@@ -334,6 +334,17 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
       isLoadingWordMemory: true,
     );
     unawaited(_loadWordMemoryCard(previous.request, _wordLookupRequestVersion));
+  }
+
+  Future<void> retryWordLookup() async {
+    final request = state.selectedWordLookupResult?.request;
+    if (request == null) {
+      final word = state.selectedWord?.trim();
+      if (word == null || word.isEmpty) return;
+      await lookupWord(word);
+      return;
+    }
+    await _lookupWord(request);
   }
 
   void clearWordLookup() {
@@ -667,6 +678,30 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
       request: request,
       entry: null,
     ).copyWith(primaryDefinition: entry.explanation);
+  }
+
+  Future<DictionaryLookupResult> _lookupDictionary(
+    DictionaryLookupRequest request,
+  ) async {
+    try {
+      return await _wordRepo.lookupRequest(request);
+    } catch (error) {
+      return DictionaryLookupResult.fromEntry(
+        request: request,
+        entry: DictionaryEntry(
+          word: request.query,
+          meanings: const [],
+          errorMessage: _formatDictionaryError(error),
+        ),
+      );
+    }
+  }
+
+  String _formatDictionaryError(Object error) {
+    if (error is DictionaryLookupException) return error.message;
+    final text = error.toString().trim();
+    if (text.isEmpty) return '词典请求失败';
+    return text;
   }
 
   Future<DictionaryLookupResult> _withDictionaryFallbacks(

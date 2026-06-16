@@ -46,6 +46,7 @@ class DictionaryDetailView extends StatelessWidget {
   final VoidCallback? onGenerateBookGlossaryExplanation;
   final Future<bool> Function(String explanation)?
   onSaveBookGlossaryExplanation;
+  final VoidCallback? onRetryLookup;
 
   const DictionaryDetailView({
     super.key,
@@ -78,6 +79,7 @@ class DictionaryDetailView extends StatelessWidget {
     this.bookGlossaryError,
     this.onGenerateBookGlossaryExplanation,
     this.onSaveBookGlossaryExplanation,
+    this.onRetryLookup,
   });
 
   factory DictionaryDetailView.fromWordLookup({
@@ -138,13 +140,12 @@ class DictionaryDetailView extends StatelessWidget {
           explanation: explanation,
         );
       },
+      onRetryLookup: lookupNotifier.retryWordLookup,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     if (isLoading) {
       return const Center(
         child: Padding(
@@ -170,145 +171,156 @@ class DictionaryDetailView extends StatelessWidget {
         isGeneratingBookGlossaryExplanation ||
         (bookGlossaryDraftExplanation?.trim().isNotEmpty ?? false) ||
         (bookGlossaryError?.trim().isNotEmpty ?? false);
+    final dictionaryError = entry?.errorMessage?.trim();
+    final hasDictionaryError =
+        dictionaryError != null && dictionaryError.isNotEmpty;
+    final isLocalFallback =
+        hasDictionaryError &&
+        entry?.sourceName == DictionarySourceType.wordNet.label;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (canGoBack && onGoBack != null) ...[
-          SizedBox(
-            width: double.infinity,
-            child: FlowButton.text(
-              onPressed: () => onGoBack?.call(),
-              icon: const Icon(Icons.arrow_back, size: 18),
-              child: const Text('返回上一个词条'),
+    return SelectionArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (canGoBack && onGoBack != null) ...[
+            SizedBox(
+              width: double.infinity,
+              child: FlowButton.text(
+                onPressed: () => onGoBack?.call(),
+                icon: const Icon(Icons.arrow_back, size: 18),
+                child: const Text('返回上一个词条'),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (showWordHeader) ...[
-          _WordHeader(
-            word: word,
-            entry: entry,
-            level: level,
-            onSpeakWord: onSpeakWord,
-          ),
-          const SizedBox(height: 16),
-        ],
-        if (!hasContent &&
-            !hasPersonalMemory &&
-            !hasBookGlossarySuggestion &&
-            visualDefinition == null &&
-            !isLoadingVisualHint)
-          _EmptyDictionaryState(errorMessage: entry?.errorMessage)
-        else ...[
-          if (hasContent)
-            _CollapsiblePanel(
-              icon: Icons.menu_book_outlined,
-              title: '词典',
-              initiallyExpanded: true,
-              children: [
-                if (hasPrimaryDefinition) ...[
-                  _SectionLabel(label: '释义'),
-                  const SizedBox(height: 6),
-                  _PrimaryDefinition(
-                    text: primaryDefinition!.trim(),
-                    currentWord: word,
-                    onLookupWord: onLookupWord,
-                  ),
-                  const SizedBox(height: 14),
-                ],
-                if (entry != null) ...[
-                  if (entry!.errorMessage != null &&
-                      entry!.errorMessage!.trim().isNotEmpty) ...[
-                    _StatusHint(
-                      icon: Icons.warning_amber_rounded,
-                      text: entry!.errorMessage!.trim(),
-                      color: theme.colorScheme.error,
+            const SizedBox(height: 8),
+          ],
+          if (showWordHeader) ...[
+            _WordHeader(
+              word: word,
+              entry: entry,
+              level: level,
+              onSpeakWord: onSpeakWord,
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (!hasContent &&
+              !hasPersonalMemory &&
+              !hasBookGlossarySuggestion &&
+              visualDefinition == null &&
+              !isLoadingVisualHint)
+            _EmptyDictionaryState(
+              errorMessage: entry?.errorMessage,
+              onRetry: onRetryLookup,
+            )
+          else ...[
+            if (hasContent)
+              _CollapsiblePanel(
+                icon: Icons.menu_book_outlined,
+                title: '词典',
+                initiallyExpanded: true,
+                children: [
+                  if (hasDictionaryError) ...[
+                    _DictionaryErrorBlock(
+                      message: dictionaryError,
+                      onRetry: onRetryLookup,
                     ),
                     const SizedBox(height: 12),
                   ],
-                  for (final meaning in entry!.meanings)
-                    _MeaningBlock(
-                      meaning: meaning,
-                      primaryDefinition: primaryDefinition?.trim(),
+                  if (hasPrimaryDefinition) ...[
+                    _SectionLabel(
+                      label: isLocalFallback ? '本地兜底释义' : '释义',
+                    ),
+                    const SizedBox(height: 6),
+                    _PrimaryDefinition(
+                      text: primaryDefinition!.trim(),
                       currentWord: word,
                       onLookupWord: onLookupWord,
                     ),
+                    const SizedBox(height: 14),
+                  ],
+                  if (entry != null) ...[
+                    for (final meaning in entry!.meanings)
+                      _MeaningBlock(
+                        meaning: meaning,
+                        primaryDefinition: primaryDefinition?.trim(),
+                        currentWord: word,
+                        onLookupWord: onLookupWord,
+                      ),
+                  ],
+                  if (importedExamples.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    ImportedWordExamples(examples: importedExamples),
+                  ],
+                  if (compoundAnalysis != null || bookContexts.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _DictionaryFallbackSection(
+                      analysis: compoundAnalysis,
+                      contexts: bookContexts,
+                    ),
+                  ],
                 ],
-                if (importedExamples.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  ImportedWordExamples(examples: importedExamples),
-                ],
-                if (compoundAnalysis != null || bookContexts.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  _DictionaryFallbackSection(
-                    analysis: compoundAnalysis,
-                    contexts: bookContexts,
+              ),
+            if (hasBookGlossarySuggestion) ...[
+              const SizedBox(height: 6),
+              _CollapsiblePanel(
+                icon: Icons.auto_awesome_outlined,
+                title: '作品术语',
+                initiallyExpanded: true,
+                children: [
+                  _BookGlossarySuggestionSection(
+                    draftExplanation: bookGlossaryDraftExplanation,
+                    isGenerating: isGeneratingBookGlossaryExplanation,
+                    isSaving: isSavingBookGlossaryExplanation,
+                    error: bookGlossaryError,
+                    onGenerate: onGenerateBookGlossaryExplanation,
+                    onSave: onSaveBookGlossaryExplanation,
                   ),
                 ],
-              ],
-            ),
-          if (hasBookGlossarySuggestion) ...[
-            const SizedBox(height: 6),
-            _CollapsiblePanel(
-              icon: Icons.auto_awesome_outlined,
-              title: '作品术语',
-              initiallyExpanded: true,
-              children: [
-                _BookGlossarySuggestionSection(
-                  draftExplanation: bookGlossaryDraftExplanation,
-                  isGenerating: isGeneratingBookGlossaryExplanation,
-                  isSaving: isSavingBookGlossaryExplanation,
-                  error: bookGlossaryError,
-                  onGenerate: onGenerateBookGlossaryExplanation,
-                  onSave: onSaveBookGlossaryExplanation,
-                ),
-              ],
-            ),
+              ),
+            ],
+            if (hasPersonalMemory) ...[
+              const SizedBox(height: 6),
+              _CollapsiblePanel(
+                icon: Icons.history_edu_outlined,
+                title: '个人记忆',
+                initiallyExpanded: true,
+                children: [
+                  if (isLoadingWordMemory)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: LinearProgressIndicator(minHeight: 2),
+                    )
+                  else if (wordMemoryCard != null)
+                    _WordMemorySection(card: wordMemoryCard!),
+                ],
+              ),
+            ],
+            if (showVisualHint &&
+                (visualDefinition != null || isLoadingVisualHint)) ...[
+              const SizedBox(height: 6),
+              _CollapsiblePanel(
+                icon: Icons.image_outlined,
+                title: '图片',
+                initiallyExpanded: true,
+                children: [
+                  if (visualDefinition != null)
+                    VisualHintCard(definition: visualDefinition!)
+                  else
+                    const VisualHintLoadingIndicator(),
+                ],
+              ),
+            ],
           ],
-          if (hasPersonalMemory) ...[
-            const SizedBox(height: 6),
-            _CollapsiblePanel(
-              icon: Icons.history_edu_outlined,
-              title: '个人记忆',
-              initiallyExpanded: true,
-              children: [
-                if (isLoadingWordMemory)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: LinearProgressIndicator(minHeight: 2),
-                  )
-                else if (wordMemoryCard != null)
-                  _WordMemorySection(card: wordMemoryCard!),
-              ],
-            ),
-          ],
-          if (showVisualHint &&
-              (visualDefinition != null || isLoadingVisualHint)) ...[
-            const SizedBox(height: 6),
-            _CollapsiblePanel(
-              icon: Icons.image_outlined,
-              title: '图片',
-              initiallyExpanded: true,
-              children: [
-                if (visualDefinition != null)
-                  VisualHintCard(definition: visualDefinition!)
-                else
-                  const VisualHintLoadingIndicator(),
-              ],
+          if (showContext) ...[
+            const SizedBox(height: 18),
+            DictionaryContextBlock(
+              word: word,
+              contextText: contextText,
+              contextWordStart: contextWordStart,
+              contextWordEnd: contextWordEnd,
             ),
           ],
         ],
-        if (showContext) ...[
-          const SizedBox(height: 18),
-          DictionaryContextBlock(
-            word: word,
-            contextText: contextText,
-            contextWordStart: contextWordStart,
-            contextWordEnd: contextWordEnd,
-          ),
-        ],
-      ],
+      ),
     );
   }
 }
@@ -965,18 +977,20 @@ class _InteractiveDictionaryText extends StatefulWidget {
 
 class _InteractiveDictionaryTextState
     extends State<_InteractiveDictionaryText> {
-  final Map<int, TapGestureRecognizer> _recognizers = {};
+  static const _tapSlop = 6.0;
+
+  final GlobalKey _textKey = GlobalKey();
   int? _hoveredTokenStart;
   int? _pendingHoveredTokenStart;
+  int? _activePointer;
+  Offset? _pointerDownPosition;
+  bool _pointerMoved = false;
   bool _hoverUpdateScheduled = false;
   int _hoverUpdateGeneration = 0;
 
   @override
   void dispose() {
     _hoverUpdateGeneration += 1;
-    for (final recognizer in _recognizers.values) {
-      recognizer.dispose();
-    }
     super.dispose();
   }
 
@@ -988,30 +1002,31 @@ class _InteractiveDictionaryTextState
       _hoveredTokenStart = null;
       _pendingHoveredTokenStart = null;
       _hoverUpdateGeneration += 1;
-      for (final recognizer in _recognizers.values) {
-        recognizer.dispose();
-      }
-      _recognizers.clear();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(style: widget.style, children: _buildSpans(context)),
+    return Listener(
+      onPointerDown: _handlePointerDown,
+      onPointerMove: _handlePointerMove,
+      onPointerCancel: (_) => _clearPointerTracking(),
+      onPointerUp: _handlePointerUp,
+      child: Text.rich(
+        key: _textKey,
+        TextSpan(style: widget.style, children: _buildSpans(context)),
+      ),
     );
   }
 
   List<TextSpan> _buildSpans(BuildContext context) {
     final callback = widget.onLookupWord;
     if (callback == null) {
-      _disposeInactiveRecognizers(const {});
       return [TextSpan(text: widget.text)];
     }
 
     final spans = <TextSpan>[];
     final pattern = RegExp(r"[A-Za-z][A-Za-z'-]*");
-    final activeTokenStarts = <int>{};
     var cursor = 0;
     for (final match in pattern.allMatches(widget.text)) {
       if (match.start > cursor) {
@@ -1021,9 +1036,6 @@ class _InteractiveDictionaryTextState
       final token = widget.text.substring(match.start, match.end);
       if (_isLookupCandidate(token)) {
         final tokenStart = match.start;
-        activeTokenStarts.add(tokenStart);
-        final recognizer = _recognizers[tokenStart] ??= TapGestureRecognizer();
-        recognizer.onTap = () => callback(_normalizeLookupToken(token));
         final hovered = _hoveredTokenStart == tokenStart;
         spans.add(
           TextSpan(
@@ -1043,7 +1055,6 @@ class _InteractiveDictionaryTextState
                     decorationStyle: TextDecorationStyle.dotted,
                   )
                 : null,
-            recognizer: recognizer,
           ),
         );
       } else {
@@ -1055,8 +1066,83 @@ class _InteractiveDictionaryTextState
     if (cursor < widget.text.length) {
       spans.add(TextSpan(text: widget.text.substring(cursor)));
     }
-    _disposeInactiveRecognizers(activeTokenStarts);
     return spans;
+  }
+
+  void _handlePointerDown(PointerDownEvent event) {
+    if (event.buttons != kPrimaryButton || widget.onLookupWord == null) {
+      _clearPointerTracking();
+      return;
+    }
+
+    _activePointer = event.pointer;
+    _pointerDownPosition = event.position;
+    _pointerMoved = false;
+  }
+
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (event.pointer != _activePointer) return;
+    final start = _pointerDownPosition;
+    if (start == null) return;
+    if ((event.position - start).distance > _tapSlop) {
+      _pointerMoved = true;
+    }
+  }
+
+  void _handlePointerUp(PointerUpEvent event) {
+    final start = _pointerDownPosition;
+    final isTrackedTap =
+        event.pointer == _activePointer &&
+        start != null &&
+        !_pointerMoved &&
+        (event.position - start).distance <= _tapSlop;
+    _clearPointerTracking();
+
+    if (!isTrackedTap) return;
+    final token = _lookupTokenAt(event.position);
+    if (token == null) return;
+    widget.onLookupWord?.call(token);
+  }
+
+  void _clearPointerTracking() {
+    _activePointer = null;
+    _pointerDownPosition = null;
+    _pointerMoved = false;
+  }
+
+  String? _lookupTokenAt(Offset globalPosition) {
+    if (widget.onLookupWord == null) return null;
+
+    final renderObject = _textKey.currentContext?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
+
+    final localPosition = renderObject.globalToLocal(globalPosition);
+    if (!(Offset.zero & renderObject.size).contains(localPosition)) {
+      return null;
+    }
+
+    final painter = TextPainter(
+      text: TextSpan(text: widget.text, style: widget.style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout(maxWidth: renderObject.size.width);
+
+    final pattern = RegExp(r"[A-Za-z][A-Za-z'-]*");
+    for (final match in pattern.allMatches(widget.text)) {
+      final token = widget.text.substring(match.start, match.end);
+      if (!_isLookupCandidate(token)) continue;
+
+      final boxes = painter.getBoxesForSelection(
+        TextSelection(baseOffset: match.start, extentOffset: match.end),
+      );
+      for (final box in boxes) {
+        if (box.toRect().inflate(2).contains(localPosition)) {
+          return _normalizeLookupToken(token);
+        }
+      }
+    }
+
+    return null;
   }
 
   void _scheduleHoveredToken(int? tokenStart) {
@@ -1072,15 +1158,6 @@ class _InteractiveDictionaryTextState
       if (_hoveredTokenStart == nextHoveredTokenStart) return;
       setState(() => _hoveredTokenStart = nextHoveredTokenStart);
     });
-  }
-
-  void _disposeInactiveRecognizers(Set<int> activeTokenStarts) {
-    final inactiveStarts = _recognizers.keys
-        .where((start) => !activeTokenStarts.contains(start))
-        .toList();
-    for (final start in inactiveStarts) {
-      _recognizers.remove(start)?.dispose();
-    }
   }
 
   bool _isLookupCandidate(String token) {
@@ -1611,10 +1688,41 @@ class _StatusHint extends StatelessWidget {
   }
 }
 
+class _DictionaryErrorBlock extends StatelessWidget {
+  const _DictionaryErrorBlock({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StatusHint(
+          icon: Icons.warning_amber_rounded,
+          text: message,
+          color: theme.colorScheme.error,
+        ),
+        if (onRetry != null) ...[
+          const SizedBox(height: 10),
+          FlowButton.secondary(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh, size: 16),
+            child: const Text('重试'),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _EmptyDictionaryState extends StatelessWidget {
   final String? errorMessage;
+  final VoidCallback? onRetry;
 
-  const _EmptyDictionaryState({this.errorMessage});
+  const _EmptyDictionaryState({this.errorMessage, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -1638,6 +1746,14 @@ class _EmptyDictionaryState extends StatelessWidget {
                 : theme.colorScheme.error,
           ),
         ),
+        if (message != null && message.isNotEmpty && onRetry != null) ...[
+          const SizedBox(height: 10),
+          FlowButton.secondary(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh, size: 16),
+            child: const Text('重试'),
+          ),
+        ],
       ],
     );
   }

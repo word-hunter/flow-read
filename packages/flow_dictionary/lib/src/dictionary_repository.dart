@@ -33,16 +33,18 @@ class DictionaryRepository implements WordRepository {
           _cache[lower] = entry;
           return entry;
         }
+        return null;
       }
       if (response.statusCode == 404) {
         _cache[lower] = null;
         return null;
       }
-    } catch (e) {
-      // Network error — don't cache, allow retry
+      throw DictionaryLookupException('HTTP ${response.statusCode}');
+    } on DictionaryLookupException {
+      rethrow;
+    } catch (error) {
+      throw DictionaryLookupException('请求失败或超时', cause: error);
     }
-
-    return null;
   }
 
   DictionaryEntry? parseEntry(Map<String, dynamic> json, {String? word}) {

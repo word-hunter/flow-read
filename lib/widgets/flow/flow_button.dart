@@ -69,14 +69,16 @@ class FlowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return buildFlowButton(
-      onPressed: onPressed,
-      child: child,
-      icon: icon,
-      variant: variant,
-      size: size,
-      autofocus: autofocus,
-      context: context,
+    return SelectionContainer.disabled(
+      child: buildFlowButton(
+        onPressed: onPressed,
+        child: child,
+        icon: icon,
+        variant: variant,
+        size: size,
+        autofocus: autofocus,
+        context: context,
+      ),
     );
   }
 }

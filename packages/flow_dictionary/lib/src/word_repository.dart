@@ -1,5 +1,15 @@
 import 'compound_analysis.dart';
 
+class DictionaryLookupException implements Exception {
+  const DictionaryLookupException(this.message, {this.cause});
+
+  final String message;
+  final Object? cause;
+
+  @override
+  String toString() => message;
+}
+
 class DictionaryEntry {
   final String word;
   final String? phonetic;

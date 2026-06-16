@@ -41,7 +41,10 @@ class JpdbRepository implements WordRepository {
         const Duration(seconds: 10),
       );
 
-      if (response.statusCode >= 500) return null;
+      if (response.statusCode == 404) return null;
+      if (response.statusCode != 200) {
+        throw DictionaryLookupException('HTTP ${response.statusCode}');
+      }
 
       final rawHtml = utf8.decode(response.bodyBytes, allowMalformed: true);
       await _cache.set(
@@ -51,8 +54,10 @@ class JpdbRepository implements WordRepository {
         languageCode: languageCode,
       );
       return _parseHtml(query, rawHtml);
-    } catch (_) {
-      return null;
+    } on DictionaryLookupException {
+      rethrow;
+    } catch (error) {
+      throw DictionaryLookupException('请求失败或超时', cause: error);
     }
   }
 
@@ -115,8 +120,7 @@ class JpdbRepository implements WordRepository {
       rt.remove();
     }
 
-    final pos =
-        root.querySelector('.part-of-speech')?.text.trim() ?? '';
+    final pos = root.querySelector('.part-of-speech')?.text.trim() ?? '';
 
     final descriptionNodes = root.querySelectorAll('.description');
     final definitions = <String>[];

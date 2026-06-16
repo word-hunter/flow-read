@@ -41,7 +41,10 @@ class CollinsRepository implements WordRepository {
         const Duration(seconds: 8),
       );
 
-      if (response.statusCode != 200) return null;
+      if (response.statusCode == 404) return null;
+      if (response.statusCode != 200) {
+        throw DictionaryLookupException('HTTP ${response.statusCode}');
+      }
 
       final rawHtml = utf8.decode(response.bodyBytes, allowMalformed: true);
       await _cache.set(
@@ -51,8 +54,10 @@ class CollinsRepository implements WordRepository {
         languageCode: languageCode,
       );
       return parseHtml(lower, rawHtml);
-    } catch (_) {
-      return null;
+    } on DictionaryLookupException {
+      rethrow;
+    } catch (error) {
+      throw DictionaryLookupException('请求失败或超时', cause: error);
     }
   }
 
