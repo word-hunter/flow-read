@@ -92,6 +92,12 @@ abstract class ReadingMemoryRepository {
 
   Future<ReviewCandidate?> reviewCandidateById(String id);
 
+  Future<void> updateReviewCandidateStatus({
+    required String id,
+    required ReviewCandidateStatus status,
+    required DateTime updatedAt,
+  });
+
   Future<List<ReviewCandidate>> reviewCandidatesForEntity(
     String entityId, {
     ReviewCandidateStatus? status,

@@ -5,6 +5,7 @@ import '../providers/reading/current_book_notifier.dart';
 import '../theme/app_constants.dart';
 import '../theme/app_surface_tokens.dart';
 import '../widgets/practice_card.dart';
+import '../widgets/review_candidate_queue.dart';
 
 class PracticeScreen extends riverpod.ConsumerWidget {
   const PracticeScreen({super.key});
@@ -55,6 +56,7 @@ class PracticeScreen extends riverpod.ConsumerWidget {
                         questionCount: result.practice.length,
                       ),
                       const SizedBox(height: 20),
+                      const ReviewCandidateQueue(),
                       if (result.practice.isEmpty)
                         const _EmptyPracticeState()
                       else ...[

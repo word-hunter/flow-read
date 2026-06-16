@@ -38,6 +38,14 @@ class DictionaryDetailView extends StatelessWidget {
   final bool showVisualHint;
   final WordMemoryCard? wordMemoryCard;
   final bool isLoadingWordMemory;
+  final bool canGenerateBookGlossaryExplanation;
+  final String? bookGlossaryDraftExplanation;
+  final bool isGeneratingBookGlossaryExplanation;
+  final bool isSavingBookGlossaryExplanation;
+  final String? bookGlossaryError;
+  final VoidCallback? onGenerateBookGlossaryExplanation;
+  final Future<bool> Function(String explanation)?
+  onSaveBookGlossaryExplanation;
 
   const DictionaryDetailView({
     super.key,
@@ -63,6 +71,13 @@ class DictionaryDetailView extends StatelessWidget {
     this.showVisualHint = true,
     this.wordMemoryCard,
     this.isLoadingWordMemory = false,
+    this.canGenerateBookGlossaryExplanation = false,
+    this.bookGlossaryDraftExplanation,
+    this.isGeneratingBookGlossaryExplanation = false,
+    this.isSavingBookGlossaryExplanation = false,
+    this.bookGlossaryError,
+    this.onGenerateBookGlossaryExplanation,
+    this.onSaveBookGlossaryExplanation,
   });
 
   factory DictionaryDetailView.fromWordLookup({
@@ -108,6 +123,21 @@ class DictionaryDetailView extends StatelessWidget {
       showVisualHint: showVisualHint,
       wordMemoryCard: lookupState.wordMemoryCard,
       isLoadingWordMemory: lookupState.isLoadingWordMemory,
+      canGenerateBookGlossaryExplanation:
+          lookupNotifier.canGenerateBookGlossaryExplanation,
+      bookGlossaryDraftExplanation: lookupState.bookGlossaryDraftExplanation,
+      isGeneratingBookGlossaryExplanation:
+          lookupState.isGeneratingBookGlossaryExplanation,
+      isSavingBookGlossaryExplanation:
+          lookupState.isSavingBookGlossaryExplanation,
+      bookGlossaryError: lookupState.bookGlossaryError,
+      onGenerateBookGlossaryExplanation:
+          lookupNotifier.generateBookGlossaryExplanation,
+      onSaveBookGlossaryExplanation: (explanation) {
+        return lookupNotifier.saveBookGlossaryExplanation(
+          explanation: explanation,
+        );
+      },
     );
   }
 
@@ -135,6 +165,11 @@ class DictionaryDetailView extends StatelessWidget {
         bookContexts.isNotEmpty;
     final hasPersonalMemory =
         isLoadingWordMemory || wordMemoryCard?.hasPersonalMemory == true;
+    final hasBookGlossarySuggestion =
+        canGenerateBookGlossaryExplanation ||
+        isGeneratingBookGlossaryExplanation ||
+        (bookGlossaryDraftExplanation?.trim().isNotEmpty ?? false) ||
+        (bookGlossaryError?.trim().isNotEmpty ?? false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,6 +196,7 @@ class DictionaryDetailView extends StatelessWidget {
         ],
         if (!hasContent &&
             !hasPersonalMemory &&
+            !hasBookGlossarySuggestion &&
             visualDefinition == null &&
             !isLoadingVisualHint)
           _EmptyDictionaryState(errorMessage: entry?.errorMessage)
@@ -212,6 +248,24 @@ class DictionaryDetailView extends StatelessWidget {
                 ],
               ],
             ),
+          if (hasBookGlossarySuggestion) ...[
+            const SizedBox(height: 6),
+            _CollapsiblePanel(
+              icon: Icons.auto_awesome_outlined,
+              title: '作品术语',
+              initiallyExpanded: true,
+              children: [
+                _BookGlossarySuggestionSection(
+                  draftExplanation: bookGlossaryDraftExplanation,
+                  isGenerating: isGeneratingBookGlossaryExplanation,
+                  isSaving: isSavingBookGlossaryExplanation,
+                  error: bookGlossaryError,
+                  onGenerate: onGenerateBookGlossaryExplanation,
+                  onSave: onSaveBookGlossaryExplanation,
+                ),
+              ],
+            ),
+          ],
           if (hasPersonalMemory) ...[
             const SizedBox(height: 6),
             _CollapsiblePanel(
@@ -1076,6 +1130,142 @@ class _DictionaryFallbackSection extends StatelessWidget {
           const SizedBox(height: 14),
           _BookContextsBlock(contexts: contexts),
         ],
+      ],
+    );
+  }
+}
+
+class _BookGlossarySuggestionSection extends StatefulWidget {
+  const _BookGlossarySuggestionSection({
+    required this.draftExplanation,
+    required this.isGenerating,
+    required this.isSaving,
+    required this.error,
+    required this.onGenerate,
+    required this.onSave,
+  });
+
+  final String? draftExplanation;
+  final bool isGenerating;
+  final bool isSaving;
+  final String? error;
+  final VoidCallback? onGenerate;
+  final Future<bool> Function(String explanation)? onSave;
+
+  @override
+  State<_BookGlossarySuggestionSection> createState() =>
+      _BookGlossarySuggestionSectionState();
+}
+
+class _BookGlossarySuggestionSectionState
+    extends State<_BookGlossarySuggestionSection> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: widget.draftExplanation?.trim() ?? '',
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _BookGlossarySuggestionSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextText = widget.draftExplanation?.trim() ?? '';
+    if (nextText != oldWidget.draftExplanation?.trim() &&
+        nextText != _controller.text) {
+      _controller.text = nextText;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasDraft = widget.draftExplanation?.trim().isNotEmpty ?? false;
+    final error = widget.error?.trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          hasDraft
+              ? '根据已读上下文生成的术语解释，可编辑后保存到本书术语表。'
+              : '词典未命中时，可以根据已读上下文推测它在本书里的含义。',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.4,
+          ),
+        ),
+        if (widget.isGenerating) ...[
+          const SizedBox(height: 12),
+          const LinearProgressIndicator(minHeight: 2),
+        ],
+        if (hasDraft) ...[
+          const SizedBox(height: 12),
+          TextField(
+            controller: _controller,
+            minLines: 2,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              labelText: '术语解释',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+        if (error != null && error.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _StatusHint(
+            icon: Icons.warning_amber_rounded,
+            text: error,
+            color: theme.colorScheme.error,
+          ),
+        ],
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            FlowButton.secondary(
+              onPressed: widget.isGenerating || widget.isSaving
+                  ? null
+                  : widget.onGenerate,
+              icon: const Icon(Icons.auto_awesome, size: 16),
+              child: Text(hasDraft ? '重新推测' : 'AI 推测术语'),
+            ),
+            if (hasDraft) ...[
+              const SizedBox(width: 8),
+              FlowButton.primary(
+                onPressed: widget.isGenerating || widget.isSaving
+                    ? null
+                    : () async {
+                        final saved = await widget.onSave?.call(
+                          _controller.text,
+                        );
+                        if (!context.mounted || saved != true) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('已保存到本书术语表'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                icon: widget.isSaving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined, size: 16),
+                child: const Text('保存'),
+              ),
+            ],
+          ],
+        ),
       ],
     );
   }

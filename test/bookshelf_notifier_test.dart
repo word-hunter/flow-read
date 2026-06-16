@@ -627,6 +627,13 @@ class _NoopReadingMemoryRepository implements ReadingMemoryRepository {
   Future<ReviewCandidate?> reviewCandidateById(String id) async => null;
 
   @override
+  Future<void> updateReviewCandidateStatus({
+    required String id,
+    required ReviewCandidateStatus status,
+    required DateTime updatedAt,
+  }) async {}
+
+  @override
   Future<List<ReviewCandidate>> reviewCandidatesForEntity(
     String entityId, {
     ReviewCandidateStatus? status,

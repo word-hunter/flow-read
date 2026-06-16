@@ -167,4 +167,48 @@ void main() {
       expect(candidates.single.status, ReviewCandidateStatus.pending);
     },
   );
+
+  test('accepts and dismisses pending candidates', () async {
+    final repository = DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 10),
+    );
+    final reviewCandidates = ReviewCandidateService(
+      repository: repository,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 11),
+    );
+    final memory = ReadingMemoryService(
+      repository: repository,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 8),
+      reviewCandidates: reviewCandidates,
+    );
+
+    await memory.saveExplanation(
+      targetText: 'Reluctant',
+      canonical: 'reluctant',
+      explanation: 'Unwilling in this context.',
+    );
+    await memory.saveExplanation(
+      targetText: 'Scrutiny',
+      canonical: 'scrutiny',
+      explanation: 'Careful inspection.',
+    );
+    final pending = await reviewCandidates.pendingCandidates();
+
+    await reviewCandidates.acceptCandidate(pending.first.id);
+    await reviewCandidates.dismissCandidates([pending.last.id]);
+
+    expect(await reviewCandidates.pendingCandidates(), isEmpty);
+    expect(
+      (await repository.reviewCandidateById(pending.first.id))?.status,
+      ReviewCandidateStatus.accepted,
+    );
+    expect(
+      (await repository.reviewCandidateById(pending.last.id))?.status,
+      ReviewCandidateStatus.dismissed,
+    );
+  });
 }

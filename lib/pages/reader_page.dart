@@ -12,6 +12,7 @@ import '../models/content_block.dart';
 import '../models/reading_position.dart';
 import '../models/reading_search_result.dart';
 import '../providers/reading/bookmark_notifier.dart';
+import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/reading_config_notifier.dart';
@@ -512,23 +513,15 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           builder: (_) => BookInsightsPage(
             provider: provider,
             bookTitle: book.title,
-            onGenerateChapter: (chapterIndex) {
-              final assistant = ref.read(aiAssistantControllerProvider);
-              final chapterTitle = chapterIndex < book.chapters.length
-                  ? book.chapters[chapterIndex].title
-                  : 'Chapter ${chapterIndex + 1}';
-              final chapterContent = book.chapters[chapterIndex].plainText;
-
-              assistant.setContext(
-                AIContextSnapshot(
-                  source: AIContextSource.readerChapter,
-                  bookId: bookshelf.activeBookId!,
-                  chapterIndex: chapterIndex,
-                  chapterTitle: chapterTitle,
-                  chapterContent: chapterContent,
-                ),
-              );
-              _openAssistantPanel(assistant);
+            onGenerateChapter: (chapterIndex) async {
+              await ref
+                  .read(aiNotifierProvider.notifier)
+                  .generateSummaryForChapter(chapterIndex);
+            },
+            onGenerateMissingReadChapters: (chapterIndexes) {
+              return ref
+                  .read(aiNotifierProvider.notifier)
+                  .generateSummariesForReadChapters(chapterIndexes);
             },
           ),
         ),
@@ -966,8 +959,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
       final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
       final book = ref.read(bookshelfNotifierProvider).book;
       if (book != null && activeBookId != null) {
-        final clampedIdx = currentBookState.currentChapter
-            .clamp(0, book.chapters.length - 1);
+        final clampedIdx = currentBookState.currentChapter.clamp(
+          0,
+          book.chapters.length - 1,
+        );
         _captureAnchorForReflow(
           chapterIndex: clampedIdx,
           blocks: book.chapters[clampedIdx].blocks,
@@ -998,10 +993,12 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     }
     final result = currentBookNotifier.result;
 
-    final chapterIndex = currentBookNotifier.hasBook &&
-            currentBookNotifier.chapterCount > 0
-        ? currentBookState.currentChapter
-              .clamp(0, currentBookNotifier.chapterCount - 1)
+    final chapterIndex =
+        currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 0
+        ? currentBookState.currentChapter.clamp(
+            0,
+            currentBookNotifier.chapterCount - 1,
+          )
         : 0;
     final blocks =
         currentBookNotifier.hasBook && currentBookNotifier.chapterCount > 0

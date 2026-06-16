@@ -1,3 +1,4 @@
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_dictionary/flow_dictionary.dart';
 import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/chapter.dart';
@@ -8,6 +9,8 @@ import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/reading/word_lookup_notifier.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/services/learning_analytics_service.dart';
+import 'package:flow_read/services/book_glossary_service.dart';
+import 'package:flow_read/services/character_registry.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_ids.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
 import 'package:flow_read/services/reading_memory/word_memory_service.dart';
@@ -15,6 +18,8 @@ import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/word_context_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/dao/book_glossary_dao.dart';
+import 'package:flow_read/storage/database/repositories/drift_character_registry_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_learning_analytics_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_user_vocabulary_repository.dart';
@@ -34,6 +39,7 @@ void main() {
     db = await AppDatabase.createInMemory();
     final settings = SettingsService(db.settingsDao);
     await settings.init();
+    await settings.setApiKey('test-api-key');
     memoryRepository = DriftReadingMemoryRepository(
       db.readingMemoryDao,
       languageCode: 'en',
@@ -76,12 +82,20 @@ void main() {
       languageCode: 'en',
     );
     await wordMemory.init();
+    final glossaryService = BookGlossaryService(BookGlossaryDao(db));
+    final characterRegistry = CharacterRegistry(
+      repository: DriftCharacterRegistryRepository(db.characterRegistryDao),
+    );
+    await characterRegistry.init();
 
     container = ProviderContainer(
       overrides: [
         settingsProvider.overrideWith((ref) => settings),
         appDatabaseProvider.overrideWith((ref) async => db),
         wordRepositoryProvider.overrideWithValue(_MemoryWordRepository()),
+        aiServiceProvider.overrideWithValue(_FakeAIService()),
+        bookGlossaryServiceProvider.overrideWithValue(glossaryService),
+        characterRegistryProvider.overrideWithValue(characterRegistry),
         readingMemoryServiceProvider.overrideWithValue(memory),
         userVocabularyServiceProvider.overrideWithValue(userVocabulary),
         wordMemoryServiceProvider.overrideWithValue(wordMemory),
@@ -206,6 +220,63 @@ void main() {
     expect(state.selectedWordTranslation, isNull);
     expect(state.selectedWordLookupResult?.request.query, 'beta');
   });
+
+  test('dictionary miss can be saved as book glossary term memory', () async {
+    await container.read(appDatabaseProvider.future);
+    final lookup = container.read(wordLookupNotifierProvider.notifier);
+
+    await lookup.lookupWord(
+      'Godswood',
+      canonicalForm: 'godswood',
+      languageCode: 'en',
+      contextText: 'The godswood was silent under the old trees.',
+      contextWordStart: 4,
+      contextWordEnd: 12,
+      trackReadingLookup: true,
+    );
+    await _drainEventQueue();
+
+    expect(lookup.canGenerateBookGlossaryExplanation, isTrue);
+
+    await lookup.generateBookGlossaryExplanation();
+    expect(
+      container.read(wordLookupNotifierProvider).bookGlossaryDraftExplanation,
+      contains('sacred grove'),
+    );
+
+    final saved = await lookup.saveBookGlossaryExplanation();
+    expect(saved, isTrue);
+
+    final glossaryEntry = await container
+        .read(bookGlossaryServiceProvider)
+        .getEntry(
+          bookId: 'book-1',
+          word: 'Godswood',
+          canonicalForm: 'godswood',
+        );
+    expect(glossaryEntry?.explanation, contains('sacred grove'));
+
+    final term = await memoryRepository.entityByCanonical(
+      languageCode: 'en',
+      type: KnowledgeEntityType.bookTerm,
+      canonicalKey: 'godswood',
+    );
+    expect(term, isNotNull);
+    final explanations = await memoryRepository.explanationsForEntity(
+      term!.id,
+    );
+    expect(explanations.single.explanation, contains('sacred grove'));
+
+    await lookup.lookupWord(
+      'Godswood',
+      canonicalForm: 'godswood',
+      languageCode: 'en',
+    );
+    expect(
+      container.read(wordLookupNotifierProvider).selectedWordTranslation,
+      contains('sacred grove'),
+    );
+  });
 }
 
 Future<void> _drainEventQueue() async {
@@ -220,7 +291,9 @@ class _MemoryWordRepository implements WordRepository {
     String word, {
     String languageCode = 'en',
   }) async {
-    if (word.toLowerCase().trim() == 'beta') return null;
+    if (const {'beta', 'godswood'}.contains(word.toLowerCase().trim())) {
+      return null;
+    }
 
     return DictionaryEntry(
       word: word,
@@ -230,6 +303,34 @@ class _MemoryWordRepository implements WordRepository {
       sourceName: 'Test',
       sourceUrl: 'https://dictionary.example/$word',
     );
+  }
+}
+
+class _FakeAIService extends AIService {
+  _FakeAIService()
+    : super(
+        LLMClient(
+          () => const AIProviderConfig(
+            definition: AIProviders.deepSeek,
+            apiKey: 'test-api-key',
+            baseUrl: 'https://example.invalid',
+            model: 'test-model',
+          ),
+        ),
+      );
+
+  @override
+  Future<String> explainBookGlossaryTerm({
+    required String word,
+    required String canonicalForm,
+    required String currentPassage,
+    List<String> earlierOccurrences = const [],
+    List<CharacterCardSnippet> relatedCharacters = const [],
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
+    return 'A sacred grove that matters inside this book world.';
   }
 }
 

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/book.dart';
+import '../../models/book_glossary_entry.dart';
 import '../../models/reading_memory.dart';
 import '../../models/word_context_example.dart';
 import '../../services/compound_word_analyzer.dart';
@@ -36,6 +37,10 @@ class WordLookupState {
     this.isLoadingVisualHint = false,
     this.wordMemoryCard,
     this.isLoadingWordMemory = false,
+    this.bookGlossaryDraftExplanation,
+    this.isGeneratingBookGlossaryExplanation = false,
+    this.isSavingBookGlossaryExplanation = false,
+    this.bookGlossaryError,
   });
 
   final String? selectedWord;
@@ -53,6 +58,10 @@ class WordLookupState {
   final bool isLoadingVisualHint;
   final WordMemoryCard? wordMemoryCard;
   final bool isLoadingWordMemory;
+  final String? bookGlossaryDraftExplanation;
+  final bool isGeneratingBookGlossaryExplanation;
+  final bool isSavingBookGlossaryExplanation;
+  final String? bookGlossaryError;
 
   bool get canGoBackWordLookup => wordLookupHistory.isNotEmpty;
 
@@ -72,10 +81,15 @@ class WordLookupState {
     bool? isLoadingVisualHint,
     WordMemoryCard? wordMemoryCard,
     bool? isLoadingWordMemory,
+    String? bookGlossaryDraftExplanation,
+    bool? isGeneratingBookGlossaryExplanation,
+    bool? isSavingBookGlossaryExplanation,
+    String? bookGlossaryError,
     bool clearWordLookup = false,
     bool clearAIAnalysis = false,
     bool clearVisualHint = false,
     bool clearWordMemory = false,
+    bool clearBookGlossarySuggestion = false,
   }) {
     return WordLookupState(
       selectedWord: clearWordLookup
@@ -117,6 +131,23 @@ class WordLookupState {
       isLoadingWordMemory: clearWordLookup || clearWordMemory
           ? false
           : (isLoadingWordMemory ?? this.isLoadingWordMemory),
+      bookGlossaryDraftExplanation:
+          clearWordLookup || clearBookGlossarySuggestion
+          ? bookGlossaryDraftExplanation
+          : (bookGlossaryDraftExplanation ?? this.bookGlossaryDraftExplanation),
+      isGeneratingBookGlossaryExplanation:
+          clearWordLookup || clearBookGlossarySuggestion
+          ? isGeneratingBookGlossaryExplanation ?? false
+          : (isGeneratingBookGlossaryExplanation ??
+                this.isGeneratingBookGlossaryExplanation),
+      isSavingBookGlossaryExplanation:
+          clearWordLookup || clearBookGlossarySuggestion
+          ? isSavingBookGlossaryExplanation ?? false
+          : (isSavingBookGlossaryExplanation ??
+                this.isSavingBookGlossaryExplanation),
+      bookGlossaryError: clearWordLookup || clearBookGlossarySuggestion
+          ? bookGlossaryError
+          : (bookGlossaryError ?? this.bookGlossaryError),
     );
   }
 
@@ -130,7 +161,13 @@ class WordLookupState {
         other.isLoadingVisualHint == isLoadingVisualHint &&
         other.visualDefinition == visualDefinition &&
         other.wordMemoryCard == wordMemoryCard &&
-        other.isLoadingWordMemory == isLoadingWordMemory;
+        other.isLoadingWordMemory == isLoadingWordMemory &&
+        other.bookGlossaryDraftExplanation == bookGlossaryDraftExplanation &&
+        other.isGeneratingBookGlossaryExplanation ==
+            isGeneratingBookGlossaryExplanation &&
+        other.isSavingBookGlossaryExplanation ==
+            isSavingBookGlossaryExplanation &&
+        other.bookGlossaryError == bookGlossaryError;
   }
 
   @override
@@ -143,6 +180,10 @@ class WordLookupState {
     visualDefinition,
     wordMemoryCard,
     isLoadingWordMemory,
+    bookGlossaryDraftExplanation,
+    isGeneratingBookGlossaryExplanation,
+    isSavingBookGlossaryExplanation,
+    bookGlossaryError,
   );
 }
 
@@ -322,6 +363,156 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
     state = state.copyWith(isAnalyzingWord: value);
   }
 
+  bool get canGenerateBookGlossaryExplanation {
+    final result = state.selectedWordLookupResult;
+    if (result == null ||
+        result.hasDictionaryContent ||
+        result.hasDictionaryError) {
+      return false;
+    }
+    if ((result.primaryDefinition?.trim().isNotEmpty ?? false) ||
+        state.bookGlossaryDraftExplanation?.trim().isNotEmpty == true) {
+      return false;
+    }
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
+    final book = ref.read(bookshelfNotifierProvider).book;
+    return activeBookId != null &&
+        book != null &&
+        ref.read(settingsProvider).aiFeaturesEnabled;
+  }
+
+  Future<void> generateBookGlossaryExplanation() async {
+    final result = state.selectedWordLookupResult;
+    if (result == null || !canGenerateBookGlossaryExplanation) return;
+
+    final bookId = ref.read(bookshelfNotifierProvider).activeBookId;
+    final book = ref.read(bookshelfNotifierProvider).book;
+    if (bookId == null || book == null) return;
+
+    state = state.copyWith(
+      isGeneratingBookGlossaryExplanation: true,
+      bookGlossaryError: '',
+      clearBookGlossarySuggestion: true,
+    );
+
+    try {
+      final request = result.request;
+      final chapterIndex = ref.read(currentBookNotifierProvider).currentChapter;
+      final currentPassage = _glossaryCurrentPassage(request, book);
+      final explanation = await ref
+          .read(aiServiceProvider)
+          .explainBookGlossaryTerm(
+            word: request.displayWord,
+            canonicalForm: request.canonicalForm,
+            currentPassage: currentPassage,
+            earlierOccurrences: result.bookContexts
+                .map((snippet) => snippet.text)
+                .where((text) => text.trim().isNotEmpty)
+                .take(5)
+                .toList(growable: false),
+            relatedCharacters: _relatedCharacterSnippets(
+              bookId,
+              currentPassage,
+            ),
+            sourceLanguage: SourceLanguage.inferFromText(
+              '${request.displayWord} $currentPassage',
+            ),
+            outputLanguage: OutputLanguage.fromCode(
+              ref.read(settingsProvider).targetExplanationLanguage,
+            ),
+            spoilerBoundary: SpoilerBoundary.chapter(
+              bookId: bookId,
+              chapterIndex: chapterIndex,
+              scope: AIContextScope.readSoFar,
+            ),
+          );
+      if (explanation.trim().isEmpty) {
+        state = state.copyWith(
+          isGeneratingBookGlossaryExplanation: false,
+          bookGlossaryError: 'AI 未返回有效解释',
+        );
+        return;
+      }
+      state = state.copyWith(
+        bookGlossaryDraftExplanation: explanation.trim(),
+        isGeneratingBookGlossaryExplanation: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isGeneratingBookGlossaryExplanation: false,
+        bookGlossaryError: 'AI 推测失败: $e',
+      );
+    }
+  }
+
+  Future<bool> saveBookGlossaryExplanation({String? explanation}) async {
+    final result = state.selectedWordLookupResult;
+    if (result == null) return false;
+    final text = (explanation ?? state.bookGlossaryDraftExplanation ?? '')
+        .trim();
+    if (text.isEmpty) return false;
+
+    final activeBookId = ref.read(bookshelfNotifierProvider).activeBookId;
+    final book = ref.read(bookshelfNotifierProvider).book;
+    if (activeBookId == null || book == null) return false;
+
+    state = state.copyWith(isSavingBookGlossaryExplanation: true);
+    try {
+      final request = result.request;
+      final chapterIndex = ref.read(currentBookNotifierProvider).currentChapter;
+      final sourceRef = MemorySourceRef(
+        sourceId: ReadingMemoryIds.source(SourceKind.book, activeBookId),
+        sourceKind: SourceKind.book,
+        sourceTitleSnapshot: book.title,
+        bookId: activeBookId,
+        chapterIndex: chapterIndex,
+        locationLocator: _wordLocationLocator(
+          chapterIndex: chapterIndex,
+          contextWordStart: request.contextWordStart,
+          contextWordEnd: request.contextWordEnd,
+        ),
+      );
+      await ref
+          .read(bookGlossaryServiceProvider)
+          .saveEntry(
+            BookGlossaryEntry.create(
+              bookId: activeBookId,
+              word: request.displayWord,
+              canonicalForm: request.canonicalForm,
+              explanation: text,
+              sourceContext: request.contextText,
+            ),
+          );
+      await ref
+          .read(readingMemoryServiceProvider)
+          .saveExplanation(
+            targetText: request.displayWord,
+            canonical: request.canonicalForm,
+            explanation: text,
+            type: KnowledgeEntityType.bookTerm,
+            source: ExplanationSource.ai,
+            sourceRef: sourceRef,
+            targetLanguage: ref
+                .read(settingsProvider)
+                .targetExplanationLanguage,
+            promptVersion: ref.read(aiServiceProvider).promptVersion.toString(),
+            languageCode: request.languageCode,
+          );
+      _applyWordLookupResult(result.copyWith(primaryDefinition: text));
+      state = state.copyWith(
+        isSavingBookGlossaryExplanation: false,
+        clearBookGlossarySuggestion: true,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isSavingBookGlossaryExplanation: false,
+        bookGlossaryError: '保存术语失败: $e',
+      );
+      return false;
+    }
+  }
+
   // ---- Internal helpers ----
 
   Future<void> _fetchVisualHint(String word, int requestVersion) async {
@@ -339,6 +530,56 @@ class WordLookupNotifier extends Notifier<WordLookupState> {
     } on Object {
       state = state.copyWith(isLoadingVisualHint: false);
     }
+  }
+
+  String _glossaryCurrentPassage(
+    DictionaryLookupRequest request,
+    Book book,
+  ) {
+    final contextText = request.contextText?.trim();
+    if (contextText != null && contextText.isNotEmpty) return contextText;
+
+    final chapterIndex = ref.read(currentBookNotifierProvider).currentChapter;
+    if (chapterIndex >= 0 && chapterIndex < book.chapters.length) {
+      final chapterText = book.chapters[chapterIndex].plainText.trim();
+      if (chapterText.isNotEmpty) return chapterText;
+    }
+    return request.displayWord;
+  }
+
+  List<CharacterCardSnippet> _relatedCharacterSnippets(
+    String bookId,
+    String passage,
+  ) {
+    final registry = ref.read(characterRegistryProvider);
+    final normalizedPassage = passage.toLowerCase();
+    return registry
+        .getAll(bookId)
+        .where((entry) {
+          final names = [
+            entry.canonicalName,
+            ...entry.aliases,
+            ...entry.userOverrides,
+          ];
+          return names.any(
+            (name) =>
+                name.trim().isNotEmpty &&
+                normalizedPassage.contains(name.toLowerCase()),
+          );
+        })
+        .take(5)
+        .map(
+          (entry) => CharacterCardSnippet(
+            name: entry.canonicalName,
+            description: [
+              if (entry.aliases.isNotEmpty)
+                'aliases: ${entry.aliases.join(', ')}',
+              if (entry.userOverrides.isNotEmpty)
+                'user aliases: ${entry.userOverrides.join(', ')}',
+            ].join('; '),
+          ),
+        )
+        .toList(growable: false);
   }
 
   LanguageModule get _activeLanguageModule {

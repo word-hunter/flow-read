@@ -458,6 +458,79 @@ class AINotifier extends Notifier<AIState> {
     }
   }
 
+  Future<void> generateSummaryForChapter(int chapterIndex) async {
+    await generateSummariesForReadChapters([chapterIndex]);
+  }
+
+  Future<int> generateSummariesForReadChapters(
+    Iterable<int> chapterIndexes,
+  ) async {
+    final book = ref.read(bookshelfNotifierProvider).book;
+    final bookId = _activeBookId;
+    if (book == null || bookId == null || !_ensureAIReady()) return 0;
+
+    final maxReadChapter = _currentChapter;
+    final targets =
+        chapterIndexes
+            .where(
+              (chapterIndex) =>
+                  chapterIndex >= 0 &&
+                  chapterIndex < book.chapters.length &&
+                  chapterIndex <= maxReadChapter,
+            )
+            .toSet()
+            .toList()
+          ..sort();
+    if (targets.isEmpty) return 0;
+
+    state = state.copyWith(
+      isGeneratingSummary: true,
+      chapterAIStatus: null,
+      clearError: true,
+    );
+
+    var completed = 0;
+    AISummary? currentChapterSummary;
+    ChapterAIStatus? lastStatus;
+    try {
+      final job = _createChapterAIJob();
+      for (final chapterIndex in targets) {
+        final chapter = book.chapters[chapterIndex];
+        final result = await job.generateSummary(
+          ChapterSummaryJobRequest(
+            bookId: bookId,
+            chapterIndex: chapterIndex,
+            chapterText: chapter.plainText,
+            vocabulary: const [],
+            outputLanguage: OutputLanguage.fromCode(state.summaryLanguage),
+          ),
+        );
+        completed += 1;
+        lastStatus = result.status;
+        if (chapterIndex == _currentChapter) {
+          currentChapterSummary = result.summary;
+        }
+      }
+      state = state.copyWith(
+        aiSummary: currentChapterSummary,
+        chapterAIStatus: lastStatus,
+        isGeneratingSummary: false,
+      );
+      await _refreshChapterAISummaryCoverage();
+    } catch (e) {
+      debugPrint('[AI] generateSummariesForReadChapters failed: $e');
+      state = state.copyWith(
+        errorMessage: '补齐章节总结失败: $e',
+        chapterAIStatus: ChapterAIStatus.failed(
+          ChapterAIFeature.summary,
+          '章节总结补齐失败：$e',
+        ),
+        isGeneratingSummary: false,
+      );
+    }
+    return completed;
+  }
+
   Future<void> generateChapterPreview() async {
     final currentResult = ref.read(currentBookNotifierProvider).result;
     final book = ref.read(bookshelfNotifierProvider).book;

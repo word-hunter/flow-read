@@ -260,6 +260,39 @@ class AIService {
     );
   }
 
+  Future<String> explainBookGlossaryTerm({
+    required String word,
+    required String canonicalForm,
+    required String currentPassage,
+    List<String> earlierOccurrences = const [],
+    List<CharacterCardSnippet> relatedCharacters = const [],
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
+    final prompt = _promptBuilder.buildBookGlossaryExplanation(
+      BookGlossaryPromptRequest(
+        word: word,
+        canonicalForm: canonicalForm,
+        currentPassage: currentPassage,
+        earlierOccurrences: earlierOccurrences,
+        relatedCharacters: relatedCharacters,
+        sourceLanguage:
+            sourceLanguage ??
+            SourceLanguage.inferFromText('$word $currentPassage'),
+        outputLanguage: outputLanguage,
+        spoilerBoundary: spoilerBoundary ?? SpoilerBoundary.currentPassage(),
+      ),
+    );
+
+    final response = await _client.chat(
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.userPrompt,
+      debugMetadata: _promptTraceMetadata('book_glossary', prompt),
+    );
+    return response.trim();
+  }
+
   void _validateTextAnalysis(AITextAnalysis result, String originalText) {
     for (final note in result.structureNotes) {
       if (note.source.isNotEmpty &&

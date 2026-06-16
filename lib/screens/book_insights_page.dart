@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:flow_ai/flow_ai.dart';
@@ -13,11 +15,14 @@ class BookInsightsPage extends StatefulWidget {
     required this.provider,
     required this.bookTitle,
     required this.onGenerateChapter,
+    this.onGenerateMissingReadChapters,
   });
 
   final BookInsightProvider provider;
   final String bookTitle;
-  final ValueChanged<int> onGenerateChapter;
+  final Future<void> Function(int chapterIndex) onGenerateChapter;
+  final Future<int> Function(List<int> chapterIndexes)?
+  onGenerateMissingReadChapters;
 
   @override
   State<BookInsightsPage> createState() => _BookInsightsPageState();
@@ -28,6 +33,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   late final TabController _tabController;
 
   bool _requestedLoad = false;
+  bool _isBackfillingSummaries = false;
 
   @override
   void initState() {
@@ -104,7 +110,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
           ? const Center(child: CircularProgressIndicator())
           : provider.error != null
           ? _buildError(theme, provider.error!)
-          : provider.isEmpty
+          : provider.isEmpty && provider.coverage == null
           ? _buildEmpty(theme)
           : TabBarView(
               controller: _tabController,
@@ -296,25 +302,63 @@ class _BookInsightsPageState extends State<BookInsightsPage>
           (card) => !registeredNames.contains(card.canonicalName.toLowerCase()),
         )
         .toList();
-    if (registryEntries.isEmpty && cards.isEmpty) {
-      return _buildEmptyTab(theme, '暂无人物数据');
-    }
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         if (provider.coverage != null) _buildCoverageBar(theme, provider),
         const SizedBox(height: 12),
+        _buildCharacterActions(theme, provider),
+        if (registryEntries.isEmpty && cards.isEmpty) ...[
+          const SizedBox(height: 48),
+          Center(
+            child: Text(
+              '暂无人物数据',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ),
+        ],
         ...registryEntries.map(
-          (entry) => _buildRegistryCharacterCard(theme, entry),
+          (entry) => _buildRegistryCharacterCard(theme, provider, entry),
         ),
-        ...cards.map((card) => _buildCharacterCard(theme, card)),
+        ...cards.map((card) => _buildCharacterCard(theme, provider, card)),
       ],
+    );
+  }
+
+  Widget _buildCharacterActions(
+    ThemeData theme,
+    BookInsightProvider provider,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '人物注册表',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          FlowButton.secondary(
+            onPressed: provider.canMaintainCharacters
+                ? () => _showAddCharacterDialog(provider)
+                : null,
+            icon: const Icon(Icons.person_add_alt_1, size: 16),
+            child: const Text('新增人物'),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildRegistryCharacterCard(
     ThemeData theme,
+    BookInsightProvider provider,
     CharacterRegistryEntry entry,
   ) {
     final aliases = [...entry.aliases, ...entry.userOverrides].toList()
@@ -329,18 +373,22 @@ class _BookInsightsPageState extends State<BookInsightsPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Text(
-                    entry.canonicalName.isNotEmpty
-                        ? entry.canonicalName[0].toUpperCase()
-                        : '?',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onPrimaryContainer,
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    child: Text(
+                      entry.canonicalName.isNotEmpty
+                          ? entry.canonicalName[0].toUpperCase()
+                          : '?',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
                     ),
                   ),
                 ),
@@ -370,6 +418,35 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                       ),
                     ),
                   ),
+                PopupMenuButton<String>(
+                  tooltip: '人物操作',
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'alias':
+                        _showAddAliasDialog(provider, entry.canonicalName);
+                        break;
+                      case 'delete':
+                        _confirmDeleteCharacter(provider, entry.canonicalName);
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'alias',
+                      child: ListTile(
+                        leading: Icon(Icons.sell_outlined),
+                        title: Text('添加别名'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        leading: Icon(Icons.delete_outline),
+                        title: Text('删除人物'),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
             if (aliases.isNotEmpty) ...[
@@ -381,6 +458,16 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                     .map(
                       (alias) => Chip(
                         label: Text(alias),
+                        onDeleted: provider.canMaintainCharacters
+                            ? () {
+                                unawaited(
+                                  provider.removeCharacterAlias(
+                                    entry.canonicalName,
+                                    alias,
+                                  ),
+                                );
+                              }
+                            : null,
                         visualDensity: VisualDensity.compact,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -394,7 +481,11 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     );
   }
 
-  Widget _buildCharacterCard(ThemeData theme, BookCharacterCard card) {
+  Widget _buildCharacterCard(
+    ThemeData theme,
+    BookInsightProvider provider,
+    BookCharacterCard card,
+  ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -428,6 +519,16 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                     ),
                   ),
                 ),
+                FlowButton.secondary(
+                  onPressed: provider.canMaintainCharacters
+                      ? () {
+                          unawaited(provider.confirmCharacterCard(card));
+                        }
+                      : null,
+                  icon: const Icon(Icons.person_add_alt_1, size: 16),
+                  child: const Text('登记'),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -473,6 +574,94 @@ class _BookInsightsPageState extends State<BookInsightsPage>
         ),
       ),
     );
+  }
+
+  Future<void> _showAddCharacterDialog(BookInsightProvider provider) async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('新增人物'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(labelText: '人物名'),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.trim().isEmpty) return;
+    await provider.addCharacter(name);
+  }
+
+  Future<void> _showAddAliasDialog(
+    BookInsightProvider provider,
+    String canonicalName,
+  ) async {
+    final controller = TextEditingController();
+    final alias = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('添加 $canonicalName 的别名'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(labelText: '别名'),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (alias == null || alias.trim().isEmpty) return;
+    await provider.addCharacterAlias(canonicalName, alias);
+  }
+
+  Future<void> _confirmDeleteCharacter(
+    BookInsightProvider provider,
+    String canonicalName,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('删除人物'),
+        content: Text('删除后将不再作为本书人物参与 AI 上下文：$canonicalName'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await provider.removeCharacter(canonicalName);
   }
 
   Widget _buildGlossary(ThemeData theme, BookInsightProvider provider) {
@@ -688,7 +877,9 @@ class _BookInsightsPageState extends State<BookInsightsPage>
         ),
         trailing: isRead
             ? FlowButton.secondary(
-                onPressed: () => widget.onGenerateChapter(chapterIndex),
+                onPressed: () {
+                  unawaited(_generateChapterSummary(chapterIndex));
+                },
                 icon: const Icon(Icons.auto_awesome, size: 16),
                 child: const Text('生成'),
               )
@@ -700,6 +891,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   Widget _buildCoverageBar(ThemeData theme, BookInsightProvider provider) {
     final coverage = provider.coverage;
     if (coverage == null) return const SizedBox.shrink();
+    final readMissingChapters = _readMissingChapters(coverage);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -725,6 +917,30 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                   color: theme.colorScheme.primary,
                 ),
               ),
+              if (readMissingChapters.isNotEmpty) ...[
+                const Spacer(),
+                FlowButton.secondary(
+                  onPressed:
+                      _isBackfillingSummaries ||
+                          widget.onGenerateMissingReadChapters == null
+                      ? null
+                      : () {
+                          unawaited(
+                            _generateMissingReadSummaries(readMissingChapters),
+                          );
+                        },
+                  icon: _isBackfillingSummaries
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.playlist_add_check, size: 16),
+                  child: Text(
+                    _isBackfillingSummaries ? '补齐中' : '补齐已读',
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 8),
@@ -750,6 +966,42 @@ class _BookInsightsPageState extends State<BookInsightsPage>
         ],
       ),
     );
+  }
+
+  List<int> _readMissingChapters(BookInsightCoverage coverage) {
+    return coverage.missingChapters
+        .where((chapterIndex) => chapterIndex < coverage.readChapters)
+        .toList(growable: false);
+  }
+
+  Future<void> _generateChapterSummary(int chapterIndex) async {
+    await widget.onGenerateChapter(chapterIndex);
+    await widget.provider.refresh();
+  }
+
+  Future<void> _generateMissingReadSummaries(List<int> chapterIndexes) async {
+    if (_isBackfillingSummaries || chapterIndexes.isEmpty) return;
+    final onGenerate = widget.onGenerateMissingReadChapters;
+    if (onGenerate == null) return;
+
+    setState(() => _isBackfillingSummaries = true);
+    try {
+      final generatedCount = await onGenerate(chapterIndexes);
+      await widget.provider.refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            generatedCount > 0
+                ? '已补齐 $generatedCount 个已读章节摘要'
+                : '没有需要补齐的已读章节摘要',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isBackfillingSummaries = false);
+    }
   }
 
   Widget _buildEmptyTab(ThemeData theme, String message) {

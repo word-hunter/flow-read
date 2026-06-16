@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   late Directory tempDir;
   late AppDatabase db;
+  late AICacheService cacheService;
   late BookInsightProvider provider;
 
   setUp(() async {
@@ -63,10 +64,11 @@ void main() {
         updatedAt: DateTime.utc(2026, 6, 15),
       ),
     );
+    cacheService = AICacheService(
+      documentsDirectoryProvider: () async => tempDir,
+    );
     provider = BookInsightProvider(
-      cacheService: AICacheService(
-        documentsDirectoryProvider: () async => tempDir,
-      ),
+      cacheService: cacheService,
       glossaryService: glossaryService,
       characterRegistry: CharacterRegistry(
         repository: DriftCharacterRegistryRepository(db.characterRegistryDao),
@@ -93,7 +95,7 @@ void main() {
         home: BookInsightsPage(
           provider: provider,
           bookTitle: 'Book One',
-          onGenerateChapter: (_) {},
+          onGenerateChapter: (_) async {},
         ),
       ),
     );
@@ -102,7 +104,7 @@ void main() {
     expect(find.text('术语'), findsOneWidget);
 
     await tester.tap(find.text('术语'));
-    await tester.pumpAndSettle();
+    await _pumpTabTransition(tester);
 
     expect(find.text('godswood'), findsOneWidget);
     expect(find.text('old godswood'), findsOneWidget);
@@ -119,7 +121,7 @@ void main() {
         home: BookInsightsPage(
           provider: provider,
           bookTitle: 'Book One',
-          onGenerateChapter: (_) {},
+          onGenerateChapter: (_) async {},
         ),
       ),
     );
@@ -127,7 +129,7 @@ void main() {
     expect(find.text('人物'), findsOneWidget);
 
     await tester.tap(find.text('人物'));
-    await tester.pumpAndSettle();
+    await _pumpTabTransition(tester);
 
     expect(find.text('Eddard Stark'), findsOneWidget);
     expect(find.text('Ned'), findsOneWidget);
@@ -135,4 +137,91 @@ void main() {
     expect(find.text('首次出现: 第 1 章'), findsOneWidget);
     expect(find.text('Other Person'), findsNothing);
   });
+
+  test('maintains character registry entries', () async {
+    await provider.addCharacter('Arya Stark');
+    await provider.addCharacterAlias('Arya Stark', 'Arry');
+
+    expect(
+      provider.characterRegistryEntries.any(
+        (entry) =>
+            entry.canonicalName == 'Arya Stark' &&
+            entry.userOverrides.contains('Arry'),
+      ),
+      isTrue,
+    );
+
+    await provider.removeCharacterAlias('Arya Stark', 'Arry');
+    expect(
+      provider.characterRegistryEntries
+          .where((entry) => entry.canonicalName == 'Arya Stark')
+          .single
+          .userOverrides,
+      isEmpty,
+    );
+
+    await provider.removeCharacter('Arya Stark');
+    expect(
+      provider.characterRegistryEntries.any(
+        (entry) => entry.canonicalName == 'Arya Stark',
+      ),
+      isFalse,
+    );
+  });
+
+  test('confirms AI-inferred characters into registry', () async {
+    await provider.confirmCharacterCard(
+      const BookCharacterCard(
+        canonicalName: 'Arya Stark',
+        firstSeenChapter: 1,
+        developments: [
+          CharacterDevelopment(
+            character: 'Arya Stark',
+            change: 'Travels under a hidden identity.',
+            source: 'Arya kept moving.',
+            confidence: 'medium',
+          ),
+        ],
+        evidenceSnippets: ['Arya kept moving.'],
+      ),
+    );
+
+    expect(
+      provider.characterRegistryEntries.any(
+        (entry) => entry.canonicalName == 'Arya Stark',
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('backfills only missing read chapter summaries', (tester) async {
+    List<int>? requestedChapters;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BookInsightsPage(
+          provider: provider,
+          bookTitle: 'Book One',
+          onGenerateChapter: (_) async {},
+          onGenerateMissingReadChapters: (chapters) async {
+            requestedChapters = chapters;
+            return chapters.length;
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('章节'));
+    await _pumpTabTransition(tester);
+
+    await tester.tap(find.byIcon(Icons.playlist_add_check));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(requestedChapters, [0, 1, 2]);
+  });
+}
+
+Future<void> _pumpTabTransition(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 600));
 }

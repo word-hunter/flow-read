@@ -317,6 +317,19 @@ final class DriftReadingMemoryRepository implements ReadingMemoryRepository {
   }
 
   @override
+  Future<void> updateReviewCandidateStatus({
+    required String id,
+    required ReviewCandidateStatus status,
+    required DateTime updatedAt,
+  }) {
+    return _dao.updateReviewCandidateStatus(
+      id: id,
+      status: status.storageValue,
+      updatedAt: _encodeDate(updatedAt),
+    );
+  }
+
+  @override
   Future<List<ReviewCandidate>> reviewCandidatesForEntity(
     String entityId, {
     ReviewCandidateStatus? status,

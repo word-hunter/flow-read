@@ -287,6 +287,19 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     return query.getSingleOrNull();
   }
 
+  Future<void> updateReviewCandidateStatus({
+    required String id,
+    required String status,
+    required String updatedAt,
+  }) {
+    return (update(reviewCandidates)..where((row) => row.id.equals(id))).write(
+      ReviewCandidatesCompanion(
+        status: Value(status),
+        updatedAt: Value(updatedAt),
+      ),
+    );
+  }
+
   Future<List<ReviewCandidateEntry>> reviewCandidatesForEntity(
     String entityId, {
     String? status,

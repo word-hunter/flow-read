@@ -84,6 +84,25 @@ class ReviewCandidateService {
     );
   }
 
+  Future<void> acceptCandidate(String id) {
+    return _updateStatus(id, ReviewCandidateStatus.accepted);
+  }
+
+  Future<void> dismissCandidate(String id) {
+    return _updateStatus(id, ReviewCandidateStatus.dismissed);
+  }
+
+  Future<void> markCandidateConverted(String id) {
+    return _updateStatus(id, ReviewCandidateStatus.converted);
+  }
+
+  Future<void> dismissCandidates(Iterable<String> ids) async {
+    final uniqueIds = ids.where((id) => id.trim().isNotEmpty).toSet();
+    for (final id in uniqueIds) {
+      await dismissCandidate(id);
+    }
+  }
+
   Future<List<ReviewCandidate>> candidatesForEntity(
     String entityId, {
     ReviewCandidateStatus? status,
@@ -93,6 +112,21 @@ class ReviewCandidateService {
       entityId,
       status: status,
       limit: limit,
+    );
+  }
+
+  Future<void> _updateStatus(
+    String id,
+    ReviewCandidateStatus status,
+  ) async {
+    final trimmedId = id.trim();
+    if (trimmedId.isEmpty) return;
+    final existing = await _repository.reviewCandidateById(trimmedId);
+    if (existing == null || existing.status == status) return;
+    await _repository.updateReviewCandidateStatus(
+      id: trimmedId,
+      status: status,
+      updatedAt: _clock().toUtc(),
     );
   }
 

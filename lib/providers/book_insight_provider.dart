@@ -46,6 +46,8 @@ class BookInsightProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get showFullBook => _showFullBook;
   String? get error => _error;
+  bool get canMaintainCharacters =>
+      _bookId != null && _characterRegistry != null;
   bool get isEmpty =>
       _chapterSummaries.isEmpty &&
       _glossaryEntries.isEmpty &&
@@ -171,6 +173,80 @@ class BookInsightProvider extends ChangeNotifier {
       boundary,
     );
     notifyListeners();
+  }
+
+  Future<void> addCharacter(String canonicalName) async {
+    final registry = _characterRegistry;
+    final bookId = _bookId;
+    final trimmed = canonicalName.trim();
+    if (registry == null || bookId == null || trimmed.isEmpty) return;
+
+    await registry.init();
+    await registry.addEntry(
+      bookId,
+      CharacterRegistryEntry(
+        canonicalName: trimmed,
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+    await refresh();
+  }
+
+  Future<void> confirmCharacterCard(BookCharacterCard card) async {
+    final registry = _characterRegistry;
+    final bookId = _bookId;
+    final canonicalName = card.canonicalName.trim();
+    if (registry == null || bookId == null || canonicalName.isEmpty) return;
+
+    await registry.init();
+    await registry.addEntry(
+      bookId,
+      CharacterRegistryEntry(
+        canonicalName: canonicalName,
+        firstAppearanceChapter: card.firstSeenChapter,
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+    await refresh();
+  }
+
+  Future<void> addCharacterAlias(
+    String canonicalName,
+    String alias, {
+    bool userOverride = true,
+  }) async {
+    final registry = _characterRegistry;
+    final bookId = _bookId;
+    if (registry == null || bookId == null) return;
+    await registry.init();
+    await registry.addAlias(
+      bookId,
+      canonicalName,
+      alias,
+      userOverride: userOverride,
+    );
+    await refresh();
+  }
+
+  Future<void> removeCharacterAlias(
+    String canonicalName,
+    String alias,
+  ) async {
+    final registry = _characterRegistry;
+    final bookId = _bookId;
+    if (registry == null || bookId == null) return;
+    await registry.init();
+    await registry.removeAlias(bookId, canonicalName, alias);
+    await refresh();
+  }
+
+  Future<void> removeCharacter(String canonicalName) async {
+    final registry = _characterRegistry;
+    final bookId = _bookId;
+    if (registry == null || bookId == null) return;
+    await registry.init();
+    await registry.removeEntry(bookId, canonicalName);
+    await refresh();
   }
 
   Future<void> refresh() async {
