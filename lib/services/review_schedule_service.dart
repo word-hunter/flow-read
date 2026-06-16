@@ -1,14 +1,21 @@
 import '../models/learning_item.dart';
 import 'learning_item_service.dart';
 import 'reading_memory/reading_memory_service.dart';
+import 'user_vocabulary_service.dart';
 
-enum LearningReviewCardType { wordMeaning, fillBlank, questionMistake }
+enum LearningReviewCardType {
+  contextMeaning,
+  fillBlank,
+  meaningToWord,
+  questionMistake,
+}
 
 extension LearningReviewCardTypeLabel on LearningReviewCardType {
   String get label {
     return switch (this) {
-      LearningReviewCardType.wordMeaning => '词义',
-      LearningReviewCardType.fillBlank => '填空',
+      LearningReviewCardType.contextMeaning => '语境选义',
+      LearningReviewCardType.fillBlank => '原句挖空',
+      LearningReviewCardType.meaningToWord => '看中文选英文',
       LearningReviewCardType.questionMistake => '错题',
     };
   }
@@ -22,6 +29,7 @@ class LearningReviewCard {
   final String answer;
   final String explanation;
   final String sourceText;
+  final List<String> options;
 
   const LearningReviewCard({
     required this.item,
@@ -31,6 +39,7 @@ class LearningReviewCard {
     required this.answer,
     required this.explanation,
     required this.sourceText,
+    this.options = const [],
   });
 }
 
@@ -40,13 +49,16 @@ class ReviewScheduleService {
     DateTime Function()? clock,
     this.sessionLimit = 10,
     ReadingMemoryService? readingMemory,
+    UserVocabularyService? userVocabulary,
   }) : _clock = clock ?? DateTime.now,
-       _readingMemory = readingMemory;
+       _readingMemory = readingMemory,
+       _userVocabulary = userVocabulary;
 
   final LearningItemService _learningItems;
   final DateTime Function() _clock;
   final int sessionLimit;
   final ReadingMemoryService? _readingMemory;
+  final UserVocabularyService? _userVocabulary;
 
   int dueCount({DateTime? now}) {
     return _dueItems(now: now, limit: null).length;
@@ -57,8 +69,11 @@ class ReviewScheduleService {
   }
 
   List<LearningReviewCard> buildSessionCards({DateTime? now, int? limit}) {
-    return dueItems(now: now, limit: limit)
-        .map(_buildCard)
+    final items = dueItems(now: now, limit: limit);
+    return items
+        .asMap()
+        .entries
+        .map((entry) => _buildCard(entry.value, entry.key, items))
         .whereType<LearningReviewCard>()
         .take(limit ?? sessionLimit)
         .toList(growable: false);
@@ -73,7 +88,7 @@ class ReviewScheduleService {
     if (item == null) return null;
 
     final now = reviewedAt ?? _clock();
-    final nextCount = result == LearningReviewResult.remembered
+    final nextCount = result.isSuccessful
         ? item.reviewCount + 1
         : item.reviewCount;
     final updated = item.copyWith(
@@ -87,6 +102,7 @@ class ReviewScheduleService {
       lastResult: result,
     );
     await _learningItems.saveItem(updated);
+    await _recordVocabularyResult(updated, result);
     await _readingMemory?.recordLearningReview(item: updated, result: result);
     return updated;
   }
@@ -122,7 +138,11 @@ class ReviewScheduleService {
     return item.title.trim().isNotEmpty || item.content.trim().isNotEmpty;
   }
 
-  LearningReviewCard? _buildCard(LearningItem item) {
+  LearningReviewCard? _buildCard(
+    LearningItem item,
+    int index,
+    List<LearningItem> sessionItems,
+  ) {
     if (item.type == LearningItemType.questionMistake) {
       return LearningReviewCard(
         item: item,
@@ -136,7 +156,8 @@ class ReviewScheduleService {
     }
 
     final blank = _blankSource(item);
-    if (blank != null) {
+    final type = _cardTypeFor(item, index, canFillBlank: blank != null);
+    if (type == LearningReviewCardType.fillBlank && blank != null) {
       return LearningReviewCard(
         item: item,
         type: LearningReviewCardType.fillBlank,
@@ -149,14 +170,28 @@ class ReviewScheduleService {
     }
 
     final title = item.title.trim().isNotEmpty ? item.title : item.content;
+    if (type == LearningReviewCardType.meaningToWord) {
+      return LearningReviewCard(
+        item: item,
+        type: LearningReviewCardType.meaningToWord,
+        studyGoal: _studyGoal(item),
+        prompt: _meaningPrompt(item),
+        answer: title,
+        explanation: _explanation(item),
+        sourceText: item.sourceText,
+        options: _wordOptions(item, sessionItems),
+      );
+    }
+
     return LearningReviewCard(
       item: item,
-      type: LearningReviewCardType.wordMeaning,
+      type: LearningReviewCardType.contextMeaning,
       studyGoal: _studyGoal(item),
-      prompt: title,
+      prompt: _contextMeaningPrompt(item, title),
       answer: item.answer.trim().isNotEmpty ? item.answer : item.note,
       explanation: _explanation(item),
       sourceText: item.sourceText,
+      options: _meaningOptions(item, sessionItems),
     );
   }
 
@@ -212,8 +247,15 @@ class ReviewScheduleService {
     required LearningReviewResult result,
     required int reviewCount,
   }) {
-    if (result == LearningReviewResult.missed) {
+    if (result == LearningReviewResult.forgotten ||
+        result == LearningReviewResult.missed) {
+      return now.add(const Duration(hours: 6));
+    }
+    if (result == LearningReviewResult.vague) {
       return now.add(const Duration(days: 1));
+    }
+    if (result == LearningReviewResult.mastered) {
+      return now.add(const Duration(days: 30));
     }
 
     final days = reviewCount <= 1
@@ -224,5 +266,114 @@ class ReviewScheduleService {
         ? 7
         : 14;
     return now.add(Duration(days: days));
+  }
+
+  LearningReviewCardType _cardTypeFor(
+    LearningItem item,
+    int index, {
+    required bool canFillBlank,
+  }) {
+    if (item.type != LearningItemType.word) {
+      return canFillBlank
+          ? LearningReviewCardType.fillBlank
+          : LearningReviewCardType.contextMeaning;
+    }
+
+    final slot = (item.reviewCount + index) % 3;
+    return switch (slot) {
+      0 when canFillBlank => LearningReviewCardType.fillBlank,
+      1 => LearningReviewCardType.contextMeaning,
+      _ => LearningReviewCardType.meaningToWord,
+    };
+  }
+
+  String _contextMeaningPrompt(LearningItem item, String title) {
+    final source = item.sourceText.trim();
+    if (source.isEmpty) return '选择 "$title" 在当前阅读材料中的含义。';
+    return '在这句中，"$title" 最接近哪种含义？\n$source';
+  }
+
+  String _meaningPrompt(LearningItem item) {
+    final meaning = _firstNonEmpty([item.answer, item.note, item.content]);
+    if (meaning.isEmpty) return '根据释义选择对应的英文单词。';
+    return '选择与这个释义对应的英文单词：$meaning';
+  }
+
+  List<String> _meaningOptions(
+    LearningItem item,
+    List<LearningItem> sessionItems,
+  ) {
+    final answer = _firstNonEmpty([item.answer, item.note]);
+    if (answer.isEmpty) return const [];
+    final distractors = sessionItems
+        .where((candidate) => candidate.id != item.id)
+        .map((candidate) => _firstNonEmpty([candidate.answer, candidate.note]))
+        .where((value) => value.isNotEmpty && value != answer)
+        .toList();
+    return _options(answer, distractors);
+  }
+
+  List<String> _wordOptions(
+    LearningItem item,
+    List<LearningItem> sessionItems,
+  ) {
+    final answer = _firstNonEmpty([
+      item.title,
+      item.content,
+      item.canonicalKey,
+    ]);
+    if (answer.isEmpty) return const [];
+    final distractors = sessionItems
+        .where((candidate) => candidate.id != item.id)
+        .where((candidate) => candidate.type == LearningItemType.word)
+        .map(
+          (candidate) => _firstNonEmpty([
+            candidate.title,
+            candidate.content,
+            candidate.canonicalKey,
+          ]),
+        )
+        .where((value) => value.isNotEmpty && value != answer)
+        .toList();
+    return _options(answer, distractors);
+  }
+
+  List<String> _options(String answer, List<String> distractors) {
+    final unique = <String>[answer];
+    for (final value in distractors) {
+      if (unique.length >= 4) break;
+      if (!unique.contains(value)) unique.add(value);
+    }
+    unique.sort();
+    return unique;
+  }
+
+  String _firstNonEmpty(List<String> values) {
+    for (final value in values) {
+      final trimmed = value.trim();
+      if (trimmed.isNotEmpty) return trimmed;
+    }
+    return '';
+  }
+
+  Future<void> _recordVocabularyResult(
+    LearningItem item,
+    LearningReviewResult result,
+  ) async {
+    if (item.type != LearningItemType.word) return;
+    final vocabulary = _userVocabulary;
+    if (vocabulary == null) return;
+
+    final word = _firstNonEmpty([item.canonicalKey, item.title, item.content]);
+    if (word.isEmpty) return;
+    if (result == LearningReviewResult.mastered) {
+      await vocabulary.setKnown(word);
+      return;
+    }
+    if (result == LearningReviewResult.forgotten ||
+        result == LearningReviewResult.vague ||
+        result == LearningReviewResult.missed) {
+      await vocabulary.setLearning(word);
+    }
   }
 }

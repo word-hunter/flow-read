@@ -9,7 +9,14 @@ LearningItemType learningItemTypeFromName(String? value) {
   return LearningItemType.word;
 }
 
-enum LearningReviewResult { newItem, remembered, missed }
+enum LearningReviewResult {
+  newItem,
+  forgotten,
+  vague,
+  remembered,
+  mastered,
+  missed,
+}
 
 LearningReviewResult learningReviewResultFromName(String? value) {
   for (final result in LearningReviewResult.values) {
@@ -28,6 +35,20 @@ extension LearningItemTypeLabel on LearningItemType {
       LearningItemType.questionMistake => '错题',
     };
   }
+}
+
+extension LearningReviewResultSemantics on LearningReviewResult {
+  bool get isSuccessful {
+    return switch (this) {
+      LearningReviewResult.remembered || LearningReviewResult.mastered => true,
+      LearningReviewResult.newItem ||
+      LearningReviewResult.forgotten ||
+      LearningReviewResult.vague ||
+      LearningReviewResult.missed => false,
+    };
+  }
+
+  bool get isReviewAttempt => this != LearningReviewResult.newItem;
 }
 
 class LearningItem {

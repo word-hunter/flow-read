@@ -354,6 +354,7 @@ final reviewScheduleServiceProvider = Provider<ReviewScheduleService>((ref) {
   return ReviewScheduleService(
     ref.read(learningItemServiceProvider),
     readingMemory: ref.watch(readingMemoryServiceProvider),
+    userVocabulary: ref.watch(userVocabularyServiceProvider),
   );
 });
 

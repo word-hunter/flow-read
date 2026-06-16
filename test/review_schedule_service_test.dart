@@ -6,9 +6,11 @@ import 'package:flow_read/models/reading_memory.dart';
 import 'package:flow_read/services/learning_item_service.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
 import 'package:flow_read/services/review_schedule_service.dart';
+import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/storage/database/repositories/drift_learning_item_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_user_vocabulary_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/test_storage.dart';
@@ -74,9 +76,36 @@ void main() {
 
     final cards = schedule.buildSessionCards();
     expect(cards, hasLength(10));
+    expect(cards.map((card) => card.type).toSet(), {
+      LearningReviewCardType.fillBlank,
+      LearningReviewCardType.contextMeaning,
+      LearningReviewCardType.meaningToWord,
+    });
+  });
+
+  test('builds selectable context meaning and meaning-to-word cards', () async {
+    await _saveWord(learningItems, source, 'hesitate', definition: '犹豫');
+    await _saveWord(learningItems, source, 'gleam', definition: '微光');
+    await _saveWord(learningItems, source, 'conceal', definition: '隐藏');
+
+    final cards = schedule.buildSessionCards();
+
+    final contextMeaning = cards.singleWhere(
+      (card) => card.type == LearningReviewCardType.contextMeaning,
+    );
+    expect(contextMeaning.prompt, contains('gleam'));
+    expect(contextMeaning.prompt, contains('A sentence with gleam inside.'));
+    expect(contextMeaning.answer, '微光');
+    expect(contextMeaning.options, containsAll(['犹豫', '微光', '隐藏']));
+
+    final meaningToWord = cards.singleWhere(
+      (card) => card.type == LearningReviewCardType.meaningToWord,
+    );
+    expect(meaningToWord.prompt, contains('隐藏'));
+    expect(meaningToWord.answer, 'conceal');
     expect(
-      cards.every((card) => card.type == LearningReviewCardType.fillBlank),
-      isTrue,
+      meaningToWord.options,
+      containsAll(['hesitate', 'gleam', 'conceal']),
     );
   });
 
@@ -93,6 +122,65 @@ void main() {
     expect(updated.lastResult, LearningReviewResult.remembered);
     expect(updated.nextReviewAt, now.add(const Duration(days: 1)));
     expect(schedule.dueCount(), 0);
+  });
+
+  test(
+    'records four familiarity results with distinct next intervals',
+    () async {
+      final forgotten = await _saveWord(learningItems, source, 'forgotten');
+      final vague = await _saveWord(learningItems, source, 'vague');
+      final remembered = await _saveWord(learningItems, source, 'remembered');
+      final mastered = await _saveWord(learningItems, source, 'mastered');
+
+      final forgottenUpdate = await schedule.recordReview(
+        forgotten.id,
+        LearningReviewResult.forgotten,
+      );
+      final vagueUpdate = await schedule.recordReview(
+        vague.id,
+        LearningReviewResult.vague,
+      );
+      final rememberedUpdate = await schedule.recordReview(
+        remembered.id,
+        LearningReviewResult.remembered,
+      );
+      final masteredUpdate = await schedule.recordReview(
+        mastered.id,
+        LearningReviewResult.mastered,
+      );
+
+      expect(forgottenUpdate!.nextReviewAt, now.add(const Duration(hours: 6)));
+      expect(vagueUpdate!.nextReviewAt, now.add(const Duration(days: 1)));
+      expect(rememberedUpdate!.nextReviewAt, now.add(const Duration(days: 1)));
+      expect(masteredUpdate!.nextReviewAt, now.add(const Duration(days: 30)));
+      expect(forgottenUpdate.reviewCount, 0);
+      expect(vagueUpdate.reviewCount, 0);
+      expect(rememberedUpdate.reviewCount, 1);
+      expect(masteredUpdate.reviewCount, 1);
+    },
+  );
+
+  test('mastered review marks word vocabulary as known', () async {
+    final vocabulary = UserVocabularyService(
+      repository: DriftUserVocabularyRepository(
+        db.userVocabularyDao,
+        languageCode: 'en',
+      ),
+    );
+    await vocabulary.init();
+    final scheduleWithVocabulary = ReviewScheduleService(
+      learningItems,
+      clock: () => now,
+      userVocabulary: vocabulary,
+    );
+    final item = await _saveWord(learningItems, source, 'mastered');
+
+    await scheduleWithVocabulary.recordReview(
+      item.id,
+      LearningReviewResult.mastered,
+    );
+
+    expect(vocabulary.isKnown('mastered'), isTrue);
   });
 
   test('writes review results back to reading memory mastery', () async {
@@ -201,12 +289,13 @@ void main() {
 Future<LearningItem> _saveWord(
   LearningItemService service,
   LearningItemSource source,
-  String word,
-) async {
+  String word, {
+  String? definition,
+}) async {
   final result = await service.saveDraft(
     LearningItemDraft.word(
       word: word,
-      definition: 'meaning of $word',
+      definition: definition ?? 'meaning of $word',
       context: 'A sentence with $word inside.',
       source: source,
     ),

@@ -345,6 +345,8 @@ class ReadingMemoryService {
     KnowledgeMasteryState? existing,
   }) {
     return switch (result) {
+      LearningReviewResult.forgotten ||
+      LearningReviewResult.vague ||
       LearningReviewResult.missed => KnowledgeMasteryState.learning,
       LearningReviewResult.remembered =>
         reviewCount >= 2
@@ -352,6 +354,7 @@ class ReadingMemoryService {
             : existing == KnowledgeMasteryState.mastered
             ? KnowledgeMasteryState.mastered
             : KnowledgeMasteryState.learning,
+      LearningReviewResult.mastered => KnowledgeMasteryState.mastered,
       LearningReviewResult.newItem => existing ?? KnowledgeMasteryState.unknown,
     };
   }

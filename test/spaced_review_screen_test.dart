@@ -67,6 +67,7 @@ class _StubReviewScheduleService extends ReviewScheduleService {
   _StubReviewScheduleService(super.learningItemService);
 
   final List<LearningReviewCard> _cards = [];
+  final List<LearningReviewResult> recordedResults = [];
 
   void setCards(List<LearningReviewCard> cards) {
     _cards
@@ -84,6 +85,7 @@ class _StubReviewScheduleService extends ReviewScheduleService {
     LearningReviewResult result, {
     DateTime? reviewedAt,
   }) async {
+    recordedResults.add(result);
     return null;
   }
 
@@ -127,14 +129,15 @@ void main() {
     final learningItemService = LearningItemService(
       repository: _InMemoryLearningItemRepository(),
     );
-    final reviewService =
-        _StubReviewScheduleService(learningItemService);
+    final reviewService = _StubReviewScheduleService(learningItemService);
     reviewService.setCards(cards);
 
     await tester.pumpWidget(
       riverpod.ProviderScope(
         overrides: [
-          learningItemServiceProvider.overrideWith((ref) => learningItemService),
+          learningItemServiceProvider.overrideWith(
+            (ref) => learningItemService,
+          ),
           reviewScheduleServiceProvider.overrideWith((ref) => reviewService),
         ],
         child: const MaterialApp(home: SpacedReviewScreen()),
@@ -159,6 +162,78 @@ void main() {
     expect(find.text('On the back of her eyelids'), findsWidgets);
     expect(find.text('介词短语作地点状语。'), findsOneWidget);
     expect(find.text(sourceText), findsOneWidget);
+    expect(find.text('忘记'), findsOneWidget);
+    expect(find.text('模糊'), findsOneWidget);
+    expect(find.text('记得'), findsOneWidget);
+    expect(find.text('掌握'), findsOneWidget);
+  });
+
+  testWidgets('selectable quiz card records mastered feedback', (tester) async {
+    final item = LearningItem(
+      id: 'item-2',
+      type: LearningItemType.word,
+      canonicalKey: 'gleam',
+      title: 'gleam',
+      content: 'gleam',
+      answer: '微光',
+      note: '',
+      sourceText: 'A faint gleam reflected off the glass.',
+      bookId: 'book-1',
+      chapterIndex: 1,
+      chapterTitle: 'Chapter 2',
+      createdAt: DateTime.utc(2026, 5, 21),
+      updatedAt: DateTime.utc(2026, 5, 21),
+    );
+    final cards = [
+      LearningReviewCard(
+        item: item,
+        type: LearningReviewCardType.contextMeaning,
+        studyGoal: '练习查词后加入的语境词义，确认你能在原文中理解和回忆。',
+        prompt: '在这句中，"gleam" 最接近哪种含义？',
+        answer: '微光',
+        explanation: '',
+        sourceText: item.sourceText,
+        options: const ['隐藏', '微光', '犹豫'],
+      ),
+    ];
+
+    final learningItemService = LearningItemService(
+      repository: _InMemoryLearningItemRepository(),
+    );
+    final reviewService = _StubReviewScheduleService(learningItemService);
+    reviewService.setCards(cards);
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          learningItemServiceProvider.overrideWith(
+            (ref) => learningItemService,
+          ),
+          reviewScheduleServiceProvider.overrideWith((ref) => reviewService),
+        ],
+        child: const MaterialApp(home: SpacedReviewScreen()),
+      ),
+    );
+
+    expect(find.text('今日测验 · 1 / 1'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+    await tester.tap(find.text('微光'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '提交'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('答案'), findsOneWidget);
+    expect(find.text('你的选择：微光'), findsOneWidget);
+
+    final masteredButton = find.text('掌握').last;
+    await tester.ensureVisible(masteredButton);
+    await tester.pump();
+    await tester.tap(masteredButton);
+    await tester.pumpAndSettle();
+
+    expect(reviewService.recordedResults, [LearningReviewResult.mastered]);
+    expect(find.text('测验完成'), findsWidgets);
+    expect(find.text('掌握 1'), findsOneWidget);
   });
 
   testWidgets('close button avoids macOS traffic light title area', (
@@ -171,17 +246,16 @@ void main() {
       final learningItemService = LearningItemService(
         repository: _InMemoryLearningItemRepository(),
       );
-      final reviewService =
-          _StubReviewScheduleService(learningItemService);
+      final reviewService = _StubReviewScheduleService(learningItemService);
       reviewService.setCards(cards);
 
       await tester.pumpWidget(
         riverpod.ProviderScope(
           overrides: [
-            learningItemServiceProvider
-                .overrideWith((ref) => learningItemService),
-            reviewScheduleServiceProvider
-                .overrideWith((ref) => reviewService),
+            learningItemServiceProvider.overrideWith(
+              (ref) => learningItemService,
+            ),
+            reviewScheduleServiceProvider.overrideWith((ref) => reviewService),
           ],
           child: const MaterialApp(home: SpacedReviewScreen()),
         ),

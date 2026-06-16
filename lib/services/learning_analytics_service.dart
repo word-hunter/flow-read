@@ -235,10 +235,13 @@ class LearningAnalyticsService {
         .where((item) => item.lastResult != LearningReviewResult.newItem);
     final reviewed = reviewedItems.toList(growable: false);
     final remembered = reviewed
-        .where((item) => item.lastResult == LearningReviewResult.remembered)
+        .where((item) => item.lastResult.isSuccessful)
         .length;
     final missed = reviewed
-        .where((item) => item.lastResult == LearningReviewResult.missed)
+        .where(
+          (item) =>
+              item.lastResult.isReviewAttempt && !item.lastResult.isSuccessful,
+        )
         .length;
     final weeklyGoalSeconds = dailyGoalSeconds <= 0 ? 0 : dailyGoalSeconds * 6;
     final readingSeconds = readingTime?.secondsForWeek(target) ?? 0;

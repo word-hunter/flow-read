@@ -2,7 +2,7 @@
 
 > @source lib/services/ lib/providers/ packages/flow_ai/ packages/flow_dictionary/ packages/flow_language/ packages/flow_read_atmosphere/
 
-Last updated: 2026-06-15
+Last updated: 2026-06-16
 
 ## 服务分类
 
@@ -76,7 +76,7 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 | `WordContextService` | 单词在书中出现位置的上下文（Drift `word_contexts`） |
 | `LearningItemService` | 学习条目持久化（Drift `learning_items`） |
 | `LearningAnalyticsService` | 查词频率分析、章节报告、周报（Drift `learning_analytics`） |
-| `ReviewScheduleService` | 间隔重复调度，并将复习结果写回 Reading Memory masteryState |
+| `ReviewScheduleService` | 单词本今日测验卡生成、间隔重复调度、四档复习反馈，并将复习结果写回用户词汇状态与 Reading Memory masteryState |
 | `ReviewService` | 复习题目生成 |
 | `ReviewCandidateService` | 从保存解释、重复查词和学习中词生成复习候选（Drift `review_candidates`） |
 | `SourceScopeService` | 管理 book/rss/browser/manual 来源作用域、source cache 与 tombstone（Drift `source_records` / `source_scope_cache`） |

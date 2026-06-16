@@ -22,6 +22,9 @@ class _SpacedReviewScreenState
   final TextEditingController _answerController = TextEditingController();
   int _currentIndex = 0;
   int _rememberedCount = 0;
+  int _masteredCount = 0;
+  int _needsReviewCount = 0;
+  String? _selectedOption;
   bool _showAnswer = false;
   bool _allDone = false;
   bool _isSaving = false;
@@ -57,7 +60,7 @@ class _SpacedReviewScreenState
         return Scaffold(
           appBar: _ReviewAppBar(
             title: Text(
-              '今日复习 · ${_currentIndex + 1} / ${_cards.length}',
+              '今日测验 · ${_currentIndex + 1} / ${_cards.length}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             onClose: () => Navigator.pop(context),
@@ -72,7 +75,7 @@ class _SpacedReviewScreenState
     final theme = Theme.of(context);
     return Scaffold(
       appBar: _ReviewAppBar(
-        title: const Text('今日复习'),
+        title: const Text('今日测验'),
         onClose: () => Navigator.pop(context),
       ),
       body: Center(
@@ -120,7 +123,7 @@ class _SpacedReviewScreenState
         : (_rememberedCount * 100 / _cards.length).round();
     return Scaffold(
       appBar: _ReviewAppBar(
-        title: const Text('复习完成'),
+        title: const Text('测验完成'),
         onClose: () => Navigator.pop(context),
       ),
       body: Center(
@@ -136,7 +139,7 @@ class _SpacedReviewScreenState
               ),
               const SizedBox(height: 18),
               Text(
-                '复习完成',
+                '测验完成',
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -149,10 +152,20 @@ class _SpacedReviewScreenState
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              const SizedBox(height: 14),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  _DonePill(label: '掌握', value: _masteredCount),
+                  _DonePill(label: '需复习', value: _needsReviewCount),
+                ],
+              ),
               const SizedBox(height: 26),
               FlowButton.primary(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('返回首页'),
+                child: const Text('返回单词本'),
               ),
             ],
           ),
@@ -355,8 +368,9 @@ class _SpacedReviewScreenState
 
   Widget _buildPrompt(ThemeData theme, LearningReviewCard card) {
     final title = switch (card.type) {
-      LearningReviewCardType.wordMeaning => '回忆含义',
+      LearningReviewCardType.contextMeaning => '语境选义',
       LearningReviewCardType.fillBlank => '补全原句',
+      LearningReviewCardType.meaningToWord => '看中文选英文',
       LearningReviewCardType.questionMistake => '回顾错题',
     };
     final isFillBlank = card.type == LearningReviewCardType.fillBlank;
@@ -389,12 +403,17 @@ class _SpacedReviewScreenState
   }
 
   Widget _buildInput(ThemeData theme, LearningReviewCard card) {
+    if (card.options.isNotEmpty) {
+      return _buildOptions(theme, card);
+    }
+
     final maxLines = card.type == LearningReviewCardType.questionMistake
         ? 3
         : 1;
     final hintText = switch (card.type) {
-      LearningReviewCardType.wordMeaning => '输入你回忆出的含义',
+      LearningReviewCardType.contextMeaning => '输入你回忆出的含义',
       LearningReviewCardType.fillBlank => '输入空缺处的原文',
+      LearningReviewCardType.meaningToWord => '输入对应的英文单词',
       LearningReviewCardType.questionMistake => '输入你现在的答案',
     };
 
@@ -427,6 +446,42 @@ class _SpacedReviewScreenState
           borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.4),
         ),
       ),
+    );
+  }
+
+  Widget _buildOptions(ThemeData theme, LearningReviewCard card) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (final option in card.options)
+          ChoiceChip(
+            label: Text(option),
+            selected: _selectedOption == option,
+            onSelected: _isSaving
+                ? null
+                : (selected) {
+                    setState(() {
+                      _selectedOption = selected ? option : null;
+                    });
+                  },
+            labelStyle: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: _selectedOption == option
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.colorScheme.onSurface,
+            ),
+            selectedColor: theme.colorScheme.primaryContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(
+                color: _selectedOption == option
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -490,6 +545,18 @@ class _SpacedReviewScreenState
               height: 1.4,
             ),
           ),
+          if (card.options.isNotEmpty && _selectedOption != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              '你的选择：$_selectedOption',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer.withValues(
+                  alpha: 0.78,
+                ),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
           if (explanation.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
@@ -519,7 +586,9 @@ class _SpacedReviewScreenState
 
   Widget _buildActions(LearningReviewCard card) {
     if (!_showAnswer) {
-      final canSubmit = _answerController.text.trim().isNotEmpty;
+      final canSubmit = card.options.isNotEmpty
+          ? _selectedOption != null
+          : _answerController.text.trim().isNotEmpty;
       return Row(
         children: [
           Expanded(
@@ -541,28 +610,52 @@ class _SpacedReviewScreenState
       );
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: FlowButton.secondary(
-            onPressed: _isSaving
-                ? null
-                : () => _finishCard(LearningReviewResult.missed),
-            icon: const Icon(Icons.replay, size: 18),
-            child: const Text('没记住'),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: FlowButton.primary(
-            onPressed: _isSaving
-                ? null
-                : () => _finishCard(LearningReviewResult.remembered),
-            icon: const Icon(Icons.check, size: 18),
-            child: const Text('记住了'),
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = constraints.maxWidth >= 560
+            ? (constraints.maxWidth - 36) / 4
+            : (constraints.maxWidth - 12) / 2;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _FeedbackButton(
+              width: itemWidth,
+              label: '忘记',
+              icon: Icons.replay,
+              onPressed: _isSaving
+                  ? null
+                  : () => _finishCard(LearningReviewResult.forgotten),
+            ),
+            _FeedbackButton(
+              width: itemWidth,
+              label: '模糊',
+              icon: Icons.blur_on_outlined,
+              onPressed: _isSaving
+                  ? null
+                  : () => _finishCard(LearningReviewResult.vague),
+            ),
+            _FeedbackButton(
+              width: itemWidth,
+              label: '记得',
+              icon: Icons.check,
+              primary: true,
+              onPressed: _isSaving
+                  ? null
+                  : () => _finishCard(LearningReviewResult.remembered),
+            ),
+            _FeedbackButton(
+              width: itemWidth,
+              label: '掌握',
+              icon: Icons.verified_outlined,
+              primary: true,
+              onPressed: _isSaving
+                  ? null
+                  : () => _finishCard(LearningReviewResult.mastered),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -573,8 +666,9 @@ class _SpacedReviewScreenState
 
   IconData _typeIcon(LearningReviewCardType type) {
     return switch (type) {
-      LearningReviewCardType.wordMeaning => Icons.translate,
+      LearningReviewCardType.contextMeaning => Icons.travel_explore_outlined,
       LearningReviewCardType.fillBlank => Icons.short_text,
+      LearningReviewCardType.meaningToWord => Icons.translate_outlined,
       LearningReviewCardType.questionMistake => Icons.quiz_outlined,
     };
   }
@@ -592,15 +686,79 @@ class _SpacedReviewScreenState
     if (!mounted) return;
     _answerController.clear();
     setState(() {
-      if (result == LearningReviewResult.remembered) _rememberedCount++;
+      if (result.isSuccessful) _rememberedCount++;
+      if (result == LearningReviewResult.mastered) _masteredCount++;
+      if (!result.isSuccessful) _needsReviewCount++;
       _isSaving = false;
       _showAnswer = false;
+      _selectedOption = null;
       if (_currentIndex < _cards.length - 1) {
         _currentIndex++;
       } else {
         _allDone = true;
       }
     });
+  }
+}
+
+class _FeedbackButton extends StatelessWidget {
+  const _FeedbackButton({
+    required this.width,
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.primary = false,
+  });
+
+  final double width;
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = primary
+        ? FlowButton.primary(
+            onPressed: onPressed,
+            icon: Icon(icon, size: 18),
+            child: Text(label),
+          )
+        : FlowButton.secondary(
+            onPressed: onPressed,
+            icon: Icon(icon, size: 18),
+            child: Text(label),
+          );
+    return SizedBox(width: width, child: button);
+  }
+}
+
+class _DonePill extends StatelessWidget {
+  const _DonePill({required this.label, required this.value});
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      child: Text(
+        '$label $value',
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
   }
 }
 

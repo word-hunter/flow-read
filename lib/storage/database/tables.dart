@@ -328,7 +328,8 @@ class LearningItems extends Table {
   List<String> get customConstraints => [
     'CHECK(type IN (\'word\', \'sentence\', \'grammar\','
         ' \'expression\', \'questionMistake\'))',
-    'CHECK(last_result IN (\'newItem\', \'remembered\', \'missed\'))',
+    'CHECK(last_result IN (\'newItem\', \'forgotten\', \'vague\','
+        ' \'remembered\', \'mastered\', \'missed\'))',
     'FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE SET NULL',
   ];
 }

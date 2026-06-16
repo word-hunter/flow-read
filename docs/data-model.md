@@ -2,7 +2,7 @@
 
 > @source lib/models/ lib/storage/database/tables.dart packages/flow_ai/lib/src/models/ packages/flow_dictionary/lib/src/ packages/flow_rss/lib/src/rss_models.dart
 
-Last updated: 2026-06-15
+Last updated: 2026-06-16
 
 ## Runtime Persistence
 
@@ -56,6 +56,7 @@ Generated model adapters are no longer part of the runtime model contract.
 | `UserVocabularyEntry` | Vocabulary entry with status, timestamps, and source metadata |
 | `WordLevelInfo` | Built-in word-level index row |
 | `LearningItem` | Review/practice item with scheduling metadata |
+| `LearningReviewResult` | Review feedback state: new item, forgotten, vague, remembered, mastered, and legacy missed |
 | `WordContextExample` | Imported or captured sentence context |
 | `BookGlossaryEntry` | Per-book glossary explanation and access timestamps |
 | `MemorySourceRecord` | Book/RSS/browser/manual source scope metadata and tombstone state |
