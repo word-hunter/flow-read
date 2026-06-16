@@ -1,18 +1,17 @@
 import 'dart:async';
+
+import 'package:flow_design_system/flow_design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import '../models/aggregated_vocabulary.dart';
-import '../models/learning_item.dart';
+
 import '../models/user_vocabulary.dart';
+import '../models/wordbook_dashboard.dart';
+import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
-import 'package:flow_language/flow_language.dart';
-import 'package:flow_design_system/flow_design_system.dart';
 import '../widgets/flow/flow_components.dart';
 import '../widgets/word_bottom_sheet.dart';
 import '../widgets/word_mastery_confetti.dart';
-
-enum _VocabularyView { words, cards }
 
 class VocabularyScreen extends riverpod.ConsumerStatefulWidget {
   const VocabularyScreen({super.key});
@@ -23,12 +22,13 @@ class VocabularyScreen extends riverpod.ConsumerStatefulWidget {
 }
 
 class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
-  bool _sortAlpha = false;
-  _VocabularyView _view = _VocabularyView.words;
+  static const _wideLayoutBreakpoint = 1080.0;
+  static const _contentMaxWidth = 1220.0;
+
   final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  String? _languageFilter;
   Timer? _debounce;
+  WordbookFilter _filter = WordbookFilter.due;
+  String _query = '';
 
   @override
   void initState() {
@@ -46,9 +46,10 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
 
   void _onSearchChanged() {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 200), () {
+    _debounce = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
       setState(() {
-        _searchQuery = _searchController.text.toLowerCase().trim();
+        _query = _searchController.text.trim();
       });
     });
   }
@@ -57,694 +58,694 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
   Widget build(BuildContext context) {
     ref.watch(vocabularyNotifierProvider);
     final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
-    final lookupNotifier = ref.read(wordLookupNotifierProvider.notifier);
-    final theme = Theme.of(context);
-    final allVocab = vocabularyNotifier.getAllVocabulary(
-      alphabetical: _sortAlpha,
+    final books = ref.watch(bookServiceProvider).books;
+    final now = DateTime.now();
+    final dashboard = const WordbookDashboardBuilder().build(
+      vocabulary: vocabularyNotifier.getAllVocabulary(),
+      learningItems: vocabularyNotifier.learningItems,
+      statusFor: vocabularyNotifier.getWordStatus,
+      bookTitlesById: {for (final book in books) book.id: book.title},
+      now: now,
     );
-    final allLearningItems = vocabularyNotifier.learningItems;
-    final languageOptions = _languageOptionsFor(allVocab);
-    final effectiveLanguageFilter = languageOptions.contains(_languageFilter)
-        ? _languageFilter
-        : null;
-
-    final filtered = allVocab
-        .where((v) => _matchesVocabulary(v, effectiveLanguageFilter))
-        .toList();
-    final filteredLearningItems = _searchQuery.isEmpty
-        ? allLearningItems
-        : allLearningItems.where((item) => _matchesLearningItem(item)).toList();
-
-    final unknownCount = filtered
-        .where((v) => vocabularyNotifier.getWordStatus(v.word) == null)
-        .length;
-    final learningCount = filtered
-        .where(
-          (v) =>
-              vocabularyNotifier.getWordStatus(v.word) ==
-              UserWordStatus.learning,
-        )
-        .length;
+    final visibleEntries = dashboard.visibleEntries(
+      filter: _filter,
+      query: _query,
+      now: now,
+    );
 
     return Scaffold(
-      appBar: FlowToolbar(
-        title: const Text(
-          'Vocabulary',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        centerTitle: false,
-      ),
-      body: Column(
-        children: [
-          _buildSearchBar(theme, languageOptions, effectiveLanguageFilter),
-          _buildViewToggle(theme),
-          if (_view == _VocabularyView.words) ...[
-            _buildStatsBar(theme, filtered.length, unknownCount, learningCount),
-            _buildSortToggle(theme),
-            Expanded(
-              child: filtered.isEmpty
-                  ? _buildEmptyState(theme)
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final vocab = filtered[index];
-                        return _VocabItem(
-                          vocab: vocab,
-                          status: vocabularyNotifier.getWordStatus(vocab.word),
-                          onMarkKnown: (origin) =>
-                              vocabularyNotifier.markWordKnown(
-                                vocab.word,
-                                celebrationOrigin: origin,
-                              ),
-                          onMarkLearning: () =>
-                              vocabularyNotifier.markWordLearning(vocab.word),
-                          onMarkUnknown: () =>
-                              vocabularyNotifier.markWordUnknown(vocab.word),
-                          onTap: () =>
-                              _openWordDetail(context, lookupNotifier, vocab),
-                        );
-                      },
-                    ),
-            ),
-          ] else ...[
-            _buildLearningItemStatsBar(theme, filteredLearningItems),
-            Expanded(
-              child: filteredLearningItems.isEmpty
-                  ? _buildLearningItemEmptyState(theme)
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                      itemCount: filteredLearningItems.length,
-                      itemBuilder: (context, index) {
-                        final item = filteredLearningItems[index];
-                        return _LearningItemCard(
-                          item: item,
-                          onDelete: () =>
-                              vocabularyNotifier.deleteLearningItem(item.id),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  bool _matchesLearningItem(LearningItem item) {
-    final query = _searchQuery.toLowerCase();
-    return item.title.toLowerCase().contains(query) ||
-        item.content.toLowerCase().contains(query) ||
-        item.answer.toLowerCase().contains(query) ||
-        item.note.toLowerCase().contains(query) ||
-        item.sourceText.toLowerCase().contains(query);
-  }
-
-  bool _matchesVocabulary(
-    AggregatedVocabulary vocab,
-    String? languageFilter,
-  ) {
-    if (languageFilter != null && vocab.languageId != languageFilter) {
-      return false;
-    }
-    if (_searchQuery.isEmpty) return true;
-    return vocab.word.toLowerCase().contains(_searchQuery);
-  }
-
-  List<String> _languageOptionsFor(List<AggregatedVocabulary> vocabulary) {
-    final languageIds =
-        vocabulary
-            .map((vocab) => vocab.languageId.toLowerCase().trim())
-            .where((code) => code.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
-    return languageIds;
-  }
-
-  void _openWordDetail(
-    BuildContext context,
-    WordLookupNotifier lookupNotifier,
-    AggregatedVocabulary vocab,
-  ) {
-    lookupNotifier.lookupWord(vocab.word, contextText: vocab.context);
-    showFlowSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => WordBottomSheet(word: vocab.word),
-    ).whenComplete(lookupNotifier.clearWordLookup);
-  }
-
-  Widget _buildSearchBar(
-    ThemeData theme,
-    List<String> languageOptions,
-    String? selectedLanguageId,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: FlowTextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: _view == _VocabularyView.words
-                    ? 'Search words...'
-                    : 'Search learning cards...',
-                hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                prefixIcon: Icon(
-                  Icons.search,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () => _searchController.clear(),
-                      )
-                    : null,
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.3,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-            ),
-          ),
-          if (_view == _VocabularyView.words && languageOptions.isNotEmpty) ...[
-            const SizedBox(width: 8),
-            _buildLanguageFilter(theme, languageOptions, selectedLanguageId),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLanguageFilter(
-    ThemeData theme,
-    List<String> languageOptions,
-    String? selectedLanguageId,
-  ) {
-    return Tooltip(
-      message: 'Language',
-      child: Container(
-        height: 48,
-        constraints: const BoxConstraints(minWidth: 82),
-        padding: const EdgeInsets.only(left: 10, right: 6),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.3,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String?>(
-            value: selectedLanguageId,
-            isDense: true,
-            icon: const Icon(Icons.expand_more, size: 18),
-            items: [
-              const DropdownMenuItem<String?>(
-                value: null,
-                child: Text('All'),
-              ),
-              ...languageOptions.map(
-                (code) => DropdownMenuItem<String?>(
-                  value: code,
-                  child: Text(_languageLabel(code)),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= _wideLayoutBreakpoint;
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    isWide ? 28 : 16,
+                    isWide ? 24 : 14,
+                    isWide ? 28 : 16,
+                    18,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildTopBar(context, dashboard),
+                      const SizedBox(height: 22),
+                      _buildHeading(context),
+                      const SizedBox(height: 18),
+                      if (isWide)
+                        Expanded(
+                          child: _buildWideLayout(
+                            context,
+                            dashboard,
+                            visibleEntries,
+                            vocabularyNotifier,
+                          ),
+                        )
+                      else
+                        Expanded(
+                          child: _buildNarrowLayout(
+                            context,
+                            dashboard,
+                            visibleEntries,
+                            vocabularyNotifier,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _languageFilter = value;
-              });
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _languageLabel(String code) {
-    final normalized = code.toLowerCase().trim();
-    final module = LanguageRegistry.instance.get(normalized);
-    return (module?.languageCode ?? normalized).toUpperCase();
-  }
-
-  Widget _buildViewToggle(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
-      child: SizedBox(
-        width: double.infinity,
-        child: SegmentedButton<_VocabularyView>(
-          selected: {_view},
-          onSelectionChanged: (value) {
-            setState(() {
-              _view = value.single;
-            });
+            );
           },
-          segments: const [
-            ButtonSegment(
-              value: _VocabularyView.words,
-              icon: Icon(Icons.text_fields_outlined, size: 18),
-              label: Text('Words'),
-            ),
-            ButtonSegment(
-              value: _VocabularyView.cards,
-              icon: Icon(Icons.add_card_outlined, size: 18),
-              label: Text('Cards'),
-            ),
-          ],
-          style: ButtonStyle(
-            visualDensity: VisualDensity.compact,
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatsBar(ThemeData theme, int total, int unknown, int learning) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-      child: Row(
-        children: [
-          Text(
-            '$total words',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          if (unknown > 0) ...[
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: FunctionalColors.familiarityLow.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '$unknown new',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: FunctionalColors.familiarityLow,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-          if (learning > 0) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: FunctionalColors.vocabLearning.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '$learning learning',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: FunctionalColors.vocabLearning,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSortToggle(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-      child: Row(
-        children: [
-          _sortChip(
-            label: 'By Order',
-            selected: !_sortAlpha,
-            onTap: () => setState(() => _sortAlpha = false),
-          ),
-          const SizedBox(width: 8),
-          _sortChip(
-            label: 'A-Z',
-            selected: _sortAlpha,
-            onTap: () => setState(() => _sortAlpha = true),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLearningItemStatsBar(ThemeData theme, List<LearningItem> items) {
-    final wordCount = items
-        .where((item) => item.type == LearningItemType.word)
-        .length;
-    final sentenceCount = items
-        .where((item) => item.type == LearningItemType.sentence)
-        .length;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-      child: Row(
-        children: [
-          Text(
-            '${items.length} cards',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          if (wordCount > 0) ...[
-            const SizedBox(width: 10),
-            _statPill('$wordCount words', FunctionalColors.vocabLearning),
-          ],
-          if (sentenceCount > 0) ...[
-            const SizedBox(width: 6),
-            _statPill('$sentenceCount passages', theme.colorScheme.tertiary),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _statPill(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          color: color,
+  Widget _buildTopBar(BuildContext context, WordbookDashboard dashboard) {
+    final theme = Theme.of(context);
+    final searchField = FlowTextField(
+      controller: _searchController,
+      decoration: InputDecoration(
+        hintText: '搜索单词、释义或来源书籍',
+        hintStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w600,
         ),
+        prefixIcon: Icon(
+          Icons.search,
+          size: 20,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        suffixIcon: _query.isNotEmpty
+            ? IconButton(
+                tooltip: '清除搜索',
+                icon: const Icon(Icons.close, size: 18),
+                onPressed: () => _searchController.clear(),
+              )
+            : null,
+        filled: true,
+        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.34,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(
+              alpha: 0.58,
+            ),
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(
+              alpha: 0.42,
+            ),
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 12),
       ),
+    );
+    final startButton = FlowButton.primary(
+      onPressed: dashboard.dueCount > 0 ? _startTodayReview : null,
+      icon: const Icon(Icons.fact_check_outlined, size: 18),
+      child: const Text('开始今日测验'),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 560) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              searchField,
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: startButton,
+              ),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: searchField),
+            const SizedBox(width: 16),
+            startButton,
+          ],
+        );
+      },
     );
   }
 
-  Widget _sortChip({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildHeading(BuildContext context) {
     final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        decoration: BoxDecoration(
-          color: selected
-              ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.5,
-                ),
-          borderRadius: BorderRadius.circular(8),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '单词本',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: theme.colorScheme.onSurface,
+          ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
+        const SizedBox(height: 4),
+        Text(
+          '所有生词均来自阅读材料',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w600,
-            color: selected
-                ? theme.colorScheme.onPrimaryContainer
-                : theme.colorScheme.onSurfaceVariant,
           ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.menu_book_outlined,
-            size: 56,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+  Widget _buildWideLayout(
+    BuildContext context,
+    WordbookDashboard dashboard,
+    List<WordbookEntry> entries,
+    VocabularyNotifier vocabularyNotifier,
+  ) {
+    return Column(
+      children: [
+        _buildStatsGrid(context, dashboard),
+        const SizedBox(height: 18),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildReviewSummary(context, dashboard),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: _buildEntryPanel(
+                        context,
+                        dashboard,
+                        entries,
+                        vocabularyNotifier,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              SizedBox(
+                width: 310,
+                child: _buildSidePanel(context, dashboard),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Import a book to see vocabulary',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildLearningItemEmptyState(ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.add_card_outlined,
-            size: 56,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+  Widget _buildNarrowLayout(
+    BuildContext context,
+    WordbookDashboard dashboard,
+    List<WordbookEntry> entries,
+    VocabularyNotifier vocabularyNotifier,
+  ) {
+    return ListView(
+      children: [
+        _buildStatsGrid(context, dashboard),
+        const SizedBox(height: 14),
+        _buildReviewSummary(context, dashboard),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 520,
+          child: _buildEntryPanel(
+            context,
+            dashboard,
+            entries,
+            vocabularyNotifier,
           ),
-          const SizedBox(height: 16),
-          Text(
-            'No learning cards yet',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 14),
+        _buildSidePanel(context, dashboard),
+      ],
     );
   }
-}
 
-class _VocabItem extends StatelessWidget {
-  final AggregatedVocabulary vocab;
-  final UserWordStatus? status;
-  final ValueChanged<Offset?> onMarkKnown;
-  final VoidCallback onMarkLearning;
-  final VoidCallback onMarkUnknown;
-  final VoidCallback onTap;
+  Widget _buildStatsGrid(BuildContext context, WordbookDashboard dashboard) {
+    final stats = [
+      _WordbookStat(
+        label: '今日应复习',
+        value: dashboard.dueCount.toString(),
+        icon: Icons.event_available_outlined,
+        color: const Color(0xFFE7A51A),
+      ),
+      _WordbookStat(
+        label: '学习中',
+        value: dashboard.learningCount.toString(),
+        icon: Icons.menu_book_outlined,
+        color: const Color(0xFF1C73E8),
+      ),
+      _WordbookStat(
+        label: '已掌握',
+        value: dashboard.masteredCount.toString(),
+        icon: Icons.check_circle_outline,
+        color: FunctionalColors.familiarityHigh,
+      ),
+      _WordbookStat(
+        label: '连续复习',
+        value: '${dashboard.reviewStreakDays} 天',
+        icon: Icons.local_fire_department_outlined,
+        color: const Color(0xFF8B5CF6),
+      ),
+    ];
 
-  const _VocabItem({
-    required this.vocab,
-    required this.status,
-    required this.onMarkKnown,
-    required this.onMarkLearning,
-    required this.onMarkUnknown,
-    required this.onTap,
-  });
-
-  Color get _statusColor {
-    if (status == UserWordStatus.learning) return FunctionalColors.vocabLearning;
-    return FunctionalColors.familiarityLow;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columnCount = constraints.maxWidth >= 760 ? 4 : 2;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: stats.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columnCount,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: columnCount == 4 ? 2.75 : 2.35,
+          ),
+          itemBuilder: (context, index) => _StatCard(stat: stats[index]),
+        );
+      },
+    );
   }
 
-  Color _levelColor(String level) {
-    switch (level) {
-      case 'Primary School':
-        return Colors.green;
-      case 'Middle School':
-        return Colors.teal;
-      case 'High School':
-        return Colors.blue;
-      case 'CET-4':
-        return Colors.orange;
-      case 'CET-6':
-        return Colors.deepOrange;
-      case 'GRE':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _languageLabel(String code) => code.toUpperCase();
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildReviewSummary(
+    BuildContext context,
+    WordbookDashboard dashboard,
+  ) {
     final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.15),
+    final totalTarget = dashboard.dueCount == 0
+        ? 20
+        : dashboard.dueCount.clamp(1, 20);
+    return _PanelSurface(
+      child: Row(
+        children: [
+          SizedBox(
+            width: 116,
+            height: 116,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox.expand(
+                  child: CircularProgressIndicator(
+                    value: totalTarget == 0
+                        ? 0
+                        : (dashboard.dueCount / totalTarget)
+                              .clamp(0, 1)
+                              .toDouble(),
+                    strokeWidth: 9,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    color: const Color(0xFFE7A51A),
+                  ),
+                ),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: dashboard.dueCount.toString(),
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' / $totalTarget',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
+          const SizedBox(width: 28),
+          Container(
+            width: 1,
+            height: 92,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+          const SizedBox(width: 28),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        vocab.word,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: _statusColor,
-                          fontFamily: 'Serif',
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondaryContainer.withValues(
-                          alpha: 0.5,
-                        ),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        _languageLabel(vocab.languageId),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: 10,
-                          color: theme.colorScheme.onSecondaryContainer,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    if (vocab.level != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _levelColor(
-                            vocab.level!,
-                          ).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          vocab.level!,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: _levelColor(vocab.level!),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    if (vocab.level != null) const SizedBox(width: 4),
-                    if (status == UserWordStatus.learning)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: FunctionalColors.vocabLearning.withValues(
-                            alpha: 0.12,
-                          ),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'learning',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: FunctionalColors.vocabLearning,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '位置 ${vocab.firstChapter + 1}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.6,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
                 Text(
-                  vocab.meaning,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  '今日复习',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    if (status != UserWordStatus.known)
-                      WordMasteryActionAnchor(
-                        builder: (context, origin) => _miniButton(
-                          label: 'Known',
-                          color: FunctionalColors.familiarityHigh,
-                          onTap: () => onMarkKnown(origin()),
-                        ),
-                      ),
-                    if (status != UserWordStatus.learning)
-                      _miniButton(
-                        label: 'Learning',
-                        color: FunctionalColors.vocabLearning,
-                        onTap: onMarkLearning,
-                      ),
-                    if (status != null)
-                      _miniButton(
-                        label: 'Unknown',
-                        color: FunctionalColors.familiarityLow,
-                        onTap: onMarkUnknown,
-                      ),
-                  ],
+                Text(
+                  dashboard.dueCount > 0
+                      ? '基于阅读上下文生成题目'
+                      : '暂无到期词，继续阅读或保存学习项后会自动进入队列',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FlowButton.primary(
+                  onPressed: dashboard.dueCount > 0 ? _startTodayReview : null,
+                  icon: const Icon(Icons.play_arrow, size: 18),
+                  child: const Text('开始今日测验'),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEntryPanel(
+    BuildContext context,
+    WordbookDashboard dashboard,
+    List<WordbookEntry> entries,
+    VocabularyNotifier vocabularyNotifier,
+  ) {
+    final theme = Theme.of(context);
+    return _PanelSurface(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            child: Row(
+              children: [
+                Expanded(child: _buildFilterChips()),
+                const SizedBox(width: 10),
+                Tooltip(
+                  message: '筛选',
+                  child: IconButton(
+                    onPressed: () =>
+                        setState(() => _filter = WordbookFilter.due),
+                    icon: const Icon(Icons.filter_list, size: 20),
+                    style: IconButton.styleFrom(
+                      fixedSize: const Size(40, 40),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(
+                          color: theme.colorScheme.outlineVariant.withValues(
+                            alpha: 0.55,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _TableHeader(theme: theme),
+          Expanded(
+            child: entries.isEmpty
+                ? _buildEmptyList(context, dashboard)
+                : ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: entries.length,
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.45,
+                      ),
+                    ),
+                    itemBuilder: (context, index) {
+                      final entry = entries[index];
+                      return _WordbookEntryRow(
+                        entry: entry,
+                        onTap: () => _openWordDetail(context, entry),
+                        onMarkKnown: (origin) => _markKnown(
+                          vocabularyNotifier,
+                          entry.word,
+                          origin,
+                        ),
+                        onMarkLearning: () => _markLearning(
+                          vocabularyNotifier,
+                          entry.word,
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+            child: Row(
+              children: [
+                Text(
+                  '共 ${entries.length} 个单词',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: '上一页',
+                  onPressed: null,
+                  icon: const Icon(Icons.chevron_left),
+                ),
+                const SizedBox(width: 4),
+                FilledButton(
+                  onPressed: null,
+                  style: FilledButton.styleFrom(
+                    fixedSize: const Size(40, 36),
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('1'),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: '下一页',
+                  onPressed: null,
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final filter in WordbookFilter.values) ...[
+            _FilterChip(
+              label: filter.label,
+              selected: _filter == filter,
+              onTap: () => setState(() => _filter = filter),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyList(BuildContext context, WordbookDashboard dashboard) {
+    final theme = Theme.of(context);
+    final hasQuery = _query.trim().isNotEmpty;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              hasQuery ? Icons.search_off : Icons.collections_bookmark_outlined,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.42),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              hasQuery ? '没有匹配的单词' : '暂无${_filter.label}单词',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              dashboard.entries.isEmpty ? '阅读中保存的词会出现在这里。' : '可以切换筛选或调整搜索词。',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _miniButton({
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            border: Border.all(color: color.withValues(alpha: 0.3)),
-            borderRadius: BorderRadius.circular(6),
+  Widget _buildSidePanel(BuildContext context, WordbookDashboard dashboard) {
+    return Column(
+      children: [
+        _SourcesPanel(sources: dashboard.sourceSummaries.take(3).toList()),
+        const SizedBox(height: 14),
+        const _QuestionTypesPanel(),
+      ],
+    );
+  }
+
+  void _startTodayReview() {
+    Navigator.pushNamed(context, '/spaced_review');
+  }
+
+  void _openWordDetail(BuildContext context, WordbookEntry entry) {
+    final lookupNotifier = ref.read(wordLookupNotifierProvider.notifier);
+    lookupNotifier.lookupWord(entry.word, contextText: entry.sourceContext);
+    showFlowSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => WordBottomSheet(word: entry.word),
+    ).whenComplete(lookupNotifier.clearWordLookup);
+  }
+
+  Future<void> _markKnown(
+    VocabularyNotifier vocabularyNotifier,
+    String word,
+    Offset? origin,
+  ) async {
+    await vocabularyNotifier.markWordKnown(word, celebrationOrigin: origin);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _markLearning(
+    VocabularyNotifier vocabularyNotifier,
+    String word,
+  ) async {
+    await vocabularyNotifier.markWordLearning(word);
+    if (mounted) setState(() {});
+  }
+}
+
+class _WordbookStat {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _WordbookStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.stat});
+
+  final _WordbookStat stat;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _PanelSurface(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: stat.color.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(stat.icon, color: stat.color, size: 25),
           ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  stat.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  stat.value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: selected
+          ? theme.colorScheme.primary
+          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.42),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 36),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          alignment: Alignment.center,
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-              fontWeight: FontWeight.w600,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: selected
+                  ? theme.colorScheme.onPrimary
+                  : theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -753,158 +754,495 @@ class _VocabItem extends StatelessWidget {
   }
 }
 
-class _LearningItemCard extends StatelessWidget {
-  final LearningItem item;
-  final VoidCallback onDelete;
+class _TableHeader extends StatelessWidget {
+  const _TableHeader({required this.theme});
 
-  const _LearningItemCard({required this.item, required this.onDelete});
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = theme.textTheme.labelMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      fontWeight: FontWeight.w800,
+    );
+    return Container(
+      height: 42,
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.38),
+          ),
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.58),
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Expanded(flex: 18, child: Text('单词', style: labelStyle)),
+          Expanded(flex: 18, child: Text('释义', style: labelStyle)),
+          Expanded(flex: 18, child: Text('来源', style: labelStyle)),
+          Expanded(flex: 24, child: Text('原句上下文', style: labelStyle)),
+          SizedBox(width: 76, child: Text('熟悉度', style: labelStyle)),
+          SizedBox(width: 78, child: Text('下次复习', style: labelStyle)),
+          const SizedBox(width: 46),
+        ],
+      ),
+    );
+  }
+}
+
+class _WordbookEntryRow extends StatelessWidget {
+  const _WordbookEntryRow({
+    required this.entry,
+    required this.onTap,
+    required this.onMarkKnown,
+    required this.onMarkLearning,
+  });
+
+  final WordbookEntry entry;
+  final VoidCallback onTap;
+  final ValueChanged<Offset?> onMarkKnown;
+  final VoidCallback onMarkLearning;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final subtitle = _firstNonEmpty([item.answer, item.note, item.sourceText]);
-    final location = item.chapterIndex >= 0
-        ? '位置 ${item.chapterIndex + 1}'
-        : '未关联书籍';
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 18,
+              child: _WordCell(word: entry.word),
+            ),
+            Expanded(
+              flex: 18,
+              child: _OneLineText(
+                entry.meaning.isEmpty ? '暂无释义' : entry.meaning,
+                color: theme.colorScheme.onSurfaceVariant,
+                weight: FontWeight.w600,
+              ),
+            ),
+            Expanded(
+              flex: 18,
+              child: _OneLineText(
+                _sourceLabel(entry),
+                color: theme.colorScheme.onSurfaceVariant,
+                weight: FontWeight.w600,
+              ),
+            ),
+            Expanded(
+              flex: 24,
+              child: _OneLineText(
+                entry.sourceContext.isEmpty ? '暂无上下文' : entry.sourceContext,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            SizedBox(
+              width: 76,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _FamiliarityBadge(entry: entry),
+              ),
+            ),
+            SizedBox(
+              width: 78,
+              child: Text(
+                _nextReviewLabel(entry),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: _nextReviewColor(context, entry),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 46,
+              child: _RowActions(
+                status: entry.status,
+                onMarkKnown: onMarkKnown,
+                onMarkLearning: onMarkLearning,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.18),
+  String _sourceLabel(WordbookEntry entry) {
+    if (entry.sourceDetail.isEmpty) return entry.sourceTitle;
+    return '${entry.sourceTitle} · ${entry.sourceDetail}';
+  }
+
+  String _nextReviewLabel(WordbookEntry entry) {
+    if (!entry.fromLearningItem) return '未安排';
+    final value = entry.nextReviewAt;
+    if (value.millisecondsSinceEpoch == 0) return '今天';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(value.year, value.month, value.day);
+    final dayDelta = target.difference(today).inDays;
+    if (dayDelta <= 0) return '今天';
+    if (dayDelta == 1) return '明天';
+    return '$dayDelta 天后';
+  }
+
+  Color _nextReviewColor(BuildContext context, WordbookEntry entry) {
+    if (_nextReviewLabel(entry) == '今天') return const Color(0xFFE87512);
+    return Theme.of(context).colorScheme.onSurfaceVariant;
+  }
+}
+
+class _WordCell extends StatelessWidget {
+  const _WordCell({required this.word});
+
+  final String word;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          word,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: theme.colorScheme.onSurface,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        const SizedBox(height: 2),
+        Text(
+          '/${word.toLowerCase()}/',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OneLineText extends StatelessWidget {
+  const _OneLineText(
+    this.text, {
+    required this.color,
+    this.weight = FontWeight.w500,
+  });
+
+  final String text;
+  final Color color;
+  final FontWeight weight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 14),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: color,
+          fontWeight: weight,
+        ),
+      ),
+    );
+  }
+}
+
+class _FamiliarityBadge extends StatelessWidget {
+  const _FamiliarityBadge({required this.entry});
+
+  final WordbookEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = entry.status == UserWordStatus.known
+        ? FunctionalColors.familiarityHigh
+        : entry.reviewCount == 0
+        ? FunctionalColors.vocabLearning
+        : Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: color.withValues(alpha: 0.26)),
+      ),
+      child: Text(
+        entry.isMastered ? '已掌握' : entry.familiarityLabel,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _RowActions extends StatelessWidget {
+  const _RowActions({
+    required this.status,
+    required this.onMarkKnown,
+    required this.onMarkLearning,
+  });
+
+  final UserWordStatus? status;
+  final ValueChanged<Offset?> onMarkKnown;
+  final VoidCallback onMarkLearning;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: '操作',
+      icon: const Icon(Icons.chevron_right, size: 20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      itemBuilder: (context) => [
+        if (status != UserWordStatus.learning)
+          const PopupMenuItem(
+            value: 'learning',
+            child: Text('标为学习中'),
+          ),
+        if (status != UserWordStatus.known)
+          PopupMenuItem(
+            value: 'known',
+            child: WordMasteryActionAnchor(
+              builder: (context, origin) => const Text('标为已掌握'),
+            ),
+          ),
+      ],
+      onSelected: (value) {
+        if (value == 'learning') {
+          onMarkLearning();
+          return;
+        }
+        onMarkKnown(null);
+      },
+    );
+  }
+}
+
+class _SourcesPanel extends StatelessWidget {
+  const _SourcesPanel({required this.sources});
+
+  final List<WordbookSourceSummary> sources;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _PanelSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _typeBadge(theme),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      item.title.isEmpty ? item.content : item.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onSurface,
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                  Tooltip(
-                    message: '删除',
-                    child: IconButton(
-                      onPressed: onDelete,
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (subtitle.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  subtitle,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.45,
+              Expanded(
+                child: Text(
+                  '来源书籍',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ],
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    Icons.place_outlined,
-                    size: 14,
-                    color: theme.colorScheme.onSurfaceVariant.withValues(
-                      alpha: 0.7,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      item.chapterTitle.isNotEmpty
-                          ? '$location · ${item.chapterTitle}'
-                          : location,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.7,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    _formatDate(item.createdAt),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.7,
-                      ),
-                    ),
-                  ),
-                ],
+              ),
+              TextButton(
+                onPressed: null,
+                child: const Text('查看全部'),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 12),
+          if (sources.isEmpty)
+            Text(
+              '保存阅读中的词后会显示来源分布。',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            )
+          else
+            ...sources.map(
+              (source) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 52,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.55,
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        _bookInitial(source.title),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            source.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${source.wordCount} 个单词',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _typeBadge(ThemeData theme) {
-    final color = switch (item.type) {
-      LearningItemType.word => FunctionalColors.vocabLearning,
-      LearningItemType.sentence => theme.colorScheme.primary,
-      LearningItemType.grammar => theme.colorScheme.tertiary,
-      LearningItemType.expression => Colors.indigo,
-      LearningItemType.questionMistake => theme.colorScheme.error,
-    };
+  String _bookInitial(String title) {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) return 'B';
+    return trimmed.characters.first.toUpperCase();
+  }
+}
 
+class _QuestionTypesPanel extends StatelessWidget {
+  const _QuestionTypesPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const types = [
+      (icon: Icons.fact_check_outlined, title: '原句挖空', text: '检测对单词拼写与搭配的掌握'),
+      (
+        icon: Icons.travel_explore_outlined,
+        title: '语境选义',
+        text: '根据上下文选择最合适的释义',
+      ),
+      (icon: Icons.translate_outlined, title: '看中文选英文', text: '根据中文释义选择对应英文单词'),
+    ];
+    return _PanelSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'AI 题型',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (final type in types) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withValues(
+                      alpha: 0.45,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    type.icon,
+                    size: 21,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        type.title,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        type.text,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (type != types.last) const SizedBox(height: 14),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PanelSurface extends StatelessWidget {
+  const _PanelSurface({
+    required this.child,
+    this.padding = const EdgeInsets.all(18),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        item.type.label,
-        style: TextStyle(
-          fontSize: 11,
-          color: color,
-          fontWeight: FontWeight.w700,
+        color: theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.46),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
+      child: Padding(padding: padding, child: child),
     );
-  }
-
-  String _firstNonEmpty(List<String> values) {
-    for (final value in values) {
-      final trimmed = value.trim();
-      if (trimmed.isNotEmpty) return trimmed;
-    }
-    return '';
-  }
-
-  String _formatDate(DateTime value) {
-    final month = value.month.toString().padLeft(2, '0');
-    final day = value.day.toString().padLeft(2, '0');
-    return '$month-$day';
   }
 }

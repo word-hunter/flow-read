@@ -2,7 +2,7 @@
 
 > @source lib/screens/ lib/pages/ lib/widgets/
 
-Last updated: 2026-06-14
+Last updated: 2026-06-16
 
 ## 屏幕导航
 
@@ -17,8 +17,12 @@ HomeScreen (底部导航 / 宽屏侧栏)
 │           └── 点击 → RssArticleDetailScreen
 │               ├── RssArticleBodyView (正文渲染 + 高亮词点词)
 │               └── 原文 → BrowserScreen (内部 substrate)
-├── Vocabulary (词汇 tab)
-│   └── VocabularyScreen (列表 / 卡片视图)
+├── Wordbook (单词本 tab)
+│   └── VocabularyScreen
+│       ├── 顶部搜索 + 开始今日测验
+│       ├── WordbookDashboard 统计卡 / 今日复习摘要
+│       ├── WordbookFilter 筛选列表（待复习、学习中、最近加入、按书籍、已掌握）
+│       └── 右侧来源书籍 / AI 题型预览
 ├── Profile (个人 tab)
 │   └── ProfileScreen
 └── Settings (设置按钮 → 独立页面)

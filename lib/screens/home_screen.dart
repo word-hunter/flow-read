@@ -48,9 +48,9 @@ class HomeScreen extends riverpod.ConsumerWidget {
     ),
     FlowSidebarDestination(icon: SizedBox.shrink(), label: ''),
     FlowSidebarDestination(
-      icon: Icon(Icons.text_fields_outlined),
-      selectedIcon: Icon(Icons.text_fields),
-      label: '词汇',
+      icon: Icon(Icons.collections_bookmark_outlined),
+      selectedIcon: Icon(Icons.collections_bookmark),
+      label: '单词本',
     ),
     FlowSidebarDestination(
       icon: Icon(Icons.person_outlined),

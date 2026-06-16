@@ -141,9 +141,9 @@ class _HomeSidebarState extends State<HomeSidebar> {
     ),
     (
       tabIndex: 3,
-      icon: Icons.text_fields_outlined,
-      selectedIcon: Icons.text_fields,
-      label: '词汇',
+      icon: Icons.collections_bookmark_outlined,
+      selectedIcon: Icons.collections_bookmark,
+      label: '单词本',
     ),
     (
       tabIndex: 4,
