@@ -65,6 +65,7 @@ main()
 /practice                  → PracticeScreen
 /review                    → ReviewScreen
 /spaced-review             → SpacedReviewScreen
+/debug/reading-memory      → ReadingMemoryInspectorScreen（debug only）
 
 内部导航（非命名路由）:
 HomeScreen → ReadingDeskScreen → ReaderPage（正文）

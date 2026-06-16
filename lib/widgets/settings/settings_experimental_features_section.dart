@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../screens/debug/reading_memory_inspector_screen.dart';
 import '../../services/settings_service.dart';
 import 'settings_shared.dart';
 
@@ -44,10 +46,32 @@ class SettingsExperimentalFeaturesSection extends StatelessWidget {
                 value: settings.forceDefaultBookCover,
                 onChanged: settings.setForceDefaultBookCover,
               ),
+              if (kDebugMode) ...[
+                const Divider(height: 1),
+                const _DebugInspectorTile(),
+              ],
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DebugInspectorTile extends StatelessWidget {
+  const _DebugInspectorTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.storage_outlined),
+      title: const Text('Reading Memory Inspector'),
+      subtitle: const Text('查看 Reading Memory 的概览和实体列表'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () {
+        Navigator.of(context).pushNamed(ReadingMemoryInspectorScreen.routeName);
+      },
     );
   }
 }

@@ -9,6 +9,7 @@ import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import 'platform/flow_shell_resolver.dart';
 import 'providers/settings_provider.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/debug/reading_memory_inspector_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/practice_screen.dart';
 import 'screens/review_screen.dart';
@@ -468,6 +469,9 @@ class _FlowReadAppState extends State<FlowReadApp> {
               '/practice': (_) => const PracticeScreen(),
               '/review': (_) => const ReviewScreen(),
               '/spaced_review': (_) => const SpacedReviewScreen(),
+              if (kDebugMode)
+                ReadingMemoryInspectorScreen.routeName: (_) =>
+                    const ReadingMemoryInspectorScreen(),
             },
           ),
         );
