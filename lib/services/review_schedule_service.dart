@@ -31,6 +31,8 @@ class LearningReviewCard {
   final String sourceText;
   final List<String> options;
 
+  String get queueLabel => type.label;
+
   const LearningReviewCard({
     required this.item,
     required this.type,
@@ -236,10 +238,15 @@ class ReviewScheduleService {
         ? item.content.trim()
         : item.title.trim();
     if (target.isEmpty) return null;
+    if (!_isSingleEnglishWord(target)) return null;
 
     final pattern = RegExp(RegExp.escape(target), caseSensitive: false);
     if (!pattern.hasMatch(source)) return null;
     return source.replaceFirst(pattern, '______');
+  }
+
+  bool _isSingleEnglishWord(String value) {
+    return RegExp(r"^[A-Za-z][A-Za-z'-]*$").hasMatch(value.trim());
   }
 
   DateTime _nextReviewAt({

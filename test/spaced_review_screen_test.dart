@@ -145,6 +145,8 @@ void main() {
     );
 
     expect(find.text('学习点'), findsOneWidget);
+    expect(find.text('1. 原句挖空'), findsOneWidget);
+    expect(find.text('On the back of her eyelids'), findsNothing);
     expect(find.byType(TextField), findsOneWidget);
     expect(find.text(sourceText), findsNothing);
 

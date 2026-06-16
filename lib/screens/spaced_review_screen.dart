@@ -231,7 +231,7 @@ class _SpacedReviewScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    card.item.title,
+                    '${index + 1}. ${card.queueLabel}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(

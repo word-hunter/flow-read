@@ -64,8 +64,22 @@ void main() {
   });
 
   test('counts today due items and limits one session to ten cards', () async {
-    for (var i = 0; i < 12; i++) {
-      await _saveWord(learningItems, source, 'word$i');
+    const words = [
+      'amber',
+      'breeze',
+      'cinder',
+      'drift',
+      'ember',
+      'fable',
+      'glimmer',
+      'harbor',
+      'ivory',
+      'jovial',
+      'kindle',
+      'lantern',
+    ];
+    for (final word in words) {
+      await _saveWord(learningItems, source, word);
     }
     final future = await _saveWord(learningItems, source, 'tomorrow');
     await learningItems.saveItem(
@@ -260,7 +274,19 @@ void main() {
     expect(card.sourceText, contains('heard a sound'));
   });
 
-  test('builds fill blank card with study goal and explanation', () async {
+  test('builds fill blank card for a single word', () async {
+    await _saveWord(learningItems, source, 'flow', definition: '流动');
+
+    final card = schedule.buildSessionCards().single;
+
+    expect(card.type, LearningReviewCardType.fillBlank);
+    expect(card.queueLabel, '原句挖空');
+    expect(card.studyGoal, contains('语境词义'));
+    expect(card.prompt, 'A sentence with ______ inside.');
+    expect(card.answer, 'flow');
+  });
+
+  test('uses context meaning instead of fill blank for phrases', () async {
     await learningItems.saveDraft(
       LearningItemDraft(
         type: LearningItemType.grammar,
@@ -277,10 +303,13 @@ void main() {
 
     final card = schedule.buildSessionCards().single;
 
-    expect(card.type, LearningReviewCardType.fillBlank);
+    expect(card.type, LearningReviewCardType.contextMeaning);
+    expect(card.queueLabel, '语境选义');
     expect(card.studyGoal, contains('语法片段'));
-    expect(card.prompt, startsWith('______ she could see'));
-    expect(card.answer, 'On the back of her eyelids');
+    expect(card.prompt, contains('"On the back of her eyelids"'));
+    expect(card.prompt, contains('On the back of her eyelids she could see'));
+    expect(card.prompt, isNot(contains('______')));
+    expect(card.answer, contains('介词短语'));
     expect(card.explanation, contains('介词短语'));
     expect(card.explanation, isNot('medium'));
   });
