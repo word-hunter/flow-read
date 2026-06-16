@@ -82,11 +82,9 @@ class SettingsService extends ChangeNotifier {
   static const defaultBackupIntervalMinutes = 1440;
   static const experimentalFeatureRss = 'rss';
   static const experimentalFeatureReview = 'review';
-  static const experimentalFeatureV2 = 'v2';
   static const supportedExperimentalFeatureIds = <String>{
     experimentalFeatureRss,
     experimentalFeatureReview,
-    experimentalFeatureV2,
   };
   static const _dailyReadingGoalMinutesKey = 'dailyReadingGoalMinutes';
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
@@ -210,8 +208,6 @@ class SettingsService extends ChangeNotifier {
       isExperimentalFeatureEnabled(experimentalFeatureRss);
   bool get reviewFeatureEnabled =>
       isExperimentalFeatureEnabled(experimentalFeatureReview);
-  bool get v2FeatureEnabled =>
-      isExperimentalFeatureEnabled(experimentalFeatureV2);
   bool get desktopReaderWorkspaceEnabled => true;
 
   bool get forceDefaultBookCover => _forceDefaultBookCover;
@@ -306,7 +302,9 @@ class SettingsService extends ChangeNotifier {
       'appThemeId',
       defaultValue: PaletteId.classic.name,
     )!;
-    _appThemeId = PaletteId.values.where((v) => v.name == appThemeIdValue).firstOrNull ?? PaletteId.classic;
+    _appThemeId =
+        PaletteId.values.where((v) => v.name == appThemeIdValue).firstOrNull ??
+        PaletteId.classic;
     _dailyReadingGoalMinutes = _normalizeDailyReadingGoalMinutes(
       _get(
         _dailyReadingGoalMinutesKey,
@@ -740,10 +738,6 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setReviewFeatureEnabled(bool enabled) {
     return setExperimentalFeatureEnabled(experimentalFeatureReview, enabled);
-  }
-
-  Future<void> setV2FeatureEnabled(bool enabled) {
-    return setExperimentalFeatureEnabled(experimentalFeatureV2, enabled);
   }
 
   Future<void> setForceDefaultBookCover(bool enabled) async {

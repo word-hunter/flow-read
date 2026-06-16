@@ -45,10 +45,10 @@ void main() {
     expect(reloaded.enabledExperimentalFeatures, isEmpty);
   });
 
-  test('legacy browser feature flag is ignored', () async {
+  test('legacy browser and v2 feature flags are ignored', () async {
     final db = await createTestAppDatabase();
     final dao = SettingsDao(db);
-    await dao.putValue('enabledExperimentalFeatures', '["browser","rss"]');
+    await dao.putValue('enabledExperimentalFeatures', '["browser","v2","rss"]');
 
     final settings = SettingsService(dao);
     await settings.init();
