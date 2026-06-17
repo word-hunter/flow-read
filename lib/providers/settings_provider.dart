@@ -9,7 +9,11 @@ import '../storage/storage_bootstrap.dart';
 final settingsProvider = ChangeNotifierProvider<SettingsService>((ref) {
   final db = appDatabase;
   if (db == null) throw StateError('Database not initialized');
-  final service = SettingsService(SettingsDao(db));
+  final service = SettingsService(
+    SettingsDao(db),
+    initialValues: bootstrappedSettingsValues,
+    loadImmediately: true,
+  );
   unawaited(service.init());
   return service;
 });

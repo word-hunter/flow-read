@@ -56,6 +56,24 @@ void main() {
     expect(settings.themeMode, ThemeMode.system);
   });
 
+  test('initial theme values are available before async init', () async {
+    final db = await createTestAppDatabase();
+    await db.settingsDao.putValue('appThemeId', PaletteId.ocean.name);
+    await db.settingsDao.putValue(
+      'themeMode',
+      ThemeMode.light.index.toString(),
+    );
+
+    final settings = SettingsService(
+      SettingsDao(db),
+      initialValues: await db.settingsDao.allEntries(),
+      loadImmediately: true,
+    );
+
+    expect(settings.appThemeId, PaletteId.ocean);
+    expect(settings.themeMode, ThemeMode.light);
+  });
+
   test('unknown stored theme family falls back to classic', () async {
     final db = await createTestAppDatabase();
     await db.settingsDao.putValue('appThemeId', 'legacy_theme');

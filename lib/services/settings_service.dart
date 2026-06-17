@@ -152,7 +152,18 @@ class SettingsService extends ChangeNotifier {
   List<DictionarySourceConfig> _dictionarySources =
       DictionarySourceConfig.defaults;
 
-  SettingsService(this._dao);
+  SettingsService(
+    this._dao, {
+    Map<String, String>? initialValues,
+    bool loadImmediately = false,
+  }) {
+    if (initialValues != null) {
+      _cache = Map<String, String>.of(initialValues);
+    }
+    if (loadImmediately) {
+      _load();
+    }
+  }
 
   VocabularyColorSettings get colors => _colors;
   String get aiProviderId => _aiProviderId;

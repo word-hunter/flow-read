@@ -141,7 +141,7 @@ void main() {
     expect(mysteryTextColor.computeLuminance(), greaterThan(0.35));
   });
 
-  test('city preset text color overrides dark reader setting', () {
+  test('reader setting takes precedence over city preset text colors', () {
     const config = ReadingConfigState(
       fontSize: 18,
       fontFamily: 'Literata',
@@ -151,11 +151,11 @@ void main() {
 
     expect(
       resolveReaderTextColor(config, CityThemePresets.cityDusk),
-      CityThemePresets.cityDusk.primaryText,
+      const Color(0xFFEAF1FA),
     );
     expect(
       resolveReaderMutedTextColor(config, CityThemePresets.cityDusk),
-      CityThemePresets.cityDusk.secondaryText,
+      const Color(0xFFB7C5D6),
     );
   });
 
@@ -182,7 +182,7 @@ void main() {
     );
   });
 
-  test('non-night city preset keeps reader surfaces synced with outside', () {
+  test('dark reader setting stays dark with non-night city preset', () {
     const config = ReadingConfigState(
       fontSize: 18,
       fontFamily: 'Literata',
@@ -197,7 +197,7 @@ void main() {
         CityThemePresets.cityDusk,
         cityLightTokens,
       ),
-      CityThemePresets.cityDusk.pageBackground.withValues(alpha: 0.92),
+      AppSurfaceTokens.cityDark().readerOpaqueSurface,
     );
     expect(
       resolveReaderWorkspaceBackgroundColor(
@@ -205,7 +205,7 @@ void main() {
         cityLightTokens,
         CityThemePresets.cityDusk,
       ),
-      cityLightTokens.readerWorkspaceBackground,
+      AppSurfaceTokens.cityDark().readerWorkspaceBackground,
     );
     expect(
       resolveReaderToolbarBackgroundColor(
@@ -213,22 +213,26 @@ void main() {
         CityThemePresets.cityDusk,
         cityLightTokens,
       ),
-      CityThemePresets.cityDusk.surface.withValues(alpha: 0.78),
+      AppSurfaceTokens.cityDark().readerControlSurface,
     );
   });
 
-  test('night city preset keeps reader surfaces dark', () {
+  test('night city preset does not override light reader setting', () {
     const config = ReadingConfigState(
       fontSize: 18,
       fontFamily: 'Literata',
       lineHeight: 1.8,
-      readingTheme: 'dark',
+      readingTheme: 'light',
     );
     final cityLightTokens = AppSurfaceTokens.cityLight();
 
     expect(
-      resolveReaderTextColor(config, CityThemePresets.cityNight),
-      CityThemePresets.cityNight.primaryText,
+      resolveReaderTextColor(
+        config,
+        CityThemePresets.cityNight,
+        appBrightness: Brightness.light,
+      ),
+      const Color(0xFF20231F),
     );
     expect(
       resolveReaderPageBackgroundColor(
@@ -236,7 +240,7 @@ void main() {
         CityThemePresets.cityNight,
         cityLightTokens,
       ),
-      CityThemePresets.cityNight.pageBackground.withValues(alpha: 0.96),
+      cityLightTokens.readerOpaqueSurface,
     );
     expect(
       resolveReaderWorkspaceBackgroundColor(
@@ -244,7 +248,7 @@ void main() {
         cityLightTokens,
         CityThemePresets.cityNight,
       ),
-      AppSurfaceTokens.cityDark().readerWorkspaceBackground,
+      cityLightTokens.readerWorkspaceBackground,
     );
   });
 

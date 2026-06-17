@@ -22,6 +22,7 @@ final class DatabaseBootstrapResult {
 
 final class DatabaseBootstrapSnapshot {
   const DatabaseBootstrapSnapshot({
+    required this.settingsValues,
     required this.bookMetadataLanguage,
     required this.bookMetadataValues,
     required this.readingConfigLanguage,
@@ -46,7 +47,8 @@ final class DatabaseBootstrapSnapshot {
 
   const DatabaseBootstrapSnapshot.empty({
     String languageCode = LegacyBackupBoxNames.defaultLanguageCode,
-  }) : bookMetadataLanguage = languageCode,
+  }) : settingsValues = const {},
+       bookMetadataLanguage = languageCode,
        bookMetadataValues = const [],
        readingConfigLanguage = languageCode,
        readingConfigValues = const {},
@@ -67,6 +69,7 @@ final class DatabaseBootstrapSnapshot {
        learningAnalyticsLanguage = languageCode,
        learningAnalyticsValues = const {};
 
+  final Map<String, String> settingsValues;
   final String bookMetadataLanguage;
   final List<BookMetadata> bookMetadataValues;
   final String readingConfigLanguage;
@@ -93,6 +96,7 @@ final class DatabaseBootstrapSnapshot {
     String languageCode,
   ) async {
     final results = await Future.wait<Object>([
+      db.settingsDao.allEntries(),
       _loadBookMetadata(db, languageCode),
       db.readingConfigDao.allValues(languageCode),
       db.readingTimeDao.allValues(languageCode),
@@ -105,28 +109,29 @@ final class DatabaseBootstrapSnapshot {
       db.learningAnalyticsDao.allValues(languageCode),
     ]);
 
-    final bookmarks = results[4] as _BookmarkSnapshot;
+    final bookmarks = results[5] as _BookmarkSnapshot;
     return DatabaseBootstrapSnapshot(
+      settingsValues: results[0] as Map<String, String>,
       bookMetadataLanguage: languageCode,
-      bookMetadataValues: results[0] as List<BookMetadata>,
+      bookMetadataValues: results[1] as List<BookMetadata>,
       readingConfigLanguage: languageCode,
-      readingConfigValues: results[1] as Map<String, String>,
+      readingConfigValues: results[2] as Map<String, String>,
       readingTimeLanguage: languageCode,
-      readingTimeValues: results[2] as Map<String, int>,
+      readingTimeValues: results[3] as Map<String, int>,
       wordContextLanguage: languageCode,
-      wordContextValues: results[3] as Map<String, String>,
+      wordContextValues: results[4] as Map<String, String>,
       bookmarkLanguage: languageCode,
       wordBookmarkValues: bookmarks.wordBookmarks,
       readingBookmarkValues: bookmarks.readingBookmarks,
       dictionaryCacheLanguage: languageCode,
-      dictionaryCacheValues: results[5] as Map<String, String>,
-      characterRegistryValues: results[6] as Map<String, String>,
+      dictionaryCacheValues: results[6] as Map<String, String>,
+      characterRegistryValues: results[7] as Map<String, String>,
       userVocabularyLanguage: languageCode,
-      userVocabularyValues: results[7] as Map<String, UserWordStatus>,
+      userVocabularyValues: results[8] as Map<String, UserWordStatus>,
       learningItemLanguage: languageCode,
-      learningItemValues: results[8] as List<LearningItem>,
+      learningItemValues: results[9] as List<LearningItem>,
       learningAnalyticsLanguage: languageCode,
-      learningAnalyticsValues: results[9] as Map<String, int>,
+      learningAnalyticsValues: results[10] as Map<String, int>,
     );
   }
 

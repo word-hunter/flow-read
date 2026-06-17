@@ -30,7 +30,6 @@ bool usesDarkReaderPalette(
   CityThemePreset? cityPreset, {
   Brightness? appBrightness,
 }) {
-  if (cityPreset != null) return cityPreset.phase == CityTimePhase.night;
   if (_isDarkReaderTheme(config)) return true;
   return config.readingTheme == 'light' && appBrightness == Brightness.dark;
 }
@@ -40,7 +39,6 @@ Color resolveReaderTextColor(
   CityThemePreset? cityPreset, {
   Brightness? appBrightness,
 }) {
-  if (cityPreset != null) return cityPreset.primaryText;
   if (usesDarkReaderPalette(
     config,
     cityPreset,
@@ -62,7 +60,6 @@ Color resolveReaderMutedTextColor(
   CityThemePreset? cityPreset, {
   Brightness? appBrightness,
 }) {
-  if (cityPreset != null) return cityPreset.secondaryText;
   if (usesDarkReaderPalette(
     config,
     cityPreset,
@@ -84,12 +81,6 @@ Color resolveReaderPageBackgroundColor(
   CityThemePreset? cityPreset,
   AppSurfaceTokens surfaceTokens,
 ) {
-  if (cityPreset != null) {
-    return cityPreset.pageBackground.withValues(
-      alpha: cityPreset.phase == CityTimePhase.night ? 0.96 : 0.92,
-    );
-  }
-
   if (_isDarkReaderTheme(config)) {
     return _darkSurfaceTokensFor(surfaceTokens).readerOpaqueSurface;
   }
@@ -107,12 +98,6 @@ Color resolveReaderWorkspaceBackgroundColor(
   AppSurfaceTokens surfaceTokens,
   CityThemePreset? cityPreset,
 ) {
-  if (cityPreset != null) {
-    return cityPreset.phase == CityTimePhase.night
-        ? _darkSurfaceTokensFor(surfaceTokens).readerWorkspaceBackground
-        : surfaceTokens.readerWorkspaceBackground;
-  }
-
   if (_isDarkReaderTheme(config)) {
     return _darkSurfaceTokensFor(surfaceTokens).readerWorkspaceBackground;
   }
@@ -124,12 +109,6 @@ Color resolveReaderToolbarBackgroundColor(
   CityThemePreset? cityPreset,
   AppSurfaceTokens surfaceTokens,
 ) {
-  if (cityPreset != null) {
-    return cityPreset.surface.withValues(
-      alpha: cityPreset.phase == CityTimePhase.night ? 0.82 : 0.78,
-    );
-  }
-
   if (_isDarkReaderTheme(config)) {
     return _darkSurfaceTokensFor(surfaceTokens).readerControlSurface;
   }
@@ -142,10 +121,6 @@ Color resolveReaderToolbarBorderColor(
   CityThemePreset? cityPreset,
   AppSurfaceTokens surfaceTokens,
 ) {
-  if (cityPreset != null) {
-    return cityPreset.outline.withValues(alpha: 0.72);
-  }
-
   if (_isDarkReaderTheme(config)) {
     return _darkSurfaceTokensFor(surfaceTokens).readerPageBorderColor;
   }
@@ -158,7 +133,6 @@ Color resolveReaderToolbarForegroundColor(
   CityThemePreset? cityPreset,
   ThemeData theme,
 ) {
-  if (cityPreset != null) return cityPreset.secondaryText;
   if (_isDarkReaderTheme(config)) return _darkReaderMutedText;
   return theme.colorScheme.onSurfaceVariant;
 }

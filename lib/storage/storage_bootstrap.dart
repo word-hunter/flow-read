@@ -12,6 +12,8 @@ DatabaseBootstrapSnapshot _bootstrappedSnapshot =
     const DatabaseBootstrapSnapshot.empty();
 
 AppDatabase? get appDatabase => _appDatabase;
+Map<String, String> get bootstrappedSettingsValues =>
+    Map.unmodifiable(_bootstrappedSnapshot.settingsValues);
 String get bootstrappedReadingConfigLanguage =>
     _bootstrappedSnapshot.readingConfigLanguage;
 Map<String, String> get bootstrappedReadingConfigValues =>
