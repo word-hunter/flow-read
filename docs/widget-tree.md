@@ -2,7 +2,7 @@
 
 > @source lib/screens/ lib/pages/ lib/widgets/
 
-Last updated: 2026-06-16
+Last updated: 2026-06-17
 
 ## 屏幕导航
 
@@ -22,6 +22,7 @@ HomeScreen (底部导航 / 宽屏侧栏)
 │       ├── 顶部搜索 + 开始今日测验
 │       ├── WordbookDashboard 统计卡 / 今日复习摘要
 │       ├── WordbookFilter 筛选列表（待复习、学习中、最近加入、按书籍、已掌握）
+│       ├── 单词行 → WordBottomSheet 单词本详情
 │       └── 右侧来源书籍 / AI 题型预览
 ├── Profile (个人 tab)
 │   └── ProfileScreen
@@ -55,18 +56,38 @@ HomeScreen → 点击书籍
           └── 未来：AIAssistantPanel (1.7.0)
 ```
 
-## 词典弹出（窄屏）
+## 词典弹出 / 单词本详情
 
 ```
-WordBottomSheet (showModalBottomSheet)
-├── DictionaryDetailView.fromProvider
-│   ├── 词典释义 (来自 DictionaryManagerService)
+WordBottomSheet (FlowSheet)
+├── DictionaryDetailView.fromWordLookup
+│   ├── 词典释义 (来自 WordLookupNotifier / DictionaryManagerService)
 │   ├── 构词分析 (来自 CompoundWordAnalyzer)
 │   ├── 全书上下文 (来自 WordContextService)
 │   └── 导入示例 (来自 WordHunter import)
-└── 底部操作区
-    ├── SegmentedButton: 已掌握 / 学习中
-    └── 清除状态按钮
+├── 单词本模式
+│   ├── _WordbookSourcePanel (来源书籍、章节、原文上下文)
+│   ├── 查看来源书籍 → VocabularyScreen 按来源过滤
+│   └── 底部状态操作：标为学习中 / 标为已掌握 / 移出状态
+└── 阅读器/RSS/浏览器模式
+    ├── AI 详解此词
+    ├── Known / Learning / Unknown
+    ├── 加入学习卡片
+    └── 加入生词本
+```
+
+## 单词本测验
+
+```
+VocabularyScreen → 开始今日测验
+  → SpacedReviewScreen
+    ├── ReviewScheduleService.buildSessionCardsWithAI
+    │   ├── LearningReviewCardType.fillBlank (仅单词原句挖空)
+    │   ├── LearningReviewCardType.contextMeaning
+    │   ├── LearningReviewCardType.meaningToWord
+    │   └── LearningReviewCardType.questionMistake
+    ├── 四档反馈：忘记 / 模糊 / 记得 / 掌握
+    └── 完成页：完成率、掌握数、需复习数、下次复习
 ```
 
 ## 词典详情组件（共享）
