@@ -69,4 +69,19 @@ void main() {
     await reloaded.init();
     expect(reloaded.backupIntervalMinutes, 360);
   });
+
+  test('open toc on book open defaults on and persists changes', () async {
+    final db = await createTestAppDatabase();
+    final settings = SettingsService(SettingsDao(db));
+    await settings.init();
+
+    expect(settings.openTocOnBookOpen, isTrue);
+
+    await settings.setOpenTocOnBookOpen(false);
+    expect(settings.openTocOnBookOpen, isFalse);
+
+    final reloaded = SettingsService(SettingsDao(db));
+    await reloaded.init();
+    expect(reloaded.openTocOnBookOpen, isFalse);
+  });
 }

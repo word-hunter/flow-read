@@ -88,7 +88,7 @@ String get _activeLanguageCode =>
 |------|--------|-----------|
 | AI | provider, apiKeys, baseUrls, models, usageStats | `aiProviderId`, `aiApiKeys`, `aiBaseUrls`, `aiModels` |
 | 主题 | themeMode, appThemeId, colors | `themeMode`, `appThemeId`, `*Color` |
-| 阅读 | dailyReadingGoalMinutes, readingConfig defaults | `dailyReadingGoalMinutes` |
+| 阅读 | dailyReadingGoalMinutes, openTocOnBookOpen, readingConfig defaults | `dailyReadingGoalMinutes`, `openTocOnBookOpen` |
 | City 阅读氛围 | cityAtmosphereSettings (theme mode/manual theme/blend mode/scene/intensity/reduceMotion/performance) | `city_atmosphere.*` |
 | 词典 | dictionarySources (order + enabled/disabled + supportedLanguages) | `dictionarySources` |
 | 备份 | enabled, folderPath, bookmark, interval, secrets | `backup*` |

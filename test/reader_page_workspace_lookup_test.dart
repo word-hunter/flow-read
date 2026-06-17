@@ -251,6 +251,35 @@ void main() {
   );
 
   testWidgets(
+    'desktop workspace closes toc after opening book when setting is off',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1440, 900);
+      try {
+        await _pumpWorkspaceReader(
+          tester,
+          bookshelf: () => _ReaderTestBookshelfNotifier(_bookWithToc()),
+          configureSettings: (settings) async {
+            await settings.setOpenTocOnBookOpen(false);
+          },
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 220));
+
+        final leftPanel = find.byType(ReaderLeftWorkspacePanel);
+        expect(tester.getSize(leftPanel).width, 0);
+        expect(find.byType(TocDropdownPanel), findsNothing);
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      }
+    },
+  );
+
+  testWidgets(
     'desktop workspace sidebar toggle controls the right panel',
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;

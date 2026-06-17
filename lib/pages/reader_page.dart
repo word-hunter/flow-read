@@ -108,6 +108,8 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   bool _tocMenuOpen = false;
   bool _fontSettingsMenuOpen = false;
   bool _searchShowingAll = false;
+  String? _lastAppliedTocPreferenceBookId;
+  bool? _lastAppliedTocPreference;
   double _layoutWidth = 0;
 
   bool get _isWideScreen => _layoutWidth >= AppConstants.wideBreakpoint;
@@ -155,6 +157,33 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   void _onWorkspaceControllerChanged() {
     if (!mounted) return;
     setState(() {});
+  }
+
+  void _scheduleBookOpenTocPreference({
+    required String? bookId,
+    required bool openToc,
+  }) {
+    if (bookId == null) return;
+    if (_lastAppliedTocPreferenceBookId == bookId &&
+        _lastAppliedTocPreference == openToc) {
+      return;
+    }
+    _lastAppliedTocPreferenceBookId = bookId;
+    _lastAppliedTocPreference = openToc;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ref.read(bookshelfNotifierProvider).activeBookId != bookId) return;
+      if (openToc) {
+        if (!_workspaceController.isTocOpen) {
+          _workspaceController.openToc();
+        }
+        return;
+      }
+      if (_workspaceController.isLeftPanelOpen) {
+        _workspaceController.setLeftPanelOpen(false);
+      }
+    });
   }
 
   void _onWordTapped(
@@ -944,6 +973,11 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final config = ref.watch(readingConfigNotifierProvider);
     final readingTime = ref.watch(readingTimeNotifierProvider);
     final settings = ref.watch(settingsProvider);
+    final bookshelf = ref.watch(bookshelfNotifierProvider);
+    _scheduleBookOpenTocPreference(
+      bookId: bookshelf.activeBookId,
+      openToc: settings.openTocOnBookOpen,
+    );
 
     final layoutConfig = PageLayoutConfig(
       fontSize: config.fontSize,

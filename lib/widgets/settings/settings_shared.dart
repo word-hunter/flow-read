@@ -354,38 +354,39 @@ class SettingsSidebarItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final city = theme.extension<CityThemeTokens>();
+    final activeColor = city?.activeBlue ?? colorScheme.primary;
+    final selectedColor = activeColor.withValues(
+      alpha: theme.brightness == Brightness.dark ? 0.18 : 0.09,
+    );
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 5),
       child: Material(
-        color: selected
-            ? colorScheme.primaryContainer.withValues(alpha: 0.5)
-            : Colors.transparent,
+        color: selected ? selectedColor : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           mouseCursor: SystemMouseCursors.click,
           onTap: onTap,
           child: SizedBox(
-            height: 48,
+            height: 44,
             child: Row(
               children: [
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
                   width: 4,
-                  height: selected ? 36 : 0,
+                  height: selected ? 32 : 0,
                   decoration: BoxDecoration(
-                    color: selected ? colorScheme.primary : Colors.transparent,
+                    color: selected ? activeColor : Colors.transparent,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
                 const SizedBox(width: 14),
                 Icon(
                   section.icon,
-                  size: 22,
-                  color: selected
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
+                  size: 21,
+                  color: selected ? activeColor : colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -395,9 +396,8 @@ class SettingsSidebarItem extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyLarge?.copyWith(
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected
-                          ? colorScheme.primary
-                          : colorScheme.onSurface,
+                      color: selected ? activeColor : colorScheme.onSurface,
+                      letterSpacing: 0,
                     ),
                   ),
                 ),
@@ -418,29 +418,44 @@ class SettingsSectionHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final city = theme.extension<CityThemeTokens>();
+    final activeColor = city?.activeBlue ?? colorScheme.primary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(section.icon, color: theme.colorScheme.primary),
-            const SizedBox(width: 10),
+            Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: activeColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(19),
+              ),
+              child: Icon(section.icon, color: activeColor, size: 24),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Text(
                 section.title,
-                style: theme.textTheme.headlineSmall?.copyWith(
+                style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text(
           section.subtitle,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
+            height: 1.35,
+            letterSpacing: 0,
           ),
         ),
       ],
@@ -454,52 +469,181 @@ class SettingsCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.child,
+    this.subtitle,
+    this.headerTrailing,
   });
 
   final IconData icon;
   final String title;
+  final String? subtitle;
+  final Widget? headerTrailing;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final city = theme.extension<CityThemeTokens>();
+    final cardSurface = city?.cardSurface ?? colorScheme.surfaceContainerLowest;
+    final borderColor = city?.warmBorder ?? colorScheme.outlineVariant;
+    final activeColor = city?.activeBlue ?? colorScheme.primary;
+    final shadowColor = city?.warmShadow ?? colorScheme.shadow;
 
     return Material(
-      color: colorScheme.surfaceContainerLowest,
+      color: cardSurface,
       elevation: 1,
-      shadowColor: colorScheme.shadow.withValues(alpha: 0.05),
+      shadowColor: shadowColor.withValues(
+        alpha: theme.brightness == Brightness.dark ? 0.16 : 0.10,
+      ),
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.65),
+          color: borderColor.withValues(
+            alpha: theme.brightness == Brightness.dark ? 0.62 : 0.72,
+          ),
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(22),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: subtitle == null
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 21, color: colorScheme.primary),
-                const SizedBox(width: 10),
+                Padding(
+                  padding: EdgeInsets.only(top: subtitle == null ? 0 : 1),
+                  child: Icon(icon, size: 22, color: activeColor),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            height: 1.3,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+                if (headerTrailing != null) ...[
+                  const SizedBox(width: 16),
+                  headerTrailing!,
+                ],
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 22),
             child,
           ],
         ),
       ),
+    );
+  }
+}
+
+class SettingsCardDivider extends StatelessWidget {
+  const SettingsCardDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Divider(
+      height: 28,
+      color: theme.colorScheme.outlineVariant.withValues(
+        alpha: theme.brightness == Brightness.dark ? 0.42 : 0.70,
+      ),
+    );
+  }
+}
+
+class SettingsOptionRow extends StatelessWidget {
+  const SettingsOptionRow({
+    super.key,
+    required this.title,
+    required this.trailing,
+    this.subtitle,
+    this.trailingWidth = 360,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget trailing;
+  final double trailingWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final label = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0,
+          ),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              height: 1.35,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 660) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              label,
+              const SizedBox(height: 12),
+              trailing,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(child: label),
+            const SizedBox(width: 28),
+            SizedBox(width: trailingWidth, child: trailing),
+          ],
+        );
+      },
     );
   }
 }
@@ -545,20 +689,20 @@ class ResponsiveSettingsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 680 || children.length == 1) {
+        if (constraints.maxWidth < 720 || children.length == 1) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: _separateWithSpacing(
               children,
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
             ),
           );
         }
 
-        final itemWidth = (constraints.maxWidth - 14) / 2;
+        final itemWidth = (constraints.maxWidth - 16) / 2;
         return Wrap(
-          spacing: 14,
-          runSpacing: 14,
+          spacing: 16,
+          runSpacing: 16,
           children: [
             for (final child in children)
               SizedBox(width: itemWidth, child: child),

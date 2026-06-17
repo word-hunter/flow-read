@@ -1,6 +1,6 @@
 # Flow Read Storage Contract
 
-> @source lib/storage/legacy_backup_box_names.dart lib/storage/storage_bootstrap.dart lib/storage/database/app_database.dart lib/storage/database/bootstrap.dart lib/storage/database/tables.dart lib/services/backup_service.dart
+> @source lib/storage/legacy_backup_box_names.dart lib/storage/storage_bootstrap.dart lib/storage/database/app_database.dart lib/storage/database/bootstrap.dart lib/storage/database/tables.dart lib/services/backup_service.dart lib/services/settings_service.dart
 
 Last updated: 2026-06-15
 
@@ -102,6 +102,7 @@ bootstrapStorage()
 | `themeMode` | int (0-2) | `0` (system) |
 | `appThemeId` | String | `classic` |
 | `dailyReadingGoalMinutes` | int | `60` |
+| `openTocOnBookOpen` | bool | `true` |
 | `unknownColor` | int (ARGB32) | `0xFFE74C3C` |
 | `learningColor` | int (ARGB32) | `0xFF8E44AD` |
 | `knownColor` | int (ARGB32) | `0xFF999999` |

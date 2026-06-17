@@ -24,6 +24,7 @@ import '../services/external_url_launcher.dart';
 import '../services/log_folder_opener.dart';
 import '../services/settings_service.dart';
 import '../theme/app_constants.dart';
+import '../theme/city_theme_tokens.dart';
 import '../widgets/flow/flow_components.dart';
 import '../widgets/release_notes_dialog.dart';
 import '../widgets/settings/settings_sections.dart';
@@ -51,12 +52,36 @@ class SettingsScreen extends riverpod.ConsumerStatefulWidget {
       _SettingsScreenState();
 }
 
+const _settingsSectionGroups = <_SettingsSectionGroup>[
+  _SettingsSectionGroup('偏好设置', [
+    SettingsSection.appearance,
+    SettingsSection.reading,
+    SettingsSection.dictionary,
+    SettingsSection.ai,
+  ]),
+  _SettingsSectionGroup('数据与同步', [
+    SettingsSection.network,
+    SettingsSection.backup,
+    SettingsSection.experiments,
+  ]),
+  _SettingsSectionGroup('关于', [SettingsSection.about]),
+];
+
+class _SettingsSectionGroup {
+  const _SettingsSectionGroup(this.label, this.sections);
+
+  final String label;
+  final List<SettingsSection> sections;
+}
+
 class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
   final _apiKeyController = TextEditingController();
   final _baseUrlController = TextEditingController();
   final _modelController = TextEditingController();
   final _dictionaryTestWordController = TextEditingController(text: 'flow');
+  final _settingsSearchController = TextEditingController();
   String? _controllerProviderId;
+  String _settingsSearchQuery = '';
   bool _obscureKey = true;
   bool _testingConnection = false;
   bool _testingDictionarySources = false;
@@ -106,6 +131,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     _baseUrlController.dispose();
     _modelController.dispose();
     _dictionaryTestWordController.dispose();
+    _settingsSearchController.dispose();
     if (_ownsAppUpdateService) {
       _appUpdateService.dispose();
     }
@@ -117,12 +143,13 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     final settings = ref.watch(settingsProvider);
     final backup = ref.watch(backupProvider);
     final theme = Theme.of(context);
+    final city = theme.extension<CityThemeTokens>();
     _syncAIControllers(settings);
 
     return Scaffold(
       body: SafeArea(
         child: ColoredBox(
-          color: theme.colorScheme.surface,
+          color: city?.shellSurface ?? theme.colorScheme.surface,
           child: LayoutBuilder(
             builder: (context, constraints) {
               if (constraints.maxWidth >= _desktopBreakpoint) {
@@ -131,9 +158,9 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
                     _buildSidebar(theme),
                     VerticalDivider(
                       width: 1,
-                      color: theme.colorScheme.outlineVariant.withValues(
-                        alpha: 0.7,
-                      ),
+                      color:
+                          (city?.warmBorder ?? theme.colorScheme.outlineVariant)
+                              .withValues(alpha: 0.68),
                     ),
                     Expanded(
                       child: _buildSectionContent(theme, settings, backup),
@@ -159,59 +186,122 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
 
   Widget _buildSidebar(ThemeData theme) {
     final topInset = AppConstants.immersiveTitleBarTopInset;
+    final colorScheme = theme.colorScheme;
+    final city = theme.extension<CityThemeTokens>();
+    final groupedSections = _filteredSettingsGroups();
+
     return SizedBox(
-      width: 240,
+      width: 280,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLowest,
+          color: city?.shellSurface ?? colorScheme.surfaceContainerLowest,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: EdgeInsets.fromLTRB(18, 18 + topInset, 18, 22),
-              child: Row(
+              padding: EdgeInsets.fromLTRB(24, 18 + topInset, 24, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (Navigator.canPop(context)) ...[
-                    Tooltip(
-                      message: '返回',
-                      child: IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back),
+                  Row(
+                    children: [
+                      Image.asset(
+                        'assets/brand/flow_read_logo.png',
+                        width: 30,
+                        height: 30,
+                        filterQuality: FilterQuality.high,
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                  Image.asset(
-                    'assets/brand/flow_read_logo.png',
-                    width: 26,
-                    height: 26,
-                    filterQuality: FilterQuality.high,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'FlowRead',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'FlowRead',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                  if (Navigator.canPop(context)) ...[
+                    const SizedBox(height: 16),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FlowButton.text(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back, size: 18),
+                        child: const Text('回到阅读'),
                       ),
                     ),
+                  ],
+                  const SizedBox(height: 14),
+                  FlowTextField(
+                    controller: _settingsSearchController,
+                    placeholder: '搜索设置...',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: _settingsSearchQuery.isEmpty
+                        ? null
+                        : Tooltip(
+                            message: '清除搜索',
+                            child: IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () {
+                                _settingsSearchController.clear();
+                                setState(() => _settingsSearchQuery = '');
+                              },
+                            ),
+                          ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      setState(() => _settingsSearchQuery = value);
+                    },
                   ),
                 ],
               ),
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(12, 0, 16, 16),
+                padding: const EdgeInsets.fromLTRB(14, 0, 18, 14),
                 children: [
-                  for (final section in SettingsSection.values)
-                    SettingsSidebarItem(
-                      section: section,
-                      selected: _selectedSection == section,
-                      onTap: () => setState(() => _selectedSection = section),
-                    ),
+                  if (groupedSections.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 18, 10, 0),
+                      child: Text(
+                        '没有匹配的设置',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    )
+                  else
+                    for (final group in groupedSections) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 12, 10, 6),
+                        child: Text(
+                          group.label,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                      for (final section in group.sections)
+                        SettingsSidebarItem(
+                          section: section,
+                          selected: _selectedSection == section,
+                          onTap: () =>
+                              setState(() => _selectedSection = section),
+                        ),
+                    ],
                 ],
               ),
             ),
@@ -294,13 +384,13 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
     return Align(
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1120),
+        constraints: const BoxConstraints(maxWidth: 1180),
         child: ListView(
           key: ValueKey('settings-section-${_selectedSection.name}'),
-          padding: EdgeInsets.fromLTRB(32, 28 + topInset, 36, 36),
+          padding: EdgeInsets.fromLTRB(44, 34 + topInset, 44, 40),
           children: [
             SettingsSectionHeading(section: _selectedSection),
-            const SizedBox(height: 22),
+            const SizedBox(height: 30),
             switch (_selectedSection) {
               SettingsSection.appearance => SettingsAppearanceSection(
                 settings: settings,
@@ -364,8 +454,9 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
                 aiCacheEntryCount: _aiCacheEntryCount,
                 cacheStatsLoading: _cacheStatsLoading,
               ),
-              SettingsSection.network =>
-                SettingsNetworkSection(settings: settings),
+              SettingsSection.network => SettingsNetworkSection(
+                settings: settings,
+              ),
               SettingsSection.backup => SettingsBackupSection(
                 settings: settings,
                 backup: backup,
@@ -417,6 +508,33 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  List<_SettingsSectionGroup> _filteredSettingsGroups() {
+    final query = _settingsSearchQuery.trim().toLowerCase();
+    if (query.isEmpty) return _settingsSectionGroups;
+
+    return [
+      for (final group in _settingsSectionGroups)
+        _SettingsSectionGroup(
+          group.label,
+          [
+            for (final section in group.sections)
+              if (_matchesSettingsSearch(section, group.label, query)) section,
+          ],
+        ),
+    ].where((group) => group.sections.isNotEmpty).toList(growable: false);
+  }
+
+  bool _matchesSettingsSearch(
+    SettingsSection section,
+    String groupLabel,
+    String query,
+  ) {
+    final haystack =
+        '${section.title} ${section.subtitle} $groupLabel ${section.name}'
+            .toLowerCase();
+    return haystack.contains(query);
   }
 
   Future<void> _switchTheme(ThemeMutation mutation) {

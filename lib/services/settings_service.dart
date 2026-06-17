@@ -87,6 +87,7 @@ class SettingsService extends ChangeNotifier {
     experimentalFeatureReview,
   };
   static const _dailyReadingGoalMinutesKey = 'dailyReadingGoalMinutes';
+  static const _openTocOnBookOpenKey = 'openTocOnBookOpen';
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
   static const _forceDefaultBookCoverKey = 'forceDefaultBookCover';
   static const _visualDictionaryEnabledKey = 'visualDictionaryEnabled';
@@ -129,6 +130,7 @@ class SettingsService extends ChangeNotifier {
   PaletteId _appThemeId = PaletteId.classic;
   ThemeMode _themeMode = ThemeMode.system;
   int _dailyReadingGoalMinutes = defaultDailyReadingGoalMinutes;
+  bool _openTocOnBookOpen = true;
   bool _backupEnabled = false;
   bool _includeSecretsInBackup = false;
   String _backupFolderPath = '';
@@ -181,6 +183,7 @@ class SettingsService extends ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
   int get dailyReadingGoalMinutes => _dailyReadingGoalMinutes;
   int get dailyReadingGoalSeconds => _dailyReadingGoalMinutes * 60;
+  bool get openTocOnBookOpen => _openTocOnBookOpen;
   ThemeMode get nextThemeMode {
     final currentIndex = _themeModeCycle.indexOf(_themeMode);
     final safeIndex = currentIndex < 0 ? 0 : currentIndex;
@@ -311,6 +314,7 @@ class SettingsService extends ChangeNotifier {
         defaultValue: '$defaultDailyReadingGoalMinutes',
       ),
     );
+    _openTocOnBookOpen = _readBool(_openTocOnBookOpenKey, true);
     _backupEnabled = _readBool('backupEnabled', false);
     _includeSecretsInBackup = _readBool('includeSecretsInBackup', false);
     _backupFolderPath = _get('backupFolderPath', defaultValue: '')!;
@@ -561,6 +565,13 @@ class SettingsService extends ChangeNotifier {
     if (_dailyReadingGoalMinutes == normalized) return;
     _dailyReadingGoalMinutes = normalized;
     _put(_dailyReadingGoalMinutesKey, normalized.toString());
+    notifyListeners();
+  }
+
+  Future<void> setOpenTocOnBookOpen(bool enabled) async {
+    if (_openTocOnBookOpen == enabled) return;
+    _openTocOnBookOpen = enabled;
+    _put(_openTocOnBookOpenKey, enabled.toString());
     notifyListeners();
   }
 

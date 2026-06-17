@@ -45,16 +45,21 @@ void main() {
     expect(find.text('AI 设置'), findsOneWidget);
     expect(find.text('备份与同步'), findsOneWidget);
     expect(find.text('测试功能'), findsOneWidget);
-    expect(find.text('关于'), findsOneWidget);
+    expect(find.text('偏好设置'), findsOneWidget);
+    expect(find.text('数据与同步'), findsOneWidget);
+    expect(find.text('关于'), findsWidgets);
     expect(find.text('主题'), findsWidgets);
     expect(find.text('经典'), findsOneWidget);
     expect(find.text('颜色模式'), findsOneWidget);
+    expect(find.byType(SegmentedButton<ThemeMode>), findsNothing);
     expect(find.text('生词颜色'), findsOneWidget);
     expect(find.text('学习中颜色'), findsOneWidget);
+    expect(find.text('实时预览'), findsOneWidget);
 
     await tester.tap(find.text('阅读'));
     await tester.pump(const Duration(milliseconds: 250));
     expect(find.text('每日目标'), findsOneWidget);
+    expect(find.text('打开书籍后显示目录'), findsOneWidget);
     expect(find.text('每日 1 小时'), findsOneWidget);
     expect(find.text('周目标 6 小时'), findsOneWidget);
 
@@ -139,7 +144,7 @@ void main() {
     expect(settings.reviewFeatureEnabled, isTrue);
     expect(settings.forceDefaultBookCover, isTrue);
 
-    await tester.tap(find.text('关于').first);
+    await tester.tap(find.widgetWithText(SettingsSidebarItem, '关于'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('版本 ${FlowReadVersion.display}'), findsOneWidget);
     expect(find.text('辅助英语阅读与生词高亮工具'), findsOneWidget);

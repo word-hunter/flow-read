@@ -44,6 +44,19 @@ class SettingsReadingSection extends StatelessWidget {
         SettingsCityAtmosphereSection(settings: settings),
         const SizedBox(height: 16),
         SettingsCard(
+          icon: Icons.toc_outlined,
+          title: '打开书籍',
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.view_sidebar_outlined),
+            title: const Text('打开书籍后显示目录'),
+            subtitle: const Text('关闭后，每次切换到新书会自动收起桌面目录面板。'),
+            value: settings.openTocOnBookOpen,
+            onChanged: settings.setOpenTocOnBookOpen,
+          ),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
           icon: Icons.flag_outlined,
           title: '每日目标',
           child: Column(

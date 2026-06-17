@@ -42,6 +42,8 @@ void main() {
     );
 
     expect(find.text('当前书籍语言'), findsOneWidget);
+    expect(find.text('打开书籍'), findsOneWidget);
+    expect(find.text('打开书籍后显示目录'), findsOneWidget);
     expect(find.textContaining('自动检测：English'), findsOneWidget);
     expect(find.text('当前覆盖：日本語'), findsOneWidget);
     expect(find.text('恢复自动检测'), findsOneWidget);
