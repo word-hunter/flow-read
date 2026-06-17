@@ -578,11 +578,11 @@ class _BookInsightsPageState extends State<BookInsightsPage>
 
   Future<void> _showAddCharacterDialog(BookInsightProvider provider) async {
     final controller = TextEditingController();
-    final name = await showDialog<String>(
+    final name = await showFlowDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => FlowDialog(
         title: const Text('新增人物'),
-        content: TextField(
+        content: FlowTextField(
           controller: controller,
           autofocus: true,
           textInputAction: TextInputAction.done,
@@ -590,11 +590,11 @@ class _BookInsightsPageState extends State<BookInsightsPage>
           onSubmitted: (value) => Navigator.pop(dialogContext, value),
         ),
         actions: [
-          TextButton(
+          FlowButton.text(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('取消'),
           ),
-          FilledButton(
+          FlowButton.primary(
             onPressed: () => Navigator.pop(dialogContext, controller.text),
             child: const Text('保存'),
           ),
@@ -611,11 +611,11 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     String canonicalName,
   ) async {
     final controller = TextEditingController();
-    final alias = await showDialog<String>(
+    final alias = await showFlowDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => FlowDialog(
         title: Text('添加 $canonicalName 的别名'),
-        content: TextField(
+        content: FlowTextField(
           controller: controller,
           autofocus: true,
           textInputAction: TextInputAction.done,
@@ -623,11 +623,11 @@ class _BookInsightsPageState extends State<BookInsightsPage>
           onSubmitted: (value) => Navigator.pop(dialogContext, value),
         ),
         actions: [
-          TextButton(
+          FlowButton.text(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('取消'),
           ),
-          FilledButton(
+          FlowButton.primary(
             onPressed: () => Navigator.pop(dialogContext, controller.text),
             child: const Text('保存'),
           ),
@@ -643,17 +643,17 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     BookInsightProvider provider,
     String canonicalName,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showFlowDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => FlowDialog(
         title: const Text('删除人物'),
         content: Text('删除后将不再作为本书人物参与 AI 上下文：$canonicalName'),
         actions: [
-          TextButton(
+          FlowButton.text(
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          FlowButton.destructive(
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('删除'),
           ),

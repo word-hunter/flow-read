@@ -6,7 +6,7 @@ import '../../models/reading_memory.dart';
 import '../../providers/reading/services_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/reading_memory/reading_memory_inspector_service.dart';
-import '../../widgets/flow/flow_sheet.dart';
+import '../../widgets/flow/flow_components.dart';
 
 class ReadingMemoryInspectorScreen extends ConsumerWidget {
   const ReadingMemoryInspectorScreen({super.key});
@@ -31,11 +31,11 @@ class ReadingMemoryInspectorScreen extends ConsumerWidget {
         languageCode: languageCode,
       ),
       error: (error, _) => Scaffold(
-        appBar: AppBar(title: const Text('Reading Memory Inspector')),
+        appBar: const FlowToolbar(title: Text('Reading Memory Inspector')),
         body: Center(child: Text('无法读取数据库：$error')),
       ),
       loading: () => Scaffold(
-        appBar: AppBar(title: const Text('Reading Memory Inspector')),
+        appBar: const FlowToolbar(title: Text('Reading Memory Inspector')),
         body: const Center(child: CircularProgressIndicator()),
       ),
     );
@@ -88,7 +88,7 @@ class _ReadingMemoryInspectorViewState
     return DefaultTabController(
       length: 5,
       child: Scaffold(
-        appBar: AppBar(
+        appBar: FlowToolbar(
           title: const Text('Reading Memory Inspector'),
           actions: [
             Tooltip(
@@ -911,7 +911,7 @@ class _InspectorFilterBar extends StatelessWidget {
             children: [
               SizedBox(
                 width: searchWidth,
-                child: TextField(
+                child: FlowTextField(
                   key: searchKey,
                   controller: searchController,
                   decoration: InputDecoration(
@@ -2027,7 +2027,7 @@ class _InspectorUnavailableScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reading Memory Inspector')),
+      appBar: const FlowToolbar(title: Text('Reading Memory Inspector')),
       body: const Center(child: Text('当前构建不可用')),
     );
   }

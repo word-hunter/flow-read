@@ -1325,7 +1325,7 @@ class _BookGlossarySuggestionSectionState
         ],
         if (hasDraft) ...[
           const SizedBox(height: 12),
-          TextField(
+          FlowTextField(
             controller: _controller,
             minLines: 2,
             maxLines: 5,
