@@ -1,8 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../screens/debug/reading_memory_inspector_screen.dart';
+import '../../providers/reading/services_provider.dart';
+import '../../providers/settings_provider.dart';
+import '../../services/external_url_launcher.dart';
+import '../../services/reading_memory/reading_memory_inspector_web_server.dart';
 import '../../services/settings_service.dart';
+import '../../storage/database/dao/reading_memory_dao.dart';
 import 'settings_shared.dart';
 
 class SettingsExperimentalFeaturesSection extends StatelessWidget {
@@ -58,21 +63,99 @@ class SettingsExperimentalFeaturesSection extends StatelessWidget {
   }
 }
 
-class _DebugInspectorTile extends StatelessWidget {
+class _DebugInspectorTile extends ConsumerStatefulWidget {
   const _DebugInspectorTile();
 
   @override
+  ConsumerState<_DebugInspectorTile> createState() =>
+      _DebugInspectorTileState();
+}
+
+class _DebugInspectorTileState extends ConsumerState<_DebugInspectorTile> {
+  bool _opening = false;
+
+  @override
   Widget build(BuildContext context) {
+    final database = ref.watch(appDatabaseProvider);
+    final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+
+    return database.when(
+      data: (db) => _buildTile(
+        context,
+        enabled: !_opening,
+        subtitle: '在浏览器打开只读 Web Inspector',
+        trailing: _opening
+            ? const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.open_in_new),
+        onTap: _opening
+            ? null
+            : () => _openWebInspector(
+                dao: db.readingMemoryDao,
+                languageCode: languageCode,
+              ),
+      ),
+      error: (error, _) => _buildTile(
+        context,
+        enabled: false,
+        subtitle: '数据库不可用：$error',
+        trailing: const Icon(Icons.error_outline),
+        onTap: null,
+      ),
+      loading: () => _buildTile(
+        context,
+        enabled: false,
+        subtitle: '正在准备数据库',
+        trailing: const SizedBox.square(
+          dimension: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        onTap: null,
+      ),
+    );
+  }
+
+  Widget _buildTile(
+    BuildContext context, {
+    required bool enabled,
+    required String subtitle,
+    required Widget trailing,
+    required VoidCallback? onTap,
+  }) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.storage_outlined),
       title: const Text('Reading Memory Inspector'),
-      subtitle: const Text('查看 Reading Memory 的概览和实体列表'),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () {
-        Navigator.of(context).pushNamed(ReadingMemoryInspectorScreen.routeName);
-      },
+      subtitle: Text(subtitle),
+      trailing: trailing,
+      enabled: enabled,
+      onTap: onTap,
     );
+  }
+
+  Future<void> _openWebInspector({
+    required ReadingMemoryDao dao,
+    required String languageCode,
+  }) async {
+    setState(() => _opening = true);
+    try {
+      final uri = await ReadingMemoryInspectorWebLauncher.open(
+        dao: dao,
+        languageCode: languageCode,
+      );
+      await const ExternalUrlLauncher().open(uri);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('打开 Web Inspector 失败：$error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _opening = false);
+      }
+    }
   }
 }
 

@@ -65,7 +65,10 @@ main()
 /practice                  → PracticeScreen
 /review                    → ReviewScreen
 /spaced-review             → SpacedReviewScreen
-/debug/reading-memory      → ReadingMemoryInspectorScreen（debug only）
+/debug/reading-memory      → ReadingMemoryInspectorScreen（debug only，保留 Flutter 版）
+
+debug 设置入口:
+SettingsScreen → ReadingMemoryInspectorWebServer → 浏览器 Web Inspector（loopback only）
 
 内部导航（非命名路由）:
 HomeScreen → ReadingDeskScreen → ReaderPage（正文）
