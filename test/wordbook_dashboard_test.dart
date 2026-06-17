@@ -24,6 +24,7 @@ void main() {
           word: 'gleam',
           meaning: '微光',
           bookId: 'book-1',
+          chapterIndex: 12,
           chapterTitle: 'Ch.13',
           sourceText: 'A faint gleam reflected off the window.',
           createdAt: DateTime.utc(2026, 6, 15),
@@ -84,6 +85,18 @@ void main() {
           .map((entry) => entry.word),
       ['bargain', 'gleam', 'hesitate', 'conceal'],
     );
+
+    final learningEntry = dashboard.entries.singleWhere(
+      (entry) => entry.word == 'gleam',
+    );
+    expect(learningEntry.bookId, 'book-1');
+    expect(learningEntry.chapterIndex, 12);
+
+    final aggregatedEntry = dashboard.entries.singleWhere(
+      (entry) => entry.word == 'conceal',
+    );
+    expect(aggregatedEntry.bookId, isEmpty);
+    expect(aggregatedEntry.chapterIndex, 26);
   });
 
   test('filters mastered, learning, source summaries, and text search', () {
@@ -247,6 +260,7 @@ LearningItem _word({
   required String word,
   String meaning = '',
   String bookId = '',
+  int chapterIndex = 0,
   String chapterTitle = '',
   String sourceText = '',
   DateTime? createdAt,
@@ -266,7 +280,7 @@ LearningItem _word({
     note: '',
     sourceText: sourceText,
     bookId: bookId,
-    chapterIndex: 0,
+    chapterIndex: chapterIndex,
     chapterTitle: chapterTitle,
     createdAt: created,
     updatedAt: updatedAt ?? created,

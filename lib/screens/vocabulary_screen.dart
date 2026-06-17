@@ -683,8 +683,29 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
     showFlowSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => WordBottomSheet(word: entry.word),
+      builder: (_) => WordBottomSheet(
+        word: entry.word,
+        wordbookEntry: entry,
+        onShowSourceBook: () => _focusSourceBook(entry),
+      ),
     ).whenComplete(lookupNotifier.clearWordLookup);
+  }
+
+  void _focusSourceBook(WordbookEntry entry) {
+    if (!mounted) return;
+    final sourceTitle = entry.sourceTitle.trim();
+    if (sourceTitle.isEmpty) return;
+    _searchController.text = sourceTitle;
+    setState(() {
+      _filter = WordbookFilter.byBook;
+      _query = sourceTitle;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('已定位到来源书籍：$sourceTitle'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _markKnown(

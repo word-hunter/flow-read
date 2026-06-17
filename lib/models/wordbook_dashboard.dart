@@ -23,6 +23,8 @@ class WordbookEntry {
   final String sourceTitle;
   final String sourceDetail;
   final String sourceContext;
+  final String bookId;
+  final int chapterIndex;
   final String languageId;
   final UserWordStatus? status;
   final DateTime createdAt;
@@ -37,6 +39,8 @@ class WordbookEntry {
     required this.sourceTitle,
     required this.sourceDetail,
     required this.sourceContext,
+    required this.bookId,
+    required this.chapterIndex,
     required this.languageId,
     required this.status,
     required this.createdAt,
@@ -268,6 +272,8 @@ class WordbookDashboardBuilder {
           ? chapter
           : _chapterLabel(item.chapterIndex),
       sourceContext: item.sourceText,
+      bookId: item.bookId,
+      chapterIndex: item.chapterIndex,
       languageId: 'en',
       status: statusFor(word),
       createdAt: item.createdAt,
@@ -289,6 +295,8 @@ class WordbookDashboardBuilder {
       sourceTitle: '当前阅读材料',
       sourceDetail: _chapterLabel(vocab.firstChapter),
       sourceContext: vocab.context,
+      bookId: '',
+      chapterIndex: vocab.firstChapter,
       languageId: vocab.languageId,
       status: statusFor(vocab.word),
       createdAt: createdAt,

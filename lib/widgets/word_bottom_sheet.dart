@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flow_ai/flow_ai.dart';
 import '../models/user_vocabulary.dart';
+import '../models/wordbook_dashboard.dart';
 import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
@@ -15,8 +16,15 @@ import 'word_mastery_confetti.dart';
 
 class WordBottomSheet extends riverpod.ConsumerStatefulWidget {
   final String word;
+  final WordbookEntry? wordbookEntry;
+  final VoidCallback? onShowSourceBook;
 
-  const WordBottomSheet({super.key, required this.word});
+  const WordBottomSheet({
+    super.key,
+    required this.word,
+    this.wordbookEntry,
+    this.onShowSourceBook,
+  });
 
   @override
   riverpod.ConsumerState<WordBottomSheet> createState() =>
@@ -121,12 +129,29 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     WordLookupNotifier lookupNotifier,
     String word,
   ) {
-    return DictionaryDetailView.fromWordLookup(
-      lookupState: lookupState,
-      lookupNotifier: lookupNotifier,
-      word: word,
-      wordLevelService: ref.read(wordLevelServiceProvider),
-      canPronounceWords: true,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DictionaryDetailView.fromWordLookup(
+          lookupState: lookupState,
+          lookupNotifier: lookupNotifier,
+          word: word,
+          wordLevelService: ref.read(wordLevelServiceProvider),
+          canPronounceWords: true,
+        ),
+        if (widget.wordbookEntry != null) ...[
+          const SizedBox(height: 14),
+          _WordbookSourcePanel(
+            entry: widget.wordbookEntry!,
+            onShowSourceBook: widget.onShowSourceBook == null
+                ? null
+                : () {
+                    Navigator.of(context).pop();
+                    widget.onShowSourceBook?.call();
+                  },
+          ),
+        ],
+      ],
     );
   }
 
@@ -141,6 +166,10 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     UserWordStatus? status,
     bool isBookmarked,
   ) {
+    if (widget.wordbookEntry != null) {
+      return _buildWordbookActions(vocabularyNotifier, theme, word, status);
+    }
+
     final canToggleAIAnalysis = settings.aiFeaturesEnabled;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
@@ -293,6 +322,69 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
     );
   }
 
+  Widget _buildWordbookActions(
+    VocabularyNotifier vocabularyNotifier,
+    ThemeData theme,
+    String word,
+    UserWordStatus? status,
+  ) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          if (status != UserWordStatus.learning)
+            Expanded(
+              child: _actionButton(
+                theme: theme,
+                label: '标为学习中',
+                icon: Icons.school_outlined,
+                color: FunctionalColors.vocabLearning,
+                onPressed: () => _markWordLearning(vocabularyNotifier, word),
+              ),
+            ),
+          if (status != UserWordStatus.learning &&
+              status != UserWordStatus.known)
+            const SizedBox(width: 8),
+          if (status != UserWordStatus.known)
+            Expanded(
+              child: WordMasteryActionAnchor(
+                builder: (context, origin) => _actionButton(
+                  theme: theme,
+                  label: '标为已掌握',
+                  icon: Icons.check_circle_outline,
+                  color: FunctionalColors.familiarityHigh,
+                  onPressed: () => _markWordKnown(
+                    vocabularyNotifier,
+                    word,
+                    origin(),
+                  ),
+                ),
+              ),
+            ),
+          if (status == UserWordStatus.known ||
+              status == UserWordStatus.learning)
+            Expanded(
+              child: _actionButton(
+                theme: theme,
+                label: '移出状态',
+                icon: Icons.help_outline,
+                color: FunctionalColors.familiarityLow,
+                onPressed: () => _markWordUnknownOnly(vocabularyNotifier, word),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _addLearningItem() async {
     final result = await ref
         .read(vocabularyNotifierProvider.notifier)
@@ -325,6 +417,52 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
       bookmarkNotifier.removeBookmark(word);
     }
     if (mounted) setState(() => _bookmarkAdded = false);
+  }
+
+  Future<void> _markWordKnown(
+    VocabularyNotifier vocabularyNotifier,
+    String word,
+    Offset? origin,
+  ) async {
+    await vocabularyNotifier.markWordKnown(word, celebrationOrigin: origin);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已标为已掌握'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    setState(() {});
+  }
+
+  Future<void> _markWordLearning(
+    VocabularyNotifier vocabularyNotifier,
+    String word,
+  ) async {
+    await vocabularyNotifier.markWordLearning(word);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已标为学习中'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    setState(() {});
+  }
+
+  Future<void> _markWordUnknownOnly(
+    VocabularyNotifier vocabularyNotifier,
+    String word,
+  ) async {
+    await vocabularyNotifier.markWordUnknown(word);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已移出学习状态'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    setState(() {});
   }
 
   Widget _savedLearningItemHint(ThemeData theme) {
@@ -375,6 +513,102 @@ class _WordBottomSheetState extends riverpod.ConsumerState<WordBottomSheet> {
             fontWeight: FontWeight.w600,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _WordbookSourcePanel extends StatelessWidget {
+  const _WordbookSourcePanel({
+    required this.entry,
+    required this.onShowSourceBook,
+  });
+
+  final WordbookEntry entry;
+  final VoidCallback? onShowSourceBook;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasSourceContext = entry.sourceContext.trim().isNotEmpty;
+    final canShowSourceBook = entry.bookId.trim().isNotEmpty;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.28,
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.36),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.menu_book_outlined,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.sourceTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (entry.sourceDetail.trim().isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        entry.sourceDetail,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              FlowButton.text(
+                onPressed: canShowSourceBook ? onShowSourceBook : null,
+                icon: const Icon(Icons.arrow_forward, size: 16),
+                size: FlowButtonSize.small,
+                child: const Text('查看来源书籍'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '原文上下文',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            hasSourceContext ? entry.sourceContext : '暂无上下文',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.45,
+              fontStyle: hasSourceContext ? FontStyle.italic : null,
+            ),
+          ),
+        ],
       ),
     );
   }
