@@ -1,22 +1,32 @@
 import 'dart:async';
 
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import 'package:flow_rss/flow_rss.dart';
+import '../providers/reading/services_provider.dart';
+import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/rss_riverpod_provider.dart';
 import '../providers/rss_reading_config_provider.dart';
 import '../providers/reading/reading_config_notifier.dart';
+import '../providers/settings_provider.dart';
 import '../providers/web_content_provider.dart';
 import '../services/app_logger.dart';
 import '../services/web_content_service.dart';
 import '../theme/app_constants.dart';
 import '../theme/app_surface_tokens.dart';
+import '../widgets/ai_assistant_panel.dart';
 import '../widgets/flow/flow_components.dart';
 import '../widgets/font_settings_sheet.dart';
-import '../widgets/reader/reader_content_view.dart';
+import '../widgets/reader/reader_theme_resolver.dart';
 import '../widgets/rss/rss_article_body_view.dart';
 import '../widgets/rss/rss_interaction_styles.dart';
+import '../widgets/selected_text_action_toolbar.dart'
+    show SelectedTextActionRegionState;
+
+typedef RssSelectedTextAnalyzer =
+    void Function(RssArticle article, String selectedText);
 
 class RssArticleDetailScreen extends StatelessWidget {
   final List<RssArticle> articles;
@@ -59,6 +69,9 @@ class RssArticleDetailPane extends riverpod.ConsumerStatefulWidget {
   final bool showReadingSettingsAction;
   final bool markInitialArticleAsRead;
   final bool showLookupSheet;
+  final int selectionResetToken;
+  final ValueChanged<RssArticle>? onDisplayArticleChanged;
+  final RssSelectedTextAnalyzer? onAnalyzeSelected;
 
   const RssArticleDetailPane({
     super.key,
@@ -69,6 +82,9 @@ class RssArticleDetailPane extends riverpod.ConsumerStatefulWidget {
     this.showReadingSettingsAction = true,
     this.markInitialArticleAsRead = true,
     this.showLookupSheet = true,
+    this.selectionResetToken = 0,
+    this.onDisplayArticleChanged,
+    this.onAnalyzeSelected,
   });
 
   @override
@@ -80,9 +96,12 @@ class _RssArticleDetailPaneState
     extends riverpod.ConsumerState<RssArticleDetailPane> {
   late String _currentArticleId;
   final MenuController _readingSettingsMenuController = MenuController();
+  final GlobalKey<SelectedTextActionRegionState> _selectedTextActionRegionKey =
+      GlobalKey<SelectedTextActionRegionState>();
   final Map<String, RssArticle> _readableArticlesById = {};
   final Map<String, String> _readableArticleErrors = {};
   final Set<String> _loadingReadableArticleIds = {};
+  int? _lastReportedDisplayArticleSignature;
 
   @override
   void initState() {
@@ -96,6 +115,9 @@ class _RssArticleDetailPaneState
   @override
   void didUpdateWidget(covariant RssArticleDetailPane oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.selectionResetToken != oldWidget.selectionResetToken) {
+      _clearSelectedText();
+    }
     final requestedChanged =
         widget.initialArticleId != oldWidget.initialArticleId;
     final currentExists = widget.articles.any(
@@ -110,10 +132,17 @@ class _RssArticleDetailPaneState
         widget.articles.firstOrNull;
     if (nextArticle == null || nextArticle.id == _currentArticleId) return;
 
+    _clearSelectedText();
     _currentArticleId = nextArticle.id;
     if (widget.markInitialArticleAsRead) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _markCurrentAsRead());
     }
+  }
+
+  @override
+  void dispose() {
+    _clearSelectedText();
+    super.dispose();
   }
 
   @override
@@ -139,6 +168,9 @@ class _RssArticleDetailPaneState
                 isReadLater: article.isReadLater,
               ) ??
               article;
+    if (displayArticle != null) {
+      _reportDisplayArticleIfNeeded(displayArticle);
+    }
     final articleId = article?.id;
 
     return displayArticle == null
@@ -392,6 +424,9 @@ class _RssArticleDetailPaneState
                     article: article,
                     mode: RssArticleBodyMode.intensive,
                     readingConfig: readingConfig,
+                    selectedTextActionRegionKey: _selectedTextActionRegionKey,
+                    onAnalyzeSelected: (selectedText) =>
+                        _analyzeSelectedText(context, article, selectedText),
                     showLookupSheet: widget.showLookupSheet,
                     maxImageHeight: 460,
                     maxImageWidth: 720,
@@ -550,9 +585,112 @@ class _RssArticleDetailPaneState
   }
 
   void _selectArticle(RssArticle article) {
+    _clearSelectedText();
     setState(() => _currentArticleId = article.id);
     widget.onArticleSelected?.call(article);
     _markAsRead(article);
+  }
+
+  void _clearSelectedText() {
+    _selectedTextActionRegionKey.currentState?.clearSelection();
+  }
+
+  void _analyzeSelectedText(
+    BuildContext context,
+    RssArticle article,
+    String text,
+  ) {
+    final selectedText = text.trim();
+    if (selectedText.isEmpty) return;
+    final externalAnalyzer = widget.onAnalyzeSelected;
+    if (externalAnalyzer != null) {
+      externalAnalyzer(article, selectedText);
+      return;
+    }
+
+    if (!ref.read(settingsProvider).aiFeaturesEnabled) return;
+    final assistant = ref.read(aiAssistantControllerProvider);
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.readerSelectedText,
+        selectedText: selectedText,
+        surroundingPassage: _selectedTextPassage(article, selectedText),
+        articleTitle: article.title,
+        articleUrl: article.link,
+      ),
+    );
+    ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
+    showFlowSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollController) => AIAssistantPanel(
+          controller: assistant,
+        ),
+      ),
+    );
+    _executeDefaultAssistantAction(
+      assistant,
+      preferred: AIAssistantActionType.explain,
+    );
+  }
+
+  void _executeDefaultAssistantAction(
+    AIAssistantController assistant, {
+    AIAssistantActionType? preferred,
+  }) {
+    final actions = assistant.availableActions;
+    if (actions.isEmpty) return;
+    final action = preferred != null && actions.contains(preferred)
+        ? preferred
+        : actions.first;
+    unawaited(assistant.executeAction(action));
+  }
+
+  String _selectedTextPassage(RssArticle article, String selectedText) {
+    for (final block in article.bodyBlocks.whereType<RssArticleTextBlock>()) {
+      final text = block.text.trim();
+      if (_containsSelectedText(text, selectedText)) return text;
+    }
+
+    final content = article.content?.trim();
+    if (content != null && content.isNotEmpty) return content;
+
+    final description = article.description?.trim();
+    if (description != null && description.isNotEmpty) return description;
+
+    return selectedText;
+  }
+
+  bool _containsSelectedText(String source, String selectedText) {
+    if (source.contains(selectedText)) return true;
+    final normalizedSource = source.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final normalizedSelection = selectedText
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return normalizedSelection.isNotEmpty &&
+        normalizedSource.contains(normalizedSelection);
+  }
+
+  void _reportDisplayArticleIfNeeded(RssArticle article) {
+    final signature = Object.hash(
+      article.id,
+      article.title,
+      article.link,
+      article.content,
+      article.description,
+      article.bodyBlocks.length,
+    );
+    if (_lastReportedDisplayArticleSignature == signature) return;
+    _lastReportedDisplayArticleSignature = signature;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.onDisplayArticleChanged?.call(article);
+    });
   }
 
   Future<void> _loadReadableArticleIfNeeded(RssArticle article) async {
@@ -683,7 +821,11 @@ class _RssArticleDetailPaneState
   ) {
     return switch (readingConfig.readingTheme) {
       'sepia' => const Color(0xFFF5ECD7),
-      'dark' => AppSurfaceTokens.of(context).readerWorkspaceBackground,
+      'dark' => resolveReaderPageBackgroundColor(
+        readingConfig,
+        null,
+        AppSurfaceTokens.of(context),
+      ),
       _ => Color.alphaBlend(
         theme.colorScheme.primaryContainer.withValues(alpha: 0.08),
         theme.colorScheme.surface,

@@ -10,6 +10,7 @@ import '../../providers/reading/reading_search_notifier.dart';
 import '../../providers/reading/word_lookup_notifier.dart';
 import '../../services/settings_service.dart' show VocabularyColorSettings;
 import '../../services/word_level_service.dart';
+import 'reader_theme_resolver.dart';
 import '../reader_text_view.dart';
 import '../selected_text_action_toolbar.dart';
 
@@ -376,24 +377,6 @@ Color _readerTextColor(
   );
 }
 
-Color resolveReaderTextColor(
-  ReadingConfigState config,
-  CityThemePreset? cityPreset, {
-  Brightness? appBrightness,
-}) {
-  if (_usesDarkReaderPalette(config, cityPreset, appBrightness)) {
-    return const Color(0xFFEAF1FA);
-  }
-  if (cityPreset != null) return cityPreset.primaryText;
-
-  switch (config.readingTheme) {
-    case 'sepia':
-      return const Color(0xFF30281F);
-    default:
-      return const Color(0xFF20231F);
-  }
-}
-
 Color _readerMutedTextColor(
   ReadingConfigState config,
   CityThemePreset? cityPreset,
@@ -406,32 +389,16 @@ Color _readerMutedTextColor(
   );
 }
 
-Color resolveReaderMutedTextColor(
-  ReadingConfigState config,
-  CityThemePreset? cityPreset, {
-  Brightness? appBrightness,
-}) {
-  if (_usesDarkReaderPalette(config, cityPreset, appBrightness)) {
-    return const Color(0xFFB7C5D6);
-  }
-  if (cityPreset != null) return cityPreset.secondaryText;
-
-  switch (config.readingTheme) {
-    case 'sepia':
-      return const Color(0xFF6F6251);
-    default:
-      return const Color(0xFF626960);
-  }
-}
-
 bool _usesDarkReaderPalette(
   ReadingConfigState config,
   CityThemePreset? cityPreset,
   Brightness? appBrightness,
 ) {
-  if (config.readingTheme == 'dark') return true;
-  if (cityPreset != null) return false;
-  return config.readingTheme == 'light' && appBrightness == Brightness.dark;
+  return usesDarkReaderPalette(
+    config,
+    cityPreset,
+    appBrightness: appBrightness,
+  );
 }
 
 TextStyle _buildBaseTextStyle(

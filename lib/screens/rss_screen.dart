@@ -1,12 +1,21 @@
+import 'dart:async';
+
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_rss/flow_rss.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
-import '../providers/rss_riverpod_provider.dart';
+import '../providers/reading/current_book_notifier.dart';
+import '../providers/reading/services_provider.dart';
 import '../providers/reading/word_lookup_notifier.dart';
+import '../providers/rss_riverpod_provider.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
+import '../widgets/ai_assistant_panel.dart';
 import '../widgets/flow/flow_components.dart';
 import '../widgets/reader/reader_word_sidebar.dart';
+import '../widgets/reader_shell/reader_right_assistant_panel.dart';
+import '../widgets/reader_shell/reader_workspace_controller.dart';
 import '../widgets/rss/rss_article_list.dart';
 import '../widgets/rss/rss_interaction_styles.dart';
 import 'rss_article_detail_screen.dart';
@@ -19,12 +28,45 @@ class RssScreen extends riverpod.ConsumerStatefulWidget {
 }
 
 class _RssScreenState extends riverpod.ConsumerState<RssScreen> {
+  static const _rssTabIndex = 1;
   static const _latestFeedValue = '__flow_read_latest__';
   String? _selectedArticleId;
   bool _isArticleListCollapsed = false;
+  int _selectionResetToken = 0;
+  late final ReaderWorkspaceController _rightPanelController =
+      ReaderWorkspaceController(leftPanelOpen: false, rightPanelOpen: false);
+  RssArticle? _activeDetailArticle;
+
+  @override
+  void initState() {
+    super.initState();
+    _rightPanelController.addListener(_onRightPanelControllerChanged);
+  }
+
+  @override
+  void dispose() {
+    _rightPanelController.removeListener(_onRightPanelControllerChanged);
+    _rightPanelController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(
+      currentBookNotifierProvider.select((state) => state.currentTab),
+      (previousTab, currentTab) {
+        if (currentTab != _rssTabIndex) {
+          _resetRssSelection();
+        }
+      },
+    );
+    ref.listen<String?>(
+      wordLookupNotifierProvider.select((state) => state.selectedWord),
+      (previousWord, selectedWord) {
+        if (selectedWord?.trim().isEmpty ?? true) return;
+        _rightPanelController.openRightPanel(ReaderRightPanelTab.dictionary);
+      },
+    );
     final state = ref.watch(rssNotifierProvider);
     final theme = Theme.of(context);
 
@@ -58,7 +100,6 @@ class _RssScreenState extends riverpod.ConsumerState<RssScreen> {
     ThemeData theme,
     BoxConstraints constraints,
   ) {
-    final lookupState = ref.watch(wordLookupNotifierProvider);
     final listWidth = constraints.maxWidth >= 1120 ? 340.0 : 304.0;
     final effectiveSelectedArticleId = _effectiveSelectedArticleId(state);
     final articleListWidth = _isArticleListCollapsed ? 48.0 : listWidth;
@@ -88,17 +129,47 @@ class _RssScreenState extends riverpod.ConsumerState<RssScreen> {
             selectedArticleId: effectiveSelectedArticleId,
           ),
         ),
-        if (lookupState.selectedWord != null) ...[
+        if (_rightPanelController.isRightPanelOpen) ...[
           VerticalDivider(
             width: 1,
             color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
           ),
-          ReaderWordSidebar(
-            onClose: () =>
-                ref.read(wordLookupNotifierProvider.notifier).clearWordLookup(),
+          SizedBox(
+            width: _rightPanelController.rightPanelWidth,
+            child: _buildRightAssistantPanel(),
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildRightAssistantPanel() {
+    final lookupState = ref.watch(wordLookupNotifierProvider);
+    final hasSelectedWord = lookupState.selectedWord?.trim().isNotEmpty == true;
+
+    return ReaderRightAssistantPanel(
+      workspaceController: _rightPanelController,
+      onTabSelected: _onRightPanelTabSelected,
+      onClose: _closeRightPanelAndClearLookup,
+      dictionaryContent: hasSelectedWord
+          ? ReaderWordSidebar(
+              onClose: _closeRightPanelAndClearLookup,
+            )
+          : const _RssRightPanelEmptyState(
+              icon: Icons.text_fields_outlined,
+              message: '点击正文中的单词后，释义会显示在这里',
+            ),
+      aiContent: _rightPanelController.rightTab == ReaderRightPanelTab.ai
+          ? AIAssistantPanel(
+              controller: ref.read(aiAssistantControllerProvider),
+              embedded: true,
+              onClose: _closeRightPanelAndClearLookup,
+            )
+          : const SizedBox.shrink(),
+      chapterContent: const _RssRightPanelEmptyState(
+        icon: Icons.insights_outlined,
+        message: 'RSS 暂无阅读统计',
+      ),
     );
   }
 
@@ -337,6 +408,9 @@ class _RssScreenState extends riverpod.ConsumerState<RssScreen> {
       showFeedName: state.isLatestSelected,
       markInitialArticleAsRead: false,
       showLookupSheet: false,
+      selectionResetToken: _selectionResetToken,
+      onDisplayArticleChanged: _handleDisplayArticleChanged,
+      onAnalyzeSelected: _analyzeSelectedText,
       onArticleSelected: (article) {
         if (_selectedArticleId == article.id) return;
         setState(() => _selectedArticleId = article.id);
@@ -400,11 +474,161 @@ class _RssScreenState extends riverpod.ConsumerState<RssScreen> {
 
   void _selectInlineArticle(RssArticle article) {
     if (_selectedArticleId != article.id) {
+      _resetRssSelection();
+      ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
       setState(() => _selectedArticleId = article.id);
     }
     if (!article.isRead) {
       ref.read(rssNotifierProvider.notifier).markAsRead(article.id);
     }
+  }
+
+  void _onRightPanelControllerChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  void _clearWordLookupIfSelected() {
+    if (ref.read(wordLookupNotifierProvider).selectedWord == null) return;
+    ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
+  }
+
+  void _closeRightPanelAndClearLookup() {
+    _clearWordLookupIfSelected();
+    _rightPanelController.closeRightPanel();
+  }
+
+  void _onRightPanelTabSelected(ReaderRightPanelTab tab) {
+    switch (tab) {
+      case ReaderRightPanelTab.ai:
+        _openRssAssistantForCurrentArticle();
+      case ReaderRightPanelTab.dictionary:
+      case ReaderRightPanelTab.chapter:
+        _rightPanelController.openRightPanel(tab);
+    }
+  }
+
+  void _openRssAssistantForCurrentArticle() {
+    final settings = ref.read(settingsProvider);
+    if (!settings.aiFeaturesEnabled) return;
+    final article = _currentArticleForAssistant();
+    if (article == null) return;
+    final content = _articleContentForAssistant(article);
+    if (content.isEmpty) return;
+
+    ref
+        .read(aiAssistantControllerProvider)
+        .setContext(
+          AIContextSnapshot(
+            source: AIContextSource.rssArticle,
+            articleTitle: article.title,
+            articleContent: content,
+            articleUrl: article.link,
+          ),
+        );
+    _rightPanelController.openRightPanel(ReaderRightPanelTab.ai);
+  }
+
+  void _analyzeSelectedText(RssArticle article, String text) {
+    final selectedText = text.trim();
+    if (selectedText.isEmpty) return;
+    final settings = ref.read(settingsProvider);
+    if (!settings.aiFeaturesEnabled) return;
+
+    final assistant = ref.read(aiAssistantControllerProvider);
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.readerSelectedText,
+        selectedText: selectedText,
+        surroundingPassage: _selectedTextPassage(article, selectedText),
+        articleTitle: article.title,
+        articleUrl: article.link,
+      ),
+    );
+    ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
+    _rightPanelController.openRightPanel(ReaderRightPanelTab.ai);
+    _executeDefaultAssistantAction(
+      assistant,
+      preferred: AIAssistantActionType.explain,
+    );
+  }
+
+  void _executeDefaultAssistantAction(
+    AIAssistantController assistant, {
+    AIAssistantActionType? preferred,
+  }) {
+    final actions = assistant.availableActions;
+    if (actions.isEmpty) return;
+    final action = preferred != null && actions.contains(preferred)
+        ? preferred
+        : actions.first;
+    unawaited(assistant.executeAction(action));
+  }
+
+  RssArticle? _currentArticleForAssistant() {
+    final state = ref.read(rssNotifierProvider);
+    final selectedArticleId = _effectiveSelectedArticleId(state);
+    final activeArticle = _activeDetailArticle;
+    if (activeArticle != null && activeArticle.id == selectedArticleId) {
+      return activeArticle;
+    }
+
+    if (selectedArticleId == null) return null;
+    return _detailArticlesFor(
+      state,
+      selectedArticleId,
+    ).where((article) => article.id == selectedArticleId).firstOrNull;
+  }
+
+  String _articleContentForAssistant(RssArticle article) {
+    final blockText = article.bodyBlocks
+        .whereType<RssArticleTextBlock>()
+        .map((block) => block.text.trim())
+        .where((text) => text.isNotEmpty)
+        .join('\n\n');
+    if (blockText.isNotEmpty) return blockText;
+
+    final content = article.content?.trim();
+    if (content != null && content.isNotEmpty) return content;
+
+    final description = article.description?.trim();
+    if (description != null && description.isNotEmpty) return description;
+
+    return '';
+  }
+
+  String _selectedTextPassage(RssArticle article, String selectedText) {
+    for (final block in article.bodyBlocks.whereType<RssArticleTextBlock>()) {
+      final text = block.text.trim();
+      if (_containsSelectedText(text, selectedText)) return text;
+    }
+
+    final content = article.content?.trim();
+    if (content != null && content.isNotEmpty) return content;
+
+    final description = article.description?.trim();
+    if (description != null && description.isNotEmpty) return description;
+
+    return selectedText;
+  }
+
+  bool _containsSelectedText(String source, String selectedText) {
+    if (source.contains(selectedText)) return true;
+    final normalizedSource = source.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final normalizedSelection = selectedText
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return normalizedSelection.isNotEmpty &&
+        normalizedSource.contains(normalizedSelection);
+  }
+
+  void _handleDisplayArticleChanged(RssArticle article) {
+    _activeDetailArticle = article;
+  }
+
+  void _resetRssSelection() {
+    if (!mounted) return;
+    setState(() => _selectionResetToken++);
   }
 
   Widget _buildNarrowLayout(
@@ -905,6 +1129,44 @@ class _RssScreenState extends riverpod.ConsumerState<RssScreen> {
                 }
               },
               child: const Text('保存'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RssRightPanelEmptyState extends StatelessWidget {
+  final IconData icon;
+  final String message;
+
+  const _RssRightPanelEmptyState({
+    required this.icon,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 40,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

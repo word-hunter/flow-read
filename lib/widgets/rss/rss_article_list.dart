@@ -121,19 +121,23 @@ class _RssArticleListState extends State<RssArticleList> {
         if (isLoading) const LinearProgressIndicator(minHeight: 2),
         if (isError) _buildCachedErrorBanner(theme),
         Expanded(
-          child: RefreshIndicator(
-            onRefresh: widget.onRefresh,
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              itemCount: widget.articles.length,
-              itemBuilder: (context, index) {
-                final article = widget.articles[index];
-                return _buildArticleCard(
-                  context,
-                  article,
-                  theme,
-                );
-              },
+          child: Padding(
+            key: const ValueKey('rss-article-list-scroll-frame'),
+            padding: const EdgeInsets.only(bottom: 16),
+            child: RefreshIndicator(
+              onRefresh: widget.onRefresh,
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(10, 4, 10, 18),
+                itemCount: widget.articles.length,
+                itemBuilder: (context, index) {
+                  final article = widget.articles[index];
+                  return _buildArticleCard(
+                    context,
+                    article,
+                    theme,
+                  );
+                },
+              ),
             ),
           ),
         ),

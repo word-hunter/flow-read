@@ -7,7 +7,6 @@ import '../../models/reading_memory.dart';
 import 'package:flow_rss/flow_rss.dart';
 import '../../providers/reading/reading_config_notifier.dart';
 import '../../providers/reading/services_provider.dart';
-import '../../providers/reading/text_selection_notifier.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/reading/word_lookup_notifier.dart';
 import '../../providers/settings_provider.dart';
@@ -18,10 +17,9 @@ import '../../services/reading_memory/reading_memory_ids.dart';
 import '../../services/settings_service.dart';
 import '../../services/word_level_service.dart';
 import '../flow/flow_components.dart';
-import '../reader/reader_content_view.dart';
+import '../reader/reader_theme_resolver.dart';
 import '../reader_text_view.dart';
 import '../selected_text_action_toolbar.dart';
-import '../selected_text_sheet.dart';
 import '../word_bottom_sheet.dart';
 
 enum RssArticleBodyMode { preview, detail, intensive }
@@ -34,6 +32,8 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
   final double maxImageWidth;
   final bool showLookupSheet;
   final ReadingConfigState? readingConfig;
+  final GlobalKey<SelectedTextActionRegionState>? selectedTextActionRegionKey;
+  final ValueChanged<String>? onAnalyzeSelected;
 
   const RssArticleBodyView({
     super.key,
@@ -44,6 +44,8 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     this.maxImageWidth = 520,
     this.showLookupSheet = true,
     this.readingConfig,
+    this.selectedTextActionRegionKey,
+    this.onAnalyzeSelected,
   });
 
   @override
@@ -119,6 +121,7 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     }
 
     return SelectedTextActionRegion(
+      key: selectedTextActionRegionKey,
       actionsBuilder: (context, selectedText, closeToolbar) => [
         SelectedTextAction.copy(
           context: context,
@@ -126,12 +129,15 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
           closeToolbar: closeToolbar,
         ),
         SelectedTextAction(
-          icon: Icons.segment_outlined,
-          tooltip: '解析选中内容',
-          enabled: selectedText.trim().isNotEmpty,
+          icon: Icons.auto_awesome_rounded,
+          tooltip: 'AI 解析',
+          enabled:
+              settings.aiFeaturesEnabled &&
+              selectedText.trim().isNotEmpty &&
+              onAnalyzeSelected != null,
           onPressed: () {
             closeToolbar();
-            _showSelectedTextSheet(context, ref, selectedText);
+            onAnalyzeSelected?.call(selectedText);
           },
         ),
       ],
@@ -509,32 +515,5 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
       isScrollControlled: true,
       builder: (_) => WordBottomSheet(word: word),
     ).whenComplete(lookupNotifier.clearWordLookup);
-  }
-
-  void _showSelectedTextSheet(
-    BuildContext context,
-    riverpod.WidgetRef ref,
-    String text,
-  ) {
-    final selectedText = text.trim();
-    if (selectedText.isEmpty) return;
-    final notifier = ref.read(textSelectionNotifierProvider.notifier);
-    notifier.analyzeSelectedText(selectedText);
-    final state = ref.watch(textSelectionNotifierProvider);
-    showFlowSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => SelectedTextSheet(
-        selectedText: selectedText,
-        analysis: state.selectedAnalysis,
-        breakdowns: state.selectedBreakdowns,
-        memorySourceRef: MemorySourceRef(
-          sourceId: ReadingMemoryIds.source(SourceKind.rss, article.id),
-          sourceKind: SourceKind.rss,
-          sourceTitleSnapshot: article.title,
-          locationLocator: article.link,
-        ),
-      ),
-    );
   }
 }

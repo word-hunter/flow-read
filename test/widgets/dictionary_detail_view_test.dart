@@ -179,4 +179,69 @@ void main() {
 
     expect(retryCount, 1);
   });
+
+  testWidgets(
+    'keeps primary definition readable on a dark dictionary surface',
+    (
+      tester,
+    ) async {
+      final colorScheme =
+          ColorScheme.fromSeed(
+            seedColor: const Color(0xFF0277FE),
+          ).copyWith(
+            surface: const Color(0xFF1A2233),
+            onSurface: const Color(0xFF002B4D),
+            primary: const Color(0xFF0277FE),
+            primaryContainer: const Color(0xFFD8E8FF),
+            onPrimaryContainer: const Color(0xFF002B4D),
+          );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(colorScheme: colorScheme),
+          home: Scaffold(
+            backgroundColor: colorScheme.surface,
+            body: const DictionaryDetailView(
+              word: 'jiffy',
+              entry: null,
+              primaryDefinition: 'a very short time',
+              isLoading: false,
+            ),
+          ),
+        ),
+      );
+
+      final definition = tester.widget<Text>(find.text('a very short time'));
+      final definitionColor = definition.style?.color;
+      expect(definitionColor, isNotNull);
+
+      final card = tester.widget<Container>(
+        find
+            .ancestor(
+              of: find.text('a very short time'),
+              matching: find.byWidgetPredicate(
+                (widget) =>
+                    widget is Container &&
+                    widget.padding == const EdgeInsets.all(14),
+              ),
+            )
+            .first,
+      );
+      final decoration = card.decoration as BoxDecoration;
+      final cardBackground = decoration.color;
+      expect(cardBackground, isNotNull);
+      expect(
+        _contrastRatio(cardBackground!, definitionColor!),
+        greaterThanOrEqualTo(4.5),
+      );
+    },
+  );
+}
+
+double _contrastRatio(Color a, Color b) {
+  final aLum = a.computeLuminance();
+  final bLum = b.computeLuminance();
+  final lighter = aLum > bLum ? aLum : bLum;
+  final darker = aLum > bLum ? bLum : aLum;
+  return (lighter + 0.05) / (darker + 0.05);
 }

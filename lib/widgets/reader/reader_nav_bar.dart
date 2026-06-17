@@ -11,6 +11,7 @@ import '../font_settings_sheet.dart';
 import '../reader_shell/reader_toc_panel.dart';
 import '../toc_bottom_sheet.dart';
 import 'reader_location_summary.dart';
+import 'reader_theme_resolver.dart';
 
 class ReaderNavBar extends StatelessWidget {
   static const double _toolbarIconGap = 8;
@@ -92,11 +93,16 @@ class ReaderNavBar extends StatelessWidget {
     final theme = Theme.of(context);
     final tokens = AppSurfaceTokens.of(context);
     final cityPreset = CityThemeScope.maybeOf(context)?.preset;
-    final borderColor =
-        cityPreset?.outline.withValues(alpha: 0.72) ??
-        tokens.readerPageBorderColor;
-    final toolbarTextColor =
-        cityPreset?.secondaryText ?? theme.colorScheme.onSurfaceVariant;
+    final borderColor = resolveReaderToolbarBorderColor(
+      config,
+      cityPreset,
+      tokens,
+    );
+    final toolbarTextColor = resolveReaderToolbarForegroundColor(
+      config,
+      cityPreset,
+      theme,
+    );
     final showSearch = layoutWidth >= 520;
     final book = currentBook.book;
     final tocItems = book == null
@@ -151,9 +157,11 @@ class ReaderNavBar extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 50),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color:
-            cityPreset?.surface.withValues(alpha: 0.78) ??
-            tokens.readerControlSurface,
+        color: resolveReaderToolbarBackgroundColor(
+          config,
+          cityPreset,
+          tokens,
+        ),
         border: Border(bottom: BorderSide(color: borderColor)),
       ),
       child: Row(
@@ -498,8 +506,11 @@ class ReaderNavBar extends StatelessWidget {
   }) {
     final theme = Theme.of(context);
     final cityPreset = CityThemeScope.maybeOf(context)?.preset;
-    final isDarkReader =
-        _isDarkReadingTheme(config) || cityPreset?.phase == CityTimePhase.night;
+    final inactiveForeground = resolveReaderToolbarForegroundColor(
+      config,
+      cityPreset,
+      theme,
+    );
     return IconButton(
       key: key,
       icon: Icon(icon, size: size),
@@ -514,7 +525,7 @@ class ReaderNavBar extends StatelessWidget {
       style: _toolbarIconButtonStyle(
         theme,
         selected: selected,
-        darkReader: isDarkReader,
+        inactiveForeground: inactiveForeground,
       ),
     );
   }
@@ -527,8 +538,11 @@ class ReaderNavBar extends StatelessWidget {
   }) {
     final theme = Theme.of(context);
     final cityPreset = CityThemeScope.maybeOf(context)?.preset;
-    final isDarkReader =
-        _isDarkReadingTheme(config) || cityPreset?.phase == CityTimePhase.night;
+    final inactiveForeground = resolveReaderToolbarForegroundColor(
+      config,
+      cityPreset,
+      theme,
+    );
     return IconButton(
       icon: Icon(icon, size: 22),
       tooltip: tooltip,
@@ -539,21 +553,26 @@ class ReaderNavBar extends StatelessWidget {
         height: _toolbarButtonHeight,
       ),
       visualDensity: VisualDensity.compact,
-      style: _toolbarIconButtonStyle(theme, darkReader: isDarkReader).copyWith(
-        shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      ),
+      style:
+          _toolbarIconButtonStyle(
+            theme,
+            inactiveForeground: inactiveForeground,
+          ).copyWith(
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
     );
   }
 
   ButtonStyle _toolbarIconButtonStyle(
     ThemeData theme, {
     bool selected = false,
-    bool darkReader = false,
+    Color? inactiveForeground,
   }) {
     final colorScheme = theme.colorScheme;
-    final inactiveForeground = colorScheme.onSurfaceVariant;
+    final effectiveInactiveForeground =
+        inactiveForeground ?? colorScheme.onSurfaceVariant;
     return ButtonStyle(
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       mouseCursor: WidgetStateProperty.resolveWith((states) {
@@ -582,14 +601,14 @@ class ReaderNavBar extends StatelessWidget {
       }),
       foregroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
-          return inactiveForeground.withValues(alpha: 0.38);
+          return effectiveInactiveForeground.withValues(alpha: 0.38);
         }
         if (selected ||
             states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
           return colorScheme.primary;
         }
-        return inactiveForeground;
+        return effectiveInactiveForeground;
       }),
       overlayColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.pressed)) {
@@ -614,8 +633,4 @@ int? _tocStepTarget(
     index += direction;
   }
   return null;
-}
-
-bool _isDarkReadingTheme(ReadingConfigState config) {
-  return config.readingTheme == 'dark';
 }

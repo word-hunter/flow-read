@@ -9,7 +9,9 @@ import 'package:flow_read/providers/reading/reading_config_notifier.dart';
 import 'package:flow_read/providers/reading/reading_search_notifier.dart';
 import 'package:flow_read/providers/reading/word_lookup_notifier.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/theme/app_surface_tokens.dart';
 import 'package:flow_read/widgets/reader/reader_content_view.dart';
+import 'package:flow_read/widgets/reader/reader_theme_resolver.dart';
 import 'package:flow_read/widgets/reader_text_view.dart';
 import 'package:flow_read/widgets/selected_text_action_toolbar.dart';
 import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
@@ -139,7 +141,7 @@ void main() {
     expect(mysteryTextColor.computeLuminance(), greaterThan(0.35));
   });
 
-  test('dark reader text color ignores non-night city preset', () {
+  test('city preset text color overrides dark reader setting', () {
     const config = ReadingConfigState(
       fontSize: 18,
       fontFamily: 'Literata',
@@ -149,11 +151,100 @@ void main() {
 
     expect(
       resolveReaderTextColor(config, CityThemePresets.cityDusk),
-      const Color(0xFFEAF1FA),
+      CityThemePresets.cityDusk.primaryText,
     );
     expect(
       resolveReaderMutedTextColor(config, CityThemePresets.cityDusk),
-      const Color(0xFFB7C5D6),
+      CityThemePresets.cityDusk.secondaryText,
+    );
+  });
+
+  test('dark reader surfaces stay dark with light app surface tokens', () {
+    const config = ReadingConfigState(
+      fontSize: 18,
+      fontFamily: 'Literata',
+      lineHeight: 1.8,
+      readingTheme: 'dark',
+    );
+    final lightTokens = AppSurfaceTokens.light();
+
+    expect(
+      resolveReaderPageBackgroundColor(config, null, lightTokens),
+      AppSurfaceTokens.dark().readerOpaqueSurface,
+    );
+    expect(
+      resolveReaderWorkspaceBackgroundColor(config, lightTokens, null),
+      AppSurfaceTokens.dark().readerWorkspaceBackground,
+    );
+    expect(
+      resolveReaderToolbarBackgroundColor(config, null, lightTokens),
+      AppSurfaceTokens.dark().readerControlSurface,
+    );
+  });
+
+  test('non-night city preset keeps reader surfaces synced with outside', () {
+    const config = ReadingConfigState(
+      fontSize: 18,
+      fontFamily: 'Literata',
+      lineHeight: 1.8,
+      readingTheme: 'dark',
+    );
+    final cityLightTokens = AppSurfaceTokens.cityLight();
+
+    expect(
+      resolveReaderPageBackgroundColor(
+        config,
+        CityThemePresets.cityDusk,
+        cityLightTokens,
+      ),
+      CityThemePresets.cityDusk.pageBackground.withValues(alpha: 0.92),
+    );
+    expect(
+      resolveReaderWorkspaceBackgroundColor(
+        config,
+        cityLightTokens,
+        CityThemePresets.cityDusk,
+      ),
+      cityLightTokens.readerWorkspaceBackground,
+    );
+    expect(
+      resolveReaderToolbarBackgroundColor(
+        config,
+        CityThemePresets.cityDusk,
+        cityLightTokens,
+      ),
+      CityThemePresets.cityDusk.surface.withValues(alpha: 0.78),
+    );
+  });
+
+  test('night city preset keeps reader surfaces dark', () {
+    const config = ReadingConfigState(
+      fontSize: 18,
+      fontFamily: 'Literata',
+      lineHeight: 1.8,
+      readingTheme: 'dark',
+    );
+    final cityLightTokens = AppSurfaceTokens.cityLight();
+
+    expect(
+      resolveReaderTextColor(config, CityThemePresets.cityNight),
+      CityThemePresets.cityNight.primaryText,
+    );
+    expect(
+      resolveReaderPageBackgroundColor(
+        config,
+        CityThemePresets.cityNight,
+        cityLightTokens,
+      ),
+      CityThemePresets.cityNight.pageBackground.withValues(alpha: 0.96),
+    );
+    expect(
+      resolveReaderWorkspaceBackgroundColor(
+        config,
+        cityLightTokens,
+        CityThemePresets.cityNight,
+      ),
+      AppSurfaceTokens.cityDark().readerWorkspaceBackground,
     );
   });
 

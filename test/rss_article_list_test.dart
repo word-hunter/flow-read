@@ -110,6 +110,44 @@ void main() {
     expect(find.byTooltip('标记未读'), findsNothing);
   });
 
+  testWidgets('article list keeps bottom breathing room', (tester) async {
+    final article = RssArticle(
+      feedUrl: 'https://example.com/rss.xml',
+      feedTitle: 'Example',
+      title: 'Padded article',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RssArticleList(
+            articles: [article],
+            feedTitle: 'Example',
+            unreadCount: 1,
+            query: '',
+            filter: RssArticleFilter.all,
+            filterCounts: _filterCounts([article]),
+            articlesStatus: RssLoadStatus.loaded,
+            hasCachedArticles: true,
+            showFeedName: false,
+            onRefresh: () async {},
+            onRetry: () {},
+            onSearchChanged: (_) {},
+            onFilterChanged: (_) {},
+            onMarkRead: (_) async {},
+          ),
+        ),
+      ),
+    );
+
+    final listView = tester.widget<ListView>(find.byType(ListView));
+    expect(listView.padding, const EdgeInsets.fromLTRB(10, 4, 10, 18));
+    final scrollFrame = tester.widget<Padding>(
+      find.byKey(const ValueKey('rss-article-list-scroll-frame')),
+    );
+    expect(scrollFrame.padding, const EdgeInsets.only(bottom: 16));
+  });
+
   testWidgets('article list exposes primary filters and read action', (
     tester,
   ) async {

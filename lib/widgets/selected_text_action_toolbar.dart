@@ -91,6 +91,8 @@ class SelectedTextActionRegionState extends State<SelectedTextActionRegion> {
     return _effectiveKey.currentState?.selectableRegion.contextMenuAnchors;
   }
 
+  String get selectedText => _selectedText;
+
   @override
   void dispose() {
     _showToolbarTimer?.cancel();
@@ -103,6 +105,13 @@ class SelectedTextActionRegionState extends State<SelectedTextActionRegion> {
     _showToolbarTimer = null;
     _toolbarEntry?.remove();
     _toolbarEntry = null;
+  }
+
+  void clearSelection() {
+    _selectedText = '';
+    widget.onSelectionTextChanged?.call('');
+    hideToolbar();
+    _effectiveKey.currentState?.selectableRegion.clearSelection();
   }
 
   bool _shouldAutoShowToolbar() {

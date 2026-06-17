@@ -16,6 +16,9 @@ class DesktopReaderWorkspaceShell extends StatelessWidget {
   final Widget? readingReminder;
   final ValueChanged<int>? onGoToChapter;
   final bool reduceMotion;
+  final Color? workspaceBackgroundColor;
+  final Color? centerBackgroundColor;
+  final Color? centerBorderColor;
 
   const DesktopReaderWorkspaceShell({
     super.key,
@@ -27,6 +30,9 @@ class DesktopReaderWorkspaceShell extends StatelessWidget {
     this.readingReminder,
     this.onGoToChapter,
     this.reduceMotion = false,
+    this.workspaceBackgroundColor,
+    this.centerBackgroundColor,
+    this.centerBorderColor,
   });
 
   @override
@@ -40,7 +46,9 @@ class DesktopReaderWorkspaceShell extends StatelessWidget {
         : ReaderMotionTokens.panelCloseDuration;
 
     return DecoratedBox(
-      decoration: BoxDecoration(color: tokens.readerWorkspaceBackground),
+      decoration: BoxDecoration(
+        color: workspaceBackgroundColor ?? tokens.readerWorkspaceBackground,
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
         child: Row(
@@ -87,6 +95,8 @@ class DesktopReaderWorkspaceShell extends StatelessWidget {
                 toolbar: toolbar,
                 readingProgressLine: readingProgressLine,
                 readingReminder: readingReminder,
+                backgroundColor: centerBackgroundColor,
+                borderColor: centerBorderColor,
                 child: centerContent,
               ),
             ),
@@ -164,12 +174,16 @@ class _WorkspaceCenterFrame extends StatelessWidget {
   final Widget? readingProgressLine;
   final Widget? readingReminder;
   final Widget child;
+  final Color? backgroundColor;
+  final Color? borderColor;
 
   const _WorkspaceCenterFrame({
     required this.toolbar,
     required this.readingProgressLine,
     required this.readingReminder,
     required this.child,
+    this.backgroundColor,
+    this.borderColor,
   });
 
   @override
@@ -177,9 +191,9 @@ class _WorkspaceCenterFrame extends StatelessWidget {
     final tokens = AppSurfaceTokens.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: tokens.readerOpaqueSurface,
+        color: backgroundColor ?? tokens.readerOpaqueSurface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: tokens.readerPageBorderColor),
+        border: Border.all(color: borderColor ?? tokens.readerPageBorderColor),
         boxShadow: [
           BoxShadow(
             color: tokens.panelShadowColor,

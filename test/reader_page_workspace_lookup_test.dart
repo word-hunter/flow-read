@@ -101,6 +101,42 @@ void main() {
   });
 
   testWidgets(
+    'desktop workspace clears lookup highlight when dictionary panel closes',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1440, 900);
+      try {
+        await _pumpWorkspaceReader(
+          tester,
+          bookshelf: _EmptyBookshelfNotifier.new,
+        );
+
+        expect(_readerSpanBackground(tester, 'river'), isNull);
+
+        _tapRichTextSpan(tester, 'river');
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 20));
+
+        expect(find.byType(ReaderRightAssistantPanel), findsOneWidget);
+        expect(_readerSpanBackground(tester, 'river'), isNotNull);
+
+        await tester.tap(find.byTooltip('关闭面板'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 260));
+
+        expect(find.byType(ReaderRightAssistantPanel), findsNothing);
+        expect(_readerSpanBackground(tester, 'river'), isNull);
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      }
+    },
+  );
+
+  testWidgets(
     'desktop workspace AI tab auto analyzes current dictionary word',
     (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
@@ -745,6 +781,18 @@ void _tapRichTextSpan(WidgetTester tester, String text) {
   fail('Could not find tappable span "$text".');
 }
 
+Color? _readerSpanBackground(WidgetTester tester, String text) {
+  final readerRichTextFinder = find.descendant(
+    of: find.byType(ReaderContentView),
+    matching: find.byType(RichText),
+  );
+  for (final richText in tester.widgetList<RichText>(readerRichTextFinder)) {
+    final background = _findSpanBackground(richText.text, text);
+    if (background != null) return background;
+  }
+  return null;
+}
+
 TapGestureRecognizer? _findTapRecognizer(InlineSpan span, String text) {
   if (span is! TextSpan) return null;
   final recognizer = span.recognizer;
@@ -755,6 +803,18 @@ TapGestureRecognizer? _findTapRecognizer(InlineSpan span, String text) {
   if (children == null) return null;
   for (final child in children) {
     final match = _findTapRecognizer(child, text);
+    if (match != null) return match;
+  }
+  return null;
+}
+
+Color? _findSpanBackground(InlineSpan span, String text) {
+  if (span is! TextSpan) return null;
+  if (span.text == text) return span.style?.backgroundColor;
+  final children = span.children;
+  if (children == null) return null;
+  for (final child in children) {
+    final match = _findSpanBackground(child, text);
     if (match != null) return match;
   }
   return null;

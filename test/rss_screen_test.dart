@@ -1,9 +1,11 @@
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_language/english/english.dart';
 import 'package:flow_language/flow_language.dart';
 import 'package:flow_read/models/reader_font.dart';
 import 'package:flow_read/models/reading_memory.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
 import 'package:flow_read/models/word_context_example.dart';
+import 'package:flow_read/providers/reading/current_book_notifier.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/reading/vocabulary_notifier.dart';
 import 'package:flow_read/providers/reading/word_lookup_notifier.dart';
@@ -18,10 +20,14 @@ import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/services/web_content_service.dart';
 import 'package:flow_read/storage/repositories/reading_config_repository.dart';
 import 'package:flow_read/widgets/reader/reader_word_sidebar.dart';
+import 'package:flow_read/widgets/reader_shell/reader_right_assistant_panel.dart';
+import 'package:flow_read/widgets/reader_shell/reader_workspace_controller.dart';
+import 'package:flow_read/widgets/selected_text_action_toolbar.dart';
 import 'package:flow_read/widgets/word_bottom_sheet.dart';
 import 'package:flow_rss/flow_rss.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SelectedContent;
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -160,6 +166,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 20));
 
+    expect(find.byType(ReaderRightAssistantPanel), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reader-right-tab-dictionary')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('reader-right-tab-ai')), findsOneWidget);
     expect(find.byType(ReaderWordSidebar), findsOneWidget);
     expect(find.byType(WordBottomSheet), findsNothing);
     expect(
@@ -169,6 +181,373 @@ void main() {
       ),
       findsWidgets,
     );
+  });
+
+  testWidgets('wide RSS AI tab opens assistant with article context', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final actionController = _RecordingAIActionController();
+    final assistantController = AIAssistantController(
+      registry: const AIAssistantActionRegistry(
+        promptBuilder: PromptBuilder(),
+      ),
+      automationSettings: const AIAutomationSettings(),
+      insightProfile: const ReadingInsightProfile(),
+      actionController: actionController,
+    );
+    addTearDown(actionController.dispose);
+    addTearDown(assistantController.dispose);
+
+    final article = RssArticle(
+      id: 'ai-story',
+      feedUrl: 'https://example.com/rss.xml',
+      feedTitle: 'Example',
+      title: 'AI story',
+      link: 'https://example.com/full-ai-story',
+      description: 'Short RSS summary.',
+      content: 'Short RSS summary.',
+      bodyBlocks: const [
+        RssArticleTextBlock(
+          type: RssArticleTextBlockType.paragraph,
+          text: 'Short RSS summary.',
+        ),
+      ],
+    );
+    final service = _FakeRssFeedService(
+      subscriptions: [
+        RssFeedSubscription(
+          url: 'https://example.com/rss.xml',
+          title: 'Example',
+        ),
+      ],
+      articles: [article],
+    );
+    final webContentService = _FakeWebContentService({
+      'https://example.com/full-ai-story': WebPageContent(
+        url: Uri.parse('https://example.com/full-ai-story'),
+        title: 'Readable Full AI Story',
+        paragraphs: const [
+          'Full AI article body should be sent into the assistant context.',
+          'The second paragraph proves that RSS did not use only the summary.',
+        ],
+      ),
+    });
+    final settings = await createTestSettingsService();
+    await settings.setAIProvider('openai_compatible');
+    await settings.setAIBaseUrl('https://llm.example.com/v1');
+    await settings.setAIModel('reader-model');
+    await settings.setApiKey('test-key');
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          rssFeedServiceProvider.overrideWithValue(service),
+          rssReadingConfigServiceProvider.overrideWithValue(
+            _FakeReadingConfigService(),
+          ),
+          webContentServiceProvider.overrideWithValue(webContentService),
+          settingsProvider.overrideWith((ref) => settings),
+          wordLevelServiceProvider.overrideWithValue(fakeWordLevelService()),
+          wordLookupNotifierProvider.overrideWith(_RssLookupNotifier.new),
+          vocabularyNotifierProvider.overrideWith(_RssVocabularyNotifier.new),
+          aiAssistantControllerProvider.overrideWithValue(assistantController),
+        ],
+        child: const MaterialApp(home: Scaffold(body: RssScreen())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    _tapRichTextSpan(tester, 'Full');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 20));
+
+    final rightPanel = tester.widget<ReaderRightAssistantPanel>(
+      find.byType(ReaderRightAssistantPanel),
+    );
+    rightPanel.onTabSelected?.call(ReaderRightPanelTab.ai);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 260));
+
+    expect(find.text('文章助手'), findsOneWidget);
+    expect(find.text('AI story'), findsWidgets);
+
+    await tester.tap(find.widgetWithText(ActionChip, '总结'));
+    await tester.pump();
+
+    expect(actionController.lastAction, AIAssistantActionType.summary);
+    expect(
+      actionController.lastPrompt?.userPrompt,
+      contains(
+        'Full AI article body should be sent into the assistant context.',
+      ),
+    );
+    expect(
+      actionController.lastPrompt?.userPrompt,
+      contains(
+        'The second paragraph proves that RSS did not use only the summary.',
+      ),
+    );
+    expect(
+      actionController.lastPrompt?.userPrompt,
+      isNot(contains('Short RSS summary.')),
+    );
+  });
+
+  testWidgets('wide RSS selected text action opens AI assistant panel', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final actionController = _RecordingAIActionController();
+    final assistantController = AIAssistantController(
+      registry: const AIAssistantActionRegistry(
+        promptBuilder: PromptBuilder(),
+      ),
+      automationSettings: const AIAutomationSettings(),
+      insightProfile: const ReadingInsightProfile(),
+      actionController: actionController,
+    );
+    addTearDown(actionController.dispose);
+    addTearDown(assistantController.dispose);
+
+    final service = _FakeRssFeedService(
+      subscriptions: [
+        RssFeedSubscription(
+          url: 'https://example.com/rss.xml',
+          title: 'Example',
+        ),
+      ],
+      articles: [
+        RssArticle(
+          id: 'selected-ai',
+          feedUrl: 'https://example.com/rss.xml',
+          feedTitle: 'Example',
+          title: 'Selected AI article',
+          content:
+              'The selected sentence should be explained by AI inside RSS.',
+          bodyBlocks: const [
+            RssArticleTextBlock(
+              type: RssArticleTextBlockType.paragraph,
+              text:
+                  'The selected sentence should be explained by AI inside RSS.',
+            ),
+          ],
+        ),
+      ],
+    );
+    final settings = await createTestSettingsService();
+    await settings.setAIProvider('openai_compatible');
+    await settings.setAIBaseUrl('https://llm.example.com/v1');
+    await settings.setAIModel('reader-model');
+    await settings.setApiKey('test-key');
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          rssFeedServiceProvider.overrideWithValue(service),
+          rssReadingConfigServiceProvider.overrideWithValue(
+            _FakeReadingConfigService(),
+          ),
+          settingsProvider.overrideWith((ref) => settings),
+          wordLevelServiceProvider.overrideWithValue(fakeWordLevelService()),
+          wordLookupNotifierProvider.overrideWith(_RssLookupNotifier.new),
+          vocabularyNotifierProvider.overrideWith(_RssVocabularyNotifier.new),
+          aiAssistantControllerProvider.overrideWithValue(assistantController),
+        ],
+        child: const MaterialApp(home: Scaffold(body: RssScreen())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final selectedRegion = tester.widget<SelectedTextActionRegion>(
+      find.byType(SelectedTextActionRegion),
+    );
+    var closedToolbar = false;
+    final actions = selectedRegion.actionsBuilder(
+      tester.element(find.byType(SelectedTextActionRegion)),
+      'selected sentence',
+      () => closedToolbar = true,
+    );
+    expect(actions.map((action) => action.tooltip), contains('AI 解析'));
+    expect(actions.map((action) => action.tooltip), isNot(contains('解析选中内容')));
+
+    final aiAction = actions.singleWhere(
+      (action) => action.tooltip == 'AI 解析',
+    );
+    expect(aiAction.enabled, isTrue);
+    await aiAction.onPressed?.call();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 260));
+
+    expect(closedToolbar, isTrue);
+    expect(find.byType(ReaderRightAssistantPanel), findsOneWidget);
+    expect(find.text('单句分析'), findsOneWidget);
+    expect(actionController.lastAction, AIAssistantActionType.explain);
+    expect(
+      actionController.lastPrompt?.userPrompt,
+      contains('selected sentence'),
+    );
+    expect(
+      actionController.lastPrompt?.userPrompt,
+      contains(
+        'The selected sentence should be explained by AI inside RSS.',
+      ),
+    );
+  });
+
+  testWidgets('wide RSS clears selected text when switching articles', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final service = _FakeRssFeedService(
+      subscriptions: [
+        RssFeedSubscription(
+          url: 'https://example.com/rss.xml',
+          title: 'Example',
+        ),
+      ],
+      articles: [
+        RssArticle(
+          id: 'first',
+          feedUrl: 'https://example.com/rss.xml',
+          feedTitle: 'Example',
+          title: 'First article',
+          content: 'The first article has selectable text.',
+          bodyBlocks: const [
+            RssArticleTextBlock(
+              type: RssArticleTextBlockType.paragraph,
+              text: 'The first article has selectable text.',
+            ),
+          ],
+        ),
+        RssArticle(
+          id: 'second',
+          feedUrl: 'https://example.com/rss.xml',
+          feedTitle: 'Example',
+          title: 'Second article',
+          content: 'The second article replaces the first one.',
+          bodyBlocks: const [
+            RssArticleTextBlock(
+              type: RssArticleTextBlockType.paragraph,
+              text: 'The second article replaces the first one.',
+            ),
+          ],
+        ),
+      ],
+    );
+    final settings = await createTestSettingsService();
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          rssFeedServiceProvider.overrideWithValue(service),
+          rssReadingConfigServiceProvider.overrideWithValue(
+            _FakeReadingConfigService(),
+          ),
+          settingsProvider.overrideWith((ref) => settings),
+          wordLevelServiceProvider.overrideWithValue(fakeWordLevelService()),
+          vocabularyNotifierProvider.overrideWith(_RssVocabularyNotifier.new),
+        ],
+        child: const MaterialApp(home: Scaffold(body: RssScreen())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final selectedRegion = tester.state<SelectedTextActionRegionState>(
+      find.byType(SelectedTextActionRegion),
+    );
+    selectedRegion.onSelectionChanged(
+      const SelectedContent(plainText: 'first article'),
+    );
+    expect(selectedRegion.selectedText, 'first article');
+
+    await tester.tap(find.byTooltip('下一篇'));
+    await tester.pumpAndSettle();
+
+    final nextSelectedRegion = tester.state<SelectedTextActionRegionState>(
+      find.byType(SelectedTextActionRegion),
+    );
+    expect(nextSelectedRegion.selectedText, isEmpty);
+  });
+
+  testWidgets('wide RSS clears selected text when leaving RSS tab', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final currentBook = _RssCurrentBookNotifier();
+    final service = _FakeRssFeedService(
+      subscriptions: [
+        RssFeedSubscription(
+          url: 'https://example.com/rss.xml',
+          title: 'Example',
+        ),
+      ],
+      articles: [
+        RssArticle(
+          id: 'current',
+          feedUrl: 'https://example.com/rss.xml',
+          feedTitle: 'Example',
+          title: 'Current article',
+          content: 'The RSS tab has selected text.',
+          bodyBlocks: const [
+            RssArticleTextBlock(
+              type: RssArticleTextBlockType.paragraph,
+              text: 'The RSS tab has selected text.',
+            ),
+          ],
+        ),
+      ],
+    );
+    final settings = await createTestSettingsService();
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          currentBookNotifierProvider.overrideWith(() => currentBook),
+          rssFeedServiceProvider.overrideWithValue(service),
+          rssReadingConfigServiceProvider.overrideWithValue(
+            _FakeReadingConfigService(),
+          ),
+          settingsProvider.overrideWith((ref) => settings),
+          wordLevelServiceProvider.overrideWithValue(fakeWordLevelService()),
+          vocabularyNotifierProvider.overrideWith(_RssVocabularyNotifier.new),
+        ],
+        child: const MaterialApp(home: Scaffold(body: RssScreen())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final selectedRegion = tester.state<SelectedTextActionRegionState>(
+      find.byType(SelectedTextActionRegion),
+    );
+    selectedRegion.onSelectionChanged(
+      const SelectedContent(plainText: 'RSS tab'),
+    );
+    expect(selectedRegion.selectedText, 'RSS tab');
+
+    currentBook.switchTab(0);
+    await tester.pumpAndSettle();
+
+    final resetSelectedRegion = tester.state<SelectedTextActionRegionState>(
+      find.byType(SelectedTextActionRegion),
+    );
+    expect(resetSelectedRegion.selectedText, isEmpty);
   });
 
   testWidgets('wide RSS article list can collapse and expand', (tester) async {
@@ -549,6 +928,11 @@ class _MemoryReadingConfigRepo implements ReadingConfigRepository {
   Future<void> close() async {}
 }
 
+class _RssCurrentBookNotifier extends CurrentBookNotifier {
+  @override
+  CurrentBookState build() => const CurrentBookState(currentTab: 1);
+}
+
 class _RssLookupNotifier extends WordLookupNotifier {
   @override
   WordLookupState build() => const WordLookupState();
@@ -622,4 +1006,33 @@ class _RssVocabularyNotifier extends VocabularyNotifier {
 
   @override
   Future<void> markWordUnknown(String word) async {}
+}
+
+class _RecordingAIActionController extends AIActionController {
+  _RecordingAIActionController()
+    : super(
+        aiService: AIService(
+          LLMClient(
+            () => const AIProviderConfig(
+              definition: AIProviders.openAICompatible,
+              apiKey: 'test-key',
+              baseUrl: 'https://llm.example.com/v1',
+              model: 'reader-model',
+            ),
+          ),
+        ),
+      );
+
+  AIAssistantActionType? lastAction;
+  PromptBuildResult? lastPrompt;
+
+  @override
+  Future<void> enqueue(
+    PromptBuildResult prompt,
+    AIAssistantActionType action, {
+    bool bypassCache = false,
+  }) async {
+    lastAction = action;
+    lastPrompt = prompt;
+  }
 }

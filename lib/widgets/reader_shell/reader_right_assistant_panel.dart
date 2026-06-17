@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_surface_tokens.dart';
+import '../../theme/city_theme_tokens.dart';
 import 'reader_workspace_controller.dart';
 
 class ReaderRightAssistantPanel extends StatelessWidget {
@@ -10,6 +11,7 @@ class ReaderRightAssistantPanel extends StatelessWidget {
   final Widget chapterContent;
   final Widget? currentContent;
   final ValueChanged<ReaderRightPanelTab>? onTabSelected;
+  final VoidCallback? onClose;
 
   const ReaderRightAssistantPanel({
     super.key,
@@ -28,26 +30,31 @@ class ReaderRightAssistantPanel extends StatelessWidget {
     ),
     this.currentContent,
     this.onTabSelected,
+    this.onClose,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = AppSurfaceTokens.of(context);
+    final panelTheme = _resolveAssistantPanelTheme(theme, tokens);
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.assistantSurface,
-      ),
-      child: Column(
-        children: [
-          _buildHeader(context, theme),
-          Divider(
-            height: 1,
-            color: tokens.panelBorderColor,
-          ),
-          Expanded(child: _buildBody()),
-        ],
+    return Theme(
+      data: panelTheme,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: tokens.assistantSurface,
+        ),
+        child: Column(
+          children: [
+            _buildHeader(context, panelTheme),
+            Divider(
+              height: 1,
+              color: tokens.panelBorderColor,
+            ),
+            Expanded(child: _buildBody()),
+          ],
+        ),
       ),
     );
   }
@@ -82,7 +89,7 @@ class ReaderRightAssistantPanel extends StatelessWidget {
           _IconAction(
             icon: Icons.close,
             tooltip: '关闭面板',
-            onTap: () => workspaceController.closeRightPanel(),
+            onTap: onClose ?? workspaceController.closeRightPanel,
           ),
         ],
       ),
@@ -226,6 +233,91 @@ class _IconAction extends StatelessWidget {
       ),
     );
   }
+}
+
+ThemeData _resolveAssistantPanelTheme(
+  ThemeData theme,
+  AppSurfaceTokens tokens,
+) {
+  final colorScheme = theme.colorScheme;
+  final cityTokens = theme.extension<CityThemeTokens>();
+  final surface = tokens.assistantSurface;
+  final primary = cityTokens?.activeBlue ?? colorScheme.primary;
+  final onSurface =
+      cityTokens?.textPrimary ??
+      _readableColorFor(surface, preferred: colorScheme.onSurface);
+  final onSurfaceVariant =
+      cityTokens?.textSecondary ??
+      _secondaryColorFor(
+        surface: surface,
+        onSurface: onSurface,
+        preferred: colorScheme.onSurfaceVariant,
+      );
+  final elevatedSurface = _tintedSurface(
+    tint: primary,
+    surface: surface,
+    alpha: surface.computeLuminance() < 0.45 ? 0.10 : 0.05,
+  );
+  final primaryContainer = _tintedSurface(
+    tint: primary,
+    surface: surface,
+    alpha: surface.computeLuminance() < 0.45 ? 0.18 : 0.11,
+  );
+
+  return theme.copyWith(
+    colorScheme: colorScheme.copyWith(
+      surface: surface,
+      surfaceContainerHighest: elevatedSurface,
+      onSurface: onSurface,
+      onSurfaceVariant: onSurfaceVariant,
+      primary: primary,
+      primaryContainer: primaryContainer,
+      onPrimaryContainer: _readableColorFor(
+        primaryContainer,
+        preferred: onSurface,
+      ),
+      outlineVariant: tokens.panelBorderColor,
+    ),
+  );
+}
+
+Color _tintedSurface({
+  required Color tint,
+  required Color surface,
+  required double alpha,
+}) {
+  return Color.alphaBlend(tint.withValues(alpha: alpha), surface);
+}
+
+Color _secondaryColorFor({
+  required Color surface,
+  required Color onSurface,
+  required Color preferred,
+}) {
+  if (_contrastRatio(surface, preferred) >= 3.0) return preferred;
+  final candidate = Color.lerp(
+    onSurface,
+    surface,
+    surface.computeLuminance() < 0.45 ? 0.28 : 0.38,
+  )!;
+  if (_contrastRatio(surface, candidate) >= 3.0) return candidate;
+  return onSurface;
+}
+
+Color _readableColorFor(Color background, {required Color preferred}) {
+  if (_contrastRatio(background, preferred) >= 4.5) return preferred;
+
+  final whiteContrast = _contrastRatio(background, Colors.white);
+  final blackContrast = _contrastRatio(background, Colors.black);
+  return whiteContrast >= blackContrast ? Colors.white : Colors.black;
+}
+
+double _contrastRatio(Color a, Color b) {
+  final aLum = a.computeLuminance();
+  final bLum = b.computeLuminance();
+  final lighter = aLum > bLum ? aLum : bLum;
+  final darker = aLum > bLum ? bLum : aLum;
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 class _EmptyState extends StatelessWidget {

@@ -35,6 +35,7 @@ import '../widgets/bookmark_sheet.dart';
 import '../widgets/flow/flow_components.dart';
 import '../widgets/font_settings_sheet.dart';
 import '../widgets/reader/reader_nav_bar.dart';
+import '../widgets/reader/reader_theme_resolver.dart';
 import '../widgets/reader/reader_learning_stats_panel.dart';
 import '../widgets/reader/reader_search_panel.dart';
 import '../widgets/reader/reader_vocabulary_panel.dart';
@@ -940,23 +941,21 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     });
   }
 
-  Color _readerBackgroundColor(
-    BuildContext context,
-    ReadingConfigState config,
-  ) {
-    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
-    if (cityPreset != null) {
-      return cityPreset.pageBackground.withValues(alpha: 0.92);
-    }
+  void _clearWordLookupIfSelected() {
+    if (ref.read(wordLookupNotifierProvider).selectedWord == null) return;
+    ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
+  }
 
-    switch (config.readingTheme) {
-      case 'sepia':
-        return const Color(0xFFF5ECD7);
-      case 'dark':
-        return AppSurfaceTokens.of(context).readerWorkspaceBackground;
-      default:
-        return AppSurfaceTokens.of(context).readerOpaqueSurface;
+  void _toggleWorkspaceRightPanel() {
+    if (_workspaceController.isRightPanelOpen) {
+      _clearWordLookupIfSelected();
     }
+    _workspaceController.toggleRightPanel();
+  }
+
+  void _closeWorkspaceRightPanel() {
+    _clearWordLookupIfSelected();
+    _workspaceController.closeRightPanel();
   }
 
   @override
@@ -1114,7 +1113,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               tocMenuController: _tocMenuController,
               fontSettingsMenuController: _fontSettingsMenuController,
               onSidebarToggle: useWorkspace
-                  ? _workspaceController.toggleRightPanel
+                  ? _toggleWorkspaceRightPanel
                   : _toggleSidebar,
               onShowWorkspaceToc: _workspaceController.toggleToc,
               onShowTocSheet: _showTocSheet,
@@ -1137,6 +1136,8 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           }
 
           if (useWorkspace) {
+            final surfaceTokens = AppSurfaceTokens.of(context);
+            final cityPreset = CityThemeScope.maybeOf(context)?.preset;
             return _buildPageScaffold(
               config: config,
               child: DesktopReaderWorkspaceShell(
@@ -1144,6 +1145,21 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
                 toolbar: buildToolbar(),
                 centerContent: buildContent(),
                 rightPanel: _buildWorkspaceRightPanel(),
+                workspaceBackgroundColor: resolveReaderWorkspaceBackgroundColor(
+                  config,
+                  surfaceTokens,
+                  cityPreset,
+                ),
+                centerBackgroundColor: resolveReaderPageBackgroundColor(
+                  config,
+                  cityPreset,
+                  surfaceTokens,
+                ),
+                centerBorderColor: resolveReaderToolbarBorderColor(
+                  config,
+                  cityPreset,
+                  surfaceTokens,
+                ),
                 readingProgressLine: _buildReadingProgressLine(
                   theme,
                   _displayProgressNotifier,
@@ -1196,10 +1212,16 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     required ReadingConfigState config,
     required Widget child,
   }) {
+    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
+    final surfaceTokens = AppSurfaceTokens.of(context);
     return AppSurface(
       role: AppSurfaceRole.readerCanvas,
       child: ColoredBox(
-        color: _readerBackgroundColor(context, config),
+        color: resolveReaderPageBackgroundColor(
+          config,
+          cityPreset,
+          surfaceTokens,
+        ),
         child: child,
       ),
     );
@@ -1293,7 +1315,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         aiContent = AIAssistantPanel(
           controller: ref.read(aiAssistantControllerProvider),
           embedded: true,
-          onClose: () => _workspaceController.closeRightPanel(),
+          onClose: _closeWorkspaceRightPanel,
         );
         break;
     }
@@ -1301,12 +1323,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     return ReaderRightAssistantPanel(
       workspaceController: _workspaceController,
       onTabSelected: _onWorkspaceRightTabSelected,
+      onClose: _closeWorkspaceRightPanel,
       dictionaryContent: ReaderVocabularyPanel(
         onVocabularySelected: _openVocabularyLookup,
-        onClose: () {
-          ref.read(wordLookupNotifierProvider.notifier).clearWordLookup();
-          _workspaceController.closeRightPanel();
-        },
+        onClose: _closeWorkspaceRightPanel,
       ),
       aiContent: aiContent ?? const SizedBox.shrink(),
       chapterContent: ReaderLearningStatsPanel(

@@ -802,14 +802,23 @@ class _PrimaryDefinition extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cardBackground = _tintedDictionarySurface(
+      tint: theme.colorScheme.primary,
+      surface: theme.colorScheme.surface,
+      alpha: theme.colorScheme.surface.computeLuminance() < 0.45 ? 0.18 : 0.10,
+    );
+    final cardForeground = _readableDictionaryColorFor(
+      cardBackground,
+      preferred: theme.colorScheme.onSurface,
+    );
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.22),
+        color: cardBackground,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.12),
+          color: theme.colorScheme.primary.withValues(alpha: 0.16),
         ),
       ),
       child: FlowMarkdownMessage(
@@ -818,12 +827,41 @@ class _PrimaryDefinition extends StatelessWidget {
         onLookupWord: onLookupWord,
         style: theme.textTheme.bodyLarge?.copyWith(
           fontWeight: FontWeight.w700,
-          color: theme.colorScheme.onPrimaryContainer,
+          color: cardForeground,
           height: 1.45,
         ),
       ),
     );
   }
+}
+
+Color _tintedDictionarySurface({
+  required Color tint,
+  required Color surface,
+  required double alpha,
+}) {
+  return Color.alphaBlend(tint.withValues(alpha: alpha), surface);
+}
+
+Color _readableDictionaryColorFor(
+  Color background, {
+  required Color preferred,
+}) {
+  if (_dictionaryContrastRatio(background, preferred) >= 4.5) {
+    return preferred;
+  }
+
+  final whiteContrast = _dictionaryContrastRatio(background, Colors.white);
+  final blackContrast = _dictionaryContrastRatio(background, Colors.black);
+  return whiteContrast >= blackContrast ? Colors.white : Colors.black;
+}
+
+double _dictionaryContrastRatio(Color a, Color b) {
+  final aLum = a.computeLuminance();
+  final bLum = b.computeLuminance();
+  final lighter = aLum > bLum ? aLum : bLum;
+  final darker = aLum > bLum ? bLum : aLum;
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 class _MeaningBlock extends StatelessWidget {
