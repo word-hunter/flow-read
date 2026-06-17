@@ -1,12 +1,41 @@
+import 'dart:io';
+
 import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/providers/reading/current_book_notifier.dart';
+import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/screens/practice_screen.dart';
+import 'package:flow_read/services/reading_memory/review_candidate_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
 import 'package:flow_read/widgets/practice_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/test_storage.dart';
+
 void main() {
+  late Directory tempDir;
+  late AppDatabase db;
+  late ReviewCandidateService reviewCandidates;
+
+  setUp(() async {
+    tempDir = await initTestStorage('practice_screen_test_');
+    db = await createTestAppDatabase();
+    reviewCandidates = ReviewCandidateService(
+      repository: DriftReadingMemoryRepository(
+        db.readingMemoryDao,
+        languageCode: 'en',
+      ),
+      languageCode: 'en',
+    );
+    await reviewCandidates.init();
+  });
+
+  tearDown(() async {
+    await disposeTestStorage(tempDir);
+  });
+
   testWidgets('practice screen shows chapter overview and source excerpt', (
     tester,
   ) async {
@@ -15,6 +44,9 @@ void main() {
         overrides: [
           currentBookNotifierProvider.overrideWith(
             () => _PracticeTestCurrentBookNotifier(_result),
+          ),
+          reviewCandidateServiceProvider.overrideWith(
+            (ref) => reviewCandidates,
           ),
         ],
         child: const MaterialApp(home: PracticeScreen()),
