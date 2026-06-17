@@ -72,6 +72,10 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
       query: _query,
       now: now,
     );
+    final visibleEntryGroups = dashboard.visibleEntryGroupsByBook(
+      query: _query,
+      now: now,
+    );
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -102,6 +106,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
                             context,
                             dashboard,
                             visibleEntries,
+                            visibleEntryGroups,
                             vocabularyNotifier,
                           ),
                         )
@@ -111,6 +116,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
                             context,
                             dashboard,
                             visibleEntries,
+                            visibleEntryGroups,
                             vocabularyNotifier,
                           ),
                         ),
@@ -230,6 +236,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
     BuildContext context,
     WordbookDashboard dashboard,
     List<WordbookEntry> entries,
+    List<WordbookEntryGroup> entryGroups,
     VocabularyNotifier vocabularyNotifier,
   ) {
     return Column(
@@ -250,6 +257,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
                         context,
                         dashboard,
                         entries,
+                        entryGroups,
                         vocabularyNotifier,
                       ),
                     ),
@@ -272,6 +280,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
     BuildContext context,
     WordbookDashboard dashboard,
     List<WordbookEntry> entries,
+    List<WordbookEntryGroup> entryGroups,
     VocabularyNotifier vocabularyNotifier,
   ) {
     return ListView(
@@ -286,6 +295,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
             context,
             dashboard,
             entries,
+            entryGroups,
             vocabularyNotifier,
           ),
         ),
@@ -440,6 +450,7 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
     BuildContext context,
     WordbookDashboard dashboard,
     List<WordbookEntry> entries,
+    List<WordbookEntryGroup> entryGroups,
     VocabularyNotifier vocabularyNotifier,
   ) {
     final theme = Theme.of(context);
@@ -479,39 +490,22 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
           Expanded(
             child: entries.isEmpty
                 ? _buildEmptyList(context, dashboard)
-                : ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: entries.length,
-                    separatorBuilder: (context, index) => Divider(
-                      height: 1,
-                      color: theme.colorScheme.outlineVariant.withValues(
-                        alpha: 0.45,
-                      ),
-                    ),
-                    itemBuilder: (context, index) {
-                      final entry = entries[index];
-                      return _WordbookEntryRow(
-                        entry: entry,
-                        onTap: () => _openWordDetail(context, entry),
-                        onMarkKnown: (origin) => _markKnown(
-                          vocabularyNotifier,
-                          entry.word,
-                          origin,
-                        ),
-                        onMarkLearning: () => _markLearning(
-                          vocabularyNotifier,
-                          entry.word,
-                        ),
-                      );
-                    },
-                  ),
+                : _filter == WordbookFilter.byBook
+                ? _buildGroupedEntryList(
+                    context,
+                    entryGroups,
+                    vocabularyNotifier,
+                  )
+                : _buildFlatEntryList(context, entries, vocabularyNotifier),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
             child: Row(
               children: [
                 Text(
-                  '共 ${entries.length} 个单词',
+                  _filter == WordbookFilter.byBook
+                      ? '共 ${entries.length} 个单词 · ${entryGroups.length} 本来源'
+                      : '共 ${entries.length} 个单词',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w700,
@@ -545,6 +539,73 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFlatEntryList(
+    BuildContext context,
+    List<WordbookEntry> entries,
+    VocabularyNotifier vocabularyNotifier,
+  ) {
+    final theme = Theme.of(context);
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemCount: entries.length,
+      separatorBuilder: (context, index) => Divider(
+        height: 1,
+        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+      ),
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        return _buildEntryRow(entry, vocabularyNotifier);
+      },
+    );
+  }
+
+  Widget _buildGroupedEntryList(
+    BuildContext context,
+    List<WordbookEntryGroup> groups,
+    VocabularyNotifier vocabularyNotifier,
+  ) {
+    final theme = Theme.of(context);
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: groups.length,
+      itemBuilder: (context, groupIndex) {
+        final group = groups[groupIndex];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _BookGroupHeader(group: group),
+            for (var index = 0; index < group.entries.length; index++) ...[
+              _buildEntryRow(group.entries[index], vocabularyNotifier),
+              Divider(
+                height: 1,
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildEntryRow(
+    WordbookEntry entry,
+    VocabularyNotifier vocabularyNotifier,
+  ) {
+    return _WordbookEntryRow(
+      entry: entry,
+      onTap: () => _openWordDetail(context, entry),
+      onMarkKnown: (origin) => _markKnown(
+        vocabularyNotifier,
+        entry.word,
+        origin,
+      ),
+      onMarkLearning: () => _markLearning(
+        vocabularyNotifier,
+        entry.word,
       ),
     );
   }
@@ -787,6 +848,60 @@ class _TableHeader extends StatelessWidget {
           SizedBox(width: 76, child: Text('熟悉度', style: labelStyle)),
           SizedBox(width: 78, child: Text('下次复习', style: labelStyle)),
           const SizedBox(width: 46),
+        ],
+      ),
+    );
+  }
+}
+
+class _BookGroupHeader extends StatelessWidget {
+  const _BookGroupHeader({required this.group});
+
+  final WordbookEntryGroup group;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.34,
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.36),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.menu_book_outlined,
+            size: 18,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              group.sourceTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '${group.wordCount} 个单词',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );

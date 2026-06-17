@@ -151,6 +151,65 @@ void main() {
     );
   });
 
+  test('groups visible entries by source book', () {
+    final dashboard = builder.build(
+      vocabulary: const [],
+      learningItems: [
+        _word(
+          id: 'gleam',
+          word: 'gleam',
+          meaning: '微光',
+          bookId: 'book-1',
+          chapterTitle: 'Ch.13',
+          createdAt: DateTime.utc(2026, 6, 10),
+        ),
+        _word(
+          id: 'oath',
+          word: 'oath',
+          meaning: '誓言',
+          bookId: 'book-2',
+          chapterTitle: 'Ch.1',
+          createdAt: DateTime.utc(2026, 6, 11),
+        ),
+        _word(
+          id: 'bargain',
+          word: 'bargain',
+          meaning: '交易',
+          bookId: 'book-2',
+          chapterTitle: 'Ch.6',
+          createdAt: DateTime.utc(2026, 6, 12),
+        ),
+      ],
+      statusFor: (_) => null,
+      bookTitlesById: const {
+        'book-1': 'A Gift of Magic',
+        'book-2': 'A Game of Thrones',
+      },
+      now: now,
+    );
+
+    final groups = dashboard.visibleEntryGroupsByBook(query: '', now: now);
+
+    expect(groups.map((group) => group.sourceTitle), [
+      'A Game of Thrones',
+      'A Gift of Magic',
+    ]);
+    expect(groups.first.wordCount, 2);
+    expect(groups.first.entries.map((entry) => entry.word), [
+      'oath',
+      'bargain',
+    ]);
+    expect(groups.last.entries.single.word, 'gleam');
+
+    final searched = dashboard.visibleEntryGroupsByBook(
+      query: 'gift',
+      now: now,
+    );
+    expect(searched, hasLength(1));
+    expect(searched.single.sourceTitle, 'A Gift of Magic');
+    expect(searched.single.entries.single.word, 'gleam');
+  });
+
   test('counts consecutive review days from reviewed learning items', () {
     final dashboard = builder.build(
       vocabulary: const [],

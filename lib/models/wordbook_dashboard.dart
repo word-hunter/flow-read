@@ -72,6 +72,18 @@ class WordbookSourceSummary {
   });
 }
 
+class WordbookEntryGroup {
+  final String sourceTitle;
+  final List<WordbookEntry> entries;
+
+  const WordbookEntryGroup({
+    required this.sourceTitle,
+    required this.entries,
+  });
+
+  int get wordCount => entries.length;
+}
+
 class WordbookDashboard {
   final List<WordbookEntry> entries;
   final List<WordbookSourceSummary> sourceSummaries;
@@ -102,6 +114,30 @@ class WordbookDashboard {
 
     filtered.sort((a, b) => _compareEntries(a, b, filter));
     return filtered;
+  }
+
+  List<WordbookEntryGroup> visibleEntryGroupsByBook({
+    required String query,
+    required DateTime now,
+  }) {
+    final groupedEntries = <String, List<WordbookEntry>>{};
+    for (final entry in visibleEntries(
+      filter: WordbookFilter.byBook,
+      query: query,
+      now: now,
+    )) {
+      groupedEntries
+          .putIfAbsent(entry.sourceTitle, () => <WordbookEntry>[])
+          .add(entry);
+    }
+    return groupedEntries.entries
+        .map(
+          (group) => WordbookEntryGroup(
+            sourceTitle: group.key,
+            entries: List.unmodifiable(group.value),
+          ),
+        )
+        .toList(growable: false);
   }
 
   bool _matchesFilter(
