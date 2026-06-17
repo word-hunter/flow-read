@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/models/reading_memory.dart';
 import 'package:flow_read/services/learning_item_service.dart';
@@ -121,6 +122,78 @@ void main() {
       meaningToWord.options,
       containsAll(['hesitate', 'gleam', 'conceal']),
     );
+  });
+
+  test(
+    'enriches context meaning cards with AI distractors and explanation',
+    () async {
+      await _saveWord(learningItems, source, 'hesitate', definition: '犹豫');
+      await _saveWord(learningItems, source, 'gleam', definition: '微光');
+      await _saveWord(learningItems, source, 'conceal', definition: '隐藏');
+      final scheduleWithAI = ReviewScheduleService(
+        learningItems,
+        clock: () => now,
+        practiceGenerator: (items) async {
+          expect(items.map((item) => item.title), [
+            'hesitate',
+            'gleam',
+            'conceal',
+          ]);
+          return const AIPracticeSet(
+            questions: [
+              PracticeQuestion(
+                type: 'vocabulary',
+                question: '在这句中，"gleam" 最接近哪种含义？',
+                source: 'A sentence with gleam inside.',
+                answer: '微光',
+                answerExplanation: 'AI 解释：这里指短暂出现的微弱光亮。',
+                distractors: [
+                  Distractor(text: '隐藏', whyWrong: '动作含义，不符合语境。'),
+                  Distractor(text: '犹豫', whyWrong: '心理状态，不符合语境。'),
+                  Distractor(text: '交易', whyWrong: '名词含义，不符合语境。'),
+                ],
+                difficulty: 'medium',
+              ),
+            ],
+          );
+        },
+      );
+
+      final cards = await scheduleWithAI.buildSessionCardsWithAI();
+
+      final contextMeaning = cards.singleWhere(
+        (card) => card.type == LearningReviewCardType.contextMeaning,
+      );
+      expect(contextMeaning.prompt, '在这句中，"gleam" 最接近哪种含义？');
+      expect(contextMeaning.answer, '微光');
+      expect(contextMeaning.explanation, contains('AI 解释'));
+      expect(contextMeaning.sourceText, 'A sentence with gleam inside.');
+      expect(
+        contextMeaning.options,
+        containsAll(['微光', '隐藏', '犹豫', '交易']),
+      );
+    },
+  );
+
+  test('falls back to local cards when AI practice generation fails', () async {
+    await _saveWord(learningItems, source, 'hesitate', definition: '犹豫');
+    await _saveWord(learningItems, source, 'gleam', definition: '微光');
+    await _saveWord(learningItems, source, 'conceal', definition: '隐藏');
+    final scheduleWithFailingAI = ReviewScheduleService(
+      learningItems,
+      clock: () => now,
+      practiceGenerator: (_) => throw StateError('offline'),
+    );
+
+    final cards = await scheduleWithFailingAI.buildSessionCardsWithAI();
+
+    final contextMeaning = cards.singleWhere(
+      (card) => card.type == LearningReviewCardType.contextMeaning,
+    );
+    expect(contextMeaning.prompt, contains('A sentence with gleam inside.'));
+    expect(contextMeaning.answer, '微光');
+    expect(contextMeaning.explanation, isEmpty);
+    expect(contextMeaning.options, containsAll(['犹豫', '微光', '隐藏']));
   });
 
   test('records remembered review with the next interval', () async {

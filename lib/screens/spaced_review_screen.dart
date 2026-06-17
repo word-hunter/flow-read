@@ -18,7 +18,7 @@ class SpacedReviewScreen extends riverpod.ConsumerStatefulWidget {
 
 class _SpacedReviewScreenState
     extends riverpod.ConsumerState<SpacedReviewScreen> {
-  late final List<LearningReviewCard> _cards;
+  late List<LearningReviewCard> _cards;
   final TextEditingController _answerController = TextEditingController();
   int _currentIndex = 0;
   int _rememberedCount = 0;
@@ -32,7 +32,9 @@ class _SpacedReviewScreenState
   @override
   void initState() {
     super.initState();
-    _cards = ref.read(reviewScheduleServiceProvider).buildSessionCards();
+    final reviewSchedule = ref.read(reviewScheduleServiceProvider);
+    _cards = reviewSchedule.buildSessionCards();
+    _loadAIEnhancedCards(reviewSchedule);
     _answerController.addListener(_onInputChanged);
   }
 
@@ -46,6 +48,18 @@ class _SpacedReviewScreenState
 
   void _onInputChanged() {
     if (!_showAnswer && mounted) setState(() {});
+  }
+
+  Future<void> _loadAIEnhancedCards(ReviewScheduleService schedule) async {
+    final cards = await schedule.buildSessionCardsWithAI();
+    if (!mounted || cards.isEmpty) return;
+    if (_currentIndex != 0 ||
+        _showAnswer ||
+        _allDone ||
+        _answerController.text.trim().isNotEmpty) {
+      return;
+    }
+    setState(() => _cards = cards);
   }
 
   @override

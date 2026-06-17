@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../../models/book.dart';
+import '../../models/learning_item.dart';
 import '../../services/app_logger.dart';
 import '../../services/book_cache.dart';
 import '../../services/book_glossary_service.dart';
@@ -351,12 +352,65 @@ final learningAnalyticsServiceProvider = Provider<LearningAnalyticsService>((
 });
 
 final reviewScheduleServiceProvider = Provider<ReviewScheduleService>((ref) {
+  final aiService = ref.watch(aiServiceProvider);
   return ReviewScheduleService(
     ref.read(learningItemServiceProvider),
     readingMemory: ref.watch(readingMemoryServiceProvider),
     userVocabulary: ref.watch(userVocabularyServiceProvider),
+    practiceGenerator: (items) => _generateWordbookPractice(aiService, items),
   );
 });
+
+Future<AIPracticeSet> _generateWordbookPractice(
+  AIService aiService,
+  List<LearningItem> items,
+) async {
+  final wordItems = items
+      .where((item) => item.type == LearningItemType.word)
+      .where((item) => item.sourceText.trim().isNotEmpty)
+      .toList(growable: false);
+  if (wordItems.isEmpty) return AIPracticeSet.empty();
+
+  final chapterText = wordItems.map(_wordbookPracticeSourceBlock).join('\n\n');
+  final vocabulary = wordItems
+      .map(
+        (item) => _firstNonEmpty([item.title, item.content, item.canonicalKey]),
+      )
+      .where((word) => word.isNotEmpty)
+      .toList(growable: false);
+  if (chapterText.trim().isEmpty || vocabulary.isEmpty) {
+    return AIPracticeSet.empty();
+  }
+
+  AIPracticeSet? latest;
+  await for (final practice in aiService.generatePractice(
+    chapterText: chapterText,
+    vocabulary: vocabulary,
+    events: const [],
+  )) {
+    latest = practice;
+  }
+  return latest ?? AIPracticeSet.empty();
+}
+
+String _wordbookPracticeSourceBlock(LearningItem item) {
+  final word = _firstNonEmpty([item.title, item.content, item.canonicalKey]);
+  final meaning = _firstNonEmpty([item.answer, item.note]);
+  final source = item.sourceText.trim();
+  return [
+    if (word.isNotEmpty) 'Target word: $word',
+    if (meaning.isNotEmpty) 'Known meaning: $meaning',
+    if (source.isNotEmpty) 'Source excerpt: $source',
+  ].join('\n');
+}
+
+String _firstNonEmpty(List<String> values) {
+  for (final value in values) {
+    final trimmed = value.trim();
+    if (trimmed.isNotEmpty) return trimmed;
+  }
+  return '';
+}
 
 final pronunciationServiceProvider = Provider<PronunciationService>((ref) {
   return FlutterTtsPronunciationService();

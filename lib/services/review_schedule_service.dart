@@ -1,7 +1,12 @@
+import 'package:flow_ai/flow_ai.dart';
+
 import '../models/learning_item.dart';
 import 'learning_item_service.dart';
 import 'reading_memory/reading_memory_service.dart';
 import 'user_vocabulary_service.dart';
+
+typedef WordbookPracticeGenerator =
+    Future<AIPracticeSet> Function(List<LearningItem> items);
 
 enum LearningReviewCardType {
   contextMeaning,
@@ -52,15 +57,18 @@ class ReviewScheduleService {
     this.sessionLimit = 10,
     ReadingMemoryService? readingMemory,
     UserVocabularyService? userVocabulary,
+    WordbookPracticeGenerator? practiceGenerator,
   }) : _clock = clock ?? DateTime.now,
        _readingMemory = readingMemory,
-       _userVocabulary = userVocabulary;
+       _userVocabulary = userVocabulary,
+       _practiceGenerator = practiceGenerator;
 
   final LearningItemService _learningItems;
   final DateTime Function() _clock;
   final int sessionLimit;
   final ReadingMemoryService? _readingMemory;
   final UserVocabularyService? _userVocabulary;
+  final WordbookPracticeGenerator? _practiceGenerator;
 
   int dueCount({DateTime? now}) {
     return _dueItems(now: now, limit: null).length;
@@ -72,10 +80,49 @@ class ReviewScheduleService {
 
   List<LearningReviewCard> buildSessionCards({DateTime? now, int? limit}) {
     final items = dueItems(now: now, limit: limit);
+    return _buildSessionCardsFromItems(items, limit: limit);
+  }
+
+  Future<List<LearningReviewCard>> buildSessionCardsWithAI({
+    DateTime? now,
+    int? limit,
+  }) async {
+    final items = dueItems(now: now, limit: limit);
+    final fallbackCards = _buildSessionCardsFromItems(items, limit: limit);
+    final generator = _practiceGenerator;
+    if (items.isEmpty || fallbackCards.isEmpty || generator == null) {
+      return fallbackCards;
+    }
+
+    try {
+      final practice = await generator(items);
+      if (practice.isEmpty) return fallbackCards;
+      return _buildSessionCardsFromItems(
+        items,
+        limit: limit,
+        aiPractice: practice,
+      );
+    } catch (_) {
+      return fallbackCards;
+    }
+  }
+
+  List<LearningReviewCard> _buildSessionCardsFromItems(
+    List<LearningItem> items, {
+    int? limit,
+    AIPracticeSet? aiPractice,
+  }) {
     return items
         .asMap()
         .entries
-        .map((entry) => _buildCard(entry.value, entry.key, items))
+        .map(
+          (entry) => _buildCard(
+            entry.value,
+            entry.key,
+            items,
+            aiPractice: aiPractice,
+          ),
+        )
         .whereType<LearningReviewCard>()
         .take(limit ?? sessionLimit)
         .toList(growable: false);
@@ -143,8 +190,9 @@ class ReviewScheduleService {
   LearningReviewCard? _buildCard(
     LearningItem item,
     int index,
-    List<LearningItem> sessionItems,
-  ) {
+    List<LearningItem> sessionItems, {
+    AIPracticeSet? aiPractice,
+  }) {
     if (item.type == LearningItemType.questionMistake) {
       return LearningReviewCard(
         item: item,
@@ -157,6 +205,7 @@ class ReviewScheduleService {
       );
     }
 
+    final aiQuestion = _practiceQuestionForItem(item, aiPractice);
     final blank = _blankSource(item);
     final type = _cardTypeFor(item, index, canFillBlank: blank != null);
     if (type == LearningReviewCardType.fillBlank && blank != null) {
@@ -166,7 +215,7 @@ class ReviewScheduleService {
         studyGoal: _studyGoal(item),
         prompt: blank,
         answer: item.content.trim().isNotEmpty ? item.content : item.title,
-        explanation: _explanation(item),
+        explanation: _aiExplanation(aiQuestion, item),
         sourceText: item.sourceText,
       );
     }
@@ -179,22 +228,104 @@ class ReviewScheduleService {
         studyGoal: _studyGoal(item),
         prompt: _meaningPrompt(item),
         answer: title,
-        explanation: _explanation(item),
+        explanation: _aiExplanation(aiQuestion, item),
         sourceText: item.sourceText,
         options: _wordOptions(item, sessionItems),
       );
     }
 
+    final aiOptions = _practiceOptions(aiQuestion);
     return LearningReviewCard(
       item: item,
       type: LearningReviewCardType.contextMeaning,
       studyGoal: _studyGoal(item),
-      prompt: _contextMeaningPrompt(item, title),
-      answer: item.answer.trim().isNotEmpty ? item.answer : item.note,
-      explanation: _explanation(item),
-      sourceText: item.sourceText,
-      options: _meaningOptions(item, sessionItems),
+      prompt: _aiPrompt(aiQuestion, item, title),
+      answer: _aiAnswer(aiQuestion, item),
+      explanation: _aiExplanation(aiQuestion, item),
+      sourceText: _aiSourceText(aiQuestion, item),
+      options: aiOptions.isNotEmpty
+          ? aiOptions
+          : _meaningOptions(item, sessionItems),
     );
+  }
+
+  PracticeQuestion? _practiceQuestionForItem(
+    LearningItem item,
+    AIPracticeSet? practice,
+  ) {
+    if (practice == null || practice.isEmpty) return null;
+    final target = _firstNonEmpty([
+      item.title,
+      item.content,
+      item.canonicalKey,
+    ]);
+    if (target.isEmpty) return null;
+    final source = item.sourceText.trim();
+    for (final question in practice.questions) {
+      if (_matchesPracticeQuestion(question, target, source)) return question;
+    }
+    return null;
+  }
+
+  bool _matchesPracticeQuestion(
+    PracticeQuestion question,
+    String target,
+    String source,
+  ) {
+    final normalizedTarget = target.toLowerCase();
+    final haystack = [
+      question.question,
+      question.source,
+      question.answer,
+      question.answerExplanation,
+    ].join('\n').toLowerCase();
+    if (haystack.contains(normalizedTarget)) return true;
+
+    final normalizedSource = _normalizeForMatch(source);
+    final normalizedQuestionSource = _normalizeForMatch(question.source);
+    return normalizedSource.isNotEmpty &&
+        normalizedQuestionSource.isNotEmpty &&
+        (normalizedSource.contains(normalizedQuestionSource) ||
+            normalizedQuestionSource.contains(normalizedSource));
+  }
+
+  String _aiPrompt(
+    PracticeQuestion? question,
+    LearningItem item,
+    String title,
+  ) {
+    final prompt = question?.question.trim() ?? '';
+    if (prompt.isNotEmpty) return prompt;
+    return _contextMeaningPrompt(item, title);
+  }
+
+  String _aiAnswer(PracticeQuestion? question, LearningItem item) {
+    final answer = question?.answer.trim() ?? '';
+    if (answer.isNotEmpty) return answer;
+    return item.answer.trim().isNotEmpty ? item.answer : item.note;
+  }
+
+  String _aiExplanation(PracticeQuestion? question, LearningItem item) {
+    final explanation = question?.answerExplanation.trim() ?? '';
+    if (explanation.isNotEmpty) return explanation;
+    return _explanation(item);
+  }
+
+  String _aiSourceText(PracticeQuestion? question, LearningItem item) {
+    final source = question?.source.trim() ?? '';
+    if (source.isNotEmpty) return source;
+    return item.sourceText;
+  }
+
+  List<String> _practiceOptions(PracticeQuestion? question) {
+    if (question == null) return const [];
+    final answer = question.answer.trim();
+    if (answer.isEmpty) return const [];
+    final distractors = question.distractors
+        .map((distractor) => distractor.text.trim())
+        .where((text) => text.isNotEmpty && text != answer)
+        .toList();
+    return _options(answer, distractors);
   }
 
   String _studyGoal(LearningItem item) {
@@ -353,6 +484,10 @@ class ReviewScheduleService {
     }
     unique.sort();
     return unique;
+  }
+
+  String _normalizeForMatch(String value) {
+    return value.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
   String _firstNonEmpty(List<String> values) {
