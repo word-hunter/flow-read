@@ -86,7 +86,25 @@ class _StubReviewScheduleService extends ReviewScheduleService {
     DateTime? reviewedAt,
   }) async {
     recordedResults.add(result);
-    return null;
+    final item = _cards
+        .map((card) => card.item)
+        .firstWhere((item) => item.id == id);
+    final now = DateTime.now();
+    final nextReviewAt = switch (result) {
+      LearningReviewResult.forgotten || LearningReviewResult.missed => now.add(
+        const Duration(hours: 6),
+      ),
+      LearningReviewResult.vague || LearningReviewResult.remembered => now.add(
+        const Duration(days: 1),
+      ),
+      LearningReviewResult.mastered => now.add(const Duration(days: 30)),
+      LearningReviewResult.newItem => now,
+    };
+    return item.copyWith(
+      updatedAt: now,
+      nextReviewAt: nextReviewAt,
+      lastResult: result,
+    );
   }
 
   @override
@@ -236,6 +254,7 @@ void main() {
     expect(reviewService.recordedResults, [LearningReviewResult.mastered]);
     expect(find.text('测验完成'), findsWidgets);
     expect(find.text('掌握 1'), findsOneWidget);
+    expect(find.text('下次复习：30 天后'), findsOneWidget);
   });
 
   testWidgets('close button avoids macOS traffic light title area', (

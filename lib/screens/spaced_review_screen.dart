@@ -24,6 +24,7 @@ class _SpacedReviewScreenState
   int _rememberedCount = 0;
   int _masteredCount = 0;
   int _needsReviewCount = 0;
+  final List<DateTime> _scheduledReviewTimes = [];
   String? _selectedOption;
   bool _showAnswer = false;
   bool _allDone = false;
@@ -176,6 +177,8 @@ class _SpacedReviewScreenState
                   _DonePill(label: '需复习', value: _needsReviewCount),
                 ],
               ),
+              const SizedBox(height: 14),
+              _NextReviewSummary(label: _nextReviewSummaryLabel()),
               const SizedBox(height: 26),
               FlowButton.primary(
                 onPressed: () => Navigator.pop(context),
@@ -691,7 +694,7 @@ class _SpacedReviewScreenState
     if (_isSaving) return;
     final card = _cards[_currentIndex];
     setState(() => _isSaving = true);
-    await ref
+    final updated = await ref
         .read(reviewScheduleServiceProvider)
         .recordReview(
           card.item.id,
@@ -700,6 +703,7 @@ class _SpacedReviewScreenState
     if (!mounted) return;
     _answerController.clear();
     setState(() {
+      if (updated != null) _scheduledReviewTimes.add(updated.nextReviewAt);
       if (result.isSuccessful) _rememberedCount++;
       if (result == LearningReviewResult.mastered) _masteredCount++;
       if (!result.isSuccessful) _needsReviewCount++;
@@ -712,6 +716,29 @@ class _SpacedReviewScreenState
         _allDone = true;
       }
     });
+  }
+
+  String _nextReviewSummaryLabel() {
+    if (_scheduledReviewTimes.isEmpty) return '下次复习：暂无安排';
+    final next = _scheduledReviewTimes.reduce(
+      (earliest, value) => value.isBefore(earliest) ? value : earliest,
+    );
+    return '下次复习：${_relativeReviewTime(next)}';
+  }
+
+  String _relativeReviewTime(DateTime value) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(value.year, value.month, value.day);
+    final dayDelta = target.difference(today).inDays;
+    if (dayDelta <= 0) {
+      final hour = value.hour.toString().padLeft(2, '0');
+      final minute = value.minute.toString().padLeft(2, '0');
+      return '今天 $hour:$minute';
+    }
+    if (dayDelta == 1) return '明天';
+    if (dayDelta <= 30) return '$dayDelta 天后';
+    return '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
   }
 }
 
@@ -771,6 +798,46 @@ class _DonePill extends StatelessWidget {
           color: theme.colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w800,
         ),
+      ),
+    );
+  }
+}
+
+class _NextReviewSummary extends StatelessWidget {
+  const _NextReviewSummary({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      constraints: const BoxConstraints(minHeight: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.34),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.schedule_outlined,
+            size: 17,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
