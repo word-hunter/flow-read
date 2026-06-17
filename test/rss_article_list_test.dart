@@ -1,17 +1,10 @@
 import 'package:flow_rss/flow_rss.dart';
-import 'package:flow_read/providers/reading/services_provider.dart';
-import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/widgets/rss/rss_article_list.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
-
-import 'support/fake_word_level_service.dart';
-import 'support/test_storage.dart';
 
 void main() {
-  testWidgets('article list exposes original article action', (tester) async {
+  testWidgets('article list opens article from card tap', (tester) async {
     RssArticle? opened;
     final article = RssArticle(
       feedUrl: 'https://example.com/rss.xml',
@@ -38,28 +31,34 @@ void main() {
             onSearchChanged: (_) {},
             onFilterChanged: (_) {},
             onMarkRead: (_) async {},
-            onMarkUnread: (_) async {},
-            onSetFavorite: (_, _) async {},
-            onSetReadLater: (_, _) async {},
-            onOpenOriginal: (value) => opened = value,
+            onOpenArticle: (value) => opened = value,
           ),
         ),
       ),
     );
 
-    await tester.tap(find.byTooltip('查看原文'));
+    await tester.tap(find.text('Readable article'));
     await tester.pump();
 
     expect(opened, article);
+    expect(find.byTooltip('查看原文'), findsNothing);
+    expect(find.byTooltip('标记已读'), findsNothing);
+    expect(find.byTooltip('标记未读'), findsNothing);
   });
 
-  testWidgets('expanded article image opens the shared image viewer', (
+  testWidgets('article list keeps cards compact with source and time', (
     tester,
   ) async {
+    final publishedAt = DateTime.now().subtract(const Duration(hours: 2));
     final article = RssArticle(
       feedUrl: 'https://example.com/rss.xml',
-      feedTitle: 'Example',
-      title: 'Picture article',
+      feedTitle: 'Feed label',
+      title: 'Compact article',
+      link: 'https://example.com/article',
+      description: 'Description preview should stay in the detail pane.',
+      content: 'Body paragraph should stay out of the list card.',
+      author: 'Sarah Perez',
+      pubDate: publishedAt,
       images: const [
         RssArticleImage(
           url: 'https://example.com/images/photo.png',
@@ -82,124 +81,44 @@ void main() {
             filterCounts: _filterCounts([article]),
             articlesStatus: RssLoadStatus.loaded,
             hasCachedArticles: true,
-            showFeedName: false,
+            showFeedName: true,
+            showTitleRow: false,
             onRefresh: () async {},
             onRetry: () {},
             onSearchChanged: (_) {},
             onFilterChanged: (_) {},
             onMarkRead: (_) async {},
-            onMarkUnread: (_) async {},
-            onSetFavorite: (_, _) async {},
-            onSetReadLater: (_, _) async {},
-            onOpenOriginal: (_) {},
           ),
         ),
       ),
     );
 
-    await tester.tap(find.text('Picture article'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(ReadableImagePreview), findsOneWidget);
-
-    await tester.tap(find.byType(ReadableImagePreview));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(InteractiveViewer), findsOneWidget);
-    expect(find.byTooltip('下载图片'), findsOneWidget);
+    expect(find.text('Compact article'), findsOneWidget);
+    expect(find.text('Feed label'), findsOneWidget);
+    expect(find.text('2h'), findsOneWidget);
+    expect(
+      find.text('Description preview should stay in the detail pane.'),
+      findsNothing,
+    );
+    expect(
+      find.text('Body paragraph should stay out of the list card.'),
+      findsNothing,
+    );
+    expect(find.text('Sarah Perez'), findsNothing);
+    expect(find.byTooltip('查看原文'), findsNothing);
+    expect(find.byTooltip('标记已读'), findsNothing);
+    expect(find.byTooltip('标记未读'), findsNothing);
   });
 
-  testWidgets('expanded article renders structured body blocks in order', (
-    tester,
-  ) async {
-    final article = RssArticle(
-      feedUrl: 'https://example.com/rss.xml',
-      feedTitle: 'Example',
-      title: 'Structured article',
-      content:
-          'Section title\n\nFirst paragraph.\n\nFirst point\n\nQuoted line',
-      bodyBlocks: const [
-        RssArticleTextBlock(
-          type: RssArticleTextBlockType.heading,
-          text: 'Section title',
-          headingLevel: 2,
-        ),
-        RssArticleTextBlock(
-          type: RssArticleTextBlockType.paragraph,
-          text: 'First paragraph.',
-        ),
-        RssArticleTextBlock(
-          type: RssArticleTextBlockType.listItem,
-          text: 'First point',
-          indent: 1,
-        ),
-        RssArticleTextBlock(
-          type: RssArticleTextBlockType.blockquote,
-          text: 'Quoted line',
-        ),
-      ],
-    );
-    final settings = await createTestSettingsService();
-
-    await tester.pumpWidget(
-      riverpod.ProviderScope(
-        overrides: [
-          settingsProvider.overrideWith((ref) => settings),
-          wordLevelServiceProvider.overrideWith(
-            (ref) => fakeWordLevelService(),
-          ),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: RssArticleList(
-              articles: [article],
-              feedTitle: 'Example',
-              unreadCount: 1,
-              query: '',
-              filter: RssArticleFilter.all,
-              filterCounts: _filterCounts([article]),
-              articlesStatus: RssLoadStatus.loaded,
-              hasCachedArticles: true,
-              showFeedName: false,
-              onRefresh: () async {},
-              onRetry: () {},
-              onSearchChanged: (_) {},
-              onFilterChanged: (_) {},
-              onMarkRead: (_) async {},
-              onMarkUnread: (_) async {},
-              onSetFavorite: (_, _) async {},
-              onSetReadLater: (_, _) async {},
-              onOpenOriginal: (_) {},
-            ),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Structured article'));
-    await tester.pumpAndSettle();
-
-    expect(_richTextContaining('Section title'), findsOneWidget);
-    expect(_richTextContaining('First paragraph.'), findsOneWidget);
-    expect(_richTextContaining('First point'), findsOneWidget);
-    expect(_richTextContaining('Quoted line'), findsOneWidget);
-    expect(find.text('•'), findsOneWidget);
-  });
-
-  testWidgets('article list exposes filters and article state actions', (
+  testWidgets('article list exposes primary filters and read action', (
     tester,
   ) async {
     RssArticleFilter? selectedFilter;
-    String? favoriteArticleId;
-    bool? favoriteValue;
-    String? readLaterArticleId;
-    bool? readLaterValue;
+    String? markedReadArticleId;
     final article = RssArticle(
       feedUrl: 'https://example.com/rss.xml',
       feedTitle: 'Example',
       title: 'Action article',
-      isFavorite: false,
-      isReadLater: true,
     );
 
     await tester.pumpWidget(
@@ -219,41 +138,24 @@ void main() {
             onRetry: () {},
             onSearchChanged: (_) {},
             onFilterChanged: (filter) => selectedFilter = filter,
-            onMarkRead: (_) async {},
-            onMarkUnread: (_) async {},
-            onSetFavorite: (id, value) async {
-              favoriteArticleId = id;
-              favoriteValue = value;
-            },
-            onSetReadLater: (id, value) async {
-              readLaterArticleId = id;
-              readLaterValue = value;
-            },
-            onOpenOriginal: (_) {},
+            onMarkRead: (id) async => markedReadArticleId = id,
           ),
         ),
       ),
     );
 
-    await tester.tap(find.text('收藏'));
-    await tester.pump();
-    expect(selectedFilter, RssArticleFilter.favorite);
+    expect(find.text('全部 1'), findsOneWidget);
+    expect(find.text('未读 1'), findsOneWidget);
+    expect(find.text('收藏'), findsNothing);
+    expect(find.text('稍后读'), findsNothing);
 
-    await tester.tap(find.byTooltip('收藏'));
+    await tester.tap(find.text('未读 1'));
     await tester.pump();
-    expect(favoriteArticleId, article.id);
-    expect(favoriteValue, isTrue);
+    expect(selectedFilter, RssArticleFilter.unread);
 
-    await tester.tap(find.byTooltip('移出稍后读'));
+    await tester.tap(find.text('Action article'));
     await tester.pump();
-    expect(readLaterArticleId, article.id);
-    expect(readLaterValue, isFalse);
-  });
-}
-
-Finder _richTextContaining(String text) {
-  return find.byWidgetPredicate((widget) {
-    return widget is RichText && widget.text.toPlainText().contains(text);
+    expect(markedReadArticleId, article.id);
   });
 }
 

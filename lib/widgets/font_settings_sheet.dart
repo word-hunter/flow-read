@@ -5,8 +5,28 @@ import '../models/reader_font.dart';
 import '../providers/reading/reading_config_notifier.dart';
 import 'flow/flow_components.dart';
 
+class ReadingSettingsPanelController {
+  const ReadingSettingsPanelController({
+    required this.state,
+    required this.onFontSizeChanged,
+    required this.onLineHeightChanged,
+    required this.onFontFamilyChanged,
+    required this.onReadingThemeChanged,
+    required this.onRestoreDefaults,
+  });
+
+  final ReadingConfigState state;
+  final ValueChanged<double> onFontSizeChanged;
+  final ValueChanged<double> onLineHeightChanged;
+  final ValueChanged<String> onFontFamilyChanged;
+  final ValueChanged<String> onReadingThemeChanged;
+  final VoidCallback onRestoreDefaults;
+}
+
 class FontSettingsSheet extends StatelessWidget {
-  const FontSettingsSheet({super.key});
+  const FontSettingsSheet({super.key, this.controller});
+
+  final ReadingSettingsPanelController? controller;
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +43,7 @@ class FontSettingsSheet extends StatelessWidget {
               scrollController: scrollController,
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
               onClose: () => Navigator.pop(context),
+              controller: controller,
             ),
           ),
         );
@@ -35,12 +56,14 @@ class FontSettingsDropdownPanel extends StatelessWidget {
   final VoidCallback? onClose;
   final double? width;
   final double maxHeight;
+  final ReadingSettingsPanelController? controller;
 
   const FontSettingsDropdownPanel({
     super.key,
     this.onClose,
     this.width,
     this.maxHeight = 600,
+    this.controller,
   });
 
   static double preferredWidthFor(Size screenSize) {
@@ -66,6 +89,7 @@ class FontSettingsDropdownPanel extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(28, 22, 28, 18),
           onClose: onClose,
           showPreview: false,
+          controller: controller,
         ),
       ),
     );
@@ -102,18 +126,35 @@ class _FontSettingsPanelContent extends riverpod.ConsumerWidget {
   final EdgeInsetsGeometry padding;
   final VoidCallback? onClose;
   final bool showPreview;
+  final ReadingSettingsPanelController? controller;
 
   const _FontSettingsPanelContent({
     required this.padding,
     this.scrollController,
     this.onClose,
     this.showPreview = true,
+    this.controller,
   });
 
   @override
   Widget build(BuildContext context, riverpod.WidgetRef ref) {
-    final state = ref.watch(readingConfigNotifierProvider);
-    final notifier = ref.read(readingConfigNotifierProvider.notifier);
+    final defaultState = controller == null
+        ? ref.watch(readingConfigNotifierProvider)
+        : null;
+    final defaultNotifier = controller == null
+        ? ref.read(readingConfigNotifierProvider.notifier)
+        : null;
+    final effectiveController =
+        controller ??
+        ReadingSettingsPanelController(
+          state: defaultState!,
+          onFontSizeChanged: defaultNotifier!.setFontSize,
+          onLineHeightChanged: defaultNotifier.setLineHeight,
+          onFontFamilyChanged: defaultNotifier.setFontFamily,
+          onReadingThemeChanged: defaultNotifier.setReadingTheme,
+          onRestoreDefaults: defaultNotifier.restoreDefaults,
+        );
+    final state = effectiveController.state;
     final theme = Theme.of(context);
     final panelPadding = padding.resolve(Directionality.of(context));
 
@@ -156,8 +197,9 @@ class _FontSettingsPanelContent extends riverpod.ConsumerWidget {
                   _CompactAdjustmentGrid(
                     fontSize: state.fontSize,
                     lineHeight: state.lineHeight,
-                    onFontSizeChanged: notifier.setFontSize,
-                    onLineHeightChanged: notifier.setLineHeight,
+                    onFontSizeChanged: effectiveController.onFontSizeChanged,
+                    onLineHeightChanged:
+                        effectiveController.onLineHeightChanged,
                   ),
                   const SizedBox(height: 16),
                   Divider(
@@ -171,22 +213,28 @@ class _FontSettingsPanelContent extends riverpod.ConsumerWidget {
                     _DesktopChoiceGrid(
                       fontFamily: state.fontFamily,
                       readingTheme: state.readingTheme,
-                      onFontFamilyChanged: notifier.setFontFamily,
-                      onReadingThemeChanged: notifier.setReadingTheme,
+                      onFontFamilyChanged:
+                          effectiveController.onFontFamilyChanged,
+                      onReadingThemeChanged:
+                          effectiveController.onReadingThemeChanged,
                     )
                   else
                     _CompactChoiceStack(
                       fontFamily: state.fontFamily,
                       readingTheme: state.readingTheme,
-                      onFontFamilyChanged: notifier.setFontFamily,
-                      onReadingThemeChanged: notifier.setReadingTheme,
+                      onFontFamilyChanged:
+                          effectiveController.onFontFamilyChanged,
+                      onReadingThemeChanged:
+                          effectiveController.onReadingThemeChanged,
                     ),
                 ],
               );
             },
           ),
         ),
-        _PanelFooter(onRestoreDefaults: notifier.restoreDefaults),
+        _PanelFooter(
+          onRestoreDefaults: effectiveController.onRestoreDefaults,
+        ),
       ],
     );
   }

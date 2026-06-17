@@ -111,6 +111,19 @@ final readingConfigServiceProvider = Provider<ReadingConfigService>((ref) {
   return service;
 });
 
+final rssReadingConfigServiceProvider = Provider<ReadingConfigService>((ref) {
+  final db = _requireAppDatabase();
+  final service = ReadingConfigService(
+    repository: DriftReadingConfigRepository(
+      db.readingConfigDao,
+      languageCode: '$bootstrappedReadingConfigLanguage:rss',
+    ),
+    loadImmediately: true,
+  );
+  unawaited(service.init());
+  return service;
+});
+
 final readingTimeServiceProvider = Provider<ReadingTimeService>((ref) {
   final db = _requireAppDatabase();
   final languageCode = ref.watch(settingsProvider).activeSourceLanguage;

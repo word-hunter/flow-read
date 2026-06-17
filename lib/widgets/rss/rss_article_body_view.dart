@@ -5,6 +5,7 @@ import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 import '../../models/analysis_result.dart';
 import '../../models/reading_memory.dart';
 import 'package:flow_rss/flow_rss.dart';
+import '../../providers/reading/reading_config_notifier.dart';
 import '../../providers/reading/services_provider.dart';
 import '../../providers/reading/text_selection_notifier.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
@@ -17,6 +18,7 @@ import '../../services/reading_memory/reading_memory_ids.dart';
 import '../../services/settings_service.dart';
 import '../../services/word_level_service.dart';
 import '../flow/flow_components.dart';
+import '../reader/reader_content_view.dart';
 import '../reader_text_view.dart';
 import '../selected_text_action_toolbar.dart';
 import '../selected_text_sheet.dart';
@@ -30,6 +32,8 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
   final RssArticleBodyMode mode;
   final double maxImageHeight;
   final double maxImageWidth;
+  final bool showLookupSheet;
+  final ReadingConfigState? readingConfig;
 
   const RssArticleBodyView({
     super.key,
@@ -38,6 +42,8 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     this.mode = RssArticleBodyMode.preview,
     this.maxImageHeight = 320,
     this.maxImageWidth = 520,
+    this.showLookupSheet = true,
+    this.readingConfig,
   });
 
   @override
@@ -86,6 +92,7 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
             vocNotifier.activeLanguageModule,
             wordLevelService,
             settings,
+            readingConfig,
           )
         else
           _buildTextBlock(
@@ -101,6 +108,7 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
             vocNotifier.activeLanguageModule,
             wordLevelService,
             settings,
+            readingConfig,
           ),
         ..._buildTrailingImages(article, bodyBlocks),
       ],
@@ -166,6 +174,7 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     LanguageModule activeLanguageModule,
     WordLevelService wordLevelService,
     SettingsService settings,
+    ReadingConfigState? readingConfig,
   ) {
     return bodyBlocks
         .map((block) {
@@ -180,6 +189,7 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
               activeLanguageModule,
               wordLevelService,
               settings,
+              readingConfig,
             ),
             RssArticleImageBlock() => Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -210,8 +220,9 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     LanguageModule activeLanguageModule,
     WordLevelService wordLevelService,
     SettingsService settings,
+    ReadingConfigState? readingConfig,
   ) {
-    final style = _rssTextStyle(block, theme);
+    final style = _rssTextStyle(block, theme, readingConfig);
     final richText = result == null
         ? Text(block.text, style: style)
         : Text.rich(
@@ -240,7 +251,7 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
                         );
                       },
                   fontSize: style.fontSize ?? 14,
-                  lineHeight: _rssLineHeight(block),
+                  lineHeight: _rssLineHeight(block, readingConfig),
                   fontFamily: style.fontFamily ?? 'Serif',
                   baseTextColor: style.color,
                   colorSettings: settings.colors,
@@ -287,43 +298,76 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     return Padding(padding: _rssBlockPadding(block), child: content);
   }
 
-  TextStyle _rssTextStyle(RssArticleTextBlock block, ThemeData theme) {
+  TextStyle _rssTextStyle(
+    RssArticleTextBlock block,
+    ThemeData theme,
+    ReadingConfigState? readingConfig,
+  ) {
+    final effectiveConfig = mode == RssArticleBodyMode.intensive
+        ? readingConfig
+        : null;
     final color = block.type == RssArticleTextBlockType.blockquote
-        ? theme.colorScheme.onSurfaceVariant
-        : theme.colorScheme.onSurface;
+        ? effectiveConfig == null
+              ? theme.colorScheme.onSurfaceVariant
+              : resolveReaderMutedTextColor(
+                  effectiveConfig,
+                  null,
+                  appBrightness: theme.brightness,
+                )
+        : effectiveConfig == null
+        ? theme.colorScheme.onSurface
+        : resolveReaderTextColor(
+            effectiveConfig,
+            null,
+            appBrightness: theme.brightness,
+          );
     final base = theme.textTheme.bodyMedium ?? const TextStyle();
+    final intensiveBaseFontSize = effectiveConfig?.fontSize;
     final fontSize = switch (block.type) {
       RssArticleTextBlockType.heading => switch (block.headingLevel) {
-        1 => switch (mode) {
-          RssArticleBodyMode.intensive => 25.0,
-          RssArticleBodyMode.detail => 24.0,
-          RssArticleBodyMode.preview => 17.0,
-        },
-        2 => switch (mode) {
-          RssArticleBodyMode.intensive => 22.0,
-          RssArticleBodyMode.detail => 21.0,
-          RssArticleBodyMode.preview => 16.0,
-        },
-        3 => switch (mode) {
-          RssArticleBodyMode.intensive => 19.0,
-          RssArticleBodyMode.detail => 18.0,
-          RssArticleBodyMode.preview => 15.0,
-        },
-        _ => switch (mode) {
-          RssArticleBodyMode.intensive => 18.0,
-          RssArticleBodyMode.detail => 17.0,
-          RssArticleBodyMode.preview => 14.5,
-        },
+        1 =>
+          intensiveBaseFontSize == null
+              ? switch (mode) {
+                  RssArticleBodyMode.intensive => 25.0,
+                  RssArticleBodyMode.detail => 24.0,
+                  RssArticleBodyMode.preview => 17.0,
+                }
+              : intensiveBaseFontSize + 7,
+        2 =>
+          intensiveBaseFontSize == null
+              ? switch (mode) {
+                  RssArticleBodyMode.intensive => 22.0,
+                  RssArticleBodyMode.detail => 21.0,
+                  RssArticleBodyMode.preview => 16.0,
+                }
+              : intensiveBaseFontSize + 4,
+        3 =>
+          intensiveBaseFontSize == null
+              ? switch (mode) {
+                  RssArticleBodyMode.intensive => 19.0,
+                  RssArticleBodyMode.detail => 18.0,
+                  RssArticleBodyMode.preview => 15.0,
+                }
+              : intensiveBaseFontSize + 1,
+        _ =>
+          intensiveBaseFontSize ??
+              switch (mode) {
+                RssArticleBodyMode.intensive => 18.0,
+                RssArticleBodyMode.detail => 17.0,
+                RssArticleBodyMode.preview => 14.5,
+              },
       },
-      _ => switch (mode) {
-        RssArticleBodyMode.intensive => 18.0,
-        RssArticleBodyMode.detail => 16.0,
-        RssArticleBodyMode.preview => 14.0,
-      },
+      _ =>
+        intensiveBaseFontSize ??
+            switch (mode) {
+              RssArticleBodyMode.intensive => 18.0,
+              RssArticleBodyMode.detail => 16.0,
+              RssArticleBodyMode.preview => 14.0,
+            },
     };
     return base.copyWith(
-      height: _rssLineHeight(block),
-      fontFamily: 'Serif',
+      height: _rssLineHeight(block, readingConfig),
+      fontFamily: effectiveConfig?.fontFamily ?? 'Serif',
       fontSize: fontSize,
       fontWeight: block.type == RssArticleTextBlockType.heading
           ? FontWeight.w700
@@ -335,7 +379,15 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
     );
   }
 
-  double _rssLineHeight(RssArticleTextBlock block) {
+  double _rssLineHeight(
+    RssArticleTextBlock block,
+    ReadingConfigState? readingConfig,
+  ) {
+    if (mode == RssArticleBodyMode.intensive &&
+        block.type != RssArticleTextBlockType.heading &&
+        readingConfig != null) {
+      return readingConfig.lineHeight;
+    }
     if (block.type == RssArticleTextBlockType.heading) {
       return switch (mode) {
         RssArticleBodyMode.intensive => 1.38,
@@ -451,6 +503,7 @@ class RssArticleBodyView extends riverpod.ConsumerWidget {
         locationLocator: article.link,
       ),
     );
+    if (!showLookupSheet) return;
     showFlowSheet(
       context: context,
       isScrollControlled: true,

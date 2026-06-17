@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flow_rss/flow_rss.dart';
 import '../flow/flow_components.dart';
-import 'rss_article_body_view.dart';
+import 'rss_interaction_styles.dart';
 
 class RssArticleList extends StatefulWidget {
   final List<RssArticle> articles;
@@ -15,16 +15,15 @@ class RssArticleList extends StatefulWidget {
   final RssError? articlesError;
   final bool hasCachedArticles;
   final bool showFeedName;
+  final String? selectedArticleId;
+  final bool showTitleRow;
+  final List<RssArticleFilter> filters;
   final Future<void> Function() onRefresh;
   final VoidCallback onRetry;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<RssArticleFilter> onFilterChanged;
   final Future<void> Function(String id) onMarkRead;
-  final Future<void> Function(String id) onMarkUnread;
-  final Future<void> Function(String id, bool isFavorite) onSetFavorite;
-  final Future<void> Function(String id, bool isReadLater) onSetReadLater;
   final ValueChanged<RssArticle>? onOpenArticle;
-  final ValueChanged<RssArticle> onOpenOriginal;
 
   const RssArticleList({
     super.key,
@@ -38,16 +37,15 @@ class RssArticleList extends StatefulWidget {
     this.articlesError,
     required this.hasCachedArticles,
     required this.showFeedName,
+    this.selectedArticleId,
+    this.showTitleRow = true,
+    this.filters = const [RssArticleFilter.all, RssArticleFilter.unread],
     required this.onRefresh,
     required this.onRetry,
     required this.onSearchChanged,
     required this.onFilterChanged,
     required this.onMarkRead,
-    required this.onMarkUnread,
-    required this.onSetFavorite,
-    required this.onSetReadLater,
     this.onOpenArticle,
-    required this.onOpenOriginal,
   });
 
   @override
@@ -55,8 +53,8 @@ class RssArticleList extends StatefulWidget {
 }
 
 class _RssArticleListState extends State<RssArticleList> {
-  String? _expandedArticleId;
   late final TextEditingController _searchController;
+  String? _hoveredArticleId;
 
   @override
   void initState() {
@@ -71,6 +69,10 @@ class _RssArticleListState extends State<RssArticleList> {
       _searchController
         ..text = widget.query
         ..selection = TextSelection.collapsed(offset: widget.query.length);
+    }
+    if (_hoveredArticleId != null &&
+        !widget.articles.any((article) => article.id == _hoveredArticleId)) {
+      _hoveredArticleId = null;
     }
   }
 
@@ -113,12 +115,6 @@ class _RssArticleListState extends State<RssArticleList> {
       );
     }
 
-    final effectiveExpandedId = widget.onOpenArticle == null
-        ? (widget.articles.any((article) => article.id == _expandedArticleId)
-              ? _expandedArticleId
-              : widget.articles.first.id)
-        : null;
-
     return Column(
       children: [
         _buildHeader(context, theme),
@@ -128,7 +124,7 @@ class _RssArticleListState extends State<RssArticleList> {
           child: RefreshIndicator(
             onRefresh: widget.onRefresh,
             child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               itemCount: widget.articles.length,
               itemBuilder: (context, index) {
                 final article = widget.articles[index];
@@ -136,7 +132,6 @@ class _RssArticleListState extends State<RssArticleList> {
                   context,
                   article,
                   theme,
-                  isExpanded: article.id == effectiveExpandedId,
                 );
               },
             ),
@@ -147,8 +142,14 @@ class _RssArticleListState extends State<RssArticleList> {
   }
 
   Widget _buildHeader(BuildContext context, ThemeData theme) {
+    final filters = widget.filters.isEmpty
+        ? const [RssArticleFilter.all, RssArticleFilter.unread]
+        : widget.filters;
+    final selectedFilter = filters.contains(widget.filter)
+        ? widget.filter
+        : filters.first;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+      padding: EdgeInsets.fromLTRB(14, widget.showTitleRow ? 10 : 12, 14, 10),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
@@ -157,104 +158,105 @@ class _RssArticleListState extends State<RssArticleList> {
         ),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  widget.feedTitle,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (widget.unreadCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+          if (widget.showTitleRow) ...[
+            Row(
+              children: [
+                Expanded(
                   child: Text(
-                    '${widget.unreadCount} 未读',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
+                    widget.feedTitle,
+                    style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: widget.articlesStatus == RssLoadStatus.loading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.refresh, size: 20),
-                tooltip: widget.articlesStatus == RssLoadStatus.loading
-                    ? '刷新中'
-                    : '刷新',
-                onPressed: widget.articlesStatus == RssLoadStatus.loading
-                    ? null
-                    : () => widget.onRefresh(),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+                if (widget.unreadCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${widget.unreadCount} 未读',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: widget.articlesStatus == RssLoadStatus.loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh, size: 20),
+                  tooltip: widget.articlesStatus == RssLoadStatus.loading
+                      ? '刷新中'
+                      : '刷新',
+                  onPressed: widget.articlesStatus == RssLoadStatus.loading
+                      ? null
+                      : () => widget.onRefresh(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  style: rssIconButtonStyle(theme),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
           SizedBox(
             height: 36,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SegmentedButton<RssArticleFilter>(
-                segments: RssArticleFilter.values
-                    .map(
-                      (filter) => ButtonSegment(
-                        value: filter,
-                        icon: Icon(_filterIcon(filter), size: 16),
-                        label: Text(_filterLabel(filter)),
-                      ),
-                    )
-                    .toList(growable: false),
-                selected: {widget.filter},
-                onSelectionChanged: (selection) {
-                  final next = selection.firstOrNull;
-                  if (next != null) widget.onFilterChanged(next);
-                },
-                showSelectedIcon: false,
-                style: ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  textStyle: WidgetStatePropertyAll(
-                    theme.textTheme.labelMedium,
-                  ),
-                ),
-              ),
+            child: _RssFilterSegmentedControl(
+              filters: filters,
+              selectedFilter: selectedFilter,
+              labelFor: _filterLabel,
+              iconFor: _filterIcon,
+              onChanged: widget.onFilterChanged,
+              theme: theme,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           SizedBox(
-            height: 40,
+            height: 34,
             child: FlowTextField(
               controller: _searchController,
+              style: theme.textTheme.bodyMedium,
               decoration: InputDecoration(
+                isDense: true,
                 hintText: '搜索文章',
-                prefixIcon: const Icon(Icons.search, size: 18),
+                prefixIcon: const Icon(Icons.search, size: 16),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 34,
+                  minHeight: 34,
+                ),
                 suffixIcon: widget.query.isEmpty
                     ? null
                     : IconButton(
                         icon: const Icon(Icons.close, size: 16),
                         tooltip: '清空搜索',
                         onPressed: () => widget.onSearchChanged(''),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 30,
+                          minHeight: 30,
+                        ),
+                        style: rssIconButtonStyle(theme),
                       ),
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+                  horizontal: 10,
+                  vertical: 7,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -382,251 +384,175 @@ class _RssArticleListState extends State<RssArticleList> {
   Widget _buildArticleCard(
     BuildContext context,
     RssArticle article,
-    ThemeData theme, {
-    required bool isExpanded,
-  }) {
-    return Card(
-      elevation: 0,
-      color: article.isRead
-          ? null
-          : theme.colorScheme.primaryContainer.withValues(alpha: 0.08),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: article.isRead
-            ? BorderSide.none
-            : BorderSide(
-                color: theme.colorScheme.primary.withValues(alpha: 0.15),
-              ),
+    ThemeData theme,
+  ) {
+    final isSelected = article.id == widget.selectedArticleId;
+    final isHovered = _hoveredArticleId == article.id;
+    final accentColor = rssAccentColor(theme);
+    final borderColor = isSelected
+        ? accentColor.withValues(alpha: 0.46)
+        : isHovered
+        ? accentColor.withValues(alpha: 0.28)
+        : article.isRead
+        ? Colors.transparent
+        : accentColor.withValues(alpha: 0.14);
+    final backgroundColor = isSelected
+        ? accentColor.withValues(alpha: 0.12)
+        : isHovered
+        ? rssAccentHoverColor(theme).withValues(alpha: 0.07)
+        : article.isRead
+        ? theme.colorScheme.surface
+        : accentColor.withValues(alpha: 0.05);
+    final radius = BorderRadius.circular(10);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: radius,
+        border: Border.all(color: borderColor),
       ),
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () {
-          final onOpenArticle = widget.onOpenArticle;
-          if (onOpenArticle != null) {
-            onOpenArticle(article);
-            return;
-          }
-          setState(() => _expandedArticleId = article.id);
-          if (!article.isRead) {
-            widget.onMarkRead(article.id);
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      article.title,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: article.isRead
-                            ? FontWeight.normal
-                            : FontWeight.w600,
-                        color: article.isRead
-                            ? theme.colorScheme.onSurfaceVariant
-                            : theme.colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  if (!article.isRead)
-                    Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.only(top: 6, left: 8),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                ],
-              ),
-              if (article.description != null &&
-                  article.description!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  article.description!,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant.withValues(
-                      alpha: 0.8,
-                    ),
-                    height: 1.4,
-                  ),
-                ),
-              ],
-              if (isExpanded &&
-                  (article.content?.isNotEmpty == true ||
-                      article.description?.isNotEmpty == true ||
-                      article.bodyBlocks.isNotEmpty ||
-                      article.images.isNotEmpty)) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.35,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: _buildHighlightedContent(article),
-                ),
-              ],
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  if (widget.showFeedName && article.feedTitle.isNotEmpty) ...[
-                    Icon(
-                      Icons.rss_feed,
-                      size: 14,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: radius,
+          hoverColor: Colors.transparent,
+          focusColor: rssHoverColor(theme, selected: isSelected),
+          highlightColor: rssPressedColor(theme),
+          onHover: (hovering) {
+            if (hovering) {
+              if (_hoveredArticleId != article.id) {
+                setState(() => _hoveredArticleId = article.id);
+              }
+              return;
+            }
+            if (_hoveredArticleId == article.id) {
+              setState(() => _hoveredArticleId = null);
+            }
+          },
+          onTap: () {
+            final onOpenArticle = widget.onOpenArticle;
+            if (onOpenArticle != null) {
+              onOpenArticle(article);
+              return;
+            }
+            if (!article.isRead) {
+              widget.onMarkRead(article.id);
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
                       child: Text(
-                        article.feedTitle,
+                        article.title,
+                        maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.6,
-                          ),
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          fontWeight: article.isRead
+                              ? FontWeight.normal
+                              : FontWeight.w600,
+                          color: article.isRead
+                              ? theme.colorScheme.onSurfaceVariant
+                              : theme.colorScheme.onSurface,
+                          height: 1.22,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                  ],
-                  if (article.author != null) ...[
-                    Icon(
-                      Icons.person_outline,
-                      size: 14,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      article.author!,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.6,
+                    if (!article.isRead)
+                      Container(
+                        width: 7,
+                        height: 7,
+                        margin: const EdgeInsets.only(top: 6, left: 8),
+                        decoration: BoxDecoration(
+                          color: accentColor,
+                          shape: BoxShape.circle,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
                   ],
-                  if (article.pubDate != null) ...[
-                    Icon(
-                      Icons.schedule,
-                      size: 14,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatDate(article.pubDate!),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.6,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const Spacer(),
-                  IconButton(
-                    icon: Icon(
-                      article.isFavorite
-                          ? Icons.star
-                          : Icons.star_border_outlined,
-                      size: 18,
-                    ),
-                    tooltip: article.isFavorite ? '取消收藏' : '收藏',
-                    onPressed: () =>
-                        widget.onSetFavorite(article.id, !article.isFavorite),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    color: article.isFavorite
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.45,
-                          ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      article.isReadLater
-                          ? Icons.watch_later
-                          : Icons.watch_later_outlined,
-                      size: 18,
-                    ),
-                    tooltip: article.isReadLater ? '移出稍后读' : '稍后读',
-                    onPressed: () =>
-                        widget.onSetReadLater(article.id, !article.isReadLater),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    color: article.isReadLater
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant.withValues(
-                            alpha: 0.45,
-                          ),
-                  ),
-                  if (article.link?.trim().isNotEmpty == true)
-                    IconButton(
-                      icon: const Icon(Icons.open_in_new, size: 18),
-                      tooltip: '查看原文',
-                      onPressed: () => widget.onOpenOriginal(article),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  IconButton(
-                    icon: Icon(
-                      article.isRead
-                          ? Icons.mark_email_unread
-                          : Icons.mark_email_read,
-                      size: 18,
-                    ),
-                    tooltip: article.isRead ? '标记未读' : '标记已读',
-                    onPressed: () {
-                      if (article.isRead) {
-                        widget.onMarkUnread(article.id);
-                      } else {
-                        widget.onMarkRead(article.id);
-                      }
-                    },
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 32,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    color: theme.colorScheme.onSurfaceVariant.withValues(
-                      alpha: 0.45,
-                    ),
-                  ),
+                ),
+                if (_hasArticleMetadata(article)) ...[
+                  const SizedBox(height: 7),
+                  _buildArticleMetadata(article, theme),
                 ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  bool _hasArticleMetadata(RssArticle article) {
+    return (widget.showFeedName && article.feedTitle.trim().isNotEmpty) ||
+        article.pubDate != null;
+  }
+
+  Widget _buildArticleMetadata(RssArticle article, ThemeData theme) {
+    final source = widget.showFeedName ? article.feedTitle.trim() : '';
+    return Row(
+      children: [
+        if (source.isNotEmpty) ...[
+          Flexible(
+            child: _buildMetadataItem(
+              theme,
+              icon: Icons.rss_feed,
+              label: source,
+              flexibleLabel: true,
+            ),
+          ),
+          if (article.pubDate != null) const SizedBox(width: 10),
+        ],
+        if (article.pubDate != null)
+          _buildMetadataItem(
+            theme,
+            icon: Icons.schedule,
+            label: _formatDate(article.pubDate!),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMetadataItem(
+    ThemeData theme, {
+    required IconData icon,
+    required String label,
+    bool flexibleLabel = false,
+  }) {
+    final foreground = theme.colorScheme.onSurfaceVariant.withValues(
+      alpha: 0.64,
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: foreground),
+        const SizedBox(width: 4),
+        if (flexibleLabel)
+          Flexible(child: _metadataLabel(theme, label, foreground))
+        else
+          _metadataLabel(theme, label, foreground),
+      ],
+    );
+  }
+
+  Widget _metadataLabel(ThemeData theme, String label, Color foreground) {
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: foreground,
+        fontWeight: FontWeight.w600,
+        height: 1.1,
       ),
     );
   }
@@ -661,10 +587,6 @@ class _RssArticleListState extends State<RssArticleList> {
     };
   }
 
-  Widget _buildHighlightedContent(RssArticle article) {
-    return RssArticleBodyView(article: article, searchQuery: widget.query);
-  }
-
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
@@ -672,5 +594,122 @@ class _RssArticleListState extends State<RssArticleList> {
     if (diff.inHours < 24) return '${diff.inHours}h';
     if (diff.inDays < 7) return '${diff.inDays}d';
     return '${date.month}/${date.day}';
+  }
+}
+
+class _RssFilterSegmentedControl extends StatelessWidget {
+  const _RssFilterSegmentedControl({
+    required this.filters,
+    required this.selectedFilter,
+    required this.labelFor,
+    required this.iconFor,
+    required this.onChanged,
+    required this.theme,
+  });
+
+  final List<RssArticleFilter> filters;
+  final RssArticleFilter selectedFilter;
+  final String Function(RssArticleFilter filter) labelFor;
+  final IconData Function(RssArticleFilter filter) iconFor;
+  final ValueChanged<RssArticleFilter> onChanged;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = theme.colorScheme;
+    final radius = BorderRadius.circular(18);
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: radius,
+      ),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: radius,
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.72),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var index = 0; index < filters.length; index++) ...[
+            if (index > 0)
+              ColoredBox(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.72),
+                child: const SizedBox(width: 1),
+              ),
+            Expanded(
+              child: _RssFilterSegment(
+                label: labelFor(filters[index]),
+                icon: iconFor(filters[index]),
+                selected: filters[index] == selectedFilter,
+                onTap: () => onChanged(filters[index]),
+                theme: theme,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RssFilterSegment extends StatelessWidget {
+  const _RssFilterSegment({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    required this.theme,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = theme.colorScheme;
+    final accentColor = rssAccentColor(theme);
+    final foreground = selected
+        ? rssOnAccentColor(theme)
+        : colorScheme.onSurfaceVariant;
+    final background = selected ? accentColor : Colors.transparent;
+
+    return Material(
+      color: background,
+      child: InkWell(
+        onTap: onTap,
+        mouseCursor: SystemMouseCursors.click,
+        hoverColor: rssHoverColor(theme, selected: selected),
+        focusColor: rssHoverColor(theme, selected: selected),
+        highlightColor: rssPressedColor(theme),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: foreground),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: foreground,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

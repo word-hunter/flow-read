@@ -1,15 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import 'package:flow_rss/flow_rss.dart';
 import '../providers/rss_riverpod_provider.dart';
+import '../providers/rss_reading_config_provider.dart';
+import '../providers/reading/reading_config_notifier.dart';
+import '../providers/web_content_provider.dart';
+import '../services/app_logger.dart';
+import '../services/web_content_service.dart';
 import '../theme/app_constants.dart';
+import '../theme/app_surface_tokens.dart';
 import '../widgets/flow/flow_components.dart';
 import '../widgets/font_settings_sheet.dart';
+import '../widgets/reader/reader_content_view.dart';
 import '../widgets/rss/rss_article_body_view.dart';
-import 'browser_screen.dart';
+import '../widgets/rss/rss_interaction_styles.dart';
 
-class RssArticleDetailScreen extends riverpod.ConsumerStatefulWidget {
+class RssArticleDetailScreen extends StatelessWidget {
   final List<RssArticle> articles;
   final String initialArticleId;
   final bool showFeedName;
@@ -22,60 +31,143 @@ class RssArticleDetailScreen extends riverpod.ConsumerStatefulWidget {
   });
 
   @override
-  riverpod.ConsumerState<RssArticleDetailScreen> createState() =>
-      _RssArticleDetailScreenState();
-}
-
-class _RssArticleDetailScreenState
-    extends riverpod.ConsumerState<RssArticleDetailScreen> {
-  late String _currentArticleId;
-  bool _isIntensiveReading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentArticleId = widget.initialArticleId;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _markCurrentAsRead());
-  }
-
-  @override
   Widget build(BuildContext context) {
-    ref.watch(rssNotifierProvider);
-    final theme = Theme.of(context);
-    final currentIndex = _currentIndex;
-    final article = currentIndex == -1 ? null : widget.articles[currentIndex];
-
     return Scaffold(
       appBar: FlowToolbar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: '返回列表',
           onPressed: () => Navigator.of(context).maybePop(),
+          style: rssIconButtonStyle(Theme.of(context)),
         ),
         title: const Text('RSS 阅读'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.tune_outlined),
-            tooltip: '阅读设置',
-            onPressed: () => _showReadingSettings(context),
-          ),
-        ],
       ),
-      body: article == null
-          ? _buildMissingArticle(theme)
-          : Column(
-              children: [
-                _buildActionBar(
-                  context,
-                  ref,
-                  article,
-                  currentIndex,
-                  theme,
-                ),
-                Expanded(child: _buildArticleBody(context, article, theme)),
-              ],
-            ),
+      body: RssArticleDetailPane(
+        articles: articles,
+        initialArticleId: initialArticleId,
+        showFeedName: showFeedName,
+      ),
     );
+  }
+}
+
+class RssArticleDetailPane extends riverpod.ConsumerStatefulWidget {
+  final List<RssArticle> articles;
+  final String initialArticleId;
+  final bool showFeedName;
+  final ValueChanged<RssArticle>? onArticleSelected;
+  final bool showReadingSettingsAction;
+  final bool markInitialArticleAsRead;
+  final bool showLookupSheet;
+
+  const RssArticleDetailPane({
+    super.key,
+    required this.articles,
+    required this.initialArticleId,
+    required this.showFeedName,
+    this.onArticleSelected,
+    this.showReadingSettingsAction = true,
+    this.markInitialArticleAsRead = true,
+    this.showLookupSheet = true,
+  });
+
+  @override
+  riverpod.ConsumerState<RssArticleDetailPane> createState() =>
+      _RssArticleDetailPaneState();
+}
+
+class _RssArticleDetailPaneState
+    extends riverpod.ConsumerState<RssArticleDetailPane> {
+  late String _currentArticleId;
+  final MenuController _readingSettingsMenuController = MenuController();
+  final Map<String, RssArticle> _readableArticlesById = {};
+  final Map<String, String> _readableArticleErrors = {};
+  final Set<String> _loadingReadableArticleIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _currentArticleId = widget.initialArticleId;
+    if (widget.markInitialArticleAsRead) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _markCurrentAsRead());
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant RssArticleDetailPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final requestedChanged =
+        widget.initialArticleId != oldWidget.initialArticleId;
+    final currentExists = widget.articles.any(
+      (article) => article.id == _currentArticleId,
+    );
+    if (!requestedChanged && currentExists) return;
+
+    final nextArticle =
+        widget.articles
+            .where((article) => article.id == widget.initialArticleId)
+            .firstOrNull ??
+        widget.articles.firstOrNull;
+    if (nextArticle == null || nextArticle.id == _currentArticleId) return;
+
+    _currentArticleId = nextArticle.id;
+    if (widget.markInitialArticleAsRead) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _markCurrentAsRead());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(rssNotifierProvider);
+    final theme = Theme.of(context);
+    final readingConfig = ref.watch(rssReadingConfigNotifierProvider);
+    final currentIndex = _currentIndex;
+    final article = currentIndex == -1 ? null : widget.articles[currentIndex];
+    if (article != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_loadReadableArticleIfNeeded(article));
+      });
+    }
+    final readableArticle = article == null
+        ? null
+        : _readableArticlesById[article.id];
+    final displayArticle = article == null
+        ? null
+        : readableArticle?.copyWith(
+                isRead: article.isRead,
+                isFavorite: article.isFavorite,
+                isReadLater: article.isReadLater,
+              ) ??
+              article;
+    final articleId = article?.id;
+
+    return displayArticle == null
+        ? _buildMissingArticle(theme)
+        : Column(
+            children: [
+              _buildActionBar(
+                context,
+                displayArticle,
+                currentIndex,
+                theme,
+                readingConfig,
+              ),
+              Expanded(
+                child: _buildArticleBody(
+                  context,
+                  displayArticle,
+                  theme,
+                  readingConfig: readingConfig,
+                  isLoadingReadableArticle:
+                      articleId != null &&
+                      _loadingReadableArticleIds.contains(articleId),
+                  readableArticleError: articleId == null
+                      ? null
+                      : _readableArticleErrors[articleId],
+                ),
+              ),
+            ],
+          );
   }
 
   int get _currentIndex {
@@ -97,12 +189,11 @@ class _RssArticleDetailScreenState
 
   Widget _buildActionBar(
     BuildContext context,
-    riverpod.WidgetRef ref,
     RssArticle article,
     int currentIndex,
     ThemeData theme,
+    ReadingConfigState readingConfig,
   ) {
-    final notifier = ref.read(rssNotifierProvider.notifier);
     final canGoPrevious = currentIndex > 0;
     final canGoNext = currentIndex < widget.articles.length - 1;
     return Container(
@@ -114,108 +205,145 @@ class _RssArticleDetailScreenState
           ),
         ),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                tooltip: '上一篇',
-                onPressed: canGoPrevious
-                    ? () => _selectArticle(widget.articles[currentIndex - 1])
-                    : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              tooltip: '上一篇',
+              onPressed: canGoPrevious
+                  ? () => _selectArticle(widget.articles[currentIndex - 1])
+                  : null,
+              style: rssIconButtonStyle(theme),
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              tooltip: '下一篇',
+              onPressed: canGoNext
+                  ? () => _selectArticle(widget.articles[currentIndex + 1])
+                  : null,
+              style: rssIconButtonStyle(theme),
+            ),
+            const SizedBox(width: 8),
+            VerticalDivider(
+              width: 1,
+              indent: 14,
+              endIndent: 14,
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: Icon(
+                article.isRead
+                    ? Icons.mark_email_unread
+                    : Icons.mark_email_read,
               ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                tooltip: '下一篇',
-                onPressed: canGoNext
-                    ? () => _selectArticle(widget.articles[currentIndex + 1])
-                    : null,
-              ),
-              const SizedBox(width: 8),
-              VerticalDivider(
-                width: 1,
-                indent: 14,
-                endIndent: 14,
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: Icon(
-                  article.isRead
-                      ? Icons.mark_email_unread
-                      : Icons.mark_email_read,
-                ),
-                tooltip: article.isRead ? '标记未读' : '标记已读',
-                onPressed: () => _toggleRead(article),
-              ),
-              IconButton(
-                icon: Icon(
-                  article.isFavorite ? Icons.star : Icons.star_border_outlined,
-                ),
-                tooltip: article.isFavorite ? '取消收藏' : '收藏',
-                color: article.isFavorite ? theme.colorScheme.primary : null,
-                onPressed: () => notifier.setArticleFavorite(
-                  article.id,
-                  !article.isFavorite,
-                ),
-              ),
-              IconButton(
-                icon: Icon(
-                  article.isReadLater
-                      ? Icons.watch_later
-                      : Icons.watch_later_outlined,
-                ),
-                tooltip: article.isReadLater ? '移出稍后读' : '稍后读',
-                color: article.isReadLater ? theme.colorScheme.primary : null,
-                onPressed: () => notifier.setArticleReadLater(
-                  article.id,
-                  !article.isReadLater,
-                ),
-              ),
-              if (article.link?.trim().isNotEmpty == true)
-                IconButton(
-                  icon: const Icon(Icons.open_in_new),
-                  tooltip: '查看原文',
-                  onPressed: () => _openOriginalArticle(context, article),
-                ),
-              const SizedBox(width: 8),
-              FlowButton.tonal(
-                onPressed: _toggleIntensiveReading,
-                icon: Icon(
-                  _isIntensiveReading
-                      ? Icons.chrome_reader_mode_outlined
-                      : Icons.local_library_outlined,
-                  size: 18,
-                ),
-                child: Text(_isIntensiveReading ? '退出精读' : '进入精读'),
-              ),
+              tooltip: article.isRead ? '标记未读' : '标记已读',
+              onPressed: () => _toggleRead(article),
+              style: rssIconButtonStyle(theme),
+            ),
+            if (widget.showReadingSettingsAction) ...[
+              const Spacer(),
+              _buildReadingSettingsAction(context, theme, readingConfig),
             ],
-          ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildReadingSettingsAction(
+    BuildContext context,
+    ThemeData theme,
+    ReadingConfigState readingConfig,
+  ) {
+    final useDropdown =
+        MediaQuery.sizeOf(context).width >= AppConstants.wideBreakpoint;
+    if (!useDropdown) {
+      return IconButton(
+        icon: const Icon(Icons.tune_outlined),
+        tooltip: '阅读设置',
+        onPressed: () => _showReadingSettings(context),
+        style: rssIconButtonStyle(theme),
+      );
+    }
+
+    final panelWidth = FontSettingsDropdownPanel.preferredWidthFor(
+      MediaQuery.sizeOf(context),
+    );
+    return MenuAnchor(
+      controller: _readingSettingsMenuController,
+      alignmentOffset: Offset(-(panelWidth - 32), 6),
+      style: const MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(Colors.transparent),
+        elevation: WidgetStatePropertyAll(0),
+        padding: WidgetStatePropertyAll(EdgeInsets.zero),
+      ),
+      menuChildren: [
+        FontSettingsDropdownPanel(
+          width: panelWidth,
+          onClose: _readingSettingsMenuController.close,
+          controller: _rssReadingSettingsController(ref, readingConfig),
+        ),
+      ],
+      builder: (context, controller, _) {
+        return IconButton(
+          icon: const Icon(Icons.tune_outlined),
+          tooltip: '阅读设置',
+          onPressed: () {
+            if (controller.isOpen) {
+              controller.close();
+            } else {
+              controller.open();
+            }
+          },
+          style: rssIconButtonStyle(theme, selected: controller.isOpen),
+        );
+      },
+    );
+  }
+
+  ReadingSettingsPanelController _rssReadingSettingsController(
+    riverpod.WidgetRef ref,
+    ReadingConfigState state,
+  ) {
+    final notifier = ref.read(rssReadingConfigNotifierProvider.notifier);
+    return ReadingSettingsPanelController(
+      state: state,
+      onFontSizeChanged: notifier.setFontSize,
+      onLineHeightChanged: notifier.setLineHeight,
+      onFontFamilyChanged: notifier.setFontFamily,
+      onReadingThemeChanged: notifier.setReadingTheme,
+      onRestoreDefaults: notifier.restoreDefaults,
     );
   }
 
   Widget _buildArticleBody(
     BuildContext context,
     RssArticle article,
-    ThemeData theme,
-  ) {
+    ThemeData theme, {
+    required ReadingConfigState readingConfig,
+    required bool isLoadingReadableArticle,
+    required String? readableArticleError,
+  }) {
     final horizontalPadding =
         MediaQuery.sizeOf(context).width >= AppConstants.wideBreakpoint
         ? 32.0
         : 16.0;
+    final readerTextColor = resolveReaderTextColor(
+      readingConfig,
+      null,
+      appBrightness: theme.brightness,
+    );
+    final readerMutedTextColor = resolveReaderMutedTextColor(
+      readingConfig,
+      null,
+      appBrightness: theme.brightness,
+    );
 
     return ColoredBox(
-      color: _isIntensiveReading
-          ? Color.alphaBlend(
-              theme.colorScheme.primaryContainer.withValues(alpha: 0.08),
-              theme.colorScheme.surface,
-            )
-          : theme.colorScheme.surface,
+      color: _rssReaderBackgroundColor(context, theme, readingConfig),
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
           horizontal: horizontalPadding,
@@ -227,29 +355,49 @@ class _RssArticleDetailScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildMetadata(article, theme),
+                _buildMetadata(
+                  article,
+                  theme,
+                  foreground: readerMutedTextColor,
+                ),
                 const SizedBox(height: 12),
                 Text(
                   article.title,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     height: 1.25,
+                    color: readerTextColor,
                   ),
                 ),
                 const SizedBox(height: 18),
-                _buildModeSwitch(theme),
-                const SizedBox(height: 24),
+                if (isLoadingReadableArticle) ...[
+                  _buildReadableArticleStatus(
+                    theme,
+                    icon: Icons.sync,
+                    message: '正在加载全文…',
+                    isLoading: true,
+                  ),
+                  const SizedBox(height: 18),
+                ] else if (readableArticleError != null) ...[
+                  _buildReadableArticleStatus(
+                    theme,
+                    icon: Icons.warning_amber_outlined,
+                    message: '全文加载失败，正在显示 RSS 摘要。$readableArticleError',
+                    isError: true,
+                  ),
+                  const SizedBox(height: 18),
+                ],
                 if (_hasBody(article))
                   RssArticleBodyView(
                     article: article,
-                    mode: _isIntensiveReading
-                        ? RssArticleBodyMode.intensive
-                        : RssArticleBodyMode.detail,
+                    mode: RssArticleBodyMode.intensive,
+                    readingConfig: readingConfig,
+                    showLookupSheet: widget.showLookupSheet,
                     maxImageHeight: 460,
                     maxImageWidth: 720,
                   )
                 else
-                  _buildNoBodyState(article, theme),
+                  _buildNoBodyState(theme, foreground: readerMutedTextColor),
               ],
             ),
           ),
@@ -258,49 +406,83 @@ class _RssArticleDetailScreenState
     );
   }
 
-  Widget _buildModeSwitch(ThemeData theme) {
-    return SegmentedButton<bool>(
-      segments: const [
-        ButtonSegment(
-          value: false,
-          icon: Icon(Icons.chrome_reader_mode_outlined, size: 16),
-          label: Text('阅读模式'),
-        ),
-        ButtonSegment(
-          value: true,
-          icon: Icon(Icons.school_outlined, size: 16),
-          label: Text('学习模式'),
-        ),
-      ],
-      selected: {_isIntensiveReading},
-      showSelectedIcon: false,
-      onSelectionChanged: (selection) {
-        final next = selection.firstOrNull;
-        if (next == null || next == _isIntensiveReading) return;
-        setState(() => _isIntensiveReading = next);
-      },
-      style: ButtonStyle(
-        visualDensity: VisualDensity.compact,
-        textStyle: WidgetStatePropertyAll(theme.textTheme.labelMedium),
+  Widget _buildReadableArticleStatus(
+    ThemeData theme, {
+    required IconData icon,
+    required String message,
+    bool isLoading = false,
+    bool isError = false,
+  }) {
+    final colorScheme = theme.colorScheme;
+    final background = isError
+        ? colorScheme.errorContainer.withValues(alpha: 0.58)
+        : colorScheme.primaryContainer.withValues(alpha: 0.28);
+    final foreground = isError
+        ? colorScheme.onErrorContainer
+        : colorScheme.onSurfaceVariant;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          if (isLoading)
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colorScheme.primary,
+              ),
+            )
+          else
+            Icon(
+              icon,
+              size: 18,
+              color: isError ? colorScheme.error : colorScheme.primary,
+            ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(color: foreground),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildMetadata(RssArticle article, ThemeData theme) {
+  Widget _buildMetadata(
+    RssArticle article,
+    ThemeData theme, {
+    required Color foreground,
+  }) {
     final chips = <Widget>[
       if (widget.showFeedName && article.feedTitle.isNotEmpty)
-        _metadataChip(theme, icon: Icons.rss_feed, label: article.feedTitle),
+        _metadataChip(
+          theme,
+          icon: Icons.rss_feed,
+          label: article.feedTitle,
+          foreground: foreground,
+        ),
       if (article.author?.trim().isNotEmpty == true)
         _metadataChip(
           theme,
           icon: Icons.person_outline,
           label: article.author!.trim(),
+          foreground: foreground,
         ),
       if (article.pubDate != null)
         _metadataChip(
           theme,
           icon: Icons.schedule,
           label: _formatDate(article.pubDate!),
+          foreground: foreground,
         ),
     ];
 
@@ -313,6 +495,7 @@ class _RssArticleDetailScreenState
     ThemeData theme, {
     required IconData icon,
     required String label,
+    required Color foreground,
   }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -320,7 +503,7 @@ class _RssArticleDetailScreenState
         Icon(
           icon,
           size: 15,
-          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.62),
+          color: foreground.withValues(alpha: 0.72),
         ),
         const SizedBox(width: 5),
         ConstrainedBox(
@@ -329,7 +512,7 @@ class _RssArticleDetailScreenState
             label,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: foreground,
             ),
           ),
         ),
@@ -337,7 +520,10 @@ class _RssArticleDetailScreenState
     );
   }
 
-  Widget _buildNoBodyState(RssArticle article, ThemeData theme) {
+  Widget _buildNoBodyState(
+    ThemeData theme, {
+    required Color foreground,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -348,9 +534,9 @@ class _RssArticleDetailScreenState
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        article.link?.trim().isNotEmpty == true ? '暂无可阅读正文，可查看原文。' : '暂无可阅读正文。',
+        '暂无可阅读正文。',
         style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
+          color: foreground,
         ),
       ),
     );
@@ -365,11 +551,85 @@ class _RssArticleDetailScreenState
 
   void _selectArticle(RssArticle article) {
     setState(() => _currentArticleId = article.id);
+    widget.onArticleSelected?.call(article);
     _markAsRead(article);
   }
 
-  void _toggleIntensiveReading() {
-    setState(() => _isIntensiveReading = !_isIntensiveReading);
+  Future<void> _loadReadableArticleIfNeeded(RssArticle article) async {
+    final link = article.link?.trim();
+    if (link == null || link.isEmpty) return;
+    if (!_needsReadableArticleFetch(article)) return;
+    if (_readableArticlesById.containsKey(article.id) ||
+        _loadingReadableArticleIds.contains(article.id)) {
+      return;
+    }
+
+    setState(() {
+      _loadingReadableArticleIds.add(article.id);
+      _readableArticleErrors.remove(article.id);
+    });
+
+    try {
+      final page = await ref.read(webContentServiceProvider).fetch(link);
+      if (!mounted) return;
+      setState(() {
+        _readableArticlesById[article.id] = _articleWithReadableContent(
+          article,
+          page,
+        );
+        _loadingReadableArticleIds.remove(article.id);
+      });
+    } catch (error, stackTrace) {
+      AppLogger.instance.event(
+        'rss.article_readable_fetch_failed',
+        level: AppLogLevel.warning,
+        source: 'rss_article_detail_screen',
+        metadata: {'articleId': article.id, 'url': link},
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) return;
+      setState(() {
+        _loadingReadableArticleIds.remove(article.id);
+        _readableArticleErrors[article.id] = error.toString();
+      });
+    }
+  }
+
+  bool _needsReadableArticleFetch(RssArticle article) {
+    final content = article.content?.trim() ?? '';
+    final description = article.description?.trim() ?? '';
+    final textBlockCount = article.bodyBlocks
+        .whereType<RssArticleTextBlock>()
+        .length;
+
+    if (content.length >= 900 || textBlockCount >= 3) return false;
+    if (content.isEmpty) return true;
+    if (description.isNotEmpty && content == description) return true;
+    return content.length < 500;
+  }
+
+  RssArticle _articleWithReadableContent(
+    RssArticle article,
+    WebPageContent page,
+  ) {
+    final paragraphs = page.paragraphs
+        .map((paragraph) => paragraph.trim())
+        .where((paragraph) => paragraph.isNotEmpty)
+        .toList(growable: false);
+    if (paragraphs.isEmpty) return article;
+
+    return article.copyWith(
+      content: paragraphs.join('\n\n'),
+      bodyBlocks: paragraphs
+          .map(
+            (paragraph) => RssArticleTextBlock(
+              type: RssArticleTextBlockType.paragraph,
+              text: paragraph,
+            ),
+          )
+          .toList(growable: false),
+    );
   }
 
   void _markCurrentAsRead() {
@@ -393,24 +653,42 @@ class _RssArticleDetailScreenState
     }
   }
 
-  void _openOriginalArticle(BuildContext context, RssArticle article) {
-    final link = article.link?.trim();
-    if (link == null || link.isEmpty) return;
-    ref.read(rssNotifierProvider.notifier).markAsRead(article.id);
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            BrowserScreen(initialUrl: link, initialTitle: article.title),
-      ),
-    );
-  }
-
   void _showReadingSettings(BuildContext context) {
     showFlowSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const FontSettingsSheet(),
+      builder: (_) => riverpod.Consumer(
+        builder: (context, ref, _) {
+          final state = ref.watch(rssReadingConfigNotifierProvider);
+          final notifier = ref.read(rssReadingConfigNotifierProvider.notifier);
+          return FontSettingsSheet(
+            controller: ReadingSettingsPanelController(
+              state: state,
+              onFontSizeChanged: notifier.setFontSize,
+              onLineHeightChanged: notifier.setLineHeight,
+              onFontFamilyChanged: notifier.setFontFamily,
+              onReadingThemeChanged: notifier.setReadingTheme,
+              onRestoreDefaults: notifier.restoreDefaults,
+            ),
+          );
+        },
+      ),
     );
+  }
+
+  Color _rssReaderBackgroundColor(
+    BuildContext context,
+    ThemeData theme,
+    ReadingConfigState readingConfig,
+  ) {
+    return switch (readingConfig.readingTheme) {
+      'sepia' => const Color(0xFFF5ECD7),
+      'dark' => AppSurfaceTokens.of(context).readerWorkspaceBackground,
+      _ => Color.alphaBlend(
+        theme.colorScheme.primaryContainer.withValues(alpha: 0.08),
+        theme.colorScheme.surface,
+      ),
+    };
   }
 
   String _formatDate(DateTime date) {
