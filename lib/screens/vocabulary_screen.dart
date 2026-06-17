@@ -518,16 +518,24 @@ class _VocabularyScreenState extends riverpod.ConsumerState<VocabularyScreen> {
                   icon: const Icon(Icons.chevron_left),
                 ),
                 const SizedBox(width: 4),
-                FilledButton(
-                  onPressed: null,
-                  style: FilledButton.styleFrom(
-                    fixedSize: const Size(40, 36),
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                Container(
+                  width: 40,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.24),
                     ),
                   ),
-                  child: const Text('1'),
+                  child: Text(
+                    '1',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 4),
                 IconButton(
@@ -1194,8 +1202,9 @@ class _SourcesPanel extends StatelessWidget {
                   ),
                 ),
               ),
-              TextButton(
+              FlowButton.text(
                 onPressed: null,
+                size: FlowButtonSize.small,
                 child: const Text('查看全部'),
               ),
             ],
