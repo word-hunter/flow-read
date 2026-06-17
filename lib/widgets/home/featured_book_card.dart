@@ -29,6 +29,7 @@ class FeaturedBookCard extends StatelessWidget {
   final bool isDifficultyLoading;
   final bool forceDefaultCover;
   final DateTime? lastReadAt;
+  final EdgeInsetsGeometry margin;
   final VoidCallback onContinueReading;
   final VoidCallback? onRename;
   final VoidCallback? onRemove;
@@ -47,6 +48,7 @@ class FeaturedBookCard extends StatelessWidget {
     this.isDifficultyLoading = false,
     this.forceDefaultCover = false,
     this.lastReadAt,
+    this.margin = const EdgeInsets.symmetric(horizontal: 24),
     required this.onContinueReading,
     this.onRename,
     this.onRemove,
@@ -57,7 +59,7 @@ class FeaturedBookCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
+      margin: margin,
       padding: const EdgeInsets.all(24),
       decoration: _cardDecoration(context, theme),
       child: LayoutBuilder(

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flow_language/flow_language.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
@@ -11,10 +10,10 @@ import '../../models/reading_memory.dart';
 import '../../providers/reading/bookshelf_notifier.dart';
 import '../../providers/reading/vocabulary_notifier.dart';
 import '../../providers/settings_provider.dart';
-import '../../services/epub_import_source.dart';
 import '../../services/settings_service.dart';
 import '../../theme/city_theme_tokens.dart';
 import '../flow/flow_components.dart';
+import 'book_import_flow.dart';
 import 'book_shelf_row.dart';
 import 'featured_book_card.dart';
 import 'home_hover_surface.dart';
@@ -23,7 +22,16 @@ import 'today_review_card.dart';
 enum _BookSortMode { recent, title, author, progress, difficulty }
 
 class BookshelfContent extends riverpod.ConsumerStatefulWidget {
-  const BookshelfContent({super.key});
+  final bool showTopControls;
+  final String? externalSearchQuery;
+  final Widget? readingGoalCard;
+
+  const BookshelfContent({
+    super.key,
+    this.showTopControls = true,
+    this.externalSearchQuery,
+    this.readingGoalCard,
+  });
 
   @override
   riverpod.ConsumerState<BookshelfContent> createState() =>
@@ -59,16 +67,18 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     final settings = ref.watch(settingsProvider);
     final theme = Theme.of(context);
     final allBooks = bookshelfState.books;
+    final effectiveSearchQuery =
+        widget.externalSearchQuery?.trim().toLowerCase() ?? _searchQuery;
     _queueDifficultyRatings(bookshelfNotifier, allBooks);
 
     final filteredBooks = _sortedBooks(
-      _searchQuery.isEmpty
+      effectiveSearchQuery.isEmpty
           ? allBooks
           : allBooks
                 .where(
                   (b) =>
-                      b.title.toLowerCase().contains(_searchQuery) ||
-                      b.author.toLowerCase().contains(_searchQuery),
+                      b.title.toLowerCase().contains(effectiveSearchQuery) ||
+                      b.author.toLowerCase().contains(effectiveSearchQuery),
                 )
                 .toList(),
       bookshelfNotifier,
@@ -77,12 +87,13 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     if (allBooks.isEmpty) {
       return Column(
         children: [
-          _buildBookshelfHeader(
-            theme,
-            bookshelfNotifier,
-            bookCount: 0,
-            isDifficultyLoading: false,
-          ),
+          if (widget.showTopControls)
+            _buildBookshelfHeader(
+              theme,
+              bookshelfNotifier,
+              bookCount: 0,
+              isDifficultyLoading: false,
+            ),
           Expanded(
             child: _buildEmptyState(
               context,
@@ -104,7 +115,8 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(theme, bookshelfState, bookshelfNotifier),
+          if (widget.showTopControls)
+            _buildHeader(theme, bookshelfState, bookshelfNotifier),
           if (bookshelfNotifier.isLoadingBookDifficulties) ...[
             const SizedBox(height: 14),
             _buildDifficultyLoadingBanner(theme, bookshelfNotifier),
@@ -124,7 +136,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
               builder: (context, constraints) {
                 final shouldLoadExcerpts = constraints.maxWidth >= 920;
                 if (!shouldLoadExcerpts) {
-                  return _buildFeaturedBookCard(
+                  return _buildFeaturedArea(
                     state: bookshelfState,
                     notifier: bookshelfNotifier,
                     settings: settings,
@@ -138,7 +150,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
                     bookshelfNotifier,
                   ),
                   builder: (context, snapshot) {
-                    return _buildFeaturedBookCard(
+                    return _buildFeaturedArea(
                       state: bookshelfState,
                       notifier: bookshelfNotifier,
                       settings: settings,
@@ -179,7 +191,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
                   ),
                 )
                 .toList(),
-            emptyText: _searchQuery.isEmpty ? '暂无书籍' : '没有匹配的书籍',
+            emptyText: effectiveSearchQuery.isEmpty ? '暂无书籍' : '没有匹配的书籍',
           ),
           const SizedBox(height: 32),
         ],
@@ -198,6 +210,67 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     });
   }
 
+  Widget _buildFeaturedArea({
+    required BookshelfState state,
+    required BookshelfNotifier notifier,
+    required SettingsService settings,
+    required BookMetadata featuredBook,
+    List<String> readingExcerpts = const [],
+    bool isLoadingReadingExcerpts = false,
+  }) {
+    final readingGoalCard = widget.readingGoalCard;
+    if (readingGoalCard == null) {
+      return _buildFeaturedBookCard(
+        state: state,
+        notifier: notifier,
+        settings: settings,
+        featuredBook: featuredBook,
+        readingExcerpts: readingExcerpts,
+        isLoadingReadingExcerpts: isLoadingReadingExcerpts,
+      );
+    }
+
+    final featuredCard = _buildFeaturedBookCard(
+      state: state,
+      notifier: notifier,
+      settings: settings,
+      featuredBook: featuredBook,
+      readingExcerpts: readingExcerpts,
+      isLoadingReadingExcerpts: isLoadingReadingExcerpts,
+      margin: EdgeInsets.zero,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 1040) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                featuredCard,
+                const SizedBox(height: 18),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: readingGoalCard,
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: featuredCard),
+              const SizedBox(width: 24),
+              SizedBox(width: 290, child: readingGoalCard),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildFeaturedBookCard({
     required BookshelfState state,
     required BookshelfNotifier notifier,
@@ -205,6 +278,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     required BookMetadata featuredBook,
     List<String> readingExcerpts = const [],
     bool isLoadingReadingExcerpts = false,
+    EdgeInsetsGeometry margin = const EdgeInsets.symmetric(horizontal: 24),
   }) {
     return FeaturedBookCard(
       title: featuredBook.title,
@@ -219,6 +293,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
       isDifficultyLoading: notifier.isBookDifficultyLoading(featuredBook.id),
       forceDefaultCover: settings.forceDefaultBookCover,
       lastReadAt: featuredBook.lastReadAt,
+      margin: margin,
       onContinueReading: () => _openBook(state, notifier, featuredBook.id),
       onRename: () => _renameBook(notifier, featuredBook),
       onRemove: () => _confirmRemoveBook(notifier, featuredBook),
@@ -819,23 +894,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   }
 
   Future<void> _importEpub(BookshelfNotifier notifier) async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['epub'],
-      withReadStream: true,
-    );
-    final file = result?.files.single;
-    if (file == null || !mounted) return;
-
-    final source = EpubImportSource.tryFromPlatformFile(file);
-    if (source == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('无法读取 EPUB 文件')));
-      return;
-    }
-
-    await notifier.importBookFromSource(source);
+    await importEpubFromPicker(context, notifier);
   }
 }
 

@@ -127,6 +127,126 @@ class ReadingStatsRing extends StatelessWidget {
   }
 }
 
+class ReadingGoalSummaryCard extends StatelessWidget {
+  final int totalSeconds;
+  final int dailyGoalSeconds;
+  final VoidCallback? onTap;
+  final bool isExpanded;
+
+  const ReadingGoalSummaryCard({
+    super.key,
+    required this.totalSeconds,
+    this.dailyGoalSeconds = 3600,
+    this.onTap,
+    this.isExpanded = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final city = Theme.of(context).extension<CityThemeTokens>();
+    final weeklyGoalSeconds = math.max(dailyGoalSeconds, 1) * 6;
+    final progress = (totalSeconds / weeklyGoalSeconds).clamp(0.0, 1.0);
+    final percent = (progress * 100).toInt();
+    final borderColor = isExpanded
+        ? (city?.activeBlue ?? colorScheme.primary).withValues(alpha: 0.42)
+        : (city?.warmBorder ?? colorScheme.outlineVariant).withValues(
+            alpha: city == null ? 0.46 : 1,
+          );
+
+    return Tooltip(
+      message: '查看阅读目标详情',
+      child: Material(
+        color:
+            city?.cardSurface ??
+            colorScheme.surfaceContainerHighest.withValues(alpha: 0.52),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          mouseCursor: SystemMouseCursors.click,
+          borderRadius: BorderRadius.circular(16),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: borderColor),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '阅读目标',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: city?.textPrimary ?? colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Divider(
+                    height: 1,
+                    color: city?.warmBorder ?? colorScheme.outlineVariant,
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    '本周阅读',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color:
+                          city?.textSecondary ?? colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: _ProgressRing(
+                      size: 132,
+                      strokeWidth: 9,
+                      progress: progress,
+                      trackColor:
+                          (city?.warmBorder ?? colorScheme.outlineVariant)
+                              .withValues(alpha: 0.42),
+                      progressColor: city?.activeBlue ?? colorScheme.primary,
+                      child: Text(
+                        '$percent%',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: city?.textPrimary ?? colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    '${_durationText(totalSeconds)} / ${_durationText(weeklyGoalSeconds)}',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color:
+                          city?.textSecondary ?? colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '每日目标 ${_durationText(dailyGoalSeconds)}',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color:
+                          (city?.textSecondary ?? colorScheme.onSurfaceVariant)
+                              .withValues(alpha: 0.72),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class ReadingGoalDetailsPanel extends StatefulWidget {
   final int weekTotalSeconds;
   final int monthTotalSeconds;
@@ -135,6 +255,7 @@ class ReadingGoalDetailsPanel extends StatefulWidget {
   final int dailyGoalSeconds;
   final DateTime goalDate;
   final VoidCallback onClose;
+  final bool showPointer;
 
   const ReadingGoalDetailsPanel({
     super.key,
@@ -145,6 +266,7 @@ class ReadingGoalDetailsPanel extends StatefulWidget {
     required this.dailyGoalSeconds,
     required this.goalDate,
     required this.onClose,
+    this.showPointer = true,
   });
 
   @override
@@ -179,15 +301,16 @@ class _ReadingGoalDetailsPanelState extends State<ReadingGoalDetailsPanel> {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Positioned(
-          left: -9,
-          top: 128,
-          child: _AnchorPointer(
-            fillColor: city?.cardSurface ?? colorScheme.surface,
-            borderColor: (city?.warmBorder ?? colorScheme.outlineVariant)
-                .withValues(alpha: city == null ? 0.58 : 1),
+        if (widget.showPointer)
+          Positioned(
+            left: -9,
+            top: 128,
+            child: _AnchorPointer(
+              fillColor: city?.cardSurface ?? colorScheme.surface,
+              borderColor: (city?.warmBorder ?? colorScheme.outlineVariant)
+                  .withValues(alpha: city == null ? 0.58 : 1),
+            ),
           ),
-        ),
         Material(
           elevation: 10,
           shadowColor:

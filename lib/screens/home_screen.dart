@@ -1,18 +1,20 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
-import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
 import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/reading_time_notifier.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_constants.dart';
 import '../theme/city_theme_tokens.dart';
-import '../widgets/home/home_sidebar.dart';
+import '../widgets/home/book_import_flow.dart';
 import '../widgets/home/bookshelf_content.dart';
+import '../widgets/home/reading_stats_ring.dart';
 import '../widgets/flow/flow_components.dart';
+import '../widgets/theme_mode_cycle_button.dart';
 import '../widgets/theme_transition.dart';
 import 'bookshelf_screen.dart';
 import 'rss_screen.dart';
@@ -512,7 +514,7 @@ class _AnimatedImportProgressBarState extends State<_AnimatedImportProgressBar>
   }
 }
 
-class _WideHomeLayout extends riverpod.ConsumerWidget {
+class _WideHomeLayout extends riverpod.ConsumerStatefulWidget {
   final CurrentBookNotifier currentBook;
   final CurrentBookState currentBookState;
   final bool showRss;
@@ -523,79 +525,475 @@ class _WideHomeLayout extends riverpod.ConsumerWidget {
     required this.showRss,
   });
 
-  static const _widePanels = <Widget>[
-    BookshelfContent(),
-    RssScreen(),
-    SizedBox.shrink(),
-    VocabularyScreen(),
-    ProfileScreen(),
-  ];
+  @override
+  riverpod.ConsumerState<_WideHomeLayout> createState() =>
+      _WideHomeLayoutState();
+}
+
+class _WideHomeLayoutState extends riverpod.ConsumerState<_WideHomeLayout> {
+  final TextEditingController _bookshelfSearchController =
+      TextEditingController();
+  Timer? _bookshelfSearchDebounce;
+  String _bookshelfSearchQuery = '';
 
   @override
-  Widget build(BuildContext context, riverpod.WidgetRef ref) {
-    final theme = Theme.of(context);
-    final cityPreset = CityThemeScope.maybeOf(context)?.preset;
-    final cityTokens = Theme.of(context).extension<CityThemeTokens>();
+  void dispose() {
+    _bookshelfSearchDebounce?.cancel();
+    _bookshelfSearchController.dispose();
+    super.dispose();
+  }
+
+  void _onBookshelfSearchChanged(String value) {
+    _bookshelfSearchDebounce?.cancel();
+    _bookshelfSearchDebounce = Timer(const Duration(milliseconds: 240), () {
+      if (!mounted) return;
+      setState(() => _bookshelfSearchQuery = value);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final readingTime = ref.watch(readingTimeNotifierProvider);
     final settings = ref.watch(settingsProvider);
-    final visibleTabs = HomeScreen._visibleTabs(showRss: showRss);
+    final bookshelfState = ref.watch(bookshelfNotifierProvider);
+    final visibleTabs = HomeScreen._visibleTabs(showRss: widget.showRss);
     HomeScreen._redirectHiddenTab(
       context,
-      currentBook,
-      currentBookState,
+      widget.currentBook,
+      widget.currentBookState,
       visibleTabs,
     );
     final selectedIndex = HomeScreen._visibleIndexFor(
-      currentBookState.currentTab,
+      widget.currentBookState.currentTab,
       visibleTabs,
     );
+    final selectedTab = visibleTabs[selectedIndex];
 
     final backgroundColor = HomeScreen._homeBackgroundColor(context);
+    final panels = <Widget>[
+      BookshelfContent(
+        showTopControls: false,
+        externalSearchQuery: _bookshelfSearchQuery,
+        readingGoalCard: _HomeReadingGoalCard(
+          readingTimeSeconds: readingTime.weekReadingTimeSeconds,
+          monthReadingTimeSeconds: readingTime.monthReadingTimeSeconds,
+          weekDailyReadingSeconds: readingTime.weekDailyReadingSeconds,
+          monthDailyReadingSeconds: readingTime.monthDailyReadingSeconds,
+          goalDate: readingTime.readingGoalDate,
+          dailyReadingGoalSeconds: readingTime.dailyReadingGoalSeconds,
+        ),
+      ),
+      const RssScreen(),
+      const SizedBox.shrink(),
+      const VocabularyScreen(),
+      const ProfileScreen(),
+    ];
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: ColoredBox(
-        color: backgroundColor,
-        child: Row(
-          children: [
-            HomeSidebar(
-              currentTab: currentBookState.currentTab,
-              onTabChanged: currentBook.switchTab,
-              readingTimeSeconds: readingTime.weekReadingTimeSeconds,
-              monthReadingTimeSeconds: readingTime.monthReadingTimeSeconds,
-              weekDailyReadingSeconds: readingTime.weekDailyReadingSeconds,
-              monthDailyReadingSeconds: readingTime.monthDailyReadingSeconds,
-              goalDate: readingTime.readingGoalDate,
-              dailyReadingGoalSeconds: readingTime.dailyReadingGoalSeconds,
-              onSettingsTap: () =>
-                  Navigator.pushNamed(context, SettingsScreen.routeName),
-              onThemeToggle: () =>
-                  runThemeTransition(context, settings.toggleThemeMode),
-              nextThemeMode: settings.nextThemeMode,
-              showRss: showRss,
+      body: Column(
+        children: [
+          _HomeTopBar(
+            visibleTabs: visibleTabs,
+            selectedTab: selectedTab,
+            onTabChanged: widget.currentBook.switchTab,
+            showBookshelfControls: selectedTab == HomeScreen._bookshelfTabIndex,
+            searchController: _bookshelfSearchController,
+            onSearchChanged: _onBookshelfSearchChanged,
+            isImportingBook: bookshelfState.isLoading,
+            onImportEpub: () => importEpubFromPicker(
+              context,
+              ref.read(bookshelfNotifierProvider.notifier),
             ),
-            VerticalDivider(
-              width: 1,
-              color:
-                  cityTokens?.warmBorder ??
-                  cityPreset?.outline.withValues(alpha: 0.70) ??
-                  theme.colorScheme.outlineVariant,
+            onSettingsTap: () =>
+                Navigator.pushNamed(context, SettingsScreen.routeName),
+            onThemeToggle: () =>
+                runThemeTransition(context, settings.toggleThemeMode),
+            nextThemeMode: settings.nextThemeMode,
+          ),
+          Expanded(
+            child: ColoredBox(
+              color: backgroundColor,
+              child: IndexedStack(
+                index: selectedIndex,
+                children: HomeScreen._visibleWidgets(panels, visibleTabs),
+              ),
             ),
-            Expanded(
-              child: ColoredBox(
-                color: backgroundColor,
-                child: IndexedStack(
-                  index: selectedIndex,
-                  children: HomeScreen._visibleWidgets(
-                    _widePanels,
-                    visibleTabs,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeTopBar extends StatelessWidget {
+  final List<int> visibleTabs;
+  final int selectedTab;
+  final ValueChanged<int> onTabChanged;
+  final bool showBookshelfControls;
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+  final bool isImportingBook;
+  final VoidCallback onImportEpub;
+  final VoidCallback onSettingsTap;
+  final VoidCallback onThemeToggle;
+  final ThemeMode nextThemeMode;
+
+  const _HomeTopBar({
+    required this.visibleTabs,
+    required this.selectedTab,
+    required this.onTabChanged,
+    required this.showBookshelfControls,
+    required this.searchController,
+    required this.onSearchChanged,
+    required this.isImportingBook,
+    required this.onImportEpub,
+    required this.onSettingsTap,
+    required this.onThemeToggle,
+    required this.nextThemeMode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final city = theme.extension<CityThemeTokens>();
+    final background =
+        city?.shellSurface.withValues(alpha: 0.96) ?? theme.colorScheme.surface;
+    final borderColor = city?.warmBorder ?? theme.colorScheme.outlineVariant;
+    final iconColor = city?.textSecondary ?? theme.colorScheme.onSurfaceVariant;
+    final topInset = math.max(0.0, AppConstants.immersiveTitleBarTopInset - 8);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: background,
+        border: Border(bottom: BorderSide(color: borderColor)),
+      ),
+      child: SizedBox(
+        height: topInset + 70,
+        child: Padding(
+          padding: EdgeInsets.only(top: topInset),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final showSearch =
+                  showBookshelfControls && constraints.maxWidth >= 980;
+              final searchWidth = math.min(
+                560.0,
+                math.max(300.0, constraints.maxWidth * 0.34),
+              );
+
+              return Row(
+                children: [
+                  const SizedBox(width: 28),
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final tabIndex in visibleTabs)
+                              _HomeTopNavTab(
+                                tabIndex: tabIndex,
+                                selected: tabIndex == selectedTab,
+                                onTap: () => onTabChanged(tabIndex),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (showBookshelfControls) ...[
+                    const SizedBox(width: 18),
+                    if (showSearch) ...[
+                      SizedBox(
+                        width: searchWidth,
+                        child: _HomeTopSearchField(
+                          controller: searchController,
+                          onChanged: onSearchChanged,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                    ],
+                    FlowButton.primary(
+                      onPressed: isImportingBook ? null : onImportEpub,
+                      icon: const Icon(Icons.add, size: 18),
+                      child: Text(isImportingBook ? '导入中' : '添加书籍'),
+                    ),
+                  ],
+                  const SizedBox(width: 20),
+                  IconButton(
+                    tooltip: '设置',
+                    icon: const Icon(Icons.settings_outlined),
+                    color: iconColor,
+                    onPressed: onSettingsTap,
+                  ),
+                  ThemeModeCycleButton(
+                    nextMode: nextThemeMode,
+                    color: iconColor,
+                    onPressed: onThemeToggle,
+                  ),
+                  const SizedBox(width: 28),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeTopNavTab extends StatelessWidget {
+  final int tabIndex;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _HomeTopNavTab({
+    required this.tabIndex,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final city = theme.extension<CityThemeTokens>();
+    final destination = HomeScreen._navDestinations[tabIndex];
+    final foreground = selected
+        ? city?.activeBlue ?? theme.colorScheme.primary
+        : city?.textSecondary ?? theme.colorScheme.onSurfaceVariant;
+    final textStyle = theme.textTheme.labelLarge?.copyWith(
+      color: foreground,
+      fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+    );
+    final icon = selected && destination.selectedIcon != null
+        ? destination.selectedIcon!
+        : destination.icon;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        mouseCursor: SystemMouseCursors.click,
+        child: SizedBox(
+          height: 70,
+          child: Stack(
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconTheme.merge(
+                        data: IconThemeData(size: 20, color: foreground),
+                        child: icon,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(destination.label, style: textStyle),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ],
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  width: selected ? 72 : 0,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? city?.activeBlue ?? theme.colorScheme.primary
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _HomeTopSearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const _HomeTopSearchField({
+    required this.controller,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final city = theme.extension<CityThemeTokens>();
+    final borderColor = city?.warmBorder ?? theme.colorScheme.outlineVariant;
+
+    return SizedBox(
+      height: 42,
+      child: FlowTextField(
+        controller: controller,
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          hintText: '搜索书籍或作者',
+          hintStyle: theme.textTheme.bodyMedium?.copyWith(
+            color: city?.textSecondary ?? theme.colorScheme.onSurfaceVariant,
+          ),
+          prefixIcon: Icon(Icons.search, size: 20, color: city?.textSecondary),
+          contentPadding: const EdgeInsets.symmetric(vertical: 9),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: borderColor),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: borderColor),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: city?.activeBlue ?? theme.colorScheme.primary,
+              width: 1.4,
+            ),
+          ),
+          filled: true,
+          fillColor: city?.cardSurface ?? theme.colorScheme.surface,
+        ),
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: city?.textPrimary ?? theme.colorScheme.onSurface,
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeReadingGoalCard extends StatefulWidget {
+  final int readingTimeSeconds;
+  final int monthReadingTimeSeconds;
+  final List<int> weekDailyReadingSeconds;
+  final List<int> monthDailyReadingSeconds;
+  final DateTime? goalDate;
+  final int dailyReadingGoalSeconds;
+
+  const _HomeReadingGoalCard({
+    required this.readingTimeSeconds,
+    required this.monthReadingTimeSeconds,
+    required this.weekDailyReadingSeconds,
+    required this.monthDailyReadingSeconds,
+    required this.goalDate,
+    required this.dailyReadingGoalSeconds,
+  });
+
+  @override
+  State<_HomeReadingGoalCard> createState() => _HomeReadingGoalCardState();
+}
+
+class _HomeReadingGoalCardState extends State<_HomeReadingGoalCard> {
+  final _readingGoalKey = GlobalKey();
+  OverlayEntry? _readingGoalOverlay;
+
+  @override
+  void dispose() {
+    _readingGoalOverlay?.remove();
+    _readingGoalOverlay = null;
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeReadingGoalCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _readingGoalOverlay?.markNeedsBuild();
+  }
+
+  void _toggleReadingGoalPanel() {
+    if (_readingGoalOverlay == null) {
+      _showReadingGoalPanel();
+    } else {
+      _hideReadingGoalPanel();
+    }
+  }
+
+  void _showReadingGoalPanel() {
+    final overlay = Overlay.of(context);
+    final box =
+        _readingGoalKey.currentContext?.findRenderObject() as RenderBox?;
+    final cardOffset = box?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final cardWidth = box?.size.width ?? 290;
+
+    _readingGoalOverlay = OverlayEntry(
+      builder: (context) {
+        final mediaSize = MediaQuery.sizeOf(context);
+        final panelWidth = math
+            .min(480.0, math.max(360.0, mediaSize.width - 48))
+            .toDouble();
+        const preferredPanelHeight = 700.0;
+        final maxLeft = math.max(16.0, mediaSize.width - panelWidth - 16);
+        final left = math
+            .min(
+              math.max(16.0, cardOffset.dx + cardWidth - panelWidth),
+              maxLeft,
+            )
+            .toDouble();
+        final maxTop = math.max(
+          16.0,
+          mediaSize.height - preferredPanelHeight - 16,
+        );
+        final top = math.min(math.max(cardOffset.dy, 16.0), maxTop).toDouble();
+
+        return Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _hideReadingGoalPanel,
+                ),
+              ),
+              Positioned(
+                left: left,
+                top: top,
+                width: panelWidth,
+                child: ReadingGoalDetailsPanel(
+                  weekTotalSeconds: widget.readingTimeSeconds,
+                  monthTotalSeconds: widget.monthReadingTimeSeconds,
+                  weekDailySeconds: widget.weekDailyReadingSeconds,
+                  monthDailySeconds: widget.monthDailyReadingSeconds,
+                  dailyGoalSeconds: widget.dailyReadingGoalSeconds,
+                  goalDate: widget.goalDate ?? DateTime.now(),
+                  onClose: _hideReadingGoalPanel,
+                  showPointer: false,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    overlay.insert(_readingGoalOverlay!);
+    setState(() {});
+  }
+
+  void _hideReadingGoalPanel() {
+    _readingGoalOverlay?.remove();
+    _readingGoalOverlay = null;
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ReadingGoalSummaryCard(
+      key: _readingGoalKey,
+      totalSeconds: widget.readingTimeSeconds,
+      dailyGoalSeconds: widget.dailyReadingGoalSeconds,
+      isExpanded: _readingGoalOverlay != null,
+      onTap: _toggleReadingGoalPanel,
     );
   }
 }
