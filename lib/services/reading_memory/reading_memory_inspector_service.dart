@@ -53,12 +53,14 @@ final class ReadingMemorySourceDetail {
     required this.entities,
     required this.evidences,
     required this.recentEvents,
+    required this.sourceCaches,
   });
 
   final MemorySourceRecord source;
   final List<MemoryKnowledgeEntity> entities;
   final List<MemoryKnowledgeEvidence> evidences;
   final List<MemoryEvent> recentEvents;
+  final List<SourceScopeCacheItem> sourceCaches;
 }
 
 final class ReadingMemoryHealthCheck {
@@ -253,6 +255,7 @@ class ReadingMemoryInspectorService {
         sourceId: sourceId,
         limit: safeLimit,
       ),
+      _dao.sourceScopeCacheForSource(sourceId, limit: safeLimit),
     ]);
 
     return ReadingMemorySourceDetail(
@@ -268,6 +271,10 @@ class ReadingMemoryInspectorService {
       recentEvents: rows[2]
           .cast<MemoryEventEntry>()
           .map(_eventFromEntry)
+          .toList(growable: false),
+      sourceCaches: rows[3]
+          .cast<SourceScopeCacheEntry>()
+          .map(_sourceScopeCacheFromEntry)
           .toList(growable: false),
     );
   }
@@ -595,6 +602,21 @@ class ReadingMemoryInspectorService {
       sourceRefJson: row.sourceRefJson,
       metadataJson: row.metadataJson,
       createdAt: _decodeDate(row.createdAt),
+    );
+  }
+
+  static SourceScopeCacheItem _sourceScopeCacheFromEntry(
+    SourceScopeCacheEntry row,
+  ) {
+    return SourceScopeCacheItem(
+      id: row.id,
+      sourceId: row.sourceId,
+      cacheType: row.cacheType,
+      payload: row.payload,
+      retentionPolicy: EvidenceRetentionPolicy.fromStorage(
+        row.retentionPolicy,
+      ),
+      updatedAt: _decodeDate(row.updatedAt),
     );
   }
 

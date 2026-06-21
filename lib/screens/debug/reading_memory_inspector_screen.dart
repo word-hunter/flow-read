@@ -1622,6 +1622,18 @@ class _SourceDetailView extends StatelessWidget {
           ),
         ),
         _DetailSection(
+          title: '来源缓存',
+          emptyMessage: '暂无缓存',
+          isEmpty: detail.sourceCaches.isEmpty,
+          child: _DetailList(
+            itemCount: detail.sourceCaches.length,
+            itemBuilder: (context, index) {
+              final cache = detail.sourceCaches[index];
+              return _SourceCacheDetailTile(cache: cache);
+            },
+          ),
+        ),
+        _DetailSection(
           title: '关联实体',
           emptyMessage: '暂无实体',
           isEmpty: detail.entities.isEmpty,
@@ -1753,6 +1765,25 @@ class _EntityDetailView extends StatelessWidget {
             },
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _SourceCacheDetailTile extends StatelessWidget {
+  const _SourceCacheDetailTile({required this.cache});
+
+  final SourceScopeCacheItem cache;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DetailTile(
+      title: cache.cacheType,
+      rows: [
+        _InfoRow('id', cache.id),
+        _InfoRow('retention', cache.retentionPolicy.storageValue),
+        _InfoRow('updated', _formatDateTime(cache.updatedAt)),
+        _InfoRow('payload', _compactJson(cache.payload)),
       ],
     );
   }

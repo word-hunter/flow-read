@@ -439,6 +439,11 @@ class AINotifier extends Notifier<AIState> {
           outputLanguage: OutputLanguage.fromCode(state.summaryLanguage),
         ),
       );
+      await _saveChapterSummarySourceScope(
+        bookId: bookId,
+        chapterIndex: _currentChapter,
+        summary: result.summary,
+      );
       state = state.copyWith(
         aiSummary: result.summary,
         chapterAIStatus: result.status,
@@ -504,6 +509,11 @@ class AINotifier extends Notifier<AIState> {
             vocabulary: const [],
             outputLanguage: OutputLanguage.fromCode(state.summaryLanguage),
           ),
+        );
+        await _saveChapterSummarySourceScope(
+          bookId: bookId,
+          chapterIndex: chapterIndex,
+          summary: result.summary,
         );
         completed += 1;
         lastStatus = result.status;
@@ -674,6 +684,39 @@ class AINotifier extends Notifier<AIState> {
         onPracticeGenerated: () => _settings.incrementAIUsage(practice: true),
       ),
     );
+  }
+
+  Future<void> _saveChapterSummarySourceScope({
+    required String bookId,
+    required int chapterIndex,
+    required AISummary summary,
+  }) async {
+    try {
+      final book = ref.read(bookshelfNotifierProvider).book;
+      await ref
+          .read(chapterSummarySourceScopeCacheProvider)
+          .saveChapterSummary(
+            bookId: bookId,
+            bookTitle: book?.title ?? bookId,
+            author: book?.author,
+            languageCode: book?.language,
+            chapterIndex: chapterIndex,
+            summary: summary,
+            outputLanguage: state.summaryLanguage,
+          );
+    } catch (e, stackTrace) {
+      AppLogger.instance.event(
+        'reading_memory.chapter_summary_source_cache_failed',
+        level: AppLogLevel.warning,
+        source: 'reading_memory',
+        metadata: {
+          'bookId': bookId,
+          'chapterIndex': chapterIndex,
+        },
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   String _chapterPreviewOpening(String chapterText) {

@@ -7,6 +7,7 @@ import '../../storage/repositories/repository_language.dart';
 import '../book_glossary_service.dart';
 import '../character_registry.dart';
 import '../user_vocabulary_service.dart';
+import 'chapter_summary_source_scope_cache.dart';
 import 'reading_memory_ids.dart';
 
 class ContextRetrievalService {
@@ -14,6 +15,7 @@ class ContextRetrievalService {
     required ReadingMemoryRepository repository,
     required UserVocabularyService userVocabulary,
     AICacheService? cacheService,
+    ChapterSummarySourceScopeCache? chapterSummarySourceScopeCache,
     BookGlossaryService? glossaryService,
     CharacterRegistry? characterRegistry,
     String? languageCode,
@@ -24,6 +26,7 @@ class ContextRetrievalService {
   }) : _repository = repository,
        _userVocabulary = userVocabulary,
        _cacheService = cacheService,
+       _chapterSummarySourceScopeCache = chapterSummarySourceScopeCache,
        _glossaryService = glossaryService,
        _characterRegistry = characterRegistry,
        _languageCode = normalizeRepositoryLanguageCode(languageCode),
@@ -34,6 +37,7 @@ class ContextRetrievalService {
   final ReadingMemoryRepository _repository;
   final UserVocabularyService _userVocabulary;
   final AICacheService? _cacheService;
+  final ChapterSummarySourceScopeCache? _chapterSummarySourceScopeCache;
   final BookGlossaryService? _glossaryService;
   final CharacterRegistry? _characterRegistry;
   final String _languageCode;
@@ -283,16 +287,11 @@ class ContextRetrievalService {
     required int maxReadChapter,
     required String selectedText,
   }) async {
-    final cache = _cacheService;
-    if (cache == null) return const _BookInsightContext();
-
     try {
-      final entries = await cache.listBookSummaries(bookId);
-      final summaries = <int, AISummary>{};
-      for (final entry in entries) {
-        if (entry.chapterIndex > maxReadChapter) continue;
-        summaries[entry.chapterIndex] = entry.summary;
-      }
+      final summaries = await _chapterSummaries(
+        bookId: bookId,
+        maxReadChapter: maxReadChapter,
+      );
       if (summaries.isEmpty) return const _BookInsightContext();
 
       final storyline = _bookInsightAggregator.buildStorylineFromChapters(
@@ -319,6 +318,33 @@ class ContextRetrievalService {
     } catch (_) {
       return const _BookInsightContext();
     }
+  }
+
+  Future<Map<int, AISummary>> _chapterSummaries({
+    required String bookId,
+    required int maxReadChapter,
+  }) async {
+    final summaries = <int, AISummary>{};
+    final cache = _cacheService;
+    if (cache != null) {
+      final entries = await cache.listBookSummaries(bookId);
+      for (final entry in entries) {
+        if (entry.chapterIndex > maxReadChapter) continue;
+        summaries[entry.chapterIndex] = entry.summary;
+      }
+    }
+
+    final scopedCache = _chapterSummarySourceScopeCache;
+    if (scopedCache != null) {
+      final entries = await scopedCache.loadBookSummaries(
+        bookId,
+        maxChapter: maxReadChapter,
+      );
+      for (final entry in entries) {
+        summaries[entry.chapterIndex] = entry.summary;
+      }
+    }
+    return summaries;
   }
 
   Future<List<RelevantCharacter>> _registryCharacters({

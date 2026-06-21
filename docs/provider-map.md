@@ -54,6 +54,7 @@ ProviderScope
 已新增 `contextRetrievalServiceProvider`，由 `AIAssistantController.contextResolver` 在动作执行前注入 Reading Memory 学习上下文。
 已新增 `reviewCandidateServiceProvider`，由 `ReadingMemoryService` 在保存解释、重复查词和标记学习中时生成复习候选。
 已新增 `knowledgeRetentionServiceProvider`，统一处理 SourceScope 归档、保留学习记忆、仅保留元数据和彻底删除相关记忆。
+已新增 `chapterSummarySourceScopeCacheProvider`，将章节摘要同步到 `source_scope_cache` 并供 Book Insight / AI 上下文检索优先读取。
 已新增 `readingMemoryOverlayServiceProvider`，由 ReaderPage 为当前章节构造只读 Reading Memory Overlay 投影，供正文渲染层消费。
 
 以下 AI 状态将从 `ReadingProvider` 中迁出至 `AIActionController`：

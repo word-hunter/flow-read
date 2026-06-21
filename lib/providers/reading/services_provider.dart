@@ -22,6 +22,7 @@ import '../../services/reader_layout_engine.dart';
 import '../../services/reading_config_service.dart';
 import '../../services/reading_insight_service.dart';
 import '../../services/reading_memory/context_retrieval_service.dart';
+import '../../services/reading_memory/chapter_summary_source_scope_cache.dart';
 import '../../services/reading_memory/knowledge_retention_service.dart';
 import '../../services/reading_memory/reading_memory_overlay_service.dart';
 import '../../services/reading_memory/reading_memory_service.dart';
@@ -205,6 +206,13 @@ final sourceScopeServiceProvider = Provider<SourceScopeService>((ref) {
   return service;
 });
 
+final chapterSummarySourceScopeCacheProvider =
+    Provider<ChapterSummarySourceScopeCache>((ref) {
+      return ChapterSummarySourceScopeCache(
+        sourceScope: ref.watch(sourceScopeServiceProvider),
+      );
+    });
+
 final knowledgeRetentionServiceProvider = Provider<KnowledgeRetentionService>((
   ref,
 ) {
@@ -248,6 +256,9 @@ final contextRetrievalServiceProvider = Provider<ContextRetrievalService>((
     ),
     userVocabulary: ref.watch(userVocabularyServiceProvider),
     cacheService: ref.watch(aiCacheServiceProvider),
+    chapterSummarySourceScopeCache: ref.watch(
+      chapterSummarySourceScopeCacheProvider,
+    ),
     glossaryService: ref.watch(bookGlossaryServiceProvider),
     characterRegistry: ref.watch(characterRegistryProvider),
     languageCode: languageCode,
@@ -551,6 +562,9 @@ final bookInsightProvider = ChangeNotifierProvider<BookInsightProvider>((ref) {
     cacheService: ref.watch(aiCacheServiceProvider),
     glossaryService: ref.watch(bookGlossaryServiceProvider),
     characterRegistry: ref.watch(characterRegistryProvider),
+    chapterSummarySourceScopeCache: ref.watch(
+      chapterSummarySourceScopeCacheProvider,
+    ),
   );
   ref.onDispose(() => provider.dispose());
   return provider;

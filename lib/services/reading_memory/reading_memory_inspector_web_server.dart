@@ -519,6 +519,20 @@ final class ReadingMemoryInspectorWebServer {
       'recentEvents': value.recentEvents
           .map(_eventToJson)
           .toList(growable: false),
+      'sourceCaches': value.sourceCaches
+          .map(_sourceCacheToJson)
+          .toList(growable: false),
+    };
+  }
+
+  static Map<String, Object?> _sourceCacheToJson(SourceScopeCacheItem value) {
+    return {
+      'id': value.id,
+      'sourceId': value.sourceId,
+      'cacheType': value.cacheType,
+      'retentionPolicy': value.retentionPolicy.storageValue,
+      'updatedAt': _date(value.updatedAt),
+      'payload': value.payload,
     };
   }
 

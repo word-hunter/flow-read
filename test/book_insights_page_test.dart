@@ -6,10 +6,13 @@ import 'package:flow_read/providers/book_insight_provider.dart';
 import 'package:flow_read/screens/book_insights_page.dart';
 import 'package:flow_read/services/book_glossary_service.dart';
 import 'package:flow_read/services/character_registry.dart';
+import 'package:flow_read/services/reading_memory/chapter_summary_source_scope_cache.dart';
+import 'package:flow_read/services/reading_memory/source_scope_service.dart';
 import 'package:flow_read/storage/database/app_database.dart'
     hide BookGlossaryEntry, CharacterRegistryEntry;
 import 'package:flow_read/storage/database/dao/book_glossary_dao.dart';
 import 'package:flow_read/storage/database/repositories/drift_character_registry_repository.dart';
+import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,6 +20,7 @@ void main() {
   late Directory tempDir;
   late AppDatabase db;
   late AICacheService cacheService;
+  late ChapterSummarySourceScopeCache summarySourceScopeCache;
   late BookInsightProvider provider;
 
   setUp(() async {
@@ -67,12 +71,24 @@ void main() {
     cacheService = AICacheService(
       documentsDirectoryProvider: () async => tempDir,
     );
+    final sourceScope = SourceScopeService(
+      repository: DriftReadingMemoryRepository(
+        db.readingMemoryDao,
+        languageCode: 'en',
+      ),
+      languageCode: 'en',
+    );
+    await sourceScope.init();
+    summarySourceScopeCache = ChapterSummarySourceScopeCache(
+      sourceScope: sourceScope,
+    );
     provider = BookInsightProvider(
       cacheService: cacheService,
       glossaryService: glossaryService,
       characterRegistry: CharacterRegistry(
         repository: DriftCharacterRegistryRepository(db.characterRegistryDao),
       ),
+      chapterSummarySourceScopeCache: summarySourceScopeCache,
     );
     await provider.loadForBook(
       'book-1',
@@ -167,6 +183,41 @@ void main() {
       ),
       isFalse,
     );
+  });
+
+  test('loads chapter summaries from source scope cache', () async {
+    await summarySourceScopeCache.saveChapterSummary(
+      bookId: 'book-1',
+      bookTitle: 'Book One',
+      chapterIndex: 0,
+      outputLanguage: 'zh',
+      summary: const AISummary(
+        events: [
+          SummaryEvent(
+            description: 'Ned finds a direwolf near Winterfell.',
+            source: 'The direwolf lay in the snow.',
+            significance: 'This links the children to the northern house.',
+            confidence: 'high',
+          ),
+        ],
+        characterDevelopments: [],
+        keyVocabulary: [],
+        readingGuidance: 'Pay attention to the house symbols.',
+      ),
+    );
+
+    await provider.loadForBook(
+      'book-1',
+      totalChapters: 8,
+      currentChapter: 2,
+    );
+
+    expect(provider.chapterSummaries.keys, contains(0));
+    expect(
+      provider.chapterSummaries[0]!.events.single.description,
+      contains('direwolf'),
+    );
+    expect(provider.coverage!.summarizedChapters, 1);
   });
 
   test('confirms AI-inferred characters into registry', () async {

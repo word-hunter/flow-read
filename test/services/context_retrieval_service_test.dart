@@ -1,13 +1,12 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/models/book_glossary_entry.dart';
 import 'package:flow_read/models/reading_memory.dart';
 import 'package:flow_read/services/book_glossary_service.dart';
 import 'package:flow_read/services/character_registry.dart';
+import 'package:flow_read/services/reading_memory/chapter_summary_source_scope_cache.dart';
 import 'package:flow_read/services/reading_memory/context_retrieval_service.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
+import 'package:flow_read/services/reading_memory/source_scope_service.dart';
 import 'package:flow_read/services/user_vocabulary_service.dart';
 import 'package:flow_read/storage/database/app_database.dart'
     hide BookGlossaryEntry, CharacterRegistryEntry;
@@ -18,21 +17,14 @@ import 'package:flow_read/storage/database/repositories/drift_user_vocabulary_re
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  late Directory tempDir;
   late AppDatabase db;
 
   setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp(
-      'flow_read_context_retrieval_test_',
-    );
     db = await AppDatabase.createInMemory();
   });
 
   tearDown(() async {
     await db.close();
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
   });
 
   test('builds MVP learning memory context for word analysis', () async {
@@ -181,62 +173,65 @@ void main() {
       );
       await userVocabulary.init();
 
-      final cache = AICacheService(
-        documentsDirectoryProvider: () async => tempDir,
+      final sourceScope = SourceScopeService(
+        repository: memoryRepository,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 15, 9),
       );
-      await cache.init();
-      await cache.saveSummary(
-        'book-1',
-        0,
-        'zh',
-        jsonEncode(
-          const AISummary(
-            events: [
-              SummaryEvent(
-                description: 'Ned finds a direwolf near Winterfell.',
-                source: 'The direwolf lay in the snow.',
-                significance: 'This links the children to the northern house.',
-                confidence: 'high',
-              ),
-            ],
-            characterDevelopments: [
-              CharacterDevelopment(
-                character: 'Eddard Stark',
-                change: 'Ned handles the discovery with caution.',
-                source: 'Ned knelt beside the direwolf.',
-                confidence: 'high',
-              ),
-            ],
-            keyVocabulary: [],
-            readingGuidance: '',
-          ).toJson(),
+      await sourceScope.init();
+      final chapterSummaryCache = ChapterSummarySourceScopeCache(
+        sourceScope: sourceScope,
+      );
+      await chapterSummaryCache.saveChapterSummary(
+        bookId: 'book-1',
+        bookTitle: 'Book One',
+        chapterIndex: 0,
+        outputLanguage: 'zh',
+        summary: const AISummary(
+          events: [
+            SummaryEvent(
+              description: 'Ned finds a direwolf near Winterfell.',
+              source: 'The direwolf lay in the snow.',
+              significance: 'This links the children to the northern house.',
+              confidence: 'high',
+            ),
+          ],
+          characterDevelopments: [
+            CharacterDevelopment(
+              character: 'Eddard Stark',
+              change: 'Ned handles the discovery with caution.',
+              source: 'Ned knelt beside the direwolf.',
+              confidence: 'high',
+            ),
+          ],
+          keyVocabulary: [],
+          readingGuidance: '',
         ),
       );
-      await cache.saveSummary(
-        'book-1',
-        3,
-        'zh',
-        jsonEncode(
-          const AISummary(
-            events: [
-              SummaryEvent(
-                description: 'The direwolf later reveals a future betrayal.',
-                source: 'Future chapter.',
-                significance: 'This would spoil a later twist.',
-                confidence: 'high',
-              ),
-            ],
-            characterDevelopments: [
-              CharacterDevelopment(
-                character: 'Future Person',
-                change: 'Future Person exposes the betrayal.',
-                source: 'Future chapter.',
-                confidence: 'high',
-              ),
-            ],
-            keyVocabulary: [],
-            readingGuidance: '',
-          ).toJson(),
+      await chapterSummaryCache.saveChapterSummary(
+        bookId: 'book-1',
+        bookTitle: 'Book One',
+        chapterIndex: 3,
+        outputLanguage: 'zh',
+        summary: const AISummary(
+          events: [
+            SummaryEvent(
+              description: 'The direwolf later reveals a future betrayal.',
+              source: 'Future chapter.',
+              significance: 'This would spoil a later twist.',
+              confidence: 'high',
+            ),
+          ],
+          characterDevelopments: [
+            CharacterDevelopment(
+              character: 'Future Person',
+              change: 'Future Person exposes the betrayal.',
+              source: 'Future chapter.',
+              confidence: 'high',
+            ),
+          ],
+          keyVocabulary: [],
+          readingGuidance: '',
         ),
       );
 
@@ -276,7 +271,7 @@ void main() {
       final service = ContextRetrievalService(
         repository: memoryRepository,
         userVocabulary: userVocabulary,
-        cacheService: cache,
+        chapterSummarySourceScopeCache: chapterSummaryCache,
         glossaryService: glossary,
         characterRegistry: CharacterRegistry(
           repository: DriftCharacterRegistryRepository(db.characterRegistryDao),

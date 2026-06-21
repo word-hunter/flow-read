@@ -7,19 +7,23 @@ import 'package:flow_ai/flow_ai.dart';
 import '../models/book_glossary_entry.dart';
 import '../services/book_glossary_service.dart';
 import '../services/character_registry.dart';
+import '../services/reading_memory/chapter_summary_source_scope_cache.dart';
 
 class BookInsightProvider extends ChangeNotifier {
   BookInsightProvider({
     required AICacheService cacheService,
     BookGlossaryService? glossaryService,
     CharacterRegistry? characterRegistry,
+    ChapterSummarySourceScopeCache? chapterSummarySourceScopeCache,
   }) : _cacheService = cacheService,
        _glossaryService = glossaryService,
-       _characterRegistry = characterRegistry;
+       _characterRegistry = characterRegistry,
+       _chapterSummarySourceScopeCache = chapterSummarySourceScopeCache;
 
   final AICacheService _cacheService;
   final BookGlossaryService? _glossaryService;
   final CharacterRegistry? _characterRegistry;
+  final ChapterSummarySourceScopeCache? _chapterSummarySourceScopeCache;
   final BookInsightAggregator _aggregator = const BookInsightAggregator();
 
   String? _bookId;
@@ -69,7 +73,7 @@ class BookInsightProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final entries = await _cacheService.listBookSummaries(bookId);
+      final entries = await _loadChapterSummaryEntries(bookId);
       final summaries = <int, AISummary>{};
       DateTime? lastGenerated;
 
@@ -116,6 +120,35 @@ class BookInsightProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<List<_BookChapterSummaryEntry>> _loadChapterSummaryEntries(
+    String bookId,
+  ) async {
+    final byChapter = <int, _BookChapterSummaryEntry>{};
+    final cachedEntries = await _cacheService.listBookSummaries(bookId);
+    for (final entry in cachedEntries) {
+      byChapter[entry.chapterIndex] = _BookChapterSummaryEntry(
+        chapterIndex: entry.chapterIndex,
+        summary: entry.summary,
+        generatedAt: entry.generatedAt,
+      );
+    }
+
+    final scopedEntries = await _chapterSummarySourceScopeCache
+        ?.loadBookSummaries(bookId);
+    if (scopedEntries != null && scopedEntries.isNotEmpty) {
+      for (final entry in scopedEntries) {
+        byChapter[entry.chapterIndex] = _BookChapterSummaryEntry(
+          chapterIndex: entry.chapterIndex,
+          summary: entry.summary,
+          generatedAt: entry.updatedAt,
+        );
+      }
+    }
+
+    return byChapter.values.toList()
+      ..sort((a, b) => a.chapterIndex.compareTo(b.chapterIndex));
   }
 
   Future<List<BookGlossaryEntry>> _loadGlossary(String bookId) async {
@@ -257,4 +290,16 @@ class BookInsightProvider extends ChangeNotifier {
       currentChapter: _currentChapter,
     );
   }
+}
+
+final class _BookChapterSummaryEntry {
+  const _BookChapterSummaryEntry({
+    required this.chapterIndex,
+    required this.summary,
+    this.generatedAt,
+  });
+
+  final int chapterIndex;
+  final AISummary summary;
+  final DateTime? generatedAt;
 }

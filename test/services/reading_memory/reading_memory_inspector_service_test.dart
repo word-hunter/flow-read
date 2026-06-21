@@ -115,6 +115,8 @@ void main() {
       'event:save-explanation:reluctant',
       'event:lookup:reluctant',
     ]);
+    expect(sourceDetail.sourceCaches.single.cacheType, 'chapter_summary');
+    expect(sourceDetail.sourceCaches.single.payload, contains('chapterIndex'));
   });
 
   test('reports inspector health issues with stable samples', () async {
@@ -341,6 +343,17 @@ Future<void> _seedMemory(DriftReadingMemoryRepository repository) async {
       targetText: '流れ',
       canonicalKey: '流れ',
       createdAt: now,
+    ),
+  );
+
+  await repository.upsertSourceScopeCache(
+    SourceScopeCacheItem(
+      id: 'source_scope_cache:book%3Agatsby:chapter_summary:2:zh',
+      sourceId: 'book:gatsby',
+      cacheType: 'chapter_summary',
+      payload: '{"chapterIndex":2}',
+      retentionPolicy: EvidenceRetentionPolicy.deleteWithSource,
+      updatedAt: now.add(const Duration(minutes: 8)),
     ),
   );
 
