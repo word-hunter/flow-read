@@ -1,6 +1,10 @@
+import 'dart:convert';
+
+import '../../models/learning_item.dart';
 import '../../models/reading_memory.dart';
 import '../../storage/repositories/reading_memory_repository.dart';
 import '../../storage/repositories/repository_language.dart';
+import '../learning_item_service.dart';
 
 class ReviewCandidateService {
   ReviewCandidateService({
@@ -88,6 +92,33 @@ class ReviewCandidateService {
     return _updateStatus(id, ReviewCandidateStatus.accepted);
   }
 
+  Future<LearningItemSaveResult?> acceptCandidateForReview(
+    String id, {
+    required LearningItemService learningItems,
+  }) async {
+    final trimmedId = id.trim();
+    if (trimmedId.isEmpty) return null;
+
+    var candidate = await _repository.reviewCandidateById(trimmedId);
+    if (candidate == null ||
+        candidate.status == ReviewCandidateStatus.dismissed ||
+        candidate.status == ReviewCandidateStatus.converted) {
+      return null;
+    }
+
+    if (candidate.status != ReviewCandidateStatus.accepted) {
+      await _updateStatus(trimmedId, ReviewCandidateStatus.accepted);
+      candidate = await _repository.reviewCandidateById(trimmedId) ?? candidate;
+    }
+
+    final draft = await _draftForCandidate(candidate);
+    if (draft == null) return null;
+
+    final result = await learningItems.saveDraft(draft);
+    await markCandidateConverted(trimmedId);
+    return result;
+  }
+
   Future<void> dismissCandidate(String id) {
     return _updateStatus(id, ReviewCandidateStatus.dismissed);
   }
@@ -128,6 +159,334 @@ class ReviewCandidateService {
       status: status,
       updatedAt: _clock().toUtc(),
     );
+  }
+
+  Future<LearningItemDraft?> _draftForCandidate(
+    ReviewCandidate candidate,
+  ) async {
+    final entity = await _repository.entityById(candidate.entityId);
+    if (entity == null) return null;
+
+    final explanation = await _explanationForCandidate(candidate);
+    final evidence = await _evidenceForCandidate(candidate);
+    final eventContext = await _eventContextForCandidate(entity, candidate);
+    final type = _learningItemTypeFor(candidate);
+    final targetText = _candidateTargetText(candidate, entity);
+    if (targetText.isEmpty) return null;
+
+    final sourceText = _firstNonEmpty([
+      evidence?.shortExcerpt ?? '',
+      eventContext?.sourceText ?? '',
+      if (type == LearningItemType.sentence) targetText,
+    ]);
+
+    return LearningItemDraft(
+      type: type,
+      canonicalKey: _firstNonEmpty([entity.canonicalKey, targetText]),
+      title: _preview(targetText),
+      content: targetText,
+      answer: _answerForCandidate(
+        candidate: candidate,
+        explanation: explanation,
+        evidence: evidence,
+      ),
+      note: _noteForCandidate(
+        candidate: candidate,
+        explanation: explanation,
+        evidence: evidence,
+      ),
+      sourceText: sourceText,
+      source: _learningItemSourceFor(
+        evidence: evidence,
+        sourceRef: eventContext?.sourceRef,
+      ),
+      tags: _tagsForCandidate(candidate, type, explanation, evidence),
+      metadata: _metadataForCandidate(
+        candidate: candidate,
+        entity: entity,
+        explanation: explanation,
+        evidence: evidence,
+        sourceRef: eventContext?.sourceRef,
+      ),
+    );
+  }
+
+  Future<MemoryKnowledgeExplanation?> _explanationForCandidate(
+    ReviewCandidate candidate,
+  ) async {
+    final explanationId = candidate.explanationId?.trim();
+    if (explanationId == null || explanationId.isEmpty) return null;
+    return _repository.explanationById(explanationId);
+  }
+
+  Future<MemoryKnowledgeEvidence?> _evidenceForCandidate(
+    ReviewCandidate candidate,
+  ) async {
+    final evidenceId = candidate.evidenceId?.trim();
+    if (evidenceId == null || evidenceId.isEmpty) return null;
+    return _repository.evidenceById(evidenceId);
+  }
+
+  Future<_CandidateEventContext?> _eventContextForCandidate(
+    MemoryKnowledgeEntity entity,
+    ReviewCandidate candidate,
+  ) async {
+    final events = await _repository.eventsForCanonical(
+      languageCode: entity.languageCode,
+      canonicalKey: entity.canonicalKey,
+      limit: 50,
+    );
+
+    for (final event in events) {
+      if (event.entityId != null && event.entityId != entity.id) continue;
+      final metadata = _decodeJsonObject(event.metadataJson);
+      if (!_matchesCandidateEvent(candidate, event, metadata)) continue;
+
+      final sourceRef = _decodeSourceRef(event.sourceRefJson);
+      final sourceText = _jsonString(metadata, 'sentence');
+      if (sourceRef != null || sourceText.isNotEmpty) {
+        return _CandidateEventContext(
+          sourceRef: sourceRef,
+          sourceText: sourceText,
+        );
+      }
+    }
+    return null;
+  }
+
+  bool _matchesCandidateEvent(
+    ReviewCandidate candidate,
+    MemoryEvent event,
+    Map<String, Object?> metadata,
+  ) {
+    final explanationId = candidate.explanationId?.trim();
+    if (explanationId != null && explanationId.isNotEmpty) {
+      return _jsonString(metadata, 'explanationId') == explanationId;
+    }
+
+    if (candidate.evidenceId != null) {
+      return event.type == MemoryEventType.lookup;
+    }
+
+    return event.type == MemoryEventType.markLearning;
+  }
+
+  LearningItemType _learningItemTypeFor(ReviewCandidate candidate) {
+    final questionType = candidate.suggestedQuestionType?.trim();
+    if (questionType == 'word_meaning') return LearningItemType.word;
+
+    return switch (candidate.entityType) {
+      KnowledgeEntityType.word => LearningItemType.word,
+      KnowledgeEntityType.sentence => LearningItemType.sentence,
+      KnowledgeEntityType.grammar ||
+      KnowledgeEntityType.pattern => LearningItemType.grammar,
+      KnowledgeEntityType.phrase ||
+      KnowledgeEntityType.bookTerm ||
+      KnowledgeEntityType.concept ||
+      KnowledgeEntityType.character => LearningItemType.expression,
+    };
+  }
+
+  String _candidateTargetText(
+    ReviewCandidate candidate,
+    MemoryKnowledgeEntity entity,
+  ) {
+    return _firstNonEmpty([
+      candidate.targetText,
+      entity.displayText,
+      entity.canonicalKey,
+    ]);
+  }
+
+  String _answerForCandidate({
+    required ReviewCandidate candidate,
+    required MemoryKnowledgeExplanation? explanation,
+    required MemoryKnowledgeEvidence? evidence,
+  }) {
+    final explanationText = explanation?.explanation.trim() ?? '';
+    if (explanationText.isNotEmpty) return explanationText;
+
+    if ((candidate.suggestedQuestionType ?? '').trim() == 'recall_context') {
+      return '回忆它在当前来源中的身份、作用或上下文含义。';
+    }
+    if ((evidence?.shortExcerpt.trim() ?? '').isNotEmpty) {
+      return '结合原文上下文复习这个条目。';
+    }
+    return '';
+  }
+
+  String _noteForCandidate({
+    required ReviewCandidate candidate,
+    required MemoryKnowledgeExplanation? explanation,
+    required MemoryKnowledgeEvidence? evidence,
+  }) {
+    if (explanation != null) {
+      return switch (explanation.source) {
+        ExplanationSource.ai => 'AI 保存解释',
+        ExplanationSource.user => '用户保存解释',
+        ExplanationSource.dictionary => '词典解释',
+        ExplanationSource.generated => '生成解释',
+      };
+    }
+    if (evidence != null) return '重复查词候选';
+    if ((candidate.suggestedQuestionType ?? '').trim() == 'word_meaning') {
+      return '学习中词汇候选';
+    }
+    return '阅读记忆候选';
+  }
+
+  LearningItemSource _learningItemSourceFor({
+    required MemoryKnowledgeEvidence? evidence,
+    required MemorySourceRef? sourceRef,
+  }) {
+    if (evidence != null) {
+      return LearningItemSource(
+        bookId: _firstNonEmpty([
+          evidence.bookId ?? '',
+          evidence.sourceId ?? '',
+        ]),
+        bookTitle: _emptyToNull(evidence.sourceTitleSnapshot),
+        chapterIndex: evidence.chapterIndex ?? -1,
+        chapterTitle: evidence.sourceTitleSnapshot,
+      );
+    }
+
+    if (sourceRef != null) {
+      return LearningItemSource(
+        bookId: _firstNonEmpty([sourceRef.bookId ?? '', sourceRef.sourceId]),
+        bookTitle: _emptyToNull(sourceRef.sourceTitleSnapshot),
+        chapterIndex: sourceRef.chapterIndex ?? -1,
+        chapterTitle: sourceRef.sourceTitleSnapshot,
+      );
+    }
+
+    return const LearningItemSource.unknown();
+  }
+
+  List<String> _tagsForCandidate(
+    ReviewCandidate candidate,
+    LearningItemType type,
+    MemoryKnowledgeExplanation? explanation,
+    MemoryKnowledgeEvidence? evidence,
+  ) {
+    return [
+      'reading-memory',
+      'review-candidate',
+      type.name,
+      if (explanation != null) 'saved-explanation',
+      if (explanation?.source == ExplanationSource.ai) 'ai',
+      if (evidence != null) 'evidence',
+      if ((candidate.suggestedQuestionType ?? '').trim().isNotEmpty)
+        candidate.suggestedQuestionType!.trim(),
+    ];
+  }
+
+  Map<String, String> _metadataForCandidate({
+    required ReviewCandidate candidate,
+    required MemoryKnowledgeEntity entity,
+    required MemoryKnowledgeExplanation? explanation,
+    required MemoryKnowledgeEvidence? evidence,
+    required MemorySourceRef? sourceRef,
+  }) {
+    final metadata = <String, String>{
+      'createdFrom': 'reviewCandidate',
+      'reviewCandidateId': candidate.id,
+      'reviewCandidateEntityType': candidate.entityType.storageValue,
+      'memoryEntityId': entity.id,
+      if ((candidate.suggestedQuestionType ?? '').trim().isNotEmpty)
+        'reviewCandidateQuestionType': candidate.suggestedQuestionType!.trim(),
+      if (explanation != null) 'memoryExplanationId': explanation.id,
+      if (evidence != null) 'memoryEvidenceId': evidence.id,
+    };
+
+    final sourceKind = evidence?.sourceKind ?? sourceRef?.sourceKind;
+    if (sourceKind != null) metadata['sourceKind'] = sourceKind.storageValue;
+
+    final sourceId = _firstNonEmpty([
+      evidence?.sourceId ?? '',
+      sourceRef?.sourceId ?? '',
+    ]);
+    if (sourceId.isNotEmpty) metadata['sourceId'] = sourceId;
+
+    return metadata;
+  }
+
+  MemorySourceRef? _decodeSourceRef(String sourceRefJson) {
+    final json = _decodeJsonObject(sourceRefJson);
+    final sourceId = _jsonString(json, 'sourceId');
+    if (sourceId.isEmpty) return null;
+
+    final sourceKind = _jsonString(json, 'sourceKind');
+    final availability = _jsonString(json, 'sourceAvailability');
+    return MemorySourceRef(
+      sourceId: sourceId,
+      sourceKind: SourceKind.fromStorage(
+        sourceKind.isEmpty ? SourceKind.manual.storageValue : sourceKind,
+      ),
+      sourceTitleSnapshot: _firstNonEmpty([
+        _jsonString(json, 'sourceTitleSnapshot'),
+        sourceId,
+      ]),
+      bookId: _emptyToNull(_jsonString(json, 'bookId')),
+      chapterIndex: _jsonInt(json, 'chapterIndex'),
+      locationLocator: _emptyToNull(_jsonString(json, 'locationLocator')),
+      sourceAvailability: SourceAvailability.fromStorage(
+        availability.isEmpty
+            ? SourceAvailability.available.storageValue
+            : availability,
+      ),
+    );
+  }
+
+  Map<String, Object?> _decodeJsonObject(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is Map<String, Object?>) return decoded;
+      if (decoded is Map) {
+        return {
+          for (final entry in decoded.entries)
+            if (entry.key != null) entry.key.toString(): entry.value,
+        };
+      }
+    } catch (_) {
+      return const {};
+    }
+    return const {};
+  }
+
+  String _jsonString(Map<String, Object?> json, String key) {
+    final value = json[key];
+    if (value == null) return '';
+    return value.toString().trim();
+  }
+
+  int? _jsonInt(Map<String, Object?> json, String key) {
+    final value = json[key];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  String _firstNonEmpty(List<String> values) {
+    for (final value in values) {
+      final trimmed = value.trim();
+      if (trimmed.isNotEmpty) return trimmed;
+    }
+    return '';
+  }
+
+  String? _emptyToNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  String _preview(String text, {int maxLength = 80}) {
+    final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.length <= maxLength) return normalized;
+    return '${normalized.substring(0, maxLength).trim()}...';
   }
 
   Future<ReviewCandidate?> _ensureCandidate({
@@ -245,4 +604,14 @@ class ReviewCandidateService {
     final evidenceBoost = hasEvidence ? 0.05 : 0;
     return base + repeatBoost + evidenceBoost;
   }
+}
+
+final class _CandidateEventContext {
+  const _CandidateEventContext({
+    required this.sourceRef,
+    required this.sourceText,
+  });
+
+  final MemorySourceRef? sourceRef;
+  final String sourceText;
 }

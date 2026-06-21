@@ -1,11 +1,16 @@
 import 'dart:io';
 
 import 'package:flow_read/models/analysis_result.dart';
+import 'package:flow_read/models/learning_item.dart';
+import 'package:flow_read/models/reading_memory.dart';
 import 'package:flow_read/providers/reading/current_book_notifier.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/screens/practice_screen.dart';
+import 'package:flow_read/services/learning_item_service.dart';
+import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
 import 'package:flow_read/services/reading_memory/review_candidate_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_learning_item_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
 import 'package:flow_read/widgets/practice_card.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +23,7 @@ void main() {
   late Directory tempDir;
   late AppDatabase db;
   late ReviewCandidateService reviewCandidates;
+  late LearningItemService learningItems;
 
   setUp(() async {
     tempDir = await initTestStorage('practice_screen_test_');
@@ -29,7 +35,14 @@ void main() {
       ),
       languageCode: 'en',
     );
+    learningItems = LearningItemService(
+      repository: DriftLearningItemRepository(
+        db.learningItemDao,
+        languageCode: 'en',
+      ),
+    );
     await reviewCandidates.init();
+    await learningItems.init();
   });
 
   tearDown(() async {
@@ -96,6 +109,53 @@ void main() {
       find.text('Use the surrounding action to infer it is a tool.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('review candidate queue converts accepted item', (tester) async {
+    final repository = DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: 'en',
+    );
+    final memory = ReadingMemoryService(
+      repository: repository,
+      languageCode: 'en',
+      reviewCandidates: reviewCandidates,
+    );
+    await memory.saveExplanation(
+      targetText: 'Reluctant',
+      canonical: 'reluctant',
+      explanation: 'Unwilling in this context.',
+    );
+    final pending = await reviewCandidates.pendingCandidates();
+
+    await tester.pumpWidget(
+      riverpod.ProviderScope(
+        overrides: [
+          currentBookNotifierProvider.overrideWith(
+            () => _PracticeTestCurrentBookNotifier(_result),
+          ),
+          reviewCandidateServiceProvider.overrideWith(
+            (ref) => reviewCandidates,
+          ),
+          learningItemServiceProvider.overrideWithValue(learningItems),
+        ],
+        child: const MaterialApp(home: PracticeScreen()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('记忆候选'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.check).first);
+    await tester.pumpAndSettle();
+
+    expect(learningItems.count, 1);
+    expect(learningItems.allItems.single.type, LearningItemType.word);
+    expect(
+      (await repository.reviewCandidateById(pending.single.id))?.status,
+      ReviewCandidateStatus.converted,
+    );
+    expect(find.text('记忆候选'), findsNothing);
   });
 }
 

@@ -25,12 +25,16 @@ abstract class ReadingMemoryRepository {
 
   Future<void> upsertExplanation(MemoryKnowledgeExplanation explanation);
 
+  Future<MemoryKnowledgeExplanation?> explanationById(String id);
+
   Future<List<MemoryKnowledgeExplanation>> explanationsForEntity(
     String entityId, {
     int limit = 20,
   });
 
   Future<void> upsertEvidence(MemoryKnowledgeEvidence evidence);
+
+  Future<MemoryKnowledgeEvidence?> evidenceById(String id);
 
   Future<List<MemoryKnowledgeEvidence>> evidencesForEntity(
     String entityId, {

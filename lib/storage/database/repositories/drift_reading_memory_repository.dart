@@ -115,6 +115,12 @@ final class DriftReadingMemoryRepository implements ReadingMemoryRepository {
   }
 
   @override
+  Future<MemoryKnowledgeExplanation?> explanationById(String id) async {
+    final row = await _dao.explanationById(id);
+    return row == null ? null : _explanationFromEntry(row);
+  }
+
+  @override
   Future<List<MemoryKnowledgeExplanation>> explanationsForEntity(
     String entityId, {
     int limit = 20,
@@ -142,6 +148,12 @@ final class DriftReadingMemoryRepository implements ReadingMemoryRepository {
         createdAt: Value(_encodeDate(evidence.createdAt)),
       ),
     );
+  }
+
+  @override
+  Future<MemoryKnowledgeEvidence?> evidenceById(String id) async {
+    final row = await _dao.evidenceById(id);
+    return row == null ? null : _evidenceFromEntry(row);
   }
 
   @override

@@ -613,10 +613,16 @@ class _NoopReadingMemoryRepository implements ReadingMemoryRepository {
   }) async => const [];
 
   @override
+  Future<MemoryKnowledgeEvidence?> evidenceById(String id) async => null;
+
+  @override
   Future<List<MemoryKnowledgeExplanation>> explanationsForEntity(
     String entityId, {
     int limit = 20,
   }) async => const [];
+
+  @override
+  Future<MemoryKnowledgeExplanation?> explanationById(String id) async => null;
 
   @override
   Future<void> init() async {}

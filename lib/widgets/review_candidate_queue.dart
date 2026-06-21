@@ -43,8 +43,9 @@ class _ReviewCandidateQueueState
     await _withBusy(candidate.id, () {
       return ref
           .read(reviewCandidateServiceProvider)
-          .acceptCandidate(
+          .acceptCandidateForReview(
             candidate.id,
+            learningItems: ref.read(learningItemServiceProvider),
           );
     });
   }

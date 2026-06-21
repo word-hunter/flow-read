@@ -80,6 +80,12 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
     return into(knowledgeExplanations).insertOnConflictUpdate(entry);
   }
 
+  Future<KnowledgeExplanationEntry?> explanationById(String id) {
+    final query = select(knowledgeExplanations)
+      ..where((row) => row.id.equals(id));
+    return query.getSingleOrNull();
+  }
+
   Future<List<KnowledgeExplanationEntry>> explanationsForEntity(
     String entityId, {
     int limit = 20,
@@ -96,6 +102,11 @@ class ReadingMemoryDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> upsertEvidence(KnowledgeEvidencesCompanion entry) {
     return into(knowledgeEvidences).insertOnConflictUpdate(entry);
+  }
+
+  Future<KnowledgeEvidenceEntry?> evidenceById(String id) {
+    final query = select(knowledgeEvidences)..where((row) => row.id.equals(id));
+    return query.getSingleOrNull();
   }
 
   Future<List<KnowledgeEvidenceEntry>> evidencesForEntity(

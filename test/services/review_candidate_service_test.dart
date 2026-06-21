@@ -1,8 +1,11 @@
+import 'package:flow_read/models/learning_item.dart';
 import 'package:flow_read/models/reading_memory.dart';
 import 'package:flow_read/models/user_vocabulary.dart';
+import 'package:flow_read/services/learning_item_service.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
 import 'package:flow_read/services/reading_memory/review_candidate_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
+import 'package:flow_read/storage/database/repositories/drift_learning_item_repository.dart';
 import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -211,4 +214,78 @@ void main() {
       ReviewCandidateStatus.dismissed,
     );
   });
+
+  test(
+    'accepting a candidate creates one learning item and marks it converted',
+    () async {
+      final repository = DriftReadingMemoryRepository(
+        db.readingMemoryDao,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 15, 10),
+      );
+      final learningItems = LearningItemService(
+        repository: DriftLearningItemRepository(
+          db.learningItemDao,
+          languageCode: 'en',
+        ),
+        clock: () => DateTime.utc(2026, 6, 15, 12),
+      );
+      final reviewCandidates = ReviewCandidateService(
+        repository: repository,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 15, 11),
+      );
+      final memory = ReadingMemoryService(
+        repository: repository,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 15, 8),
+        reviewCandidates: reviewCandidates,
+      );
+      await learningItems.init();
+
+      await memory.saveExplanation(
+        targetText: 'Reluctant',
+        canonical: 'reluctant',
+        explanation: 'Unwilling in this context.',
+        sourceRef: const MemorySourceRef(
+          sourceId: 'book:book-1',
+          sourceKind: SourceKind.book,
+          sourceTitleSnapshot: 'Book One',
+          bookId: 'book-1',
+          chapterIndex: 2,
+          locationLocator: 'chapter:2:sentence:4',
+        ),
+      );
+      final pending = await reviewCandidates.pendingCandidates();
+
+      final first = await reviewCandidates.acceptCandidateForReview(
+        pending.single.id,
+        learningItems: learningItems,
+      );
+      final second = await reviewCandidates.acceptCandidateForReview(
+        pending.single.id,
+        learningItems: learningItems,
+      );
+
+      expect(first, isNotNull);
+      expect(first!.created, isTrue);
+      expect(second, isNull);
+      expect(learningItems.count, 1);
+      expect(await reviewCandidates.pendingCandidates(), isEmpty);
+      expect(
+        (await repository.reviewCandidateById(pending.single.id))?.status,
+        ReviewCandidateStatus.converted,
+      );
+
+      final item = learningItems.allItems.single;
+      expect(item.type, LearningItemType.word);
+      expect(item.canonicalKey, 'reluctant');
+      expect(item.answer, 'Unwilling in this context.');
+      expect(item.bookId, 'book-1');
+      expect(item.chapterIndex, 2);
+      expect(item.tags, containsAll(['reading-memory', 'saved-explanation']));
+      expect(item.metadata['reviewCandidateId'], pending.single.id);
+      expect(item.metadata['sourceKind'], SourceKind.book.storageValue);
+    },
+  );
 }

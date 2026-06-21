@@ -2,7 +2,7 @@
 
 > @source lib/models/ lib/storage/database/tables.dart packages/flow_ai/lib/src/models/ packages/flow_dictionary/lib/src/ packages/flow_rss/lib/src/rss_models.dart
 
-Last updated: 2026-06-16
+Last updated: 2026-06-21
 
 ## Runtime Persistence
 
@@ -64,7 +64,7 @@ Generated model adapters are no longer part of the runtime model contract.
 | `MemoryKnowledgeExplanation` | User/AI/dictionary/generated explanation attached to an entity |
 | `MemoryKnowledgeEvidence` | Short source citation connecting an entity to reading context |
 | `MemoryEvent` | Lookup, AI, vocabulary, review, and bookmark learning signal |
-| `ReviewCandidate` | Memory-derived candidate that may later become a review item |
+| `ReviewCandidate` | Memory-derived candidate that can be accepted and converted into a deduplicated `LearningItem` |
 
 ## AI Models
 
