@@ -199,6 +199,7 @@ class AIAssistantActionRegistry {
               AIAssistantActionType.explain,
               AIAssistantActionType.translate,
               AIAssistantActionType.summary,
+              AIAssistantActionType.articleQA,
               AIAssistantActionType.chat,
             }.contains(action),
     };

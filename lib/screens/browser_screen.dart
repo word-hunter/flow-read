@@ -11,6 +11,7 @@ import '../providers/reading/services_provider.dart';
 import '../providers/reading/vocabulary_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../providers/settings_provider.dart';
+import '../providers/web_content_provider.dart';
 import '../services/analysis_service.dart';
 import '../services/reading_memory/reading_memory_ids.dart';
 import '../services/settings_service.dart';
@@ -39,10 +40,10 @@ class BrowserScreen extends riverpod.ConsumerStatefulWidget {
 }
 
 class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
-  final _webContentService = WebContentService();
   final _addressController = TextEditingController();
   final _scrollController = ScrollController();
   late final AIAssistantController _assistantController;
+  late final WebContentService _webContentService;
 
   WebPageContent? _page;
   AnalysisResult? _analysis;
@@ -54,6 +55,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   void initState() {
     super.initState();
     _assistantController = ref.read(aiAssistantControllerProvider);
+    _webContentService = ref.read(webContentServiceProvider);
     final initialUrl = widget.initialUrl?.trim();
     if (initialUrl != null && initialUrl.isNotEmpty) {
       _addressController.text = initialUrl;
@@ -66,7 +68,6 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
   @override
   void dispose() {
     _assistantController.clear();
-    _webContentService.close();
     _addressController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -182,7 +183,7 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
     final assistant = ref.read(aiAssistantControllerProvider);
     assistant.setContext(
       AIContextSnapshot(
-        source: AIContextSource.rssArticle,
+        source: AIContextSource.internalWeb,
         articleTitle: page.title,
         articleContent: page.plainText,
         articleUrl: page.url.toString(),
@@ -317,8 +318,11 @@ class _BrowserScreenState extends riverpod.ConsumerState<BrowserScreen> {
                 : settings.aiFeatureDisabledReason,
             onPressed: settings.aiFeaturesEnabled
                 ? () {
-                    if (!_showAssistant) _openAssistant();
-                    setState(() => _showAssistant = !_showAssistant);
+                    if (_showAssistant) {
+                      setState(() => _showAssistant = false);
+                    } else {
+                      _openAssistant();
+                    }
                   }
                 : null,
           ),

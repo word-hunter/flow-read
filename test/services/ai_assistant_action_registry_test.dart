@@ -101,6 +101,38 @@ void main() {
     expect(prompt.userPrompt, contains('What changed?'));
   });
 
+  test('builds summary and QA prompts for internal web context', () {
+    final context = AIContextSnapshot(
+      source: AIContextSource.internalWeb,
+      articleTitle: 'Browser Page',
+      articleContent: 'The browser page body.',
+      articleUrl: 'https://example.com/browser-page',
+    );
+
+    expect(
+      registry.availableActions(context),
+      containsAll([
+        AIAssistantActionType.summary,
+        AIAssistantActionType.articleQA,
+      ]),
+    );
+
+    final summary = registry.buildPrompt(
+      AIAssistantActionType.summary,
+      context,
+    );
+    final qa = registry.buildPrompt(
+      AIAssistantActionType.articleQA,
+      context,
+      followUpQuestion: 'What is this page about?',
+    );
+
+    expect(summary.userPrompt, contains('Internal Web'));
+    expect(summary.userPrompt, contains('Browser Page'));
+    expect(qa.userPrompt, contains('Internal Web'));
+    expect(qa.userPrompt, contains('What is this page about?'));
+  });
+
   test('builds chat prompts for reader follow-up questions', () {
     final prompt = registry.buildPrompt(
       AIAssistantActionType.chat,

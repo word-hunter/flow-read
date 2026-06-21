@@ -8,6 +8,7 @@ import 'package:flow_ai/flow_ai.dart';
 import 'package:flow_read/models/reading_memory.dart';
 import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
+import 'package:flow_read/services/reading_memory/reading_memory_ids.dart';
 import 'package:flow_read/services/settings_service.dart';
 import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/storage/database/repositories/drift_reading_memory_repository.dart';
@@ -355,6 +356,90 @@ void main() {
     );
     expect(events.single.type, MemoryEventType.saveExplanation);
     expect(events.single.sourceId, 'book:book-1');
+  });
+
+  testWidgets('saves internal web assistant explanation as browser memory', (
+    tester,
+  ) async {
+    final db = await AppDatabase.createInMemory();
+    addTearDown(db.close);
+    final memoryRepository = DriftReadingMemoryRepository(
+      db.readingMemoryDao,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 9),
+    );
+    final memory = ReadingMemoryService(
+      repository: memoryRepository,
+      languageCode: 'en',
+      clock: () => DateTime.utc(2026, 6, 15, 8),
+    );
+    await memory.init();
+
+    final responseJson = jsonEncode({
+      'translation': '浏览器页面摘要。',
+      'structure_notes': [
+        {
+          'source': 'The internal browser article body.',
+          'role': 'main clause',
+          'explanation': '说明浏览器正文进入 AI 上下文。',
+        },
+      ],
+      'grammar_points': [],
+      'vocabulary_notes': [],
+      'reading_tip': '注意页面来源。',
+    });
+    final assistant = _buildController(
+      settings,
+      responseContent: '```json\n$responseJson\n```',
+    );
+    addTearDown(assistant.dispose);
+
+    assistant.setContext(
+      AIContextSnapshot(
+        source: AIContextSource.internalWeb,
+        articleTitle: 'Readable Browser Page',
+        articleContent: 'The internal browser article body.',
+        articleUrl: 'https://example.com/browser-page',
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        AIAssistantPanel(controller: assistant),
+        overrides: [readingMemoryServiceProvider.overrideWithValue(memory)],
+      ),
+    );
+    await tester.pump();
+
+    await assistant.executeAction(AIAssistantActionType.explain);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('assistant-save-ai-explanation')),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('已保存到学习记忆'), findsOneWidget);
+    final entity = await memoryRepository.entityByCanonical(
+      languageCode: 'en',
+      type: KnowledgeEntityType.sentence,
+      canonicalKey: 'readable browser page',
+    );
+    expect(entity, isNotNull);
+
+    final events = await memoryRepository.eventsForCanonical(
+      languageCode: 'en',
+      canonicalKey: 'readable browser page',
+    );
+    expect(
+      events.single.sourceId,
+      ReadingMemoryIds.source(
+        SourceKind.browser,
+        'https://example.com/browser-page',
+      ),
+    );
+    final sourceRef = jsonDecode(events.single.sourceRefJson) as Map;
+    expect(sourceRef['sourceKind'], SourceKind.browser.storageValue);
   });
 
   testWidgets('saves assistant word analysis into reading memory', (
