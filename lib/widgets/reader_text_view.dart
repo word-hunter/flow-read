@@ -4,6 +4,7 @@ import 'package:flow_language/flow_language.dart';
 import 'package:flow_read_image_viewer/flow_read_image_viewer.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
+import '../models/reading_memory_overlay.dart';
 import '../providers/reading/current_book_notifier.dart';
 import '../providers/reading/word_lookup_notifier.dart';
 import '../services/settings_service.dart';
@@ -138,6 +139,56 @@ TextSpan buildPlainLookupWordSpan({
   );
 }
 
+TextSpan _buildOverlayWordSpan({
+  required ReadingMemoryOverlayMarker marker,
+  required String word,
+  required String canonical,
+  required String languageId,
+  required TextStyle textStyle,
+  required WordTapCallback onWordTapped,
+  required String contextText,
+  int? contextWordStart,
+  int? contextWordEnd,
+  required ThemeData theme,
+  Color? learningColor,
+  String? searchQuery,
+  bool isLookupHighlighted = false,
+}) {
+  return buildTappableWordSpan(
+    word: word,
+    canonical: canonical,
+    languageId: languageId,
+    color: _readingMemoryOverlayAccentColor(
+      theme,
+      marker.primaryType,
+      learningColor: learningColor,
+    ),
+    textStyle: textStyle,
+    onWordTapped: onWordTapped,
+    contextText: contextText,
+    contextWordStart: contextWordStart,
+    contextWordEnd: contextWordEnd,
+    theme: theme,
+    searchQuery: searchQuery,
+    isLookupHighlighted: isLookupHighlighted,
+  );
+}
+
+Color _readingMemoryOverlayAccentColor(
+  ThemeData theme,
+  ReadingMemoryOverlayMarkerType type, {
+  Color? learningColor,
+}) {
+  return switch (type) {
+    ReadingMemoryOverlayMarkerType.reviewDue => theme.colorScheme.tertiary,
+    ReadingMemoryOverlayMarkerType.bookTerm => theme.colorScheme.primary,
+    ReadingMemoryOverlayMarkerType.learning =>
+      learningColor ?? FunctionalColors.vocabLearning,
+    ReadingMemoryOverlayMarkerType.repeatedLookup =>
+      theme.colorScheme.secondary,
+  };
+}
+
 List<InlineSpan> _buildSearchHighlightedSpans(
   String text,
   ThemeData theme, {
@@ -246,6 +297,8 @@ InlineSpan buildHighlightedText(
   String? lookupHighlightWord,
   WordLevelService? wordLevelService,
   LanguageModule? languageModule,
+  ReadingMemoryOverlayProjection memoryOverlay =
+      ReadingMemoryOverlayProjection.empty,
 }) {
   return _HighlightBuilder(
     result,
@@ -260,6 +313,7 @@ InlineSpan buildHighlightedText(
     lookupHighlightWord,
     wordLevelService,
     languageModule,
+    memoryOverlay,
   ).build();
 }
 
@@ -277,6 +331,8 @@ InlineSpan buildHighlightedParagraph(
   String? lookupHighlightWord,
   WordLevelService? wordLevelService,
   LanguageModule? languageModule,
+  ReadingMemoryOverlayProjection memoryOverlay =
+      ReadingMemoryOverlayProjection.empty,
 }) {
   return _HighlightBuilder(
     result,
@@ -291,6 +347,7 @@ InlineSpan buildHighlightedParagraph(
     lookupHighlightWord,
     wordLevelService,
     languageModule,
+    memoryOverlay,
   ).buildParagraph(paragraph);
 }
 
@@ -308,6 +365,8 @@ InlineSpan buildStyledBlock(
   String? lookupHighlightWord,
   WordLevelService? wordLevelService,
   LanguageModule? languageModule,
+  ReadingMemoryOverlayProjection memoryOverlay =
+      ReadingMemoryOverlayProjection.empty,
   Map<String, String> footnoteMap = const {},
 }) {
   return _StyledBlockBuilder(
@@ -324,6 +383,7 @@ InlineSpan buildStyledBlock(
     lookupHighlightWord,
     wordLevelService,
     languageModule,
+    memoryOverlay: memoryOverlay,
     footnoteMap: footnoteMap,
   ).build();
 }
@@ -344,6 +404,8 @@ Widget buildBlockWidget(
   String? lookupHighlightWord,
   WordLevelService? wordLevelService,
   LanguageModule? languageModule,
+  ReadingMemoryOverlayProjection memoryOverlay =
+      ReadingMemoryOverlayProjection.empty,
   Map<String, String> footnoteMap = const {},
 }) {
   switch (block) {
@@ -375,6 +437,7 @@ Widget buildBlockWidget(
         lookupHighlightWord: lookupHighlightWord,
         wordLevelService: wordLevelService,
         languageModule: languageModule,
+        memoryOverlay: memoryOverlay,
         footnoteMap: footnoteMap,
       );
       final textSpan = _withParagraphTextIndent(
@@ -587,6 +650,7 @@ class _HighlightBuilder {
   final String? lookupHighlightWord;
   final WordLevelService? wordLevelService;
   final LanguageModule? languageModule;
+  final ReadingMemoryOverlayProjection memoryOverlay;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
   late final Set<String> learningSet;
@@ -605,6 +669,7 @@ class _HighlightBuilder {
     this.lookupHighlightWord,
     this.wordLevelService,
     this.languageModule,
+    this.memoryOverlay,
   ) {
     vocabWords = {};
     for (final v in result.vocabulary) {
@@ -641,8 +706,7 @@ class _HighlightBuilder {
   }
 
   String _keyFor(String word) {
-    final key =
-        languageModule?.canonicalize(word) ?? word.toLowerCase().trim();
+    final key = languageModule?.canonicalize(word) ?? word.toLowerCase().trim();
     if (key.isEmpty) return key;
     return wordLevelService?.canonicalForm(key) ?? key;
   }
@@ -690,9 +754,28 @@ class _HighlightBuilder {
       final isVocab = vocabWords.containsKey(key);
       final isKnown = knownSet.contains(key);
       final isLearning = !isVocab && learningSet.contains(key);
+      final overlayMarker = memoryOverlay.markerFor(key);
       final isLookupHighlighted = _isLookupHighlighted(key);
 
-      if (isVocab) {
+      if (overlayMarker != null) {
+        spans.add(
+          _buildOverlayWordSpan(
+            marker: overlayMarker,
+            word: word,
+            canonical: token.canonical,
+            languageId: token.languageId,
+            textStyle: _baseTextStyle(),
+            theme: theme,
+            learningColor: colorSettings?.learningColor,
+            searchQuery: searchQuery,
+            isLookupHighlighted: isLookupHighlighted,
+            onWordTapped: onWordTapped,
+            contextText: overlayMarker.contextText ?? paragraph,
+            contextWordStart: token.startOffset,
+            contextWordEnd: token.endOffset,
+          ),
+        );
+      } else if (isVocab) {
         final vocab = vocabWords[key]!;
         final color = _colorForVocab(key, vocab);
         spans.add(
@@ -787,6 +870,7 @@ class _StyledBlockBuilder {
   final String? lookupHighlightWord;
   final WordLevelService? wordLevelService;
   final LanguageModule? languageModule;
+  final ReadingMemoryOverlayProjection memoryOverlay;
   final Map<String, String> footnoteMap;
   late final Map<String, Vocabulary> vocabWords;
   late final Set<String> knownSet;
@@ -808,6 +892,7 @@ class _StyledBlockBuilder {
     this.lookupHighlightWord,
     this.wordLevelService,
     this.languageModule, {
+    required this.memoryOverlay,
     this.footnoteMap = const {},
   }) {
     vocabWords = {};
@@ -835,8 +920,7 @@ class _StyledBlockBuilder {
   }
 
   String _keyFor(String word) {
-    final key =
-        languageModule?.canonicalize(word) ?? word.toLowerCase().trim();
+    final key = languageModule?.canonicalize(word) ?? word.toLowerCase().trim();
     if (key.isEmpty) return key;
     return wordLevelService?.canonicalForm(key) ?? key;
   }
@@ -928,6 +1012,7 @@ class _StyledBlockBuilder {
       final isVocab = vocabWords.containsKey(key);
       final isKnown = knownSet.contains(key);
       final isLearning = !isVocab && learningSet.contains(key);
+      final overlayMarker = memoryOverlay.markerFor(key);
       final isLookupHighlighted = _isLookupHighlighted(key);
 
       final wordFnTarget = _footnoteAt(token.startOffset);
@@ -939,7 +1024,25 @@ class _StyledBlockBuilder {
         }
       }
 
-      if (isVocab) {
+      if (overlayMarker != null) {
+        spans.add(
+          _buildOverlayWordSpan(
+            marker: overlayMarker,
+            word: word,
+            canonical: token.canonical,
+            languageId: token.languageId,
+            textStyle: _textStyleFor(wordStyle),
+            theme: theme,
+            learningColor: colorSettings?.learningColor,
+            searchQuery: searchQuery,
+            isLookupHighlighted: isLookupHighlighted,
+            onWordTapped: onWordTapped,
+            contextText: overlayMarker.contextText ?? fullText,
+            contextWordStart: token.startOffset,
+            contextWordEnd: token.endOffset,
+          ),
+        );
+      } else if (isVocab) {
         final vocab = vocabWords[key]!;
         final color = _colorForVocab(key, vocab);
         spans.add(

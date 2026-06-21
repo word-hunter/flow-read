@@ -23,6 +23,7 @@ import '../../services/reading_config_service.dart';
 import '../../services/reading_insight_service.dart';
 import '../../services/reading_memory/context_retrieval_service.dart';
 import '../../services/reading_memory/knowledge_retention_service.dart';
+import '../../services/reading_memory/reading_memory_overlay_service.dart';
 import '../../services/reading_memory/reading_memory_service.dart';
 import '../../services/reading_memory/review_candidate_service.dart';
 import '../../services/reading_memory/source_scope_service.dart';
@@ -252,6 +253,23 @@ final contextRetrievalServiceProvider = Provider<ContextRetrievalService>((
     languageCode: languageCode,
   );
 });
+
+final readingMemoryOverlayServiceProvider =
+    Provider<ReadingMemoryOverlayService>((ref) {
+      final db = _requireAppDatabase();
+      final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+      final service = ReadingMemoryOverlayService(
+        repository: DriftReadingMemoryRepository(
+          db.readingMemoryDao,
+          languageCode: languageCode,
+        ),
+        userVocabulary: ref.watch(userVocabularyServiceProvider),
+        glossaryService: BookGlossaryService(BookGlossaryDao(db)),
+        languageCode: languageCode,
+      );
+      unawaited(service.init());
+      return service;
+    });
 
 final dictionarySourceRegistryProvider = Provider<DictionarySourceRegistry>((
   ref,

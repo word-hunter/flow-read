@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/analysis_result.dart';
 import '../../models/content_block.dart';
+import '../../models/reading_memory_overlay.dart';
 import '../../providers/reading/current_book_notifier.dart';
 import '../../providers/reading/reading_config_notifier.dart';
 import '../../providers/reading/reading_search_notifier.dart';
@@ -25,6 +26,7 @@ class ReaderContentView extends StatelessWidget {
   final ReadingConfigState config;
   final ReadingSearchState search;
   final WordLookupState lookupState;
+  final ReadingMemoryOverlayProjection memoryOverlay;
   final WordLevelService? wordLevelService;
   final LanguageModule? activeLanguageModule;
   final GlobalKey<SelectionAreaState> readerSelectionAreaKey;
@@ -50,6 +52,7 @@ class ReaderContentView extends StatelessWidget {
     required this.config,
     required this.search,
     required this.lookupState,
+    this.memoryOverlay = ReadingMemoryOverlayProjection.empty,
     required this.wordLevelService,
     required this.activeLanguageModule,
     required this.readerSelectionAreaKey,
@@ -194,10 +197,12 @@ class ReaderContentView extends StatelessWidget {
     final lookupHighlightWord = lookupState.selectedWord;
     final hasLookupHighlight =
         lookupHighlightWord != null && lookupHighlightWord.trim().isNotEmpty;
+    final hasMemoryOverlay = memoryOverlay.isNotEmpty;
 
     if (isFirstBlock &&
         searchQuery.isEmpty &&
         !hasLookupHighlight &&
+        !hasMemoryOverlay &&
         block is TextBlock &&
         block.type == BlockType.paragraph &&
         block.plainText.isNotEmpty) {
@@ -228,6 +233,7 @@ class ReaderContentView extends StatelessWidget {
       colorSettings: colorSettings,
       searchQuery: searchQuery,
       lookupHighlightWord: lookupHighlightWord,
+      memoryOverlay: memoryOverlay,
       wordLevelService: wordLevelService,
       languageModule: activeLanguageModule,
       footnoteMap: currentBook.book?.footnoteMap ?? const {},
@@ -280,11 +286,13 @@ class ReaderContentView extends StatelessWidget {
     final lookupHighlightWord = lookupState.selectedWord;
     final hasLookupHighlight =
         lookupHighlightWord != null && lookupHighlightWord.trim().isNotEmpty;
+    final hasMemoryOverlay = memoryOverlay.isNotEmpty;
 
     if (isFirstParagraph &&
         paragraph.isNotEmpty &&
         searchQuery.isEmpty &&
-        !hasLookupHighlight) {
+        !hasLookupHighlight &&
+        !hasMemoryOverlay) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: _buildDropCapParagraph(paragraph, baseStyle, cityPreset),
@@ -306,6 +314,7 @@ class ReaderContentView extends StatelessWidget {
           colorSettings: colorSettings,
           searchQuery: searchQuery,
           lookupHighlightWord: lookupHighlightWord,
+          memoryOverlay: memoryOverlay,
           wordLevelService: wordLevelService,
           languageModule: activeLanguageModule,
         ),
@@ -354,6 +363,7 @@ class ReaderContentView extends StatelessWidget {
               ),
               colorSettings: colorSettings,
               lookupHighlightWord: lookupState.selectedWord,
+              memoryOverlay: memoryOverlay,
               wordLevelService: wordLevelService,
               languageModule: activeLanguageModule,
             ),

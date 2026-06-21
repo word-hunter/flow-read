@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flow_read/models/analysis_result.dart';
 import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/content_block.dart';
+import 'package:flow_read/models/reading_memory_overlay.dart';
 import 'package:flow_read/providers/reading/current_book_notifier.dart';
 import 'package:flow_read/providers/reading/reading_config_notifier.dart';
 import 'package:flow_read/providers/reading/reading_search_notifier.dart';
@@ -83,6 +84,36 @@ void main() {
     expect(tappableTexts.map((item) => item.text), contains('mystery'));
     expect(_colorFor(tappableTexts, 'known'), isNot(unknownColor));
     expect(_colorFor(tappableTexts, 'known'), isNot(learningColor));
+    expect(_colorFor(tappableTexts, 'learning'), learningColor);
+    expect(_colorFor(tappableTexts, 'mystery'), unknownColor);
+  });
+
+  testWidgets('reading memory overlay marks known words but keeps lookup tap', (
+    tester,
+  ) async {
+    final theme = ThemeData();
+    final overlay = ReadingMemoryOverlayProjection.fromMarkers([
+      ReadingMemoryOverlayMarker(
+        canonicalKey: 'known',
+        displayText: 'known',
+        types: const {ReadingMemoryOverlayMarkerType.reviewDue},
+      ),
+    ]);
+
+    final span = buildHighlightedParagraph(
+      'known learning mystery',
+      result,
+      theme,
+      onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
+      colorSettings: colorSettings,
+      memoryOverlay: overlay,
+    );
+
+    final tappableTexts = _tappableTextSpans(span);
+    final known = tappableTexts.firstWhere((item) => item.text == 'known');
+
+    expect(known.recognizer, isNotNull);
+    expect(known.color, theme.colorScheme.tertiary);
     expect(_colorFor(tappableTexts, 'learning'), learningColor);
     expect(_colorFor(tappableTexts, 'mystery'), unknownColor);
   });

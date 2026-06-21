@@ -7,8 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import 'package:flow_ai/flow_ai.dart';
+import 'package:flow_language/flow_language.dart';
 import '../models/analysis_result.dart';
 import '../models/content_block.dart';
+import '../models/reading_memory_overlay.dart';
 import '../models/reading_position.dart';
 import '../models/reading_search_result.dart';
 import '../providers/reading/bookmark_notifier.dart';
@@ -26,6 +28,7 @@ import '../layout/app_platform_class.dart';
 import '../layout/reader_layout_policy.dart';
 import '../layout/reader_layout_spec.dart';
 import '../services/reader_layout_engine.dart';
+import '../services/word_level_service.dart';
 import '../theme/app_constants.dart';
 import '../theme/app_motion_tokens.dart';
 import '../theme/app_surface_tokens.dart';
@@ -112,6 +115,10 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   String? _lastAppliedTocPreferenceBookId;
   bool? _lastAppliedTocPreference;
   double _layoutWidth = 0;
+  ReadingMemoryOverlayProjection _readingMemoryOverlay =
+      ReadingMemoryOverlayProjection.empty;
+  String? _readingMemoryOverlayKey;
+  int _readingMemoryOverlayGeneration = 0;
 
   bool get _isWideScreen => _layoutWidth >= AppConstants.wideBreakpoint;
   @override
@@ -158,6 +165,94 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
   void _onWorkspaceControllerChanged() {
     if (!mounted) return;
     setState(() {});
+  }
+
+  String _readingMemoryOverlayText({
+    required List<ContentBlock> blocks,
+    required List<String> paragraphs,
+    required AnalysisResult? result,
+  }) {
+    if (blocks.isNotEmpty) {
+      return blocks
+          .whereType<TextBlock>()
+          .map((block) => block.plainText)
+          .join(
+            '\n\n',
+          );
+    }
+    if (paragraphs.isNotEmpty) return paragraphs.join('\n\n');
+    return result?.passageText ?? '';
+  }
+
+  void _scheduleReadingMemoryOverlayLoad({
+    required String text,
+    required String? bookId,
+    required int chapterIndex,
+    required String vocabularyRevision,
+    required LanguageModule? languageModule,
+    required WordLevelService? wordLevelService,
+  }) {
+    final key = [
+      bookId ?? '',
+      chapterIndex,
+      text.length,
+      text.hashCode,
+      vocabularyRevision,
+    ].join('|');
+    if (_readingMemoryOverlayKey == key) return;
+
+    _readingMemoryOverlayKey = key;
+    _readingMemoryOverlay = ReadingMemoryOverlayProjection.empty;
+    final generation = ++_readingMemoryOverlayGeneration;
+    if (text.trim().isEmpty) return;
+
+    unawaited(
+      _loadReadingMemoryOverlay(
+        key: key,
+        generation: generation,
+        text: text,
+        bookId: bookId,
+        languageModule: languageModule,
+        wordLevelService: wordLevelService,
+      ),
+    );
+  }
+
+  Future<void> _loadReadingMemoryOverlay({
+    required String key,
+    required int generation,
+    required String text,
+    required String? bookId,
+    required LanguageModule? languageModule,
+    required WordLevelService? wordLevelService,
+  }) async {
+    try {
+      final projection = await ref
+          .read(readingMemoryOverlayServiceProvider)
+          .buildForText(
+            text: text,
+            bookId: bookId,
+            languageModule: languageModule,
+            wordLevelService: wordLevelService,
+          );
+      if (!mounted ||
+          _readingMemoryOverlayKey != key ||
+          _readingMemoryOverlayGeneration != generation) {
+        return;
+      }
+      setState(() {
+        _readingMemoryOverlay = projection;
+      });
+    } catch (_) {
+      if (!mounted ||
+          _readingMemoryOverlayKey != key ||
+          _readingMemoryOverlayGeneration != generation) {
+        return;
+      }
+      setState(() {
+        _readingMemoryOverlay = ReadingMemoryOverlayProjection.empty;
+      });
+    }
   }
 
   void _scheduleBookOpenTocPreference({
@@ -1048,6 +1143,25 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final colorSettings = settings.colors;
     final search = ref.watch(readingSearchNotifierProvider);
     final lookupState = ref.watch(wordLookupNotifierProvider);
+    ref.watch(vocabularyNotifierProvider);
+    final vocabularyNotifier = ref.read(vocabularyNotifierProvider.notifier);
+    final activeLanguageModule = vocabularyNotifier.activeLanguageModule;
+    final wordLevelService = ref.read(wordLevelServiceProvider);
+    final overlayText = _readingMemoryOverlayText(
+      blocks: blocks,
+      paragraphs: paragraphs,
+      result: result,
+    );
+    _scheduleReadingMemoryOverlayLoad(
+      text: overlayText,
+      bookId: bookshelf.activeBookId,
+      chapterIndex: chapterIndex,
+      vocabularyRevision: ref
+          .read(userVocabularyServiceProvider)
+          .revisionSignature,
+      languageModule: activeLanguageModule,
+      wordLevelService: wordLevelService,
+    );
     ref.watch(bookmarkNotifierProvider);
     final bookmarkNotifier = ref.read(bookmarkNotifierProvider.notifier);
 
@@ -1076,10 +1190,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               config: config,
               search: search,
               lookupState: lookupState,
-              wordLevelService: ref.read(wordLevelServiceProvider),
-              activeLanguageModule: ref
-                  .read(vocabularyNotifierProvider.notifier)
-                  .activeLanguageModule,
+              memoryOverlay: _readingMemoryOverlay,
+              wordLevelService: wordLevelService,
+              activeLanguageModule: activeLanguageModule,
               readerSelectionAreaKey: _readerSelectionAreaKey,
               actionRegionKey: _actionRegionKey,
               scrollController: _scrollController,

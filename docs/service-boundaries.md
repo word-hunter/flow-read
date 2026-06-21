@@ -82,6 +82,7 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 | `SourceScopeService` | 管理 book/rss/browser/manual 来源作用域、source cache 与 tombstone（Drift `source_records` / `source_scope_cache`） |
 | `KnowledgeRetentionService` | 统一处理来源归档、保留学习记忆、仅保留元数据、彻底删除相关记忆 |
 | `ReadingMemoryService` | Reading Memory 写入总入口，记录查词、词汇状态和保存解释事件 |
+| `ReadingMemoryOverlayService` | 从用户学习状态、重复查词、复习候选和本书术语构造阅读器正文只读提示投影 |
 | `WordMemoryService` | 聚合词汇状态、历史查词、上下文例句、保存解释和 evidence |
 | `ReadingMemoryInspectorService` | 本地开发调试用只读观测入口，聚合 Reading Memory 计数、列表和实体详情 |
 | `ReadingMemoryInspectorWebServer` | debug-only 本地 loopback Web inspector，复用只读观测服务并向浏览器暴露 HTML 与 `/api/*` 数据接口 |
@@ -129,6 +130,7 @@ ReadingProvider（总调度）
 ├── SourceScopeService
 ├── KnowledgeRetentionService
 ├── WordMemoryService
+├── ReadingMemoryOverlayService
 ├── ContextRetrievalService
 ├── DictionaryManagerService
 │   ├── CollinsRepository

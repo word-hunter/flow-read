@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/analysis_result.dart';
 import '../../models/content_block.dart';
+import '../../models/reading_memory_overlay.dart';
 import '../../providers/reading/current_book_notifier.dart';
 import '../../providers/reading/reading_config_notifier.dart';
 import '../../providers/reading/reading_search_notifier.dart';
@@ -26,6 +27,7 @@ class ReaderCoreView extends StatefulWidget {
   final ReadingConfigState config;
   final ReadingSearchState search;
   final WordLookupState lookupState;
+  final ReadingMemoryOverlayProjection memoryOverlay;
   final WordLevelService? wordLevelService;
   final LanguageModule? activeLanguageModule;
   final GlobalKey<SelectionAreaState> readerSelectionAreaKey;
@@ -52,6 +54,7 @@ class ReaderCoreView extends StatefulWidget {
     required this.config,
     required this.search,
     required this.lookupState,
+    this.memoryOverlay = ReadingMemoryOverlayProjection.empty,
     required this.wordLevelService,
     required this.activeLanguageModule,
     required this.readerSelectionAreaKey,
@@ -85,6 +88,7 @@ class _ReaderCoreViewState extends State<ReaderCoreView> {
       config: widget.config,
       search: widget.search,
       lookupState: widget.lookupState,
+      memoryOverlay: widget.memoryOverlay,
       wordLevelService: widget.wordLevelService,
       activeLanguageModule: widget.activeLanguageModule,
       readerSelectionAreaKey: widget.readerSelectionAreaKey,

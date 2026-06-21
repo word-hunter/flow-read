@@ -20,6 +20,7 @@ import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/learning_analytics_service.dart';
 import 'package:flow_read/services/learning_item_service.dart';
 import 'package:flow_read/services/reading_memory/context_retrieval_service.dart';
+import 'package:flow_read/services/reading_memory/reading_memory_overlay_service.dart';
 import 'package:flow_read/services/reading_memory/reading_memory_service.dart';
 import 'package:flow_read/services/reading_memory/word_memory_service.dart';
 import 'package:flow_read/services/reading_config_service.dart';
@@ -551,6 +552,11 @@ Future<void> _pumpWorkspaceReader(
     userVocabulary: userVocabulary,
     languageCode: 'en',
   );
+  final memoryOverlay = ReadingMemoryOverlayService(
+    repository: readingMemoryRepository,
+    userVocabulary: userVocabulary,
+    languageCode: 'en',
+  );
   final learningItem = LearningItemService(
     repository: _MemoryLearningItemRepository(),
   );
@@ -578,6 +584,7 @@ Future<void> _pumpWorkspaceReader(
         readingTimeServiceProvider.overrideWithValue(readingTime),
         userVocabularyServiceProvider.overrideWithValue(userVocabulary),
         readingMemoryServiceProvider.overrideWithValue(readingMemory),
+        readingMemoryOverlayServiceProvider.overrideWithValue(memoryOverlay),
         wordMemoryServiceProvider.overrideWithValue(wordMemory),
         contextRetrievalServiceProvider.overrideWithValue(contextRetrieval),
         reviewScheduleServiceProvider.overrideWithValue(reviewSchedule),
