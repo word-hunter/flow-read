@@ -55,6 +55,87 @@ void main() {
   });
 
   test(
+    'browser source lifecycle keeps learning memory and deletes source cache',
+    () async {
+      final repository = DriftReadingMemoryRepository(
+        db.readingMemoryDao,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 21, 9),
+      );
+      final sourceScope = SourceScopeService(
+        repository: repository,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 21, 10),
+      );
+      final memory = ReadingMemoryService(
+        repository: repository,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 21, 9),
+      );
+
+      const pageUrl = 'https://example.com/article';
+      final sourceId = ReadingMemoryIds.source(SourceKind.browser, pageUrl);
+      await sourceScope.upsertSource(
+        sourceId: sourceId,
+        sourceKind: SourceKind.browser,
+        titleSnapshot: 'Browser Article',
+      );
+      await sourceScope.upsertSourceScopeCache(
+        sourceId: sourceId,
+        cacheType: 'article_reading_context',
+        payload: '{"summary":"cached"}',
+      );
+      final sourceRef = MemorySourceRef(
+        sourceId: sourceId,
+        sourceKind: SourceKind.browser,
+        sourceTitleSnapshot: 'Browser Article',
+      );
+      await memory.recordLookup(
+        targetText: 'durable',
+        canonical: 'durable',
+        sourceRef: sourceRef,
+        sentence: 'A durable habit survives friction.',
+      );
+      await memory.saveExplanation(
+        targetText: 'durable',
+        canonical: 'durable',
+        explanation: 'Durable means able to last for a long time.',
+        sourceRef: sourceRef,
+      );
+
+      await sourceScope.deleteBrowserSourceKeepLearningMemory(pageUrl);
+
+      final deleted = await repository.sourceRecord(sourceId);
+      expect(deleted?.availability, SourceAvailability.deleted);
+      expect(deleted?.deletedAt, DateTime.utc(2026, 6, 21, 10));
+      expect(await repository.sourceScopeCacheForSource(sourceId), isEmpty);
+
+      final evidences = await repository.evidencesForSource(sourceId);
+      expect(evidences.single.shortExcerpt, contains('durable habit'));
+      expect(evidences.single.sourceAvailability, SourceAvailability.deleted);
+      expect(
+        evidences.single.retentionPolicy,
+        EvidenceRetentionPolicy.keepSnippet,
+      );
+      final entity = await repository.entityByCanonical(
+        languageCode: 'en',
+        type: KnowledgeEntityType.word,
+        canonicalKey: 'durable',
+      );
+      final explanations = await repository.explanationsForEntity(entity!.id);
+      expect(explanations.single.explanation, contains('able to last'));
+      expect(
+        await repository.eventCountForCanonical(
+          languageCode: 'en',
+          canonicalKey: 'durable',
+          type: MemoryEventType.lookup,
+        ),
+        1,
+      );
+    },
+  );
+
+  test(
     'retention service deletes source cache and keeps metadata-only memory',
     () async {
       final repository = DriftReadingMemoryRepository(

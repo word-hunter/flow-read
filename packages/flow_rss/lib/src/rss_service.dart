@@ -23,6 +23,7 @@ abstract class RssFeedService {
     bool refreshMetadata = false,
   });
   Future<void> removeSubscription(String url);
+  Future<List<RssArticle>> cachedArticlesForFeed(String feedUrl);
   Future<List<RssArticle>> fetchArticles(
     String feedUrl, {
     bool forceRefresh = false,
@@ -162,6 +163,21 @@ class RssService implements RssFeedService {
     if (removed) {
       _articleCache.remove(url);
     }
+  }
+
+  @override
+  Future<List<RssArticle>> cachedArticlesForFeed(String feedUrl) async {
+    final cached = _articleCache[feedUrl];
+    if (cached != null) return cached;
+
+    final articles = await _repository.cachedArticlesForFeed(feedUrl);
+    for (final article in articles) {
+      _applyArticleState(article);
+    }
+    if (articles.isNotEmpty) {
+      _articleCache[feedUrl] = articles;
+    }
+    return articles;
   }
 
   @override

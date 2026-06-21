@@ -200,6 +200,39 @@ void main() {
       expect(repository.readLaterArticleIds, isEmpty);
     },
   );
+
+  test('loads cached feed articles without fetching the network', () async {
+    const feedUrl = 'https://example.com/rss.xml';
+    final repository = _MemoryRssRepository()
+      ..subscriptions.add(
+        RssFeedSubscription(
+          url: feedUrl,
+          title: 'Flow News',
+        ),
+      )
+      ..cachedArticles[feedUrl] = [
+        RssArticle(
+          id: 'cached-1',
+          feedUrl: feedUrl,
+          feedTitle: 'Flow News',
+          title: 'Cached Article',
+          link: 'https://example.com/cached',
+        ),
+      ]
+      .._readArticleIds = {'cached-1'};
+    final service = RssService(
+      repository: repository,
+      httpGet: (uri, {headers}) async {
+        throw StateError('network should not be called');
+      },
+    );
+    await service.init();
+
+    final articles = await service.cachedArticlesForFeed(feedUrl);
+
+    expect(articles.single.id, 'cached-1');
+    expect(articles.single.isRead, isTrue);
+  });
 }
 
 RssHttpGet _respondWith(String body) {
@@ -254,6 +287,7 @@ class _MemoryRssRepository implements RssRepository {
   Future<bool> deleteSubscriptionByUrl(String url) async {
     final before = subscriptions.length;
     subscriptions.removeWhere((subscription) => subscription.url == url);
+    cachedArticles.remove(url);
     return subscriptions.length != before;
   }
 
@@ -265,6 +299,14 @@ class _MemoryRssRepository implements RssRepository {
     cachedArticles[feedUrl] = articles
         .map((article) => article.copyWith())
         .toList(growable: false);
+  }
+
+  @override
+  Future<List<RssArticle>> cachedArticlesForFeed(String feedUrl) async {
+    return cachedArticles[feedUrl]
+            ?.map((article) => article.copyWith())
+            .toList(growable: false) ??
+        const [];
   }
 
   @override

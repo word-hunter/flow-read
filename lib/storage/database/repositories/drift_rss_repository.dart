@@ -125,6 +125,15 @@ final class DriftRssRepository implements RssRepository {
   }
 
   @override
+  Future<List<RssArticle>> cachedArticlesForFeed(String feedUrl) async {
+    final subscriptionId = await _idForUrl(feedUrl);
+    if (subscriptionId == null) return const [];
+
+    final rows = await _dao.articlesForSubscription(subscriptionId);
+    return rows.map(_articleFromEntry).toList(growable: false);
+  }
+
+  @override
   Set<String> get readArticleIds => _readArticleIds.toSet();
 
   @override
@@ -239,6 +248,25 @@ RssFeedSubscription _subscriptionFromEntry(RssSubscriptionEntry entry) {
   );
 }
 
+RssArticle _articleFromEntry(RssArticleEntry entry) {
+  return RssArticle(
+    id: entry.id,
+    feedUrl: entry.feedUrl,
+    feedTitle: entry.feedTitle,
+    title: entry.title,
+    link: entry.link,
+    description: entry.description,
+    content: entry.content,
+    bodyBlocks: _decodeBodyBlocks(entry.bodyBlocks),
+    images: _decodeImages(entry.images),
+    pubDate: _dateFromIso(entry.pubDate),
+    author: entry.author,
+    isRead: entry.isRead,
+    isFavorite: entry.isFavorite,
+    isReadLater: entry.isReadLater,
+  );
+}
+
 String? _dateToIso(DateTime? value) => value?.toUtc().toIso8601String();
 
 DateTime? _dateFromIso(String? value) {
@@ -287,4 +315,89 @@ Map<String, Object?> _imageToJson(RssArticleImage image) {
     'width': image.width,
     'height': image.height,
   };
+}
+
+List<RssArticleBodyBlock> _decodeBodyBlocks(String value) {
+  final decoded = _decodeJsonList(value);
+  if (decoded.isEmpty) return const [];
+
+  final blocks = <RssArticleBodyBlock>[];
+  for (final item in decoded) {
+    if (item is! Map) continue;
+    final json = Map<String, Object?>.from(item);
+    final type = json['type'];
+    if (type == 'image') {
+      final image = _imageFromJson(json['image']);
+      if (image != null) blocks.add(RssArticleImageBlock(image));
+      continue;
+    }
+    if (type != 'text') continue;
+    final text = _stringOrNull(json['text']);
+    if (text == null || text.isEmpty) continue;
+    blocks.add(
+      RssArticleTextBlock(
+        type: _textBlockTypeFromName(_stringOrNull(json['textType'])),
+        text: text,
+        headingLevel: _intOrDefault(json['headingLevel']),
+        indent: _intOrDefault(json['indent']),
+      ),
+    );
+  }
+  return blocks;
+}
+
+List<RssArticleImage> _decodeImages(String value) {
+  final decoded = _decodeJsonList(value);
+  if (decoded.isEmpty) return const [];
+
+  final images = <RssArticleImage>[];
+  for (final item in decoded) {
+    final image = _imageFromJson(item);
+    if (image != null) images.add(image);
+  }
+  return images;
+}
+
+List<Object?> _decodeJsonList(String value) {
+  if (value.trim().isEmpty) return const [];
+  try {
+    final decoded = jsonDecode(value);
+    if (decoded is List) return decoded.cast<Object?>();
+  } on FormatException {
+    return const [];
+  }
+  return const [];
+}
+
+RssArticleImage? _imageFromJson(Object? value) {
+  if (value is! Map) return null;
+  final json = Map<String, Object?>.from(value);
+  final url = _stringOrNull(json['url']);
+  if (url == null || url.isEmpty) return null;
+  return RssArticleImage(
+    url: url,
+    alt: _stringOrNull(json['alt']),
+    width: _intOrNull(json['width']),
+    height: _intOrNull(json['height']),
+  );
+}
+
+RssArticleTextBlockType _textBlockTypeFromName(String? value) {
+  return RssArticleTextBlockType.values.firstWhere(
+    (type) => type.name == value,
+    orElse: () => RssArticleTextBlockType.paragraph,
+  );
+}
+
+String? _stringOrNull(Object? value) {
+  if (value is! String) return null;
+  return value;
+}
+
+int _intOrDefault(Object? value) => _intOrNull(value) ?? 0;
+
+int? _intOrNull(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return null;
 }

@@ -11,6 +11,7 @@ abstract class RssRepository {
   );
   Future<bool> deleteSubscriptionByUrl(String url);
   Future<void> cacheArticles(String feedUrl, Iterable<RssArticle> articles);
+  Future<List<RssArticle>> cachedArticlesForFeed(String feedUrl);
   Set<String> get readArticleIds;
   Future<void> putReadArticleIds(Set<String> ids);
   Set<String> get favoriteArticleIds;

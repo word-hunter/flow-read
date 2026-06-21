@@ -147,6 +147,22 @@ void main() {
     expect(reloaded.favoriteArticleIds, {'article-1'});
     expect(reloaded.readLaterArticleIds, {'article-1'});
 
+    final cached = await reloaded.cachedArticlesForFeed(
+      'https://example.com/rss.xml',
+    );
+    final cachedArticle = cached.single;
+    expect(cachedArticle.id, 'article-1');
+    expect(cachedArticle.isRead, isTrue);
+    expect(cachedArticle.isFavorite, isTrue);
+    expect(cachedArticle.isReadLater, isTrue);
+    expect(cachedArticle.bodyBlocks, hasLength(2));
+    final heading = cachedArticle.bodyBlocks.first as RssArticleTextBlock;
+    expect(heading.type, RssArticleTextBlockType.heading);
+    expect(heading.headingLevel, 2);
+    final imageBlock = cachedArticle.bodyBlocks[1] as RssArticleImageBlock;
+    expect(imageBlock.image.url, 'https://example.com/body.png');
+    expect(cachedArticle.images.single.url, 'https://example.com/thumb.png');
+
     await reloaded.putReadArticleIds({});
     await reloaded.putFavoriteArticleIds({});
     await reloaded.putReadLaterArticleIds({});

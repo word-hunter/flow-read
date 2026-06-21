@@ -160,6 +160,28 @@ class SourceScopeService {
     );
   }
 
+  Future<void> deleteRssSourceKeepLearningMemory(
+    String articleId, {
+    EvidenceRetentionPolicy evidencePolicy =
+        EvidenceRetentionPolicy.keepSnippet,
+  }) {
+    return deleteSourceKeepLearningMemory(
+      ReadingMemoryIds.source(SourceKind.rss, articleId),
+      evidencePolicy: evidencePolicy,
+    );
+  }
+
+  Future<void> deleteBrowserSourceKeepLearningMemory(
+    String localId, {
+    EvidenceRetentionPolicy evidencePolicy =
+        EvidenceRetentionPolicy.keepSnippet,
+  }) {
+    return deleteSourceKeepLearningMemory(
+      ReadingMemoryIds.source(SourceKind.browser, localId),
+      evidencePolicy: evidencePolicy,
+    );
+  }
+
   Future<void> deleteBookSourceAndRelatedMemory(String bookId) {
     return deleteSourceAndRelatedMemory(
       ReadingMemoryIds.source(SourceKind.book, bookId),

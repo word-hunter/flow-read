@@ -828,6 +828,11 @@ class _FakeRssFeedService implements RssFeedService {
   Future<void> removeSubscription(String url) async {}
 
   @override
+  Future<List<RssArticle>> cachedArticlesForFeed(String feedUrl) async {
+    return _articles.where((article) => article.feedUrl == feedUrl).toList();
+  }
+
+  @override
   Future<List<RssArticle>> fetchArticles(
     String feedUrl, {
     bool forceRefresh = false,
