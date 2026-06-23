@@ -76,9 +76,10 @@ class CollinsRepository implements WordRepository {
 
     _cleanElement(root);
 
-    final phonetic = _extractPhonetic(root);
+    final entryRoot = _primaryEntryRoot(root);
+    final phonetic = _extractPhonetic(entryRoot);
     final meanings = <Meaning>[];
-    final blocks = root.querySelectorAll('.cB, .dictionary .hom, .hom');
+    final blocks = _meaningBlocks(entryRoot);
 
     if (blocks.isNotEmpty) {
       for (final block in blocks) {
@@ -122,6 +123,61 @@ class CollinsRepository implements WordRepository {
     }
     if (pronunciations.isEmpty) return null;
     return pronunciations.take(3).join(' | ');
+  }
+
+  dom.Element _primaryEntryRoot(dom.Element root) {
+    for (final selector in const [
+      '.cB',
+      '.dictionary .hom',
+      '.hom',
+      '.dictionary',
+    ]) {
+      final candidates = root
+          .querySelectorAll(selector)
+          .where(_hasMeaningContent)
+          .toList(growable: false);
+      if (candidates.isNotEmpty) return candidates.first;
+    }
+    return root;
+  }
+
+  List<dom.Element> _meaningBlocks(dom.Element root) {
+    if (root.classes.contains('hom')) return [root];
+
+    final homs = _outermost(
+      root
+          .querySelectorAll('.dictionary .hom, .hom')
+          .where(_hasMeaningContent)
+          .toList(growable: false),
+    );
+    if (homs.isNotEmpty) return homs;
+
+    return [root];
+  }
+
+  List<dom.Element> _outermost(List<dom.Element> elements) {
+    final candidates = elements.toSet();
+    return [
+      for (final element in elements)
+        if (!_hasAncestorIn(element, candidates)) element,
+    ];
+  }
+
+  bool _hasAncestorIn(dom.Element element, Set<dom.Element> candidates) {
+    var parent = element.parent;
+    while (parent != null) {
+      if (candidates.contains(parent)) return true;
+      parent = parent.parent;
+    }
+    return false;
+  }
+
+  bool _hasMeaningContent(dom.Element element) {
+    return _texts(element, '.def, .definition').isNotEmpty ||
+        _texts(
+          element,
+          '.cit.type-example, .type-example .quote, .quote',
+        ).isNotEmpty;
   }
 
   void _extractMeaningFromBlock(dom.Element block, List<Meaning> meanings) {

@@ -166,11 +166,11 @@ void main() {
 
     expect(find.text('重试'), findsOneWidget);
     expect(find.text('本地兜底释义'), findsOneWidget);
-    expect(find.text('movement through a channel'), findsOneWidget);
+    expect(find.text('1. movement through a channel'), findsOneWidget);
 
     final retryBottom = tester.getBottomLeft(find.text('重试')).dy;
     final fallbackTop = tester
-        .getTopLeft(find.text('movement through a channel'))
+        .getTopLeft(find.text('1. movement through a channel'))
         .dy;
     expect(fallbackTop, greaterThan(retryBottom));
 
@@ -178,6 +178,58 @@ void main() {
     await tester.pump();
 
     expect(retryCount, 1);
+  });
+
+  testWidgets('renders dictionary definitions in sequential entry order', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DictionaryDetailView(
+            word: 'sleepyhead',
+            entry: const DictionaryEntry(
+              word: 'sleepyhead',
+              meanings: [
+                Meaning(
+                  partOfSpeech: 'countable noun',
+                  definitions: [
+                    'An attendant is someone whose job is to serve people.',
+                  ],
+                ),
+                Meaning(
+                  partOfSpeech: 'adjective',
+                  definitions: [
+                    'You use attendant to describe something connected with it.',
+                  ],
+                ),
+              ],
+              sourceName: 'Collins',
+            ),
+            primaryDefinition:
+                'An attendant is someone whose job is to serve people.',
+            isLoading: false,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('An attendant is someone whose job is to serve people.'),
+      findsNothing,
+    );
+    expect(find.text('countable noun'), findsOneWidget);
+    expect(find.text('adjective'), findsOneWidget);
+    expect(
+      find.text('1. An attendant is someone whose job is to serve people.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        '2. You use attendant to describe something connected with it.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets(

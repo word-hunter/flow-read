@@ -145,6 +145,26 @@ class DictionaryDetailView extends StatelessWidget {
     );
   }
 
+  List<Widget> _buildMeaningBlocks() {
+    final currentEntry = entry;
+    if (currentEntry == null) return const [];
+
+    var nextDefinitionNumber = 1;
+    final blocks = <Widget>[];
+    for (final meaning in currentEntry.meanings) {
+      blocks.add(
+        _MeaningBlock(
+          meaning: meaning,
+          firstDefinitionNumber: nextDefinitionNumber,
+          currentWord: word,
+          onLookupWord: onLookupWord,
+        ),
+      );
+      nextDefinitionNumber += _MeaningBlock.visibleDefinitionCount(meaning);
+    }
+    return blocks;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -157,8 +177,11 @@ class DictionaryDetailView extends StatelessWidget {
     }
 
     final hasEntryContent = entry != null && !entry!.isEmpty;
+    final hasEntryMeanings = entry?.meanings.isNotEmpty ?? false;
     final hasPrimaryDefinition =
         primaryDefinition != null && primaryDefinition!.trim().isNotEmpty;
+    final shouldShowPrimaryDefinition =
+        hasPrimaryDefinition && !hasEntryMeanings;
     final hasContent =
         hasEntryContent ||
         hasPrimaryDefinition ||
@@ -226,7 +249,7 @@ class DictionaryDetailView extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                   ],
-                  if (hasPrimaryDefinition) ...[
+                  if (shouldShowPrimaryDefinition) ...[
                     _SectionLabel(
                       label: isLocalFallback ? '本地兜底释义' : '释义',
                     ),
@@ -238,14 +261,12 @@ class DictionaryDetailView extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                   ],
+                  if (isLocalFallback && !shouldShowPrimaryDefinition) ...[
+                    const _SectionLabel(label: '本地兜底释义'),
+                    const SizedBox(height: 6),
+                  ],
                   if (entry != null) ...[
-                    for (final meaning in entry!.meanings)
-                      _MeaningBlock(
-                        meaning: meaning,
-                        primaryDefinition: primaryDefinition?.trim(),
-                        currentWord: word,
-                        onLookupWord: onLookupWord,
-                      ),
+                    ..._buildMeaningBlocks(),
                   ],
                   if (importedExamples.isNotEmpty) ...[
                     const SizedBox(height: 2),
@@ -866,16 +887,26 @@ double _dictionaryContrastRatio(Color a, Color b) {
 
 class _MeaningBlock extends StatelessWidget {
   final Meaning meaning;
-  final String? primaryDefinition;
+  final int firstDefinitionNumber;
   final String currentWord;
   final ValueChanged<String>? onLookupWord;
 
   const _MeaningBlock({
     required this.meaning,
+    required this.firstDefinitionNumber,
     required this.currentWord,
     required this.onLookupWord,
-    this.primaryDefinition,
   });
+
+  static int visibleDefinitionCount(Meaning meaning) {
+    return _visibleDefinitions(meaning).length;
+  }
+
+  static List<String> _visibleDefinitions(Meaning meaning) {
+    return meaning.definitions
+        .where((definition) => !definition.startsWith('Example:'))
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -885,15 +916,10 @@ class _MeaningBlock extends StatelessWidget {
         .map((definition) => definition.replaceFirst('Example:', '').trim())
         .where((definition) => definition.isNotEmpty)
         .toList();
-    final definitions = meaning.definitions
-        .where((definition) => !definition.startsWith('Example:'))
-        .where((definition) => definition.trim() != primaryDefinition)
-        .toList();
+    final definitions = _visibleDefinitions(meaning);
     final examples = [...meaning.examples, ...legacyExamples];
 
-    if (definitions.isEmpty &&
-        examples.isEmpty &&
-        meaning.partOfSpeech.isEmpty) {
+    if (definitions.isEmpty && examples.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -909,7 +935,7 @@ class _MeaningBlock extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 5),
               child: _InteractiveDictionaryText(
-                text: '${item.key + 1}. ${item.value}',
+                text: '${firstDefinitionNumber + item.key}. ${item.value}',
                 currentWord: currentWord,
                 onLookupWord: onLookupWord,
                 style: theme.textTheme.bodyMedium?.copyWith(
