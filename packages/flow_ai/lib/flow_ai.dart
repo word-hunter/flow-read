@@ -16,6 +16,7 @@ export 'src/character_alias_matcher.dart';
 
 // Models
 export 'src/models/ai_summary.dart';
+export 'src/models/chapter_insight.dart';
 export 'src/models/ai_text_analysis.dart';
 export 'src/models/ai_practice_questions.dart';
 export 'src/models/word_analysis.dart';
