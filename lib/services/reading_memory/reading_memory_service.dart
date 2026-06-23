@@ -228,11 +228,16 @@ class ReadingMemoryService {
       reviewCount: item.reviewCount,
       existing: existing?.masteryState,
     );
+    final confidence = _confidenceForReview(
+      result: result,
+      existingConfidence: existing?.confidence,
+    );
     final entity = await _ensureEntity(
       targetText: targetText,
       canonicalKey: canonical,
       type: type,
       masteryState: masteryState,
+      confidence: confidence,
       languageCode: language,
       now: now,
       preserveExistingMastery: false,
@@ -266,6 +271,7 @@ class ReadingMemoryService {
     required DateTime now,
     String? languageCode,
     KnowledgeMasteryState masteryState = KnowledgeMasteryState.unknown,
+    double? confidence,
     bool preserveExistingMastery = true,
   }) async {
     final language = _language(languageCode);
@@ -292,7 +298,7 @@ class ReadingMemoryService {
               masteryState == KnowledgeMasteryState.unknown
           ? existing?.masteryState ?? masteryState
           : masteryState,
-      confidence: existing?.confidence ?? 0,
+      confidence: confidence ?? existing?.confidence ?? 0,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       lastAccessedAt: now,
@@ -363,6 +369,23 @@ class ReadingMemoryService {
       LearningReviewResult.mastered => KnowledgeMasteryState.mastered,
       LearningReviewResult.newItem => existing ?? KnowledgeMasteryState.unknown,
     };
+  }
+
+  static double _confidenceForReview({
+    required LearningReviewResult result,
+    required double? existingConfidence,
+  }) {
+    final existing = existingConfidence ?? 0;
+    final baseline = existing <= 0 ? 0.5 : existing;
+    final next = switch (result) {
+      LearningReviewResult.remembered => baseline + 0.12,
+      LearningReviewResult.mastered => baseline < 0.9 ? 0.9 : baseline + 0.08,
+      LearningReviewResult.vague => baseline - 0.08,
+      LearningReviewResult.forgotten ||
+      LearningReviewResult.missed => baseline - 0.18,
+      LearningReviewResult.newItem => existing,
+    };
+    return next.clamp(0, 1).toDouble();
   }
 
   static KnowledgeEntityType _knowledgeTypeForLearningItem(

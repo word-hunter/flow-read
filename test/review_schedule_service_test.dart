@@ -280,6 +280,7 @@ void main() {
       canonicalKey: 'flow',
     );
     expect(entity?.masteryState, KnowledgeMasteryState.learning);
+    expect(entity?.confidence, closeTo(0.62, 0.001));
 
     await schedule.recordReview(item.id, LearningReviewResult.remembered);
     entity = await memoryRepository.entityByCanonical(
@@ -288,6 +289,7 @@ void main() {
       canonicalKey: 'flow',
     );
     expect(entity?.masteryState, KnowledgeMasteryState.mastered);
+    expect(entity?.confidence, closeTo(0.74, 0.001));
 
     await schedule.recordReview(item.id, LearningReviewResult.missed);
     entity = await memoryRepository.entityByCanonical(
@@ -296,6 +298,7 @@ void main() {
       canonicalKey: 'flow',
     );
     expect(entity?.masteryState, KnowledgeMasteryState.learning);
+    expect(entity?.confidence, closeTo(0.56, 0.001));
 
     final events = await memoryRepository.eventsForCanonical(
       languageCode: 'en',

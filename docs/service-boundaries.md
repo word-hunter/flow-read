@@ -76,9 +76,9 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 | `WordContextService` | 单词在书中出现位置的上下文（Drift `word_contexts`） |
 | `LearningItemService` | 学习条目持久化（Drift `learning_items`） |
 | `LearningAnalyticsService` | 查词频率分析、章节报告、周报（Drift `learning_analytics`） |
-| `ReviewScheduleService` | 单词本今日测验卡生成、间隔重复调度、四档复习反馈，并将复习结果写回用户词汇状态与 Reading Memory masteryState |
+| `ReviewScheduleService` | 单词本今日测验卡生成、间隔重复调度、四档复习反馈，并将复习结果写回用户词汇状态与 Reading Memory masteryState / confidence |
 | `ReviewService` | 复习题目生成 |
-| `ReviewCandidateService` | 从保存解释、重复查词和学习中词生成复习候选，并将接受的候选转换为去重后的 `LearningItem`（Drift `review_candidates`） |
+| `ReviewCandidateService` | 从保存解释、重复查词和学习中词生成复习候选，定义 promotion / cleanup 规则，去噪 pending candidate，并将接受的候选转换为去重后的 `LearningItem`（Drift `review_candidates`） |
 | `SourceScopeService` | 管理 book/rss/browser/manual 来源作用域、source cache、tombstone 与默认 evidence retention（Drift `source_records` / `source_scope_cache`） |
 | `ChapterSummarySourceScopeCache` | 将章节摘要按 `chapter_summary` cacheType 写入/读取 `source_scope_cache`，供 Book Insight 与 AI 上下文复用 |
 | `BookInsightSourceScopeService` | 将章节摘要、人物、地点占位、作品术语和剧情事件收敛为 book source-scoped projection，并同步 `storyline_context` / `character_registry` / `term_index` 可观测缓存 |

@@ -6,6 +6,54 @@ import '../../storage/repositories/reading_memory_repository.dart';
 import '../../storage/repositories/repository_language.dart';
 import '../learning_item_service.dart';
 
+final class ReviewPromotionRule {
+  const ReviewPromotionRule({
+    required this.trigger,
+    required this.entityTypes,
+    required this.questionType,
+    required this.minimumPriority,
+    required this.description,
+  });
+
+  final String trigger;
+  final List<KnowledgeEntityType> entityTypes;
+  final String questionType;
+  final double minimumPriority;
+  final String description;
+}
+
+final class ReviewCandidateCleanupPolicy {
+  const ReviewCandidateCleanupPolicy({
+    this.minimumPriority = 0.5,
+    this.staleAfter = const Duration(days: 90),
+    this.stalePriorityCeiling = 0.7,
+    this.maxPendingPerEntity = 2,
+  });
+
+  static const defaults = ReviewCandidateCleanupPolicy();
+
+  final double minimumPriority;
+  final Duration staleAfter;
+  final double stalePriorityCeiling;
+  final int maxPendingPerEntity;
+}
+
+final class ReviewCandidateCleanupResult {
+  const ReviewCandidateCleanupResult({
+    required this.lowPriorityDismissed,
+    required this.staleDismissed,
+    required this.duplicateDismissed,
+    required this.totalDismissed,
+  });
+
+  final int lowPriorityDismissed;
+  final int staleDismissed;
+  final int duplicateDismissed;
+  final int totalDismissed;
+
+  bool get hasChanges => totalDismissed > 0;
+}
+
 class ReviewCandidateService {
   ReviewCandidateService({
     required ReadingMemoryRepository repository,
@@ -21,6 +69,63 @@ class ReviewCandidateService {
 
   Future<void> init() {
     return _repository.init();
+  }
+
+  List<ReviewPromotionRule> promotionRules() {
+    return const [
+      ReviewPromotionRule(
+        trigger: 'saved_explanation',
+        entityTypes: [
+          KnowledgeEntityType.word,
+          KnowledgeEntityType.phrase,
+          KnowledgeEntityType.pattern,
+          KnowledgeEntityType.grammar,
+          KnowledgeEntityType.sentence,
+        ],
+        questionType: 'word_meaning_or_fill_blank',
+        minimumPriority: 0.8,
+        description:
+            'User-saved explanations become high priority review candidates.',
+      ),
+      ReviewPromotionRule(
+        trigger: 'repeated_lookup',
+        entityTypes: [
+          KnowledgeEntityType.word,
+          KnowledgeEntityType.phrase,
+          KnowledgeEntityType.pattern,
+          KnowledgeEntityType.grammar,
+        ],
+        questionType: 'fill_blank',
+        minimumPriority: 0.6,
+        description:
+            'Repeated lookups promote evidence-backed context practice.',
+      ),
+      ReviewPromotionRule(
+        trigger: 'marked_learning',
+        entityTypes: [
+          KnowledgeEntityType.word,
+          KnowledgeEntityType.phrase,
+          KnowledgeEntityType.pattern,
+          KnowledgeEntityType.grammar,
+        ],
+        questionType: 'word_meaning_or_fill_blank',
+        minimumPriority: 0.65,
+        description:
+            'Items explicitly marked as learning are queued for review.',
+      ),
+      ReviewPromotionRule(
+        trigger: 'book_scope_memory',
+        entityTypes: [
+          KnowledgeEntityType.bookTerm,
+          KnowledgeEntityType.concept,
+          KnowledgeEntityType.character,
+        ],
+        questionType: 'recall_context',
+        minimumPriority: 0.55,
+        description:
+            'Book-scoped concepts stay source-bound and use recall practice.',
+      ),
+    ];
   }
 
   Future<ReviewCandidate?> ensureForSavedExplanation({
@@ -85,6 +190,90 @@ class ReviewCandidateService {
     return _repository.reviewCandidates(
       status: ReviewCandidateStatus.pending,
       limit: limit,
+    );
+  }
+
+  Future<ReviewCandidateCleanupResult> cleanupPendingCandidates({
+    ReviewCandidateCleanupPolicy policy = ReviewCandidateCleanupPolicy.defaults,
+    int scanLimit = 500,
+  }) async {
+    final pending = await _repository.reviewCandidates(
+      status: ReviewCandidateStatus.pending,
+      limit: scanLimit,
+    );
+    if (pending.isEmpty) {
+      return const ReviewCandidateCleanupResult(
+        lowPriorityDismissed: 0,
+        staleDismissed: 0,
+        duplicateDismissed: 0,
+        totalDismissed: 0,
+      );
+    }
+
+    final now = _clock().toUtc();
+    final lowPriority = <String>{};
+    final stale = <String>{};
+    final duplicate = <String>{};
+
+    final bestByDuplicateKey = <String, ReviewCandidate>{};
+    for (final candidate in pending) {
+      if (candidate.priority < policy.minimumPriority) {
+        lowPriority.add(candidate.id);
+      }
+      if (candidate.priority <= policy.stalePriorityCeiling &&
+          now.difference(candidate.updatedAt.toUtc()) > policy.staleAfter) {
+        stale.add(candidate.id);
+      }
+
+      final key = _duplicateKey(candidate);
+      final currentBest = bestByDuplicateKey[key];
+      if (currentBest == null) {
+        bestByDuplicateKey[key] = candidate;
+      } else if (_isBetterCandidate(candidate, currentBest)) {
+        duplicate.add(currentBest.id);
+        bestByDuplicateKey[key] = candidate;
+      } else {
+        duplicate.add(candidate.id);
+      }
+    }
+
+    if (policy.maxPendingPerEntity > 0) {
+      final byEntity = <String, List<ReviewCandidate>>{};
+      for (final candidate in pending) {
+        if (lowPriority.contains(candidate.id) ||
+            stale.contains(candidate.id) ||
+            duplicate.contains(candidate.id)) {
+          continue;
+        }
+        byEntity.putIfAbsent(candidate.entityId, () => []).add(candidate);
+      }
+      for (final candidates in byEntity.values) {
+        candidates.sort(_candidateSort);
+        for (final candidate in candidates.skip(policy.maxPendingPerEntity)) {
+          duplicate.add(candidate.id);
+        }
+      }
+    }
+
+    final uniqueLowPriority = lowPriority;
+    final uniqueStale = stale.difference(uniqueLowPriority);
+    final uniqueDuplicate = duplicate
+        .difference(uniqueLowPriority)
+        .difference(uniqueStale);
+    final dismissed = {
+      ...uniqueLowPriority,
+      ...uniqueStale,
+      ...uniqueDuplicate,
+    };
+    for (final id in dismissed) {
+      await dismissCandidate(id);
+    }
+
+    return ReviewCandidateCleanupResult(
+      lowPriorityDismissed: uniqueLowPriority.length,
+      staleDismissed: uniqueStale.length,
+      duplicateDismissed: uniqueDuplicate.length,
+      totalDismissed: dismissed.length,
     );
   }
 
@@ -527,7 +716,25 @@ class ReviewCandidateService {
       updatedAt: now,
     );
     await _repository.upsertReviewCandidate(candidate);
-    return candidate;
+    await _dismissPendingDuplicatesFor(candidate);
+    return await _repository.reviewCandidateById(candidate.id) ?? candidate;
+  }
+
+  Future<void> _dismissPendingDuplicatesFor(ReviewCandidate candidate) async {
+    final pending = await _repository.reviewCandidatesForEntity(
+      candidate.entityId,
+      status: ReviewCandidateStatus.pending,
+      limit: 50,
+    );
+    final sameKey = pending
+        .where((item) => _duplicateKey(item) == _duplicateKey(candidate))
+        .toList();
+    if (sameKey.length <= 1) return;
+
+    sameKey.sort(_candidateSort);
+    for (final duplicate in sameKey.skip(1)) {
+      await _updateStatus(duplicate.id, ReviewCandidateStatus.dismissed);
+    }
   }
 
   String _savedExplanationCandidateId(String entityId, String explanationId) {
@@ -603,6 +810,27 @@ class ReviewCandidateService {
     final repeatBoost = (cappedLookupCount - 2) * 0.03;
     final evidenceBoost = hasEvidence ? 0.05 : 0;
     return base + repeatBoost + evidenceBoost;
+  }
+
+  String _duplicateKey(ReviewCandidate candidate) {
+    return [
+      candidate.entityId,
+      candidate.entityType.storageValue,
+      candidate.suggestedQuestionType?.trim() ?? '',
+    ].join(':');
+  }
+
+  int _candidateSort(ReviewCandidate a, ReviewCandidate b) {
+    if (_isBetterCandidate(a, b)) return -1;
+    if (_isBetterCandidate(b, a)) return 1;
+    return a.id.compareTo(b.id);
+  }
+
+  bool _isBetterCandidate(ReviewCandidate a, ReviewCandidate b) {
+    if (a.priority != b.priority) return a.priority > b.priority;
+    final updatedCompare = a.updatedAt.toUtc().compareTo(b.updatedAt.toUtc());
+    if (updatedCompare != 0) return updatedCompare > 0;
+    return a.createdAt.toUtc().isAfter(b.createdAt.toUtc());
   }
 }
 
