@@ -118,6 +118,33 @@ void main() {
     expect(_colorFor(tappableTexts, 'mystery'), unknownColor);
   });
 
+  testWidgets(
+    'empty reading memory overlay keeps lookup tap and base styling',
+    (
+      tester,
+    ) async {
+      final theme = ThemeData();
+
+      final span = buildHighlightedParagraph(
+        'known learning mystery',
+        result,
+        theme,
+        onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
+        colorSettings: colorSettings,
+        memoryOverlay: ReadingMemoryOverlayProjection.empty,
+      );
+
+      final tappableTexts = _tappableTextSpans(span);
+      final known = tappableTexts.firstWhere((item) => item.text == 'known');
+
+      expect(known.recognizer, isNotNull);
+      expect(known.color, isNot(theme.colorScheme.tertiary));
+      expect(_colorFor(tappableTexts, 'known'), isNot(unknownColor));
+      expect(_colorFor(tappableTexts, 'learning'), learningColor);
+      expect(_colorFor(tappableTexts, 'mystery'), unknownColor);
+    },
+  );
+
   testWidgets('styled blocks keep known words plain but tappable', (
     tester,
   ) async {
