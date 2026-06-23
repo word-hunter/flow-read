@@ -10,12 +10,14 @@ export 'src/passage_request_builder.dart';
 export 'src/reading_assistant_agent.dart';
 export 'src/ai_assistant_controller.dart';
 export 'src/ai_assistant_action_registry.dart';
+export 'src/book_analysis_aggregator.dart';
 export 'src/book_insight_aggregator.dart';
 export 'src/explanation_context_selector.dart';
 export 'src/character_alias_matcher.dart';
 
 // Models
 export 'src/models/ai_summary.dart';
+export 'src/models/book_analysis.dart';
 export 'src/models/chapter_insight.dart';
 export 'src/models/ai_text_analysis.dart';
 export 'src/models/ai_practice_questions.dart';

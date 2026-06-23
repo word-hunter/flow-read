@@ -379,7 +379,7 @@ class PromptSections {
 }
 
 class PromptBuilder {
-  static const currentPromptVersion = 2;
+  static const currentPromptVersion = 3;
 
   final String? userProfile;
 
@@ -434,9 +434,41 @@ class PromptBuilder {
       "why_important": "Why understanding this helps understand the chapter ($langName)"
     }
   ],
-  "reading_guidance": "1-2 sentences of reading advice ($langName)"
+  "reading_guidance": "1-2 sentences of reading advice ($langName)",
+  "locations": [
+    {
+      "name": "Place name from the text",
+      "description": "What this location is in this chapter ($langName)",
+      "anchors": [
+        {
+          "chapter_index": ${request.spoilerBoundary.maxReadUnitOrder},
+          "block_index": null,
+          "start_offset": null,
+          "end_offset": null,
+          "quote_snippet": "Exact short excerpt from the source text",
+          "confidence": 0.0
+        }
+      ],
+      "confidence": 0.0
+    }
+  ],
+  "themes": [
+    "Theme keyword grounded in this chapter ($langName)"
+  ],
+  "source_anchors": [
+    {
+      "chapter_index": ${request.spoilerBoundary.maxReadUnitOrder},
+      "block_index": null,
+      "start_offset": null,
+      "end_offset": null,
+      "quote_snippet": "Exact short excerpt supporting a key event, character change, location, or theme",
+      "confidence": 0.0
+    }
+  ]
 }'''),
-      'Limits: at most 8 events in source order, at most 8 key vocabulary items, and fewer items are better than fabricated items.',
+      'Limits: at most 8 events in source order, at most 8 key vocabulary items, at most 5 locations, and at most 3 themes. '
+          'Use empty arrays for locations, themes, or source_anchors when the chapter text does not clearly support them. '
+          'Fewer items are better than fabricated items.',
     ].join('\n\n');
 
     final userPrompt =

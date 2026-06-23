@@ -20,6 +20,13 @@ void main() {
     expect(prompt.systemPrompt, contains('Output language: Chinese'));
     expect(prompt.systemPrompt, contains('Evidence rules'));
     expect(prompt.systemPrompt, contains('Spoiler boundary'));
+    expect(prompt.systemPrompt, contains('"events"'));
+    expect(prompt.systemPrompt, contains('"character_developments"'));
+    expect(prompt.systemPrompt, contains('"key_vocabulary"'));
+    expect(prompt.systemPrompt, contains('"locations"'));
+    expect(prompt.systemPrompt, contains('"themes"'));
+    expect(prompt.systemPrompt, contains('"source_anchors"'));
+    expect(prompt.systemPrompt, contains('Use empty arrays'));
     expect(prompt.userPrompt, contains('allowed_units: chapters 0..4'));
     expect(prompt.userPrompt, contains('Alice opened the door.'));
   });
