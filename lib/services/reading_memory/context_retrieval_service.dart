@@ -1,12 +1,12 @@
 import 'package:flow_ai/flow_ai.dart';
 
-import '../../models/book_glossary_entry.dart';
 import '../../models/reading_memory.dart';
 import '../../storage/repositories/reading_memory_repository.dart';
 import '../../storage/repositories/repository_language.dart';
 import '../book_glossary_service.dart';
 import '../character_registry.dart';
 import '../user_vocabulary_service.dart';
+import 'book_insight_source_scope_service.dart';
 import 'chapter_summary_source_scope_cache.dart';
 import 'reading_memory_ids.dart';
 
@@ -23,27 +23,28 @@ class ContextRetrievalService {
     BookInsightAggregator bookInsightAggregator = const BookInsightAggregator(),
     ExplanationContextSelector contextSelector =
         const ExplanationContextSelector(),
+    BookInsightSourceScopeService? bookInsightSourceScopeService,
   }) : _repository = repository,
        _userVocabulary = userVocabulary,
-       _cacheService = cacheService,
-       _chapterSummarySourceScopeCache = chapterSummarySourceScopeCache,
-       _glossaryService = glossaryService,
-       _characterRegistry = characterRegistry,
        _languageCode = normalizeRepositoryLanguageCode(languageCode),
        _repeatedLookupThreshold = repeatedLookupThreshold,
-       _bookInsightAggregator = bookInsightAggregator,
-       _contextSelector = contextSelector;
+       _contextSelector = contextSelector,
+       _bookInsightSourceScope =
+           bookInsightSourceScopeService ??
+           BookInsightSourceScopeService(
+             cacheService: cacheService,
+             chapterSummarySourceScopeCache: chapterSummarySourceScopeCache,
+             glossaryService: glossaryService,
+             characterRegistry: characterRegistry,
+             bookInsightAggregator: bookInsightAggregator,
+           );
 
   final ReadingMemoryRepository _repository;
   final UserVocabularyService _userVocabulary;
-  final AICacheService? _cacheService;
-  final ChapterSummarySourceScopeCache? _chapterSummarySourceScopeCache;
-  final BookGlossaryService? _glossaryService;
-  final CharacterRegistry? _characterRegistry;
   final String _languageCode;
   final int _repeatedLookupThreshold;
-  final BookInsightAggregator _bookInsightAggregator;
   final ExplanationContextSelector _contextSelector;
+  final BookInsightSourceScopeService _bookInsightSourceScope;
 
   Future<AIContextSnapshot> enrichContext(
     AIContextSnapshot context,
@@ -259,162 +260,18 @@ class ContextRetrievalService {
       context.word,
     ].whereType<String>().join('\n');
 
-    final summaryContext = await _summaryContext(
+    final bookContext = await _bookInsightSourceScope.contextFor(
       bookId: bookId,
       maxReadChapter: maxReadChapter,
       selectedText: selectedText,
+      contextSelector: _contextSelector,
     );
-    final registryCharacters = await _registryCharacters(
-      bookId: bookId,
-      maxReadChapter: maxReadChapter,
-      selectedText: selectedText,
-    );
-    final bookTerms = await _bookTerms(bookId, selectedText);
-
     return _BookInsightContext(
-      sameWordOccurrences: summaryContext.sameWordOccurrences,
-      relatedEvents: summaryContext.relatedEvents,
-      mentionedCharacters: _mergeCharacters(
-        summaryContext.mentionedCharacters,
-        registryCharacters,
-      ),
-      bookTerms: bookTerms,
+      sameWordOccurrences: bookContext.sameWordOccurrences,
+      relatedEvents: bookContext.relatedEvents,
+      mentionedCharacters: bookContext.mentionedCharacters,
+      bookTerms: bookContext.bookTerms,
     );
-  }
-
-  Future<_BookInsightContext> _summaryContext({
-    required String bookId,
-    required int maxReadChapter,
-    required String selectedText,
-  }) async {
-    try {
-      final summaries = await _chapterSummaries(
-        bookId: bookId,
-        maxReadChapter: maxReadChapter,
-      );
-      if (summaries.isEmpty) return const _BookInsightContext();
-
-      final storyline = _bookInsightAggregator.buildStorylineFromChapters(
-        bookId,
-        summaries,
-        maxReadChapter,
-      );
-      final characterCards = _bookInsightAggregator.buildCharacterCards(
-        bookId,
-        summaries,
-        maxReadChapter,
-      );
-      final bundle = _contextSelector.selectContext(
-        selectedText: selectedText,
-        chapterIndex: maxReadChapter,
-        storyline: storyline,
-        characterCards: characterCards,
-      );
-      return _BookInsightContext(
-        sameWordOccurrences: bundle.sameWordOccurrences,
-        relatedEvents: bundle.relatedEvents,
-        mentionedCharacters: bundle.mentionedCharacters,
-      );
-    } catch (_) {
-      return const _BookInsightContext();
-    }
-  }
-
-  Future<Map<int, AISummary>> _chapterSummaries({
-    required String bookId,
-    required int maxReadChapter,
-  }) async {
-    final summaries = <int, AISummary>{};
-    final cache = _cacheService;
-    if (cache != null) {
-      final entries = await cache.listBookSummaries(bookId);
-      for (final entry in entries) {
-        if (entry.chapterIndex > maxReadChapter) continue;
-        summaries[entry.chapterIndex] = entry.summary;
-      }
-    }
-
-    final scopedCache = _chapterSummarySourceScopeCache;
-    if (scopedCache != null) {
-      final entries = await scopedCache.loadBookSummaries(
-        bookId,
-        maxChapter: maxReadChapter,
-      );
-      for (final entry in entries) {
-        summaries[entry.chapterIndex] = entry.summary;
-      }
-    }
-    return summaries;
-  }
-
-  Future<List<RelevantCharacter>> _registryCharacters({
-    required String bookId,
-    required int maxReadChapter,
-    required String selectedText,
-  }) async {
-    final registry = _characterRegistry;
-    if (registry == null || selectedText.trim().isEmpty) return const [];
-
-    try {
-      await registry.init();
-      final matches = <RelevantCharacter>[];
-      for (final entry in registry.getAll(bookId)) {
-        final firstChapter = entry.firstAppearanceChapter;
-        if (firstChapter != null && firstChapter > maxReadChapter) continue;
-        if (!_entryMentioned(entry, selectedText)) continue;
-
-        final aliasSet = {...entry.aliases, ...entry.userOverrides};
-        final aliases =
-            aliasSet.where((alias) => alias.trim().isNotEmpty).toList()
-              ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        matches.add(
-          RelevantCharacter(
-            name: entry.canonicalName,
-            developments: [
-              if (firstChapter != null)
-                'First appears in chapter ${firstChapter + 1}',
-              if (aliases.isNotEmpty) 'Aliases: ${aliases.join(', ')}',
-            ],
-          ),
-        );
-        if (matches.length >= 4) break;
-      }
-      return matches;
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  Future<List<BookTermContext>> _bookTerms(
-    String bookId,
-    String selectedText,
-  ) async {
-    final glossary = _glossaryService;
-    if (glossary == null || selectedText.trim().isEmpty) return const [];
-
-    try {
-      final entries = await glossary.getBookGlossary(bookId);
-      final matches = <BookTermContext>[];
-      final seen = <String>{};
-      for (final entry in entries) {
-        if (!_glossaryEntryMentioned(entry, selectedText)) continue;
-        final key = ReadingMemoryIds.normalizeCanonical(
-          entry.canonicalForm ?? entry.word,
-        );
-        if (!seen.add(key)) continue;
-        matches.add(
-          BookTermContext(
-            word: entry.word,
-            canonicalForm: entry.canonicalForm,
-            explanation: _compact(entry.explanation),
-          ),
-        );
-        if (matches.length >= 5) break;
-      }
-      return matches;
-    } catch (_) {
-      return const [];
-    }
   }
 
   String? _contextBookId(AIContextSnapshot context) {
@@ -432,27 +289,6 @@ class ContextRetrievalService {
       return boundary.maxReadUnitOrder;
     }
     return context.chapterIndex;
-  }
-
-  bool _entryMentioned(CharacterRegistryEntry entry, String text) {
-    return _containsTerm(text, entry.canonicalName) ||
-        entry.aliases.any((alias) => _containsTerm(text, alias)) ||
-        entry.userOverrides.any((alias) => _containsTerm(text, alias));
-  }
-
-  bool _glossaryEntryMentioned(BookGlossaryEntry entry, String text) {
-    return _containsTerm(text, entry.word) ||
-        (entry.canonicalForm != null &&
-            _containsTerm(text, entry.canonicalForm!));
-  }
-
-  bool _containsTerm(String text, String term) {
-    final normalizedTerm = term.trim();
-    if (normalizedTerm.isEmpty) return false;
-    return RegExp(
-      r'(^|[^A-Za-z])' + RegExp.escape(normalizedTerm) + r'([^A-Za-z]|$)',
-      caseSensitive: false,
-    ).hasMatch(text);
   }
 
   List<String> _mergeStrings(List<String>? existing, List<String> additions) {

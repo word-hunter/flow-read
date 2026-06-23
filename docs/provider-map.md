@@ -2,7 +2,7 @@
 
 > @source lib/providers/reading/services_provider.dart lib/providers/settings_provider.dart lib/providers/reading/ai_notifier.dart packages/flow_ai/lib/src/ai_assistant_action_registry.dart packages/flow_ai/lib/src/ai_assistant_controller.dart
 
-Last updated: 2026-06-15
+Last updated: 2026-06-23
 
 ## Provider 层级
 
@@ -55,6 +55,7 @@ ProviderScope
 已新增 `reviewCandidateServiceProvider`，由 `ReadingMemoryService` 在保存解释、重复查词和标记学习中时生成复习候选。
 已新增 `knowledgeRetentionServiceProvider`，统一处理 SourceScope 归档、保留学习记忆、仅保留元数据和彻底删除相关记忆。
 已新增 `chapterSummarySourceScopeCacheProvider`，将章节摘要同步到 `source_scope_cache` 并供 Book Insight / AI 上下文检索优先读取。
+已新增 `bookInsightSourceScopeServiceProvider`，统一投影章节摘要、人物、地点占位、作品术语和剧情事件；`ContextRetrievalService` 与 `BookInsightProvider` 通过它读取 book source-scoped 数据。
 已新增 `readingMemoryOverlayServiceProvider`，由 ReaderPage 为当前章节构造只读 Reading Memory Overlay 投影，供正文渲染层消费。
 `settings.strictPrivacyMode` 会让 `readingMemoryServiceProvider` 和 `sourceScopeServiceProvider` 默认使用 `keepMetadataOnly`，新 evidence 与来源删除默认不保留原文片段。
 

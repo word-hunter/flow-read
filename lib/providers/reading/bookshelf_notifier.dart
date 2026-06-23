@@ -456,6 +456,9 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     final bookService = ref.read(bookServiceProvider);
     final bookmarkService = ref.read(bookmarkServiceProvider);
     final sourceScopeService = ref.read(sourceScopeServiceProvider);
+    final bookInsightSourceScope = ref.read(
+      bookInsightSourceScopeServiceProvider,
+    );
     final aiCache = ref.read(aiCacheServiceProvider);
     final bookMeta = _bookMetaById(bookService.books, bookId);
 
@@ -463,6 +466,10 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     await bookmarkService.deleteWordBookmarks(bookId);
     await bookmarkService.deleteReadingBookmarks(bookId);
     await aiCache.clearBookCache(bookId);
+    await bookInsightSourceScope.deleteBookInsight(
+      bookId,
+      clearSourceScopeCache: false,
+    );
     if (bookMeta != null) {
       await sourceScopeService.upsertBookSource(
         bookId: bookMeta.id,

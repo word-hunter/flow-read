@@ -7,6 +7,7 @@ import 'package:flow_ai/flow_ai.dart';
 import '../models/book_glossary_entry.dart';
 import '../services/book_glossary_service.dart';
 import '../services/character_registry.dart';
+import '../services/reading_memory/book_insight_source_scope_service.dart';
 import '../services/reading_memory/chapter_summary_source_scope_cache.dart';
 
 class BookInsightProvider extends ChangeNotifier {
@@ -15,18 +16,24 @@ class BookInsightProvider extends ChangeNotifier {
     BookGlossaryService? glossaryService,
     CharacterRegistry? characterRegistry,
     ChapterSummarySourceScopeCache? chapterSummarySourceScopeCache,
-  }) : _cacheService = cacheService,
-       _glossaryService = glossaryService,
-       _characterRegistry = characterRegistry,
-       _chapterSummarySourceScopeCache = chapterSummarySourceScopeCache;
+    BookInsightSourceScopeService? bookInsightSourceScopeService,
+  }) : _characterRegistry = characterRegistry,
+       _bookInsightSourceScope =
+           bookInsightSourceScopeService ??
+           BookInsightSourceScopeService(
+             cacheService: cacheService,
+             glossaryService: glossaryService,
+             characterRegistry: characterRegistry,
+             chapterSummarySourceScopeCache: chapterSummarySourceScopeCache,
+           );
 
-  final AICacheService _cacheService;
-  final BookGlossaryService? _glossaryService;
   final CharacterRegistry? _characterRegistry;
-  final ChapterSummarySourceScopeCache? _chapterSummarySourceScopeCache;
-  final BookInsightAggregator _aggregator = const BookInsightAggregator();
+  final BookInsightSourceScopeService _bookInsightSourceScope;
 
   String? _bookId;
+  String? _bookTitle;
+  String? _author;
+  String? _languageCode;
   int _totalChapters = 0;
   int _currentChapter = 0;
 
@@ -63,9 +70,16 @@ class BookInsightProvider extends ChangeNotifier {
     String bookId, {
     required int totalChapters,
     required int currentChapter,
+    String? bookTitle,
+    String? author,
+    String? languageCode,
   }) async {
     if (_isLoading && _bookId == bookId) return;
+    final isNewBook = _bookId != bookId;
     _bookId = bookId;
+    _bookTitle = bookTitle ?? (isNewBook ? null : _bookTitle);
+    _author = author ?? (isNewBook ? null : _author);
+    _languageCode = languageCode ?? (isNewBook ? null : _languageCode);
     _totalChapters = totalChapters;
     _currentChapter = currentChapter;
     _isLoading = true;
@@ -73,47 +87,21 @@ class BookInsightProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final entries = await _loadChapterSummaryEntries(bookId);
-      final summaries = <int, AISummary>{};
-      DateTime? lastGenerated;
-
-      for (final entry in entries) {
-        summaries[entry.chapterIndex] = entry.summary;
-        if (entry.generatedAt != null) {
-          if (lastGenerated == null ||
-              entry.generatedAt!.isAfter(lastGenerated)) {
-            lastGenerated = entry.generatedAt;
-          }
-        }
-      }
-
-      _chapterSummaries = summaries;
-      _glossaryEntries = await _loadGlossary(bookId);
-
-      final cachedChapters = summaries.keys.toSet();
-      final readChapters = currentChapter + 1;
-      final boundary = maxChapter;
-
-      _storyline = _aggregator.buildStorylineFromChapters(
-        bookId,
-        summaries,
-        boundary,
+      final projection = await _bookInsightSourceScope.loadProjection(
+        bookId: bookId,
+        maxReadChapter: maxChapter,
+        totalChapters: totalChapters,
+        readChapters: currentChapter + 1,
+        bookTitle: _bookTitle,
+        author: _author,
+        languageCode: _languageCode,
       );
-
-      _characterCards = _aggregator.buildCharacterCards(
-        bookId,
-        summaries,
-        boundary,
-      );
-      _characterRegistryEntries = await _loadCharacterRegistry(bookId);
-
-      _coverage = _aggregator.buildCoverage(
-        bookId,
-        totalChapters,
-        cachedChapters,
-        readChapters,
-        lastGenerated,
-      );
+      _chapterSummaries = projection.chapterSummaries;
+      _glossaryEntries = projection.glossaryEntries;
+      _storyline = projection.storyline;
+      _characterCards = projection.characterCards;
+      _characterRegistryEntries = projection.characterRegistryEntries;
+      _coverage = projection.coverage;
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -122,90 +110,13 @@ class BookInsightProvider extends ChangeNotifier {
     }
   }
 
-  Future<List<_BookChapterSummaryEntry>> _loadChapterSummaryEntries(
-    String bookId,
-  ) async {
-    final byChapter = <int, _BookChapterSummaryEntry>{};
-    final cachedEntries = await _cacheService.listBookSummaries(bookId);
-    for (final entry in cachedEntries) {
-      byChapter[entry.chapterIndex] = _BookChapterSummaryEntry(
-        chapterIndex: entry.chapterIndex,
-        summary: entry.summary,
-        generatedAt: entry.generatedAt,
-      );
-    }
-
-    final scopedEntries = await _chapterSummarySourceScopeCache
-        ?.loadBookSummaries(bookId);
-    if (scopedEntries != null && scopedEntries.isNotEmpty) {
-      for (final entry in scopedEntries) {
-        byChapter[entry.chapterIndex] = _BookChapterSummaryEntry(
-          chapterIndex: entry.chapterIndex,
-          summary: entry.summary,
-          generatedAt: entry.updatedAt,
-        );
-      }
-    }
-
-    return byChapter.values.toList()
-      ..sort((a, b) => a.chapterIndex.compareTo(b.chapterIndex));
-  }
-
-  Future<List<BookGlossaryEntry>> _loadGlossary(String bookId) async {
-    final service = _glossaryService;
-    if (service == null) return const [];
-
-    final entries = await service.getBookGlossary(bookId);
-    entries.sort((a, b) {
-      final wordCompare = a.word.toLowerCase().compareTo(
-        b.word.toLowerCase(),
-      );
-      if (wordCompare != 0) return wordCompare;
-      return (a.canonicalForm ?? '').toLowerCase().compareTo(
-        (b.canonicalForm ?? '').toLowerCase(),
-      );
-    });
-    return entries;
-  }
-
-  Future<List<CharacterRegistryEntry>> _loadCharacterRegistry(
-    String bookId,
-  ) async {
-    final registry = _characterRegistry;
-    if (registry == null) return const [];
-
-    await registry.init();
-    final entries = registry.getAll(bookId);
-    return entries
-        .where((entry) => entry.canonicalName.trim().isNotEmpty)
-        .toList()
-      ..sort((a, b) {
-        final chapterA = a.firstAppearanceChapter ?? 1 << 30;
-        final chapterB = b.firstAppearanceChapter ?? 1 << 30;
-        final chapterCompare = chapterA.compareTo(chapterB);
-        if (chapterCompare != 0) return chapterCompare;
-        return a.canonicalName.toLowerCase().compareTo(
-          b.canonicalName.toLowerCase(),
-        );
-      });
-  }
-
   void toggleShowFullBook() {
     _showFullBook = !_showFullBook;
-    if (_bookId == null) return;
-
-    final boundary = maxChapter;
-    _storyline = _aggregator.buildStorylineFromChapters(
-      _bookId!,
-      _chapterSummaries,
-      boundary,
-    );
-    _characterCards = _aggregator.buildCharacterCards(
-      _bookId!,
-      _chapterSummaries,
-      boundary,
-    );
-    notifyListeners();
+    if (_bookId == null) {
+      notifyListeners();
+      return;
+    }
+    unawaited(refresh());
   }
 
   Future<void> addCharacter(String canonicalName) async {
@@ -288,18 +199,9 @@ class BookInsightProvider extends ChangeNotifier {
       _bookId!,
       totalChapters: _totalChapters,
       currentChapter: _currentChapter,
+      bookTitle: _bookTitle,
+      author: _author,
+      languageCode: _languageCode,
     );
   }
-}
-
-final class _BookChapterSummaryEntry {
-  const _BookChapterSummaryEntry({
-    required this.chapterIndex,
-    required this.summary,
-    this.generatedAt,
-  });
-
-  final int chapterIndex;
-  final AISummary summary;
-  final DateTime? generatedAt;
 }

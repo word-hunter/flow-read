@@ -2,7 +2,7 @@
 
 > @source lib/services/ lib/providers/ packages/flow_ai/ packages/flow_dictionary/ packages/flow_language/ packages/flow_read_atmosphere/
 
-Last updated: 2026-06-21
+Last updated: 2026-06-23
 
 ## 服务分类
 
@@ -49,7 +49,7 @@ DictionaryManagerService.lookup(word, languageCode)
 | `LLMClient` | HTTP 调用 LLM API，支持多 provider（DeepSeek/OpenAI 等），带重试 |
 | `AIService` | 封装 LLMClient + PromptBuilder，提供 5 种 AI 能力入口 |
 | `PromptBuilder` | 构建 typed system/user prompt，注入 spoiler boundary、language、learningFocus |
-| `ContextRetrievalService` | 从 Reading Memory 和用户词汇状态构造 AI 学习记忆上下文包 |
+| `ContextRetrievalService` | 从 Reading Memory、用户词汇状态和 Book Insight source projection 构造 AI 学习记忆上下文包 |
 | `AICacheService` | 基于文件的 AI 响应缓存，key 含 contentHash/promptVersion/sourceLanguage/outputLanguage |
 | `CharacterRegistry` | 角色规范名、别名和用户覆盖管理（Drift `character_registry`） |
 | `AIDebugTraceRecorder` | 开发期 AI 请求/缓存 trace JSONL 输出，受 `FLOW_AI_DEBUG_TRACE` 控制 |
@@ -81,6 +81,7 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 | `ReviewCandidateService` | 从保存解释、重复查词和学习中词生成复习候选，并将接受的候选转换为去重后的 `LearningItem`（Drift `review_candidates`） |
 | `SourceScopeService` | 管理 book/rss/browser/manual 来源作用域、source cache、tombstone 与默认 evidence retention（Drift `source_records` / `source_scope_cache`） |
 | `ChapterSummarySourceScopeCache` | 将章节摘要按 `chapter_summary` cacheType 写入/读取 `source_scope_cache`，供 Book Insight 与 AI 上下文复用 |
+| `BookInsightSourceScopeService` | 将章节摘要、人物、地点占位、作品术语和剧情事件收敛为 book source-scoped projection，并同步 `storyline_context` / `character_registry` / `term_index` 可观测缓存 |
 | `KnowledgeRetentionService` | 统一处理来源归档、保留学习记忆、仅保留元数据、彻底删除相关记忆 |
 | `ReadingMemoryService` | Reading Memory 写入总入口，记录查词、词汇状态和保存解释事件；严格隐私模式下 evidence 仅保留元数据 |
 | `ReadingMemoryOverlayService` | 从用户学习状态、重复查词、复习候选和本书术语构造阅读器正文只读提示投影 |

@@ -629,6 +629,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         bookshelf.activeBookId!,
         totalChapters: book.chapters.length,
         currentChapter: currentBookState.currentChapter,
+        bookTitle: book.title,
+        author: book.author,
+        languageCode: book.language,
       ),
     );
     _hideReadingReminder();

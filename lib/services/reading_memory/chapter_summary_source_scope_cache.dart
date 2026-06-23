@@ -11,6 +11,7 @@ final class SourceScopeCacheTypes {
 
   static const chapterSummary = 'chapter_summary';
   static const storylineContext = 'storyline_context';
+  static const characterRegistry = 'character_registry';
   static const termIndex = 'term_index';
   static const articleReadingContext = 'article_reading_context';
 }

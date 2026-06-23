@@ -16,6 +16,7 @@ import 'package:flow_read/services/book_cache.dart';
 import 'package:flow_read/services/book_service.dart';
 import 'package:flow_read/services/bookmark_service.dart';
 import 'package:flow_read/services/learning_item_service.dart';
+import 'package:flow_read/services/reading_memory/book_insight_source_scope_service.dart';
 import 'package:flow_read/services/reading_memory/source_scope_service.dart';
 import 'package:flow_read/storage/repositories/bookmark_repository.dart';
 import 'package:flow_read/storage/repositories/book_metadata_repository.dart';
@@ -195,6 +196,7 @@ void main() {
       final bookmarkService = _RecordingBookmarkService();
       final learningItemService = _RecordingLearningItemService();
       final sourceScope = _RecordingSourceScopeService();
+      final bookInsightSourceScope = _RecordingBookInsightSourceScopeService();
       final aiCache = _RecordingAICacheService();
       final bookCache = BookCache();
       bookCache.put('book-1', _book(title: 'Memory Book'));
@@ -205,6 +207,9 @@ void main() {
           bookmarkServiceProvider.overrideWithValue(bookmarkService),
           learningItemServiceProvider.overrideWithValue(learningItemService),
           sourceScopeServiceProvider.overrideWithValue(sourceScope),
+          bookInsightSourceScopeServiceProvider.overrideWithValue(
+            bookInsightSourceScope,
+          ),
           aiCacheServiceProvider.overrideWithValue(aiCache),
           bookCacheProvider.overrideWithValue(bookCache),
           currentBookNotifierProvider.overrideWith(
@@ -224,6 +229,8 @@ void main() {
       expect(bookmarkService._readingBookmarkDeletes, ['book-1']);
       expect(learningItemService._deleteForBookCalls, isEmpty);
       expect(aiCache._clearedBookIds, ['book-1']);
+      expect(bookInsightSourceScope._deletedBookIds, ['book-1']);
+      expect(bookInsightSourceScope._clearSourceScopeCacheCalls, [false]);
       expect(sourceScope._upsertedBookSources.single, {
         'bookId': 'book-1',
         'title': 'Memory Book',
@@ -254,6 +261,9 @@ void main() {
           _RecordingLearningItemService(),
         ),
         sourceScopeServiceProvider.overrideWithValue(sourceScope),
+        bookInsightSourceScopeServiceProvider.overrideWithValue(
+          _RecordingBookInsightSourceScopeService(),
+        ),
         aiCacheServiceProvider.overrideWithValue(_RecordingAICacheService()),
         currentBookNotifierProvider.overrideWith(
           _RecordingCurrentBookNotifier.new,
@@ -292,6 +302,9 @@ void main() {
           _RecordingLearningItemService(),
         ),
         sourceScopeServiceProvider.overrideWithValue(sourceScope),
+        bookInsightSourceScopeServiceProvider.overrideWithValue(
+          _RecordingBookInsightSourceScopeService(),
+        ),
         aiCacheServiceProvider.overrideWithValue(_RecordingAICacheService()),
         currentBookNotifierProvider.overrideWith(
           _RecordingCurrentBookNotifier.new,
@@ -504,6 +517,24 @@ class _RecordingSourceScopeService extends SourceScopeService {
   @override
   Future<void> deleteBookSourceAndRelatedMemory(String bookId) async {
     _deletedBookSourcesWithMemory.add(bookId);
+  }
+}
+
+class _RecordingBookInsightSourceScopeService
+    extends BookInsightSourceScopeService {
+  _RecordingBookInsightSourceScopeService();
+
+  final List<String> _deletedBookIds = [];
+  final List<bool> _clearSourceScopeCacheCalls = [];
+
+  @override
+  Future<void> deleteBookInsight(
+    String bookId, {
+    bool clearLegacyAICache = false,
+    bool clearSourceScopeCache = true,
+  }) async {
+    _deletedBookIds.add(bookId);
+    _clearSourceScopeCacheCalls.add(clearSourceScopeCache);
   }
 }
 

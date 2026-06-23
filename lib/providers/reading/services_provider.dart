@@ -23,6 +23,7 @@ import '../../services/reader_layout_engine.dart';
 import '../../services/reading_config_service.dart';
 import '../../services/reading_insight_service.dart';
 import '../../services/reading_memory/context_retrieval_service.dart';
+import '../../services/reading_memory/book_insight_source_scope_service.dart';
 import '../../services/reading_memory/chapter_summary_source_scope_cache.dart';
 import '../../services/reading_memory/knowledge_retention_service.dart';
 import '../../services/reading_memory/reading_memory_overlay_service.dart';
@@ -219,6 +220,19 @@ final chapterSummarySourceScopeCacheProvider =
       );
     });
 
+final bookInsightSourceScopeServiceProvider =
+    Provider<BookInsightSourceScopeService>((ref) {
+      return BookInsightSourceScopeService(
+        cacheService: ref.watch(aiCacheServiceProvider),
+        chapterSummarySourceScopeCache: ref.watch(
+          chapterSummarySourceScopeCacheProvider,
+        ),
+        glossaryService: ref.watch(bookGlossaryServiceProvider),
+        characterRegistry: ref.watch(characterRegistryProvider),
+        sourceScope: ref.watch(sourceScopeServiceProvider),
+      );
+    });
+
 final knowledgeRetentionServiceProvider = Provider<KnowledgeRetentionService>((
   ref,
 ) {
@@ -267,6 +281,9 @@ final contextRetrievalServiceProvider = Provider<ContextRetrievalService>((
     ),
     glossaryService: ref.watch(bookGlossaryServiceProvider),
     characterRegistry: ref.watch(characterRegistryProvider),
+    bookInsightSourceScopeService: ref.watch(
+      bookInsightSourceScopeServiceProvider,
+    ),
     languageCode: languageCode,
   );
 });
@@ -570,6 +587,9 @@ final bookInsightProvider = ChangeNotifierProvider<BookInsightProvider>((ref) {
     characterRegistry: ref.watch(characterRegistryProvider),
     chapterSummarySourceScopeCache: ref.watch(
       chapterSummarySourceScopeCacheProvider,
+    ),
+    bookInsightSourceScopeService: ref.watch(
+      bookInsightSourceScopeServiceProvider,
     ),
   );
   ref.onDispose(() => provider.dispose());
