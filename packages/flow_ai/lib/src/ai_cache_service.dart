@@ -53,6 +53,27 @@ class AICacheService {
     return '$_cacheDir/$book/ch${key.chapterIndex}/$fileName';
   }
 
+  String _bookKeyedPath(AIBookCacheKey key) {
+    final book = _safePathSegment(key.bookId);
+    final variant = key.variant == null
+        ? ''
+        : '_${_safePathSegment(key.variant!)}';
+    final model = key.modelId == null
+        ? ''
+        : '_model-${_safePathSegment(key.modelId!)}';
+    final fileName =
+        '${key.kind}$variant'
+        '_v${key.promptVersion}'
+        '_${key.sourceLanguage}_${key.outputLanguage}'
+        '_${key.contentHash}'
+        '_schema-${_safePathSegment(key.schemaVersion)}'
+        '_scope-${_safePathSegment(key.scopeHash)}'
+        '_coverage-${_safePathSegment(key.coverageHash)}'
+        '_spoiler-${_safePathSegment(key.spoilerBoundaryHash)}'
+        '$model.json';
+    return '$_cacheDir/$book/book/$fileName';
+  }
+
   Future<String?> loadSummary(
     String bookId,
     int chapterIndex,
@@ -343,6 +364,24 @@ class AICacheService {
     await _writeMetadata(path, key);
   }
 
+  Future<String?> loadBookArtifact({
+    required AIBookCacheKey key,
+  }) async {
+    await _ensureInitialized();
+    return _readFile(_bookKeyedPath(key));
+  }
+
+  Future<void> saveBookArtifact({
+    required AIBookCacheKey key,
+    required String response,
+  }) async {
+    await _ensureInitialized();
+    final path = _bookKeyedPath(key);
+    await _ensureDir(File(path).parent.path);
+    await File(path).writeAsString(response);
+    await _writeBookMetadata(path, key);
+  }
+
   Future<void> clearBookCache(String bookId) async {
     final paths = {
       '$_cacheDir/$bookId',
@@ -561,6 +600,27 @@ class AICacheService {
     );
   }
 
+  Future<void> _writeBookMetadata(String jsonPath, AIBookCacheKey key) async {
+    final metadataPath = '$jsonPath.meta';
+    await File(metadataPath).writeAsString(
+      jsonEncode({
+        'kind': key.kind,
+        'variant': key.variant,
+        'bookId': key.bookId,
+        'contentHash': key.contentHash,
+        'promptVersion': key.promptVersion,
+        'sourceLanguage': key.sourceLanguage,
+        'outputLanguage': key.outputLanguage,
+        'schemaVersion': key.schemaVersion,
+        'scopeHash': key.scopeHash,
+        'coverageHash': key.coverageHash,
+        'modelId': key.modelId,
+        'spoilerBoundaryHash': key.spoilerBoundaryHash,
+        'generatedAt': DateTime.now().toUtc().toIso8601String(),
+      }),
+    );
+  }
+
   String _safePathSegment(String input) {
     return input.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
   }
@@ -585,6 +645,36 @@ class AICacheKey {
     required this.sourceLanguage,
     required this.outputLanguage,
     this.modelConfigFingerprint,
+  });
+}
+
+class AIBookCacheKey {
+  final String kind;
+  final String? variant;
+  final String bookId;
+  final String contentHash;
+  final int promptVersion;
+  final String sourceLanguage;
+  final String outputLanguage;
+  final String schemaVersion;
+  final String scopeHash;
+  final String coverageHash;
+  final String? modelId;
+  final String spoilerBoundaryHash;
+
+  const AIBookCacheKey({
+    required this.kind,
+    this.variant,
+    required this.bookId,
+    required this.contentHash,
+    required this.promptVersion,
+    required this.sourceLanguage,
+    required this.outputLanguage,
+    required this.schemaVersion,
+    required this.scopeHash,
+    required this.coverageHash,
+    this.modelId,
+    required this.spoilerBoundaryHash,
   });
 }
 

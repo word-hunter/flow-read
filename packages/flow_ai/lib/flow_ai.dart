@@ -11,6 +11,7 @@ export 'src/reading_assistant_agent.dart';
 export 'src/ai_assistant_controller.dart';
 export 'src/ai_assistant_action_registry.dart';
 export 'src/book_analysis_aggregator.dart';
+export 'src/book_insight_repository.dart';
 export 'src/book_insight_aggregator.dart';
 export 'src/explanation_context_selector.dart';
 export 'src/character_alias_matcher.dart';
