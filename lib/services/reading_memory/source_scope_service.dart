@@ -9,9 +9,12 @@ class SourceScopeService {
     required ReadingMemoryRepository repository,
     String? languageCode,
     DateTime Function()? clock,
+    EvidenceRetentionPolicy defaultEvidenceRetentionPolicy =
+        EvidenceRetentionPolicy.keepSnippet,
   }) : _repository = repository,
        _languageCode = normalizeRepositoryLanguageCode(languageCode),
        _clock = clock ?? DateTime.now,
+       _defaultEvidenceRetentionPolicy = defaultEvidenceRetentionPolicy,
        _retention = KnowledgeRetentionService(
          repository: repository,
          clock: clock,
@@ -20,6 +23,7 @@ class SourceScopeService {
   final ReadingMemoryRepository _repository;
   final String _languageCode;
   final DateTime Function() _clock;
+  final EvidenceRetentionPolicy _defaultEvidenceRetentionPolicy;
   final KnowledgeRetentionService _retention;
 
   Future<void> init() {
@@ -136,12 +140,11 @@ class SourceScopeService {
 
   Future<void> deleteSourceKeepLearningMemory(
     String sourceId, {
-    EvidenceRetentionPolicy evidencePolicy =
-        EvidenceRetentionPolicy.keepSnippet,
+    EvidenceRetentionPolicy? evidencePolicy,
   }) {
     return _retention.deleteSourceKeepLearningMemory(
       sourceId,
-      evidencePolicy: evidencePolicy,
+      evidencePolicy: evidencePolicy ?? _defaultEvidenceRetentionPolicy,
     );
   }
 
@@ -151,8 +154,7 @@ class SourceScopeService {
 
   Future<void> deleteBookSourceKeepLearningMemory(
     String bookId, {
-    EvidenceRetentionPolicy evidencePolicy =
-        EvidenceRetentionPolicy.keepSnippet,
+    EvidenceRetentionPolicy? evidencePolicy,
   }) {
     return deleteSourceKeepLearningMemory(
       ReadingMemoryIds.source(SourceKind.book, bookId),
@@ -162,8 +164,7 @@ class SourceScopeService {
 
   Future<void> deleteRssSourceKeepLearningMemory(
     String articleId, {
-    EvidenceRetentionPolicy evidencePolicy =
-        EvidenceRetentionPolicy.keepSnippet,
+    EvidenceRetentionPolicy? evidencePolicy,
   }) {
     return deleteSourceKeepLearningMemory(
       ReadingMemoryIds.source(SourceKind.rss, articleId),
@@ -173,8 +174,7 @@ class SourceScopeService {
 
   Future<void> deleteBrowserSourceKeepLearningMemory(
     String localId, {
-    EvidenceRetentionPolicy evidencePolicy =
-        EvidenceRetentionPolicy.keepSnippet,
+    EvidenceRetentionPolicy? evidencePolicy,
   }) {
     return deleteSourceKeepLearningMemory(
       ReadingMemoryIds.source(SourceKind.browser, localId),

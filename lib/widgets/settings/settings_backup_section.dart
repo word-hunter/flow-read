@@ -105,6 +105,19 @@ class SettingsBackupSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         SettingsCard(
+          icon: Icons.privacy_tip_outlined,
+          title: '隐私',
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.visibility_off_outlined),
+            title: const Text('严格隐私模式'),
+            subtitle: const Text('新学习证据默认仅保留来源和位置，移除来源时清空原文片段'),
+            value: settings.strictPrivacyMode,
+            onChanged: settings.setStrictPrivacyMode,
+          ),
+        ),
+        const SizedBox(height: 16),
+        SettingsCard(
           icon: Icons.folder_outlined,
           title: '备份路径',
           child: Row(

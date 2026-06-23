@@ -207,6 +207,99 @@ void main() {
     },
   );
 
+  test(
+    'source scope default privacy policy clears snippets on source delete',
+    () async {
+      final repository = DriftReadingMemoryRepository(
+        db.readingMemoryDao,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 21, 9),
+      );
+      final sourceScope = SourceScopeService(
+        repository: repository,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 21, 10),
+        defaultEvidenceRetentionPolicy:
+            EvidenceRetentionPolicy.keepMetadataOnly,
+      );
+      final memory = ReadingMemoryService(
+        repository: repository,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 21, 9),
+      );
+
+      final source = await sourceScope.upsertBookSource(
+        bookId: 'book-1',
+        title: 'Book One',
+      );
+      await memory.recordLookup(
+        targetText: 'Reluctant',
+        canonical: 'reluctant',
+        sourceRef: MemorySourceRef(
+          sourceId: source.id,
+          sourceKind: SourceKind.book,
+          sourceTitleSnapshot: 'Book One',
+          bookId: 'book-1',
+        ),
+        sentence: 'He was reluctant to admit defeat.',
+      );
+
+      await sourceScope.deleteBookSourceKeepLearningMemory('book-1');
+
+      final evidences = await repository.evidencesForSource(source.id);
+      expect(evidences.single.shortExcerpt, isEmpty);
+      expect(
+        evidences.single.retentionPolicy,
+        EvidenceRetentionPolicy.keepMetadataOnly,
+      );
+      final deleted = await repository.sourceRecord(source.id);
+      expect(deleted?.availability, SourceAvailability.deleted);
+    },
+  );
+
+  test(
+    'strict privacy records lookup evidence without source snippet',
+    () async {
+      final repository = DriftReadingMemoryRepository(
+        db.readingMemoryDao,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 21, 9),
+      );
+      final memory = ReadingMemoryService(
+        repository: repository,
+        languageCode: 'en',
+        clock: () => DateTime.utc(2026, 6, 21, 9),
+        evidenceRetentionPolicy: EvidenceRetentionPolicy.keepMetadataOnly,
+      );
+
+      await memory.recordLookup(
+        targetText: 'Reluctant',
+        canonical: 'reluctant',
+        sourceRef: const MemorySourceRef(
+          sourceId: 'book:book-1',
+          sourceKind: SourceKind.book,
+          sourceTitleSnapshot: 'Book One',
+          bookId: 'book-1',
+        ),
+        sentence: 'He was reluctant to admit defeat.',
+      );
+
+      final evidences = await repository.evidencesForSource('book:book-1');
+      expect(evidences.single.shortExcerpt, isEmpty);
+      expect(
+        evidences.single.retentionPolicy,
+        EvidenceRetentionPolicy.keepMetadataOnly,
+      );
+
+      final events = await repository.eventsForCanonical(
+        languageCode: 'en',
+        canonicalKey: 'reluctant',
+      );
+      expect(events.single.metadataJson, contains('sentenceRedacted'));
+      expect(events.single.metadataJson, isNot(contains('admit defeat')));
+    },
+  );
+
   test('retention service deletes source and related orphan memory', () async {
     final repository = DriftReadingMemoryRepository(
       db.readingMemoryDao,

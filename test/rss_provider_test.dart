@@ -191,7 +191,7 @@ void main() {
     );
   });
 
-  test('removeFeed tombstones cached rss article sources', () async {
+  test('removeFeed uses source scope default retention policy', () async {
     final db = await AppDatabase.createInMemory();
     addTearDown(db.close);
 
@@ -204,6 +204,7 @@ void main() {
       repository: memoryRepository,
       languageCode: 'en',
       clock: () => DateTime.utc(2026, 6, 21, 10),
+      defaultEvidenceRetentionPolicy: EvidenceRetentionPolicy.keepMetadataOnly,
     );
     final memory = ReadingMemoryService(
       repository: memoryRepository,
@@ -271,11 +272,11 @@ void main() {
     expect(await memoryRepository.sourceScopeCacheForSource(sourceId), isEmpty);
 
     final evidences = await memoryRepository.evidencesForSource(sourceId);
-    expect(evidences.single.shortExcerpt, 'A resilient habit lasts.');
+    expect(evidences.single.shortExcerpt, isEmpty);
     expect(evidences.single.sourceAvailability, SourceAvailability.deleted);
     expect(
       evidences.single.retentionPolicy,
-      EvidenceRetentionPolicy.keepSnippet,
+      EvidenceRetentionPolicy.keepMetadataOnly,
     );
     expect(
       await memoryRepository.eventCountForCanonical(

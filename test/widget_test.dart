@@ -103,8 +103,26 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('自动同步'), findsWidgets);
     expect(find.text('同步间隔'), findsOneWidget);
+    expect(find.text('隐私'), findsOneWidget);
+    expect(find.text('严格隐私模式'), findsOneWidget);
     expect(find.text('备份路径'), findsOneWidget);
     expect(find.text('API Key'), findsWidgets);
+    expect(settings.strictPrivacyMode, isFalse);
+    final strictPrivacySwitch = find.widgetWithText(
+      SwitchListTile,
+      '严格隐私模式',
+    );
+    await tester.ensureVisible(strictPrivacySwitch);
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.tap(strictPrivacySwitch);
+    await tester.runAsync(() async {
+      for (var i = 0; i < 10; i++) {
+        if (settings.strictPrivacyMode) return;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+    });
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(settings.strictPrivacyMode, isTrue);
     await tester.drag(
       find.byKey(const ValueKey('settings-section-backup')),
       const Offset(0, -600),

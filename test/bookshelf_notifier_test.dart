@@ -495,11 +495,10 @@ class _RecordingSourceScopeService extends SourceScopeService {
   @override
   Future<void> deleteBookSourceKeepLearningMemory(
     String bookId, {
-    EvidenceRetentionPolicy evidencePolicy =
-        EvidenceRetentionPolicy.keepSnippet,
+    EvidenceRetentionPolicy? evidencePolicy,
   }) async {
     _deletedBookSources.add(bookId);
-    _deletePolicies.add(evidencePolicy);
+    _deletePolicies.add(evidencePolicy ?? EvidenceRetentionPolicy.keepSnippet);
   }
 
   @override

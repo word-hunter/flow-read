@@ -14,15 +14,21 @@ class ReadingMemoryService {
     String? languageCode,
     DateTime Function()? clock,
     ReviewCandidateService? reviewCandidates,
+    EvidenceRetentionPolicy evidenceRetentionPolicy =
+        EvidenceRetentionPolicy.keepSnippet,
   }) : _repository = repository,
        _languageCode = normalizeRepositoryLanguageCode(languageCode),
        _clock = clock ?? DateTime.now,
-       _reviewCandidates = reviewCandidates;
+       _reviewCandidates = reviewCandidates,
+       _evidenceRetentionPolicy = _normalizeEvidenceRetentionPolicy(
+         evidenceRetentionPolicy,
+       );
 
   final ReadingMemoryRepository _repository;
   final String _languageCode;
   final DateTime Function() _clock;
   final ReviewCandidateService? _reviewCandidates;
+  final EvidenceRetentionPolicy _evidenceRetentionPolicy;
   int _sequence = 0;
 
   Future<void> init() {
@@ -58,7 +64,7 @@ class ReadingMemoryService {
       targetText: targetText.trim(),
       canonicalKey: normalized,
       sourceRefJson: _encodeSourceRef(sourceRef),
-      metadataJson: excerpt == null ? '{}' : jsonEncode({'sentence': excerpt}),
+      metadataJson: _lookupMetadataJson(excerpt),
       createdAt: now,
     );
     await _repository.recordEvent(event);
@@ -73,10 +79,10 @@ class ReadingMemoryService {
         bookId: sourceRef.bookId,
         chapterIndex: sourceRef.chapterIndex,
         locationLocator: sourceRef.locationLocator,
-        shortExcerpt: excerpt,
+        shortExcerpt: _evidenceShortExcerpt(excerpt),
         sourceTitleSnapshot: sourceRef.sourceTitleSnapshot,
         sourceAvailability: sourceRef.sourceAvailability,
-        retentionPolicy: EvidenceRetentionPolicy.keepSnippet,
+        retentionPolicy: _evidenceRetentionPolicy,
         createdAt: now,
       );
       await _repository.upsertEvidence(evidence);
@@ -395,5 +401,27 @@ class ReadingMemoryService {
   static String? _trimmed(String? value) {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
+  String _lookupMetadataJson(String? excerpt) {
+    if (excerpt == null) return '{}';
+    if (_evidenceRetentionPolicy == EvidenceRetentionPolicy.keepMetadataOnly) {
+      return jsonEncode({'sentenceRedacted': true});
+    }
+    return jsonEncode({'sentence': excerpt});
+  }
+
+  String _evidenceShortExcerpt(String excerpt) {
+    return _evidenceRetentionPolicy == EvidenceRetentionPolicy.keepMetadataOnly
+        ? ''
+        : excerpt;
+  }
+
+  static EvidenceRetentionPolicy _normalizeEvidenceRetentionPolicy(
+    EvidenceRetentionPolicy policy,
+  ) {
+    return policy == EvidenceRetentionPolicy.keepMetadataOnly
+        ? EvidenceRetentionPolicy.keepMetadataOnly
+        : EvidenceRetentionPolicy.keepSnippet;
   }
 }

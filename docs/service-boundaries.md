@@ -79,10 +79,10 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 | `ReviewScheduleService` | 单词本今日测验卡生成、间隔重复调度、四档复习反馈，并将复习结果写回用户词汇状态与 Reading Memory masteryState |
 | `ReviewService` | 复习题目生成 |
 | `ReviewCandidateService` | 从保存解释、重复查词和学习中词生成复习候选，并将接受的候选转换为去重后的 `LearningItem`（Drift `review_candidates`） |
-| `SourceScopeService` | 管理 book/rss/browser/manual 来源作用域、source cache 与 tombstone（Drift `source_records` / `source_scope_cache`） |
+| `SourceScopeService` | 管理 book/rss/browser/manual 来源作用域、source cache、tombstone 与默认 evidence retention（Drift `source_records` / `source_scope_cache`） |
 | `ChapterSummarySourceScopeCache` | 将章节摘要按 `chapter_summary` cacheType 写入/读取 `source_scope_cache`，供 Book Insight 与 AI 上下文复用 |
 | `KnowledgeRetentionService` | 统一处理来源归档、保留学习记忆、仅保留元数据、彻底删除相关记忆 |
-| `ReadingMemoryService` | Reading Memory 写入总入口，记录查词、词汇状态和保存解释事件 |
+| `ReadingMemoryService` | Reading Memory 写入总入口，记录查词、词汇状态和保存解释事件；严格隐私模式下 evidence 仅保留元数据 |
 | `ReadingMemoryOverlayService` | 从用户学习状态、重复查词、复习候选和本书术语构造阅读器正文只读提示投影 |
 | `WordMemoryService` | 聚合词汇状态、历史查词、上下文例句、保存解释和 evidence |
 | `ReadingMemoryInspectorService` | 本地开发调试用只读观测入口，聚合 Reading Memory 计数、列表和实体详情 |

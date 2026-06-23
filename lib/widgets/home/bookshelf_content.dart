@@ -751,7 +751,10 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     BookshelfNotifier notifier,
     BookMetadata book,
   ) async {
-    var selectedPolicy = EvidenceRetentionPolicy.keepSnippet;
+    final defaultPolicy = ref.read(settingsProvider).strictPrivacyMode
+        ? EvidenceRetentionPolicy.keepMetadataOnly
+        : EvidenceRetentionPolicy.keepSnippet;
+    var selectedPolicy = defaultPolicy;
     final policy = await showDialog<EvidenceRetentionPolicy>(
       context: context,
       builder: (dialogContext) {

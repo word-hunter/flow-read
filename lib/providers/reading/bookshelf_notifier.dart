@@ -451,8 +451,7 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
 
   Future<void> removeBook(
     String bookId, {
-    EvidenceRetentionPolicy memoryRetentionPolicy =
-        EvidenceRetentionPolicy.keepSnippet,
+    EvidenceRetentionPolicy? memoryRetentionPolicy,
   }) async {
     final bookService = ref.read(bookServiceProvider);
     final bookmarkService = ref.read(bookmarkServiceProvider);

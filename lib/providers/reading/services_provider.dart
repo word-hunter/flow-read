@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../../models/book.dart';
 import '../../models/learning_item.dart';
+import '../../models/reading_memory.dart';
 import '../../services/app_logger.dart';
 import '../../services/book_cache.dart';
 import '../../services/book_glossary_service.dart';
@@ -32,6 +33,7 @@ import '../../services/reading_memory/word_memory_service.dart';
 import '../../services/reading_time_service.dart';
 import '../../services/review_schedule_service.dart';
 import '../../services/sentence_analyzer.dart';
+import '../../services/settings_service.dart';
 import '../../services/user_vocabulary_service.dart';
 import '../../services/word_context_service.dart';
 import '../../services/word_level_service.dart';
@@ -165,13 +167,15 @@ final userVocabularyServiceProvider = Provider<UserVocabularyService>((ref) {
 
 final readingMemoryServiceProvider = Provider<ReadingMemoryService>((ref) {
   final db = _requireAppDatabase();
-  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final settings = ref.watch(settingsProvider);
+  final languageCode = settings.activeSourceLanguage;
   final service = ReadingMemoryService(
     repository: DriftReadingMemoryRepository(
       db.readingMemoryDao,
       languageCode: languageCode,
     ),
     languageCode: languageCode,
+    evidenceRetentionPolicy: _defaultEvidenceRetentionPolicy(settings),
     reviewCandidates: ref.watch(reviewCandidateServiceProvider),
   );
   unawaited(service.init());
@@ -194,13 +198,15 @@ final reviewCandidateServiceProvider = Provider<ReviewCandidateService>((ref) {
 
 final sourceScopeServiceProvider = Provider<SourceScopeService>((ref) {
   final db = _requireAppDatabase();
-  final languageCode = ref.watch(settingsProvider).activeSourceLanguage;
+  final settings = ref.watch(settingsProvider);
+  final languageCode = settings.activeSourceLanguage;
   final service = SourceScopeService(
     repository: DriftReadingMemoryRepository(
       db.readingMemoryDao,
       languageCode: languageCode,
     ),
     languageCode: languageCode,
+    defaultEvidenceRetentionPolicy: _defaultEvidenceRetentionPolicy(settings),
   );
   unawaited(service.init());
   return service;
@@ -579,4 +585,12 @@ AppDatabase _requireAppDatabase() {
     );
   }
   return db;
+}
+
+EvidenceRetentionPolicy _defaultEvidenceRetentionPolicy(
+  SettingsService settings,
+) {
+  return settings.strictPrivacyMode
+      ? EvidenceRetentionPolicy.keepMetadataOnly
+      : EvidenceRetentionPolicy.keepSnippet;
 }

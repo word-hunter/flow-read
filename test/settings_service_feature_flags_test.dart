@@ -78,6 +78,24 @@ void main() {
     },
   );
 
+  test('strict privacy mode is disabled by default and persists', () async {
+    final db = await createTestAppDatabase();
+    final settings = SettingsService(SettingsDao(db));
+    await settings.init();
+
+    expect(settings.strictPrivacyMode, isFalse);
+
+    await settings.setStrictPrivacyMode(true);
+    expect(settings.strictPrivacyMode, isTrue);
+
+    final reloaded = SettingsService(SettingsDao(db));
+    await reloaded.init();
+    expect(reloaded.strictPrivacyMode, isTrue);
+
+    await reloaded.setStrictPrivacyMode(false);
+    expect(reloaded.strictPrivacyMode, isFalse);
+  });
+
   test(
     'AI features are enabled only for the selected provider with a key',
     () async {

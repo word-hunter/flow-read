@@ -41,11 +41,11 @@ repositories/snapshot providers for the app.
 | `source_records` | ReadingMemoryDao | Book/RSS/browser/manual source scope records and tombstones |
 | `knowledge_entities` | ReadingMemoryDao | Long-term word/phrase/pattern/book-term memory identities |
 | `knowledge_explanations` | ReadingMemoryDao | Saved user/AI/dictionary/generated explanations |
-| `knowledge_evidences` | ReadingMemoryDao | Short citations connecting entities to source context |
+| `knowledge_evidences` | ReadingMemoryDao | Short citations connecting entities to source context; `strictPrivacyMode` writes new evidence as `keepMetadataOnly` with empty `short_excerpt` |
 | `memory_events` | ReadingMemoryDao | Lookup, AI, vocabulary, review, and bookmark learning signals |
 | `source_scope_cache` | ReadingMemoryDao | Deletable source-scoped cache payloads; current cacheType convention includes `chapter_summary`, `storyline_context`, `term_index`, and `article_reading_context` |
 | `review_candidates` | ReadingMemoryDao | Memory-derived candidates for future review conversion |
-| `settings` | SettingsDao | App settings |
+| `settings` | SettingsDao | App settings, including global `strictPrivacyMode` |
 
 ## Legacy Backup Keys
 

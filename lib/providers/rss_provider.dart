@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flow_rss/flow_rss.dart';
-import '../models/reading_memory.dart';
 import '../services/app_logger.dart';
 import '../storage/database/repositories/drift_rss_repository.dart';
 import '../storage/storage_bootstrap.dart';
@@ -362,10 +361,7 @@ class RssNotifier extends Notifier<RssState> {
     final sourceScope = ref.read(sourceScopeServiceProvider);
     final articleIds = articles.map((article) => article.id).toSet();
     for (final articleId in articleIds) {
-      await sourceScope.deleteRssSourceKeepLearningMemory(
-        articleId,
-        evidencePolicy: EvidenceRetentionPolicy.keepSnippet,
-      );
+      await sourceScope.deleteRssSourceKeepLearningMemory(articleId);
     }
   }
 

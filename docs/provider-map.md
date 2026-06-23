@@ -56,6 +56,7 @@ ProviderScope
 已新增 `knowledgeRetentionServiceProvider`，统一处理 SourceScope 归档、保留学习记忆、仅保留元数据和彻底删除相关记忆。
 已新增 `chapterSummarySourceScopeCacheProvider`，将章节摘要同步到 `source_scope_cache` 并供 Book Insight / AI 上下文检索优先读取。
 已新增 `readingMemoryOverlayServiceProvider`，由 ReaderPage 为当前章节构造只读 Reading Memory Overlay 投影，供正文渲染层消费。
+`settings.strictPrivacyMode` 会让 `readingMemoryServiceProvider` 和 `sourceScopeServiceProvider` 默认使用 `keepMetadataOnly`，新 evidence 与来源删除默认不保留原文片段。
 
 以下 AI 状态将从 `ReadingProvider` 中迁出至 `AIActionController`：
 

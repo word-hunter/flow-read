@@ -91,6 +91,7 @@ class SettingsService extends ChangeNotifier {
   static const _enabledExperimentalFeaturesKey = 'enabledExperimentalFeatures';
   static const _forceDefaultBookCoverKey = 'forceDefaultBookCover';
   static const _visualDictionaryEnabledKey = 'visualDictionaryEnabled';
+  static const _strictPrivacyModeKey = 'strictPrivacyMode';
   static const _proxyEnabledKey = 'proxyEnabled';
   static const _proxyHostKey = 'proxyHost';
   static const _proxyPortKey = 'proxyPort';
@@ -144,6 +145,7 @@ class SettingsService extends ChangeNotifier {
   Set<String> _enabledExperimentalFeatures = {};
   bool _forceDefaultBookCover = false;
   bool _visualDictionaryEnabled = true;
+  bool _strictPrivacyMode = false;
   bool _proxyEnabled = false;
   String _proxyHost = '127.0.0.1';
   int _proxyPort = 7890;
@@ -226,6 +228,7 @@ class SettingsService extends ChangeNotifier {
 
   bool get forceDefaultBookCover => _forceDefaultBookCover;
   bool get visualDictionaryEnabled => _visualDictionaryEnabled;
+  bool get strictPrivacyMode => _strictPrivacyMode;
   bool get proxyEnabled => _proxyEnabled;
   String get proxyHost => _proxyHost;
   int get proxyPort => _proxyPort;
@@ -356,6 +359,7 @@ class SettingsService extends ChangeNotifier {
     );
     _forceDefaultBookCover = _readBool(_forceDefaultBookCoverKey, false);
     _visualDictionaryEnabled = _readBool(_visualDictionaryEnabledKey, true);
+    _strictPrivacyMode = _readBool(_strictPrivacyModeKey, false);
     _proxyEnabled = _readBool(_proxyEnabledKey, false);
     _proxyHost = _get(_proxyHostKey, defaultValue: '127.0.0.1') ?? '127.0.0.1';
     _proxyPort = _readInt(_proxyPortKey, 7890);
@@ -773,6 +777,13 @@ class SettingsService extends ChangeNotifier {
     if (_visualDictionaryEnabled == enabled) return;
     _visualDictionaryEnabled = enabled;
     _put(_visualDictionaryEnabledKey, enabled.toString());
+    notifyListeners();
+  }
+
+  Future<void> setStrictPrivacyMode(bool enabled) async {
+    if (_strictPrivacyMode == enabled) return;
+    _strictPrivacyMode = enabled;
+    _put(_strictPrivacyModeKey, enabled.toString());
     notifyListeners();
   }
 
