@@ -8,6 +8,7 @@ import 'models/book_synthesis.dart';
 import 'models/chapter_insight.dart';
 import 'prompt_builder.dart';
 import 'structured_ai_response_parser.dart';
+import 'token_budget.dart';
 
 class BookSynthesisService {
   BookSynthesisService({
@@ -48,6 +49,8 @@ class BookSynthesisService {
         'bookId': request.analysisData.bookId,
         'scopeHash': request.analysisData.scope.scopeHash,
         'budgetDowngraded': selectedPayload.budgetDowngraded,
+        'estimatedInputTokens': selectedPayload.estimatedInputTokens,
+        'maxInputTokens': request.tokenBudget.maxInputTokens,
       },
     );
 
@@ -146,21 +149,16 @@ class BookSynthesisService {
 
     var selected = _buildPayload(request, caps.first);
     for (final cap in caps) {
-      final candidate = _buildPayload(request, cap);
+      var candidate = _buildPayload(request, cap);
       final prompt = _promptBuilder.buildBookSynthesis(
         candidate.toPromptRequest(request),
       );
-      if (_estimatedInputSize(prompt) + request.reservedOutputCharacters <=
-          request.maxInputCharacters) {
-        return candidate;
-      }
+      final estimatedTokens = request.tokenBudget.estimatePrompt(prompt);
+      candidate = candidate.copyWith(estimatedInputTokens: estimatedTokens);
+      if (request.tokenBudget.checkPrompt(prompt)) return candidate;
       selected = candidate;
     }
     return selected;
-  }
-
-  int _estimatedInputSize(PromptBuildResult prompt) {
-    return prompt.systemPrompt.length + prompt.userPrompt.length;
   }
 
   _BookSynthesisPromptPayload _buildPayload(
@@ -284,8 +282,9 @@ class BookSynthesisRequest {
   final String bookTitle;
   final String? author;
   final List<BookSynthesisChapterSummary> chapterSummaries;
-  final int maxInputCharacters;
-  final int reservedOutputCharacters;
+  final int maxInputTokens;
+  final int reservedOutputTokens;
+  final TokenEstimator tokenEstimator;
   final bool useCache;
 
   const BookSynthesisRequest({
@@ -293,10 +292,32 @@ class BookSynthesisRequest {
     required this.bookTitle,
     this.author,
     this.chapterSummaries = const [],
-    this.maxInputCharacters = 24000,
-    this.reservedOutputCharacters = 4000,
+    int? maxInputTokens,
+    int? reservedOutputTokens,
+    this.tokenEstimator = const TokenEstimator(),
+    @Deprecated('Use maxInputTokens.') int? maxInputCharacters,
+    @Deprecated('Use reservedOutputTokens.') int? reservedOutputCharacters,
     this.useCache = true,
-  });
+  }) : maxInputTokens =
+           maxInputTokens ??
+           maxInputCharacters ??
+           AnalysisTokenConfig.synthesisInputMaxTokens,
+       reservedOutputTokens =
+           reservedOutputTokens ??
+           reservedOutputCharacters ??
+           AnalysisTokenConfig.synthesisOutputMaxTokens;
+
+  TokenBudget get tokenBudget => TokenBudget(
+    maxInputTokens: maxInputTokens,
+    reservedOutputTokens: reservedOutputTokens,
+    estimator: tokenEstimator,
+  );
+
+  @Deprecated('Use maxInputTokens.')
+  int get maxInputCharacters => maxInputTokens;
+
+  @Deprecated('Use reservedOutputTokens.')
+  int get reservedOutputCharacters => reservedOutputTokens;
 }
 
 class BookSynthesisChapterSummary {
@@ -330,6 +351,7 @@ class _BookSynthesisPromptPayload {
   final List<Map<String, dynamic>> locations;
   final List<String> themes;
   final bool budgetDowngraded;
+  final int? estimatedInputTokens;
 
   const _BookSynthesisPromptPayload({
     required this.chapterSummaries,
@@ -338,7 +360,22 @@ class _BookSynthesisPromptPayload {
     required this.locations,
     required this.themes,
     required this.budgetDowngraded,
+    this.estimatedInputTokens,
   });
+
+  _BookSynthesisPromptPayload copyWith({
+    int? estimatedInputTokens,
+  }) {
+    return _BookSynthesisPromptPayload(
+      chapterSummaries: chapterSummaries,
+      characterCards: characterCards,
+      storyEvents: storyEvents,
+      locations: locations,
+      themes: themes,
+      budgetDowngraded: budgetDowngraded,
+      estimatedInputTokens: estimatedInputTokens ?? this.estimatedInputTokens,
+    );
+  }
 
   BookSynthesisPromptRequest toPromptRequest(BookSynthesisRequest request) {
     final data = request.analysisData;

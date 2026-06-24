@@ -17,6 +17,7 @@ export 'src/book_insight_aggregator.dart';
 export 'src/explanation_context_selector.dart';
 export 'src/character_alias_matcher.dart';
 export 'src/structured_ai_response_parser.dart';
+export 'src/token_budget.dart';
 
 // Models
 export 'src/models/ai_summary.dart';

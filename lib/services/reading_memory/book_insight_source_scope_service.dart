@@ -255,7 +255,7 @@ class BookInsightSourceScopeService {
       bookId: bookId,
       maxReadChapter: maxReadChapter,
     );
-    final analysisData = _buildAnalysisData(
+    final analysisResult = await _buildAnalysisData(
       bookId: bookId,
       summaries: summaryState.summaries,
       boundary: boundary,
@@ -265,15 +265,19 @@ class BookInsightSourceScopeService {
       outputLanguage: summaryState.outputLanguage,
       characterRegistryEntries: characterRegistryEntries,
     );
+    final effectiveCharacterRegistryEntries =
+        analysisResult?.characterRegistryEntries ?? characterRegistryEntries;
     final projection = BookInsightSourceScopeProjection(
       bookId: bookId,
       sourceId: sourceIdForBook(bookId),
       maxReadChapter: maxReadChapter,
       chapterSummaries: Map.unmodifiable(summaryState.summaries),
-      analysisData: analysisData,
+      analysisData: analysisResult?.analysisData,
       storyline: storyline,
       characterCards: List.unmodifiable(characterCards),
-      characterRegistryEntries: List.unmodifiable(characterRegistryEntries),
+      characterRegistryEntries: List.unmodifiable(
+        effectiveCharacterRegistryEntries,
+      ),
       glossaryEntries: List.unmodifiable(await _loadGlossary(bookId)),
       coverage: totalChapters == null
           ? null
@@ -298,7 +302,7 @@ class BookInsightSourceScopeService {
     return projection;
   }
 
-  BookAnalysisData? _buildAnalysisData({
+  Future<_AnalysisBuildResult?> _buildAnalysisData({
     required String bookId,
     required Map<int, AISummary> summaries,
     required int boundary,
@@ -307,7 +311,7 @@ class BookInsightSourceScopeService {
     required String? languageCode,
     required String? outputLanguage,
     required List<CharacterRegistryEntry> characterRegistryEntries,
-  }) {
+  }) async {
     if (summaries.isEmpty) return null;
     final effectiveTotalChapters = _effectiveTotalChapters(
       summaries,
@@ -331,14 +335,26 @@ class BookInsightSourceScopeService {
     }
     if (chapterInsights.isEmpty) return null;
 
-    return BookAnalysisAggregator(
-      characterRegistry: StaticBookAnalysisCharacterRegistry({
-        bookId: characterRegistryEntries,
-      }),
-    ).build(
-      scope: scope,
-      chapterInsights: chapterInsights,
-      totalChapters: effectiveTotalChapters,
+    final registryAdapter = _AutoRegisteringBookAnalysisCharacterRegistry(
+      entries: characterRegistryEntries,
+    );
+    final analysisData =
+        BookAnalysisAggregator(
+          characterRegistry: registryAdapter,
+        ).build(
+          scope: scope,
+          chapterInsights: chapterInsights,
+          totalChapters: effectiveTotalChapters,
+        );
+    await registryAdapter.flush(
+      registry: _characterRegistry,
+      bookId: bookId,
+    );
+    return _AnalysisBuildResult(
+      analysisData: analysisData,
+      characterRegistryEntries: registryAdapter.sortedEntries(
+        maxReadChapter: boundary,
+      ),
     );
   }
 
@@ -644,6 +660,136 @@ class BookInsightSourceScopeService {
     }
     return OutputLanguage.zhHans.code;
   }
+}
+
+final class _AnalysisBuildResult {
+  const _AnalysisBuildResult({
+    required this.analysisData,
+    required this.characterRegistryEntries,
+  });
+
+  final BookAnalysisData analysisData;
+  final List<CharacterRegistryEntry> characterRegistryEntries;
+}
+
+final class _AutoRegisteringBookAnalysisCharacterRegistry
+    implements BookAnalysisCharacterRegistry {
+  _AutoRegisteringBookAnalysisCharacterRegistry({
+    required List<CharacterRegistryEntry> entries,
+  }) : _entriesByKey = {
+         for (final entry in entries)
+           if (entry.canonicalName.trim().isNotEmpty)
+             _key(entry.canonicalName): entry,
+       };
+
+  final Map<String, CharacterRegistryEntry> _entriesByKey;
+  final Set<String> _dirtyKeys = {};
+
+  @override
+  String? matchCanonical(String bookId, String name) {
+    return _entryMatching(name)?.canonicalName;
+  }
+
+  @override
+  void registerCharacterMention(
+    String bookId, {
+    required String canonicalName,
+    required String mention,
+    required int chapterIndex,
+  }) {
+    final canonical = canonicalName.trim();
+    final rawMention = mention.trim();
+    if (canonical.isEmpty || rawMention.isEmpty) return;
+
+    final key = _key(canonical);
+    final conflictingEntry = _entryMatching(rawMention);
+    if (conflictingEntry != null &&
+        _key(conflictingEntry.canonicalName) != key) {
+      return;
+    }
+
+    final current = _entriesByKey[key];
+    if (current == null) {
+      _entriesByKey[key] = CharacterRegistryEntry(
+        canonicalName: canonical,
+        aliases: _sameName(canonical, rawMention) ? const {} : {rawMention},
+        firstAppearanceChapter: chapterIndex,
+        updatedAt: DateTime.now().toUtc(),
+      );
+      _dirtyKeys.add(key);
+      return;
+    }
+
+    final nextAliases = {...current.aliases};
+    var changed = false;
+    if (!_sameName(current.canonicalName, rawMention) &&
+        !current.matches(rawMention)) {
+      nextAliases.add(rawMention);
+      changed = true;
+    }
+    final currentFirst = current.firstAppearanceChapter;
+    final nextFirst = currentFirst == null || chapterIndex < currentFirst
+        ? chapterIndex
+        : currentFirst;
+    changed = changed || nextFirst != currentFirst;
+    if (!changed) return;
+
+    _entriesByKey[key] = CharacterRegistryEntry(
+      canonicalName: current.canonicalName,
+      aliases: nextAliases,
+      userOverrides: current.userOverrides,
+      firstAppearanceChapter: nextFirst,
+      updatedAt: DateTime.now().toUtc(),
+    );
+    _dirtyKeys.add(key);
+  }
+
+  Future<void> flush({
+    required CharacterRegistry? registry,
+    required String bookId,
+  }) async {
+    if (registry == null || _dirtyKeys.isEmpty) return;
+    await registry.init();
+    final dirtyKeys = _dirtyKeys.toList()..sort();
+    for (final key in dirtyKeys) {
+      final entry = _entriesByKey[key];
+      if (entry == null) continue;
+      await registry.addEntry(bookId, entry);
+    }
+    _dirtyKeys.clear();
+  }
+
+  List<CharacterRegistryEntry> sortedEntries({required int? maxReadChapter}) {
+    final entries = _entriesByKey.values.where((entry) {
+      final firstChapter = entry.firstAppearanceChapter;
+      return maxReadChapter == null ||
+          firstChapter == null ||
+          firstChapter <= maxReadChapter;
+    }).toList();
+    entries.sort((a, b) {
+      final chapterA = a.firstAppearanceChapter ?? 1 << 30;
+      final chapterB = b.firstAppearanceChapter ?? 1 << 30;
+      final chapterCompare = chapterA.compareTo(chapterB);
+      if (chapterCompare != 0) return chapterCompare;
+      return a.canonicalName.toLowerCase().compareTo(
+        b.canonicalName.toLowerCase(),
+      );
+    });
+    return entries;
+  }
+
+  CharacterRegistryEntry? _entryMatching(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return null;
+    for (final entry in _entriesByKey.values) {
+      if (entry.matches(trimmed)) return entry;
+    }
+    return null;
+  }
+
+  static bool _sameName(String a, String b) => _key(a) == _key(b);
+
+  static String _key(String value) => value.trim().toLowerCase();
 }
 
 final class _ChapterSummaryState {

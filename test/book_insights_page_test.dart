@@ -99,10 +99,38 @@ void main() {
                   AIContextScope.fullBook
               ? '全书合成结果'
               : '已读范围合成结果',
-          characterGraph: const CharacterRelationGraph(),
-          bookMindMap: const MindMapGraph(
-            root: MindMapNode(id: 'root', label: 'Book One'),
+          characterGraph: CharacterRelationGraph(
+            nodes: request.analysisData.characters
+                .map(
+                  (character) => GraphNode(
+                    id: character.canonicalName,
+                    label: character.canonicalName,
+                  ),
+                )
+                .toList(growable: false),
+            edges: request.analysisData.characters.length < 2
+                ? const []
+                : [
+                    GraphEdge(
+                      fromCharacterId:
+                          request.analysisData.characters.first.canonicalName,
+                      toCharacterId:
+                          request.analysisData.characters.last.canonicalName,
+                      relation: '同行',
+                    ),
+                  ],
           ),
+          bookMindMap: const MindMapGraph(
+            root: MindMapNode(
+              id: 'root',
+              label: 'Book One',
+              children: [
+                MindMapNode(id: 'characters', label: '人物'),
+              ],
+            ),
+          ),
+          structure: '起承转合',
+          themeAnalysis: '身份与选择',
           keyInsights: const ['洞察一'],
           generatedAt: DateTime.utc(2026, 6, 24),
         );
@@ -141,7 +169,7 @@ void main() {
     await _pumpTabTransition(tester);
 
     expect(find.text('godswood'), findsOneWidget);
-    expect(find.text('old godswood'), findsOneWidget);
+    expect(find.textContaining('old godswood'), findsOneWidget);
     expect(find.text('A sacred grove tied to the book world.'), findsOneWidget);
     expect(find.textContaining('The godswood was silent.'), findsOneWidget);
     expect(find.text('elsewhere'), findsNothing);
@@ -165,7 +193,7 @@ void main() {
     await tester.tap(find.text('人物'));
     await _pumpTabTransition(tester);
 
-    expect(find.text('Eddard Stark'), findsOneWidget);
+    expect(find.text('Eddard Stark'), findsWidgets);
     expect(find.text('Ned'), findsOneWidget);
     expect(find.text('Lord Stark'), findsOneWidget);
     expect(find.text('首次出现: 第 1 章'), findsOneWidget);
@@ -284,6 +312,12 @@ void main() {
       provider.analysisData!.characters.single.canonicalName,
       'Arya Stark',
     );
+    expect(
+      provider.characterRegistryEntries.any(
+        (entry) => entry.canonicalName == 'Arya Stark',
+      ),
+      isTrue,
+    );
   });
 
   test('confirms AI-inferred characters into registry', () async {
@@ -335,6 +369,79 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(requestedChapters, [0, 1, 2]);
+  });
+
+  test('reloads projections when spoiler boundary changes', () async {
+    await _seedSummary(
+      summarySourceScopeCache,
+      chapterIndex: 0,
+      eventDescription: 'Arya finds a hidden path.',
+      character: 'Arya Stark',
+      change: 'Arya becomes more observant.',
+    );
+    await _seedSummary(
+      summarySourceScopeCache,
+      chapterIndex: 2,
+      eventDescription: 'Sansa hears a secret.',
+      character: 'Sansa Stark',
+      change: 'Sansa becomes cautious.',
+    );
+
+    await provider.loadForBook(
+      'book-1',
+      totalChapters: 8,
+      currentChapter: 2,
+      bookTitle: 'Book One',
+    );
+
+    expect(provider.chapterSummaries.keys, containsAll([0, 2]));
+
+    await provider.setReadBoundaryChapter(0);
+
+    expect(provider.isManualReadBoundary, isTrue);
+    expect(provider.boundaryChapter, 0);
+    expect(provider.coverage!.readChapters, 1);
+    expect(provider.chapterSummaries.keys, contains(0));
+    expect(provider.chapterSummaries.keys, isNot(contains(2)));
+
+    await provider.followReadingProgress();
+
+    expect(provider.isFollowingProgress, isTrue);
+    expect(provider.boundaryChapter, 2);
+    expect(provider.chapterSummaries.keys, contains(2));
+  });
+
+  test('generates synthesis overview and character relation graph', () async {
+    await _seedSummary(
+      summarySourceScopeCache,
+      chapterIndex: 0,
+      eventDescription: 'Arya finds a hidden path.',
+      character: 'Arya Stark',
+      change: 'Arya becomes more observant.',
+    );
+    await _seedSummary(
+      summarySourceScopeCache,
+      chapterIndex: 1,
+      eventDescription: 'Sansa hears a secret.',
+      character: 'Sansa Stark',
+      change: 'Sansa becomes cautious.',
+    );
+    await provider.loadForBook(
+      'book-1',
+      totalChapters: 8,
+      currentChapter: 2,
+      bookTitle: 'Book One',
+    );
+    await provider.generateReadScopeSynthesis();
+
+    final synthesis = provider.visibleSynthesis!;
+    expect(synthesis.fullStoryline, '已读范围合成结果');
+    expect(synthesis.keyInsights, contains('洞察一'));
+    expect(
+      synthesis.characterGraph.nodes.map((node) => node.label),
+      containsAll(['Arya Stark', 'Sansa Stark']),
+    );
+    expect(synthesis.characterGraph.edges.single.relation, '同行');
   });
 
   test('generates read and full book synthesis with isolated scopes', () async {

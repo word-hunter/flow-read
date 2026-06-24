@@ -124,8 +124,8 @@ void main() {
             summary: 'Chapter $index contains a long but structured summary.',
           ),
         ),
-        maxInputCharacters: 1200,
-        reservedOutputCharacters: 0,
+        maxInputTokens: 450,
+        reservedOutputTokens: 0,
       ),
     );
 

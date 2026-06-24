@@ -5,6 +5,13 @@ import 'models/character_registry_entry.dart';
 
 abstract interface class BookAnalysisCharacterRegistry {
   String? matchCanonical(String bookId, String name);
+
+  void registerCharacterMention(
+    String bookId, {
+    required String canonicalName,
+    required String mention,
+    required int chapterIndex,
+  });
 }
 
 class EmptyBookAnalysisCharacterRegistry
@@ -13,6 +20,14 @@ class EmptyBookAnalysisCharacterRegistry
 
   @override
   String? matchCanonical(String bookId, String name) => null;
+
+  @override
+  void registerCharacterMention(
+    String bookId, {
+    required String canonicalName,
+    required String mention,
+    required int chapterIndex,
+  }) {}
 }
 
 class StaticBookAnalysisCharacterRegistry
@@ -29,6 +44,14 @@ class StaticBookAnalysisCharacterRegistry
     }
     return null;
   }
+
+  @override
+  void registerCharacterMention(
+    String bookId, {
+    required String canonicalName,
+    required String mention,
+    required int chapterIndex,
+  }) {}
 }
 
 class BookAnalysisAggregator {
@@ -162,6 +185,12 @@ class BookAnalysisSession {
       if (rawName.isEmpty) continue;
       final canonical =
           _characterRegistry.matchCanonical(bookId, rawName) ?? rawName;
+      _characterRegistry.registerCharacterMention(
+        bookId,
+        canonicalName: canonical,
+        mention: rawName,
+        chapterIndex: chapterIndex,
+      );
       final key = canonical.toLowerCase();
       final acc = _characters.putIfAbsent(
         key,

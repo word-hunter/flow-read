@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -6,7 +7,6 @@ import 'package:flow_ai/flow_ai.dart';
 
 import '../models/book_glossary_entry.dart';
 import '../providers/book_insight_provider.dart';
-import 'package:flow_design_system/flow_design_system.dart';
 import '../widgets/flow/flow_components.dart';
 
 class BookInsightsPage extends StatefulWidget {
@@ -16,6 +16,7 @@ class BookInsightsPage extends StatefulWidget {
     required this.bookTitle,
     required this.onGenerateChapter,
     this.onGenerateMissingReadChapters,
+    this.onAskAI,
   });
 
   final BookInsightProvider provider;
@@ -23,6 +24,7 @@ class BookInsightsPage extends StatefulWidget {
   final Future<void> Function(int chapterIndex) onGenerateChapter;
   final Future<int> Function(List<int> chapterIndexes)?
   onGenerateMissingReadChapters;
+  final VoidCallback? onAskAI;
 
   @override
   State<BookInsightsPage> createState() => _BookInsightsPageState();
@@ -34,6 +36,9 @@ class _BookInsightsPageState extends State<BookInsightsPage>
 
   bool _requestedLoad = false;
   bool _isBackfillingSummaries = false;
+  String? _selectedCharacterName;
+  String _glossaryQuery = '';
+  bool _showOnlyUnlockedTerms = false;
 
   @override
   void initState() {
@@ -66,65 +71,88 @@ class _BookInsightsPageState extends State<BookInsightsPage>
 
     return Scaffold(
       appBar: FlowToolbar(
+        height: 64,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: '返回',
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          '书籍洞察',
-          style: theme.textTheme.titleMedium,
-        ),
+        title: _ToolbarTitle(bookTitle: widget.bookTitle),
         actions: [
-          if (provider.coverage != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    provider.showFullBook ? '全书' : '已读',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-                  Switch(
-                    value: provider.showFullBook,
-                    onChanged: (_) => provider.toggleShowFullBook(),
-                  ),
-                ],
-              ),
-            ),
+          _ToolbarActions(
+            provider: provider,
+            onSelectBoundary: (mode) => _selectBoundaryMode(provider, mode),
+            onAskAI: widget.onAskAI,
+          ),
+          const SizedBox(width: 8),
         ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: '故事线'),
-            Tab(text: '人物'),
-            Tab(text: '术语'),
-            Tab(text: '章节'),
+            Tab(
+              child: _TabLabel(icon: Icons.home_work_outlined, label: '故事线'),
+            ),
+            Tab(
+              child: _TabLabel(icon: Icons.person_outline, label: '人物'),
+            ),
+            Tab(
+              child: _TabLabel(icon: Icons.menu_book_outlined, label: '术语'),
+            ),
+            Tab(
+              child: _TabLabel(icon: Icons.list_alt_outlined, label: '章节'),
+            ),
           ],
         ),
       ),
-      body: provider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : provider.error != null
-          ? _buildError(theme, provider.error!)
-          : provider.isEmpty && provider.coverage == null
-          ? _buildEmpty(theme)
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildStoryline(theme, provider),
-                _buildCharacters(theme, provider),
-                _buildGlossary(theme, provider),
-                _buildChapterList(theme, provider),
-              ],
-            ),
+      body: _buildBody(theme, provider),
     );
   }
 
-  Widget _buildError(ThemeData theme, String error) {
+  Widget _buildBody(ThemeData theme, BookInsightProvider provider) {
+    if (provider.isLoading && provider.coverage == null) {
+      return _buildLoading(theme);
+    }
+    if (provider.error != null && provider.coverage == null) {
+      return _buildError(theme, provider.error!, provider);
+    }
+    if (provider.isEmpty && provider.coverage == null) {
+      return _buildEmpty(theme);
+    }
+
+    return TabBarView(
+      controller: _tabController,
+      children: [
+        _buildStoryline(theme, provider),
+        _buildCharacters(theme, provider),
+        _buildGlossary(theme, provider),
+        _buildChapterList(theme, provider),
+      ],
+    );
+  }
+
+  Widget _buildLoading(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(strokeWidth: 2),
+          const SizedBox(height: 16),
+          Text(
+            '正在整理书籍洞察',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError(
+    ThemeData theme,
+    String error,
+    BookInsightProvider provider,
+  ) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -134,6 +162,12 @@ class _BookInsightsPageState extends State<BookInsightsPage>
             Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 16),
             Text(error, style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 16),
+            FlowButton.secondary(
+              onPressed: () => unawaited(provider.refresh()),
+              icon: const Icon(Icons.refresh, size: 16),
+              child: const Text('重试'),
+            ),
           ],
         ),
       ),
@@ -161,7 +195,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
             ),
             const SizedBox(height: 8),
             Text(
-              '在阅读器中为章节生成 AI 总结后，\n这里将展示全书故事线和人物卡片。',
+              '在阅读器中为章节生成 AI 总结后，这里将展示梗概、人物、术语和章节时间线。',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),
@@ -174,221 +208,662 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   }
 
   Widget _buildStoryline(ThemeData theme, BookInsightProvider provider) {
-    final analysisEvents = provider.analysisData?.storyEvents ?? const [];
-    final timelineEvents = analysisEvents.isNotEmpty
-        ? analysisEvents.map(_TimelineEvent.fromAnalysis).toList()
-        : (provider.storyline?.events ?? const [])
-              .map(_TimelineEvent.fromLegacy)
-              .toList();
-    final hasSynthesisControls = provider.analysisData != null;
-    if (timelineEvents.isEmpty && !hasSynthesisControls) {
-      return _buildEmptyTab(theme, '暂无故事线数据');
-    }
-
-    final eventsByChapter = <int, List<_TimelineEvent>>{};
-    for (final event in timelineEvents) {
-      eventsByChapter.putIfAbsent(event.chapterIndex, () => []).add(event);
-    }
-
+    final synthesis = provider.visibleSynthesis;
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
       children: [
-        if (provider.coverage != null) _buildCoverageBar(theme, provider),
-        if (hasSynthesisControls) ...[
-          const SizedBox(height: 12),
-          _buildSynthesisPanel(theme, provider),
-        ],
-        const SizedBox(height: 12),
-        if (eventsByChapter.isEmpty)
-          _buildInlineEmpty(theme, '暂无事件数据')
-        else
-          for (final chapterIndex in eventsByChapter.keys.toList()..sort())
-            _buildChapterEventGroup(
-              theme,
-              chapterIndex,
-              eventsByChapter[chapterIndex]!,
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 920),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (provider.coverage != null)
+                  _buildCoverageStrip(theme, provider),
+                const SizedBox(height: 16),
+                _buildSynthesisOverview(theme, provider, synthesis),
+                if (synthesis != null && synthesis.keyInsights.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildKeyInsights(theme, synthesis.keyInsights),
+                ],
+                if (synthesis != null &&
+                    (synthesis.themeAnalysis.trim().isNotEmpty ||
+                        synthesis.structure.trim().isNotEmpty)) ...[
+                  const SizedBox(height: 12),
+                  _buildThemeAndStructure(theme, synthesis),
+                ],
+                if (_hasLockedFuture(provider)) ...[
+                  const SizedBox(height: 12),
+                  _buildLockedCard(
+                    theme,
+                    nextChapter: provider.boundaryChapter + 2,
+                    message: '后续情节发展、人物命运和更深入的主题分析会在读到后解锁。',
+                  ),
+                ],
+                const SizedBox(height: 20),
+                _buildSynthesisActions(theme, provider),
+              ],
             ),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildSynthesisPanel(ThemeData theme, BookInsightProvider provider) {
-    final synthesis = provider.visibleSynthesis;
-    final canGenerate = provider.canGenerateSynthesis;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.35,
+  Widget _buildSynthesisOverview(
+    ThemeData theme,
+    BookInsightProvider provider,
+    BookSynthesisResult? synthesis,
+  ) {
+    if (provider.isGeneratingVisibleSynthesis) {
+      return _SectionCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionHeader(
+              icon: Icons.description_outlined,
+              title: '故事梗概',
+              subtitle: _boundaryLabel(provider),
+            ),
+            const SizedBox(height: 16),
+            _SkeletonLine(widthFactor: 0.92),
+            const SizedBox(height: 10),
+            _SkeletonLine(widthFactor: 0.98),
+            const SizedBox(height: 10),
+            _SkeletonLine(widthFactor: 0.74),
+          ],
         ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
+      );
+    }
+
+    if (synthesis == null || synthesis.fullStoryline.trim().isEmpty) {
+      return _SectionCard(
+        child: _EmptyState(
+          icon: Icons.auto_awesome_outlined,
+          title: '还没有当前范围梗概',
+          message: '生成后会在这里显示截至当前剧透边界的故事主线。',
+          action: FlowButton.primary(
+            onPressed: provider.canGenerateSynthesis
+                ? () => unawaited(_generateReadScopeSynthesis(provider))
+                : null,
+            icon: const Icon(Icons.refresh, size: 16),
+            child: const Text('生成当前范围梗概'),
+          ),
+        ),
+      );
+    }
+
+    return _SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _SectionHeader(
+            icon: Icons.description_outlined,
+            title: '故事梗概',
+            subtitle:
+                '${_boundaryLabel(provider)} · 生成于 ${_formatTime(synthesis.generatedAt)}',
+            trailing: provider.showFullBook
+                ? _StatusPill(
+                    label: '剧透模式',
+                    icon: Icons.warning_amber_outlined,
+                    foreground: theme.colorScheme.error,
+                    background: theme.colorScheme.errorContainer.withValues(
+                      alpha: 0.45,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(height: 14),
           Text(
-            provider.showFullBook ? '全书分析' : '已读范围分析',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            synthesis.fullStoryline.trim(),
+            style: theme.textTheme.bodyMedium?.copyWith(height: 1.75),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FlowButton.secondary(
-                onPressed:
-                    canGenerate && !provider.isGeneratingReadScopeSynthesis
-                    ? () {
-                        unawaited(_generateReadScopeSynthesis(provider));
-                      }
-                    : null,
-                icon: provider.isGeneratingReadScopeSynthesis
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.auto_awesome, size: 16),
-                child: Text(
-                  provider.isGeneratingReadScopeSynthesis ? '生成中' : '生成已读范围分析',
-                ),
-              ),
-              FlowButton.secondary(
-                onPressed:
-                    canGenerate && !provider.isGeneratingFullBookSynthesis
-                    ? () {
-                        unawaited(_confirmAndGenerateFullBook(provider));
-                      }
-                    : null,
-                icon: provider.isGeneratingFullBookSynthesis
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.travel_explore, size: 16),
-                child: Text(
-                  provider.isGeneratingFullBookSynthesis
-                      ? '生成中'
-                      : '生成全书分析（可能剧透）',
-                ),
-              ),
-            ],
-          ),
-          if (synthesis != null) ...[
-            const SizedBox(height: 12),
-            Text(synthesis.fullStoryline, style: theme.textTheme.bodyMedium),
-            if (synthesis.keyInsights.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: synthesis.keyInsights
-                    .map(
-                      (insight) => Chip(
-                        label: Text(insight),
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-            ],
-          ],
         ],
       ),
     );
   }
 
-  Widget _buildChapterEventGroup(
-    ThemeData theme,
-    int chapterIndex,
-    List<_TimelineEvent> events,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+  Widget _buildKeyInsights(ThemeData theme, List<String> insights) {
+    return _SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '${chapterIndex + 1}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onPrimaryContainer,
+          const _SectionHeader(
+            icon: Icons.lightbulb_outline,
+            title: '关键洞察',
+          ),
+          const SizedBox(height: 12),
+          for (final insight in insights)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Icon(
+                      Icons.circle,
+                      size: 6,
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      insight,
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Text(
-                '第 ${chapterIndex + 1} 章',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThemeAndStructure(
+    ThemeData theme,
+    BookSynthesisResult synthesis,
+  ) {
+    return _SectionCard(
+      padding: EdgeInsets.zero,
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        leading: Icon(
+          Icons.account_tree_outlined,
+          color: theme.colorScheme.primary,
+        ),
+        title: Text(
+          '主题 / 结构',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 720;
+              final themePanel = _TextBlock(
+                title: '主题分析',
+                text: synthesis.themeAnalysis,
+              );
+              final structurePanel = _TextBlock(
+                title: '结构',
+                text: synthesis.structure,
+              );
+              if (!isWide) {
+                return Column(
+                  children: [
+                    themePanel,
+                    const SizedBox(height: 14),
+                    structurePanel,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: themePanel),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: SizedBox(
+                      height: 120,
+                      child: VerticalDivider(
+                        color: theme.colorScheme.outlineVariant,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: structurePanel),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSynthesisActions(ThemeData theme, BookInsightProvider provider) {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 12,
+      runSpacing: 10,
+      children: [
+        FlowButton.primary(
+          onPressed:
+              provider.canGenerateSynthesis &&
+                  !provider.isGeneratingReadScopeSynthesis
+              ? () => unawaited(_generateReadScopeSynthesis(provider))
+              : null,
+          icon: provider.isGeneratingReadScopeSynthesis
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh, size: 16),
+          child: Text(
+            provider.isGeneratingReadScopeSynthesis ? '生成中' : '生成 / 刷新当前范围梗概',
+          ),
+        ),
+        FlowButton.destructive(
+          onPressed:
+              provider.canGenerateSynthesis &&
+                  !provider.isGeneratingFullBookSynthesis
+              ? () => unawaited(_confirmAndGenerateFullBook(provider))
+              : null,
+          icon: provider.isGeneratingFullBookSynthesis
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.warning_amber_outlined, size: 16),
+          child: Text(
+            provider.isGeneratingFullBookSynthesis ? '生成中' : '生成全书梗概（含剧透）',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCharacters(ThemeData theme, BookInsightProvider provider) {
+    final items = _characterItems(provider);
+    final graph =
+        provider.visibleSynthesis?.characterGraph ??
+        const CharacterRelationGraph();
+    _selectedCharacterName = _effectiveSelectedCharacter(items, graph);
+
+    if (items.isEmpty && graph.nodes.isEmpty && graph.edges.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          _EmptyState(
+            icon: Icons.person_outline,
+            title: '暂无人物数据',
+            message: '生成章节总结或当前范围梗概后，会在这里合并人物卡片与关系图谱。',
+            action: FlowButton.secondary(
+              onPressed: provider.canMaintainCharacters
+                  ? () => _showAddCharacterDialog(provider)
+                  : null,
+              icon: const Icon(Icons.person_add_alt_1, size: 16),
+              child: const Text('新增人物'),
+            ),
+          ),
+          if (_hasLockedFuture(provider)) ...[
+            const SizedBox(height: 12),
+            _buildLockedCard(
+              theme,
+              nextChapter: provider.boundaryChapter + 2,
+              message: '后续登场人物会在读到对应章节后显示。',
+            ),
+          ],
+        ],
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 980;
+        if (!isWide) {
+          return ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              _buildCharacterListPanel(theme, provider, items, embedded: true),
+              const SizedBox(height: 16),
+              _buildCharacterSidePanel(
+                theme,
+                provider,
+                items,
+                graph,
+                embedded: true,
+              ),
+            ],
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: math.min(520, constraints.maxWidth * 0.46),
+                child: _buildCharacterListPanel(theme, provider, items),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: _buildCharacterSidePanel(theme, provider, items, graph),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          ...events.map(
-            (event) => Card(
-              margin: const EdgeInsets.only(left: 42, bottom: 6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+        );
+      },
+    );
+  }
+
+  Widget _buildCharacterListPanel(
+    ThemeData theme,
+    BookInsightProvider provider,
+    List<_CharacterInsightItem> items, {
+    bool embedded = false,
+  }) {
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            embedded ? 0 : 4,
+            0,
+            embedded ? 0 : 4,
+            12,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '人物列表',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              FlowButton.secondary(
+                onPressed: provider.canMaintainCharacters
+                    ? () => _showAddCharacterDialog(provider)
+                    : null,
+                icon: const Icon(Icons.add, size: 16),
+                child: const Text('新增人物'),
+              ),
+            ],
+          ),
+        ),
+        for (final item in items)
+          _CharacterInsightCard(
+            item: item,
+            selected: item.canonicalName == _selectedCharacterName,
+            canMaintainCharacters: provider.canMaintainCharacters,
+            onTap: () =>
+                setState(() => _selectedCharacterName = item.canonicalName),
+            onConfirm: item.confirmationCard == null
+                ? null
+                : () => unawaited(
+                    provider.confirmCharacterCard(item.confirmationCard!),
+                  ),
+            onAddAlias: item.isRegistered
+                ? () => _showAddAliasDialog(provider, item.canonicalName)
+                : null,
+            onDelete: item.isRegistered
+                ? () => _confirmDeleteCharacter(provider, item.canonicalName)
+                : null,
+            onRemoveAlias: item.isRegistered
+                ? (alias) => unawaited(
+                    provider.removeCharacterAlias(item.canonicalName, alias),
+                  )
+                : null,
+          ),
+        if (_hasLockedFuture(provider))
+          _buildLockedCard(
+            theme,
+            nextChapter: provider.boundaryChapter + 2,
+            message: '包含后续情节发展、人物命运与重要关系。',
+          ),
+      ],
+    );
+
+    if (embedded) return content;
+    return ClipRect(child: ListView(children: [content]));
+  }
+
+  Widget _buildCharacterSidePanel(
+    ThemeData theme,
+    BookInsightProvider provider,
+    List<_CharacterInsightItem> items,
+    CharacterRelationGraph graph, {
+    bool embedded = false,
+  }) {
+    final selectedItem = _selectedCharacterName == null
+        ? null
+        : items
+              .where((item) => item.canonicalName == _selectedCharacterName)
+              .firstOrNull;
+    final selectedNode = _nodeForCharacter(graph, _selectedCharacterName);
+    final selectedEdges = _edgesForSelected(
+      graph,
+      selectedNode,
+      _selectedCharacterName,
+    );
+
+    final children = [
+      _SectionCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionHeader(
+              icon: Icons.hub_outlined,
+              title: '人物关系图谱',
+              trailing: Wrap(
+                spacing: 8,
+                children: [
+                  FlowButton.secondary(
+                    onPressed:
+                        provider.canGenerateSynthesis &&
+                            !provider.isGeneratingReadScopeSynthesis
+                        ? () => unawaited(_generateReadScopeSynthesis(provider))
+                        : null,
+                    icon: const Icon(Icons.refresh, size: 16),
+                    child: const Text('刷新图谱'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            if (graph.nodes.isEmpty && graph.edges.isEmpty)
+              _EmptyState(
+                icon: Icons.account_tree_outlined,
+                title: '暂无关系图谱',
+                message: '生成当前范围梗概后会同步产出人物关系。',
+                action: FlowButton.secondary(
+                  onPressed: provider.canGenerateSynthesis
+                      ? () => unawaited(_generateReadScopeSynthesis(provider))
+                      : null,
+                  icon: const Icon(Icons.auto_awesome, size: 16),
+                  child: const Text('生成图谱'),
+                ),
+              )
+            else
+              _RelationGraphView(
+                graph: graph,
+                selectedName: _selectedCharacterName,
+                onSelected: (name) =>
+                    setState(() => _selectedCharacterName = name),
+              ),
+          ],
+        ),
+      ),
+      if (selectedItem != null) ...[
+        const SizedBox(height: 14),
+        _SelectedCharacterDetail(
+          item: selectedItem,
+          relatedEdges: selectedEdges,
+          graph: graph,
+        ),
+      ] else if (selectedEdges.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        _RelationEvidenceList(edges: selectedEdges, graph: graph),
+      ],
+    ];
+
+    if (embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      );
+    }
+    return ClipRect(child: ListView(children: children));
+  }
+
+  Widget _buildGlossary(ThemeData theme, BookInsightProvider provider) {
+    final query = _glossaryQuery.trim().toLowerCase();
+    final entries = provider.glossaryEntries
+        .where((entry) {
+          if (query.isEmpty) return true;
+          return entry.word.toLowerCase().contains(query) ||
+              (entry.canonicalForm?.toLowerCase().contains(query) ?? false) ||
+              entry.explanation.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 940),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      event.description,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '本书术语表',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '已收录 ${provider.glossaryEntries.length} 个术语',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    if (event.detail != null && event.detail!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                    SizedBox(
+                      width: 260,
+                      child: FlowTextField(
+                        placeholder: '搜索术语',
+                        prefixIcon: const Icon(Icons.search, size: 18),
+                        onChanged: (value) {
+                          setState(() => _glossaryQuery = value);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    FilterChip(
+                      selected: _showOnlyUnlockedTerms,
+                      avatar: const Icon(Icons.filter_alt_outlined, size: 16),
+                      label: const Text('仅显示已解锁'),
+                      onSelected: (value) {
+                        setState(() => _showOnlyUnlockedTerms = value);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (entries.isEmpty)
+                  _EmptyState(
+                    icon: Icons.menu_book_outlined,
+                    title: provider.glossaryEntries.isEmpty
+                        ? '暂无本书术语'
+                        : '没有匹配的术语',
+                    message: provider.glossaryEntries.isEmpty
+                        ? '术语会从章节分析和阅读记忆中自动汇总。'
+                        : '换一个关键词试试。',
+                  )
+                else
+                  for (final entry in entries) _buildGlossaryCard(theme, entry),
+                if (_hasLockedFuture(provider)) ...[
+                  const SizedBox(height: 4),
+                  _buildLockedCard(
+                    theme,
+                    nextChapter: provider.boundaryChapter + 2,
+                    message: '该术语可能含有潜在剧透内容，解锁后可查看完整解释与原文语境。',
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGlossaryCard(ThemeData theme, BookGlossaryEntry entry) {
+    final canonical = entry.canonicalForm?.trim();
+    final context = entry.sourceContext?.trim();
+
+    return _SectionCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SquareIcon(
+            icon: Icons.article_outlined,
+            background: theme.colorScheme.primaryContainer.withValues(
+              alpha: 0.55,
+            ),
+            foreground: theme.colorScheme.onPrimaryContainer,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        entry.word,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    FlowButton.text(
+                      onPressed: () => _showFeatureSnack('术语解释会使用当前剧透边界作为上下文。'),
+                      icon: const Icon(Icons.auto_awesome, size: 16),
+                      child: const Text('解释该术语'),
+                    ),
+                  ],
+                ),
+                if (canonical != null &&
+                    canonical.isNotEmpty &&
+                    canonical.toLowerCase() != entry.word.toLowerCase()) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
                       Text(
-                        event.detail!,
+                        '规范形：',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        canonical,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
-                    if (event.source != null && event.source!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest
-                              .withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '"${event.source}"',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontStyle: FontStyle.italic,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Text(entry.explanation, style: theme.textTheme.bodyMedium),
+                if (context != null && context.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _QuoteBox(text: context, label: '原文语境'),
+                ],
+              ],
             ),
           ),
         ],
@@ -396,389 +871,574 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     );
   }
 
-  Widget _buildCharacters(ThemeData theme, BookInsightProvider provider) {
-    final registryEntries = provider.characterRegistryEntries;
-    final registeredNames = registryEntries
-        .map((entry) => entry.canonicalName.toLowerCase())
-        .toSet();
-    final analysisCards = (provider.analysisData?.characters ?? const [])
-        .where(
-          (card) => !registeredNames.contains(card.canonicalName.toLowerCase()),
-        )
-        .toList();
-    final cards = analysisCards.isEmpty
-        ? provider.characterCards
-              .where(
-                (card) => !registeredNames.contains(
-                  card.canonicalName.toLowerCase(),
-                ),
-              )
-              .toList()
-        : const <BookCharacterCard>[];
+  Widget _buildChapterList(ThemeData theme, BookInsightProvider provider) {
+    final coverage = provider.coverage;
+    if (coverage == null) return _buildEmptyTab(theme, '暂无章节数据');
+    final chapterGroups = _chapterGroups(provider);
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
       children: [
-        if (provider.coverage != null) _buildCoverageBar(theme, provider),
-        const SizedBox(height: 12),
-        _buildCharacterActions(theme, provider),
-        if (registryEntries.isEmpty &&
-            analysisCards.isEmpty &&
-            cards.isEmpty) ...[
-          const SizedBox(height: 48),
-          Center(
-            child: Text(
-              '暂无人物数据',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildCoverageStrip(theme, provider),
+                const SizedBox(height: 18),
+                for (var i = 0; i < coverage.totalChapters; i++)
+                  _buildChapterTimelineItem(
+                    theme,
+                    provider,
+                    chapterIndex: i,
+                    group: chapterGroups[i],
+                    readChapters: coverage.readChapters,
+                  ),
+              ],
             ),
           ),
-        ],
-        ...registryEntries.map(
-          (entry) => _buildRegistryCharacterCard(theme, provider, entry),
         ),
-        ...analysisCards.map(
-          (card) => _buildAnalysisCharacterCard(theme, card),
-        ),
-        ...cards.map((card) => _buildCharacterCard(theme, provider, card)),
       ],
     );
   }
 
-  Widget _buildCharacterActions(
+  Widget _buildChapterTimelineItem(
     ThemeData theme,
-    BookInsightProvider provider,
+    BookInsightProvider provider, {
+    required int chapterIndex,
+    required _ChapterInsightGroup? group,
+    required int readChapters,
+  }) {
+    final isUnlocked = chapterIndex <= provider.boundaryChapter;
+    final isRead = chapterIndex < readChapters;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _TimelineRail(
+          chapterNumber: chapterIndex + 1,
+          locked: !isUnlocked,
+          active: isUnlocked && group != null,
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: !isUnlocked
+                ? _buildLockedCard(
+                    theme,
+                    nextChapter: chapterIndex + 1,
+                    message: '第 ${chapterIndex + 1} 章后解锁更多内容。',
+                  )
+                : group != null
+                ? _buildChapterSummaryCard(theme, chapterIndex, group)
+                : _buildChapterMissingCard(theme, chapterIndex, isRead),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChapterSummaryCard(
+    ThemeData theme,
+    int chapterIndex,
+    _ChapterInsightGroup group,
   ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '人物注册表',
+    final summary = group.summary;
+    final events = group.events;
+    return _SectionCard(
+      padding: EdgeInsets.zero,
+      child: ExpansionTile(
+        initiallyExpanded: chapterIndex < 2,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+        title: Row(
+          children: [
+            Text(
+              '第 ${chapterIndex + 1} 章',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
             ),
-          ),
-          FlowButton.secondary(
-            onPressed: provider.canMaintainCharacters
-                ? () => _showAddCharacterDialog(provider)
-                : null,
-            icon: const Icon(Icons.person_add_alt_1, size: 16),
-            child: const Text('新增人物'),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                events.isNotEmpty ? events.first.description : '已总结',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+        ),
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 760;
+              final eventPanel = _ChapterEventPanel(events: events);
+              final guidancePanel = _ReadingGuidancePanel(
+                guidance: summary?.readingGuidance ?? '',
+              );
+              if (!isWide) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    eventPanel,
+                    const SizedBox(height: 14),
+                    guidancePanel,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 2, child: eventPanel),
+                  const SizedBox(width: 22),
+                  Expanded(child: guidancePanel),
+                ],
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRegistryCharacterCard(
+  Widget _buildChapterMissingCard(
     ThemeData theme,
-    BookInsightProvider provider,
-    CharacterRegistryEntry entry,
+    int chapterIndex,
+    bool isRead,
   ) {
-    final aliases = [...entry.aliases, ...entry.userOverrides].toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return _SectionCard(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    child: Text(
-                      entry.canonicalName.isNotEmpty
-                          ? entry.canonicalName[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
-                    ),
+                Text(
+                  '第 ${chapterIndex + 1} 章',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    entry.canonicalName,
+                const SizedBox(height: 6),
+                Text(
+                  isRead ? '已读，尚未生成洞察' : '未读章节',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isRead)
+            FlowButton.secondary(
+              onPressed: () => unawaited(_generateChapterSummary(chapterIndex)),
+              icon: const Icon(Icons.auto_awesome, size: 16),
+              child: const Text('生成'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCoverageStrip(ThemeData theme, BookInsightProvider provider) {
+    final coverage = provider.coverage;
+    if (coverage == null) return const SizedBox.shrink();
+    final readMissingChapters = _readMissingChapters(coverage);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 680;
+        final status = Text(
+          '已总结 ${coverage.summarizedChapters}/${coverage.totalChapters} 章',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        );
+        final progress = Row(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: coverage.percentage,
+                  minHeight: 7,
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Text(
+              '${(coverage.percentage * 100).round()}%',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        );
+        final button = FlowButton.secondary(
+          onPressed:
+              _isBackfillingSummaries ||
+                  readMissingChapters.isEmpty ||
+                  widget.onGenerateMissingReadChapters == null
+              ? null
+              : () => unawaited(
+                  _generateMissingReadSummaries(readMissingChapters),
+                ),
+          icon: _isBackfillingSummaries
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.playlist_add_check, size: 16),
+          child: Text(_isBackfillingSummaries ? '补齐中' : '补齐已读'),
+        );
+
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.36,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: compact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      status,
+                      const SizedBox(height: 12),
+                      progress,
+                      const SizedBox(height: 12),
+                      Align(alignment: Alignment.centerRight, child: button),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      SizedBox(width: 150, child: status),
+                      Expanded(child: progress),
+                      const SizedBox(width: 20),
+                      button,
+                    ],
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLockedCard(
+    ThemeData theme, {
+    required int nextChapter,
+    required String message,
+  }) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant,
+          style: BorderStyle.solid,
+        ),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.18,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: theme.colorScheme.outlineVariant,
+              child: Icon(
+                Icons.lock_outline,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '第 $nextChapter 章后解锁',
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                ),
-                if (entry.firstAppearanceChapter != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.secondaryContainer,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '首次出现: 第 ${entry.firstAppearanceChapter! + 1} 章',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSecondaryContainer,
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    message,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                PopupMenuButton<String>(
-                  tooltip: '人物操作',
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'alias':
-                        _showAddAliasDialog(provider, entry.canonicalName);
-                        break;
-                      case 'delete':
-                        _confirmDeleteCharacter(provider, entry.canonicalName);
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: 'alias',
-                      child: ListTile(
-                        leading: Icon(Icons.sell_outlined),
-                        title: Text('添加别名'),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: ListTile(
-                        leading: Icon(Icons.delete_outline),
-                        title: Text('删除人物'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            if (aliases.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: aliases
-                    .map(
-                      (alias) => Chip(
-                        label: Text(alias),
-                        onDeleted: provider.canMaintainCharacters
-                            ? () {
-                                unawaited(
-                                  provider.removeCharacterAlias(
-                                    entry.canonicalName,
-                                    alias,
-                                  ),
-                                );
-                              }
-                            : null,
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    )
-                    .toList(growable: false),
+                ],
               ),
-            ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCharacterCard(
-    ThemeData theme,
-    BookInsightProvider provider,
-    BookCharacterCard card,
+  Widget _buildEmptyTab(ThemeData theme, String message) {
+    return Center(
+      child: Text(
+        message,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.outline,
+        ),
+      ),
+    );
+  }
+
+  List<_CharacterInsightItem> _characterItems(BookInsightProvider provider) {
+    final registryEntries = provider.characterRegistryEntries;
+    final analysisCards =
+        provider.analysisData?.characters ?? const <CharacterCard>[];
+    final legacyCards = provider.characterCards;
+    final registeredNames = registryEntries
+        .map((entry) => entry.canonicalName.toLowerCase())
+        .toSet();
+    final analysisByName = {
+      for (final card in analysisCards) card.canonicalName.toLowerCase(): card,
+    };
+    final legacyByName = {
+      for (final card in legacyCards) card.canonicalName.toLowerCase(): card,
+    };
+
+    final items = <_CharacterInsightItem>[
+      for (final entry in registryEntries)
+        _CharacterInsightItem.fromRegistry(
+          entry,
+          analysis: analysisByName[entry.canonicalName.toLowerCase()],
+          legacy: legacyByName[entry.canonicalName.toLowerCase()],
+        ),
+      for (final card in analysisCards)
+        if (!registeredNames.contains(card.canonicalName.toLowerCase()))
+          _CharacterInsightItem.fromAnalysis(card),
+      for (final card in legacyCards)
+        if (!registeredNames.contains(card.canonicalName.toLowerCase()) &&
+            !analysisByName.containsKey(card.canonicalName.toLowerCase()))
+          _CharacterInsightItem.fromLegacy(card),
+    ];
+
+    items.sort((a, b) {
+      final first = a.firstChapter.compareTo(b.firstChapter);
+      if (first != 0) return first;
+      return a.canonicalName.compareTo(b.canonicalName);
+    });
+    return items;
+  }
+
+  Map<int, _ChapterInsightGroup> _chapterGroups(BookInsightProvider provider) {
+    final groups = <int, _ChapterInsightGroup>{};
+    for (final entry in provider.chapterSummaries.entries) {
+      groups[entry.key] = _ChapterInsightGroup(summary: entry.value);
+    }
+    for (final event
+        in provider.analysisData?.storyEvents ?? const <StoryEvent>[]) {
+      groups
+          .putIfAbsent(event.chapterIndex, () => const _ChapterInsightGroup())
+          .storyEvents
+          .add(event);
+    }
+    return groups;
+  }
+
+  List<int> _readMissingChapters(BookInsightCoverage coverage) {
+    return coverage.missingChapters
+        .where((chapterIndex) => chapterIndex < coverage.readChapters)
+        .toList(growable: false);
+  }
+
+  bool _hasLockedFuture(BookInsightProvider provider) {
+    return !provider.showFullBook &&
+        provider.totalChapters > 0 &&
+        provider.boundaryChapter < provider.totalChapters - 1;
+  }
+
+  String _boundaryLabel(BookInsightProvider provider) {
+    if (provider.showFullBook) return '全书范围';
+    if (provider.isFollowingProgress) {
+      return '截至第 ${provider.boundaryChapter + 1} 章';
+    }
+    return '回看到第 ${provider.boundaryChapter + 1} 章';
+  }
+
+  String? _effectiveSelectedCharacter(
+    List<_CharacterInsightItem> items,
+    CharacterRelationGraph graph,
   ) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final current = _selectedCharacterName;
+    if (current != null &&
+        (items.any((item) => item.canonicalName == current) ||
+            graph.nodes.any((node) => node.label == current))) {
+      return current;
+    }
+    if (items.isNotEmpty) return items.first.canonicalName;
+    if (graph.nodes.isNotEmpty) return graph.nodes.first.label;
+    return null;
+  }
+
+  Future<void> _selectBoundaryMode(
+    BookInsightProvider provider,
+    _SpoilerBoundaryMode mode,
+  ) async {
+    switch (mode) {
+      case _SpoilerBoundaryMode.follow:
+        await provider.followReadingProgress();
+      case _SpoilerBoundaryMode.manual:
+        await _showReadBoundaryDialog(provider);
+      case _SpoilerBoundaryMode.full:
+        await _confirmFullBookMode(provider);
+    }
+  }
+
+  Future<void> _showReadBoundaryDialog(BookInsightProvider provider) async {
+    final maxChapter = math.max(0, provider.currentChapter);
+    var selected = provider.boundaryChapter.clamp(0, maxChapter);
+    final confirmed = await showFlowDialog<int>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => FlowDialog(
+          title: const Text('回看到章节'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Text(
-                    card.canonicalName.isNotEmpty
-                        ? card.canonicalName[0].toUpperCase()
-                        : '?',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    card.canonicalName,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                FlowButton.secondary(
-                  onPressed: provider.canMaintainCharacters
-                      ? () {
-                          unawaited(provider.confirmCharacterCard(card));
-                        }
-                      : null,
-                  icon: const Icon(Icons.person_add_alt_1, size: 16),
-                  child: const Text('登记'),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '首次出现: 第 ${card.firstSeenChapter + 1} 章',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSecondaryContainer,
-                    ),
-                  ),
+                Text('当前边界：第 ${selected + 1} 章'),
+                Slider(
+                  min: 0,
+                  max: maxChapter.toDouble(),
+                  divisions: maxChapter == 0 ? null : maxChapter,
+                  value: selected.toDouble(),
+                  label: '第 ${selected + 1} 章',
+                  onChanged: (value) {
+                    setDialogState(() => selected = value.round());
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            ...card.developments.asMap().entries.map(
-              (entry) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ch${entry.key + 1}: ',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        entry.value.change,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          ),
+          actions: [
+            FlowButton.text(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            FlowButton.primary(
+              onPressed: () => Navigator.pop(dialogContext, selected),
+              child: const Text('应用'),
             ),
           ],
         ),
       ),
     );
+    if (confirmed == null) return;
+    await provider.setReadBoundaryChapter(confirmed);
   }
 
-  Widget _buildAnalysisCharacterCard(ThemeData theme, CharacterCard card) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Text(
-                    card.canonicalName.isNotEmpty
-                        ? card.canonicalName[0].toUpperCase()
-                        : '?',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    card.canonicalName,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '第 ${card.firstChapter + 1}-${card.lastChapter + 1} 章',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSecondaryContainer,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (card.traits.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: card.traits
-                    .take(6)
-                    .map(
-                      (trait) => Chip(
-                        label: Text(trait),
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    )
-                    .toList(growable: false),
-              ),
-            ],
-            if (card.actions.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              ...card.actions
-                  .take(4)
-                  .map(
-                    (action) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        '· $action',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ),
-                  ),
-            ],
-          ],
+  Future<void> _confirmFullBookMode(BookInsightProvider provider) async {
+    if (provider.showFullBook) return;
+    final confirmed = await showFlowDialog<bool>(
+      context: context,
+      builder: (dialogContext) => FlowDialog(
+        title: const Text('开启全书剧透模式'),
+        content: const Text('全书洞察会展示尚未阅读章节中的人物关系、事件和术语。'),
+        actions: [
+          FlowButton.text(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FlowButton.destructive(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('开启'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await provider.setFullBookMode(true);
+  }
+
+  Future<void> _generateChapterSummary(int chapterIndex) async {
+    await widget.onGenerateChapter(chapterIndex);
+    await widget.provider.refresh();
+  }
+
+  Future<void> _generateMissingReadSummaries(List<int> chapterIndexes) async {
+    if (_isBackfillingSummaries || chapterIndexes.isEmpty) return;
+    final onGenerate = widget.onGenerateMissingReadChapters;
+    if (onGenerate == null) return;
+
+    setState(() => _isBackfillingSummaries = true);
+    try {
+      final generatedCount = await onGenerate(chapterIndexes);
+      await widget.provider.refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            generatedCount > 0
+                ? '已补齐 $generatedCount 个已读章节摘要'
+                : '没有需要补齐的已读章节摘要',
+          ),
+          behavior: SnackBarBehavior.floating,
         ),
+      );
+    } finally {
+      if (mounted) setState(() => _isBackfillingSummaries = false);
+    }
+  }
+
+  Future<void> _generateReadScopeSynthesis(BookInsightProvider provider) async {
+    await provider.generateReadScopeSynthesis();
+    if (!mounted || provider.error != null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已生成当前范围梗概'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _confirmAndGenerateFullBook(BookInsightProvider provider) async {
+    final confirmed = await showFlowDialog<bool>(
+      context: context,
+      builder: (dialogContext) => FlowDialog(
+        title: const Text('生成全书梗概'),
+        content: const Text('全书梗概可能包含尚未阅读章节的情节和人物关系。'),
+        actions: [
+          FlowButton.text(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FlowButton.destructive(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('生成'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await provider.generateFullBookSynthesis();
+    if (!mounted || provider.error != null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已生成全书梗概'),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -871,405 +1531,623 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     await provider.removeCharacter(canonicalName);
   }
 
-  Widget _buildGlossary(ThemeData theme, BookInsightProvider provider) {
-    final entries = provider.glossaryEntries;
-    if (entries.isEmpty) {
-      return _buildEmptyTab(theme, '暂无本书术语');
-    }
+  void _showFeatureSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+}
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+class _ToolbarTitle extends StatelessWidget {
+  const _ToolbarTitle({required this.bookTitle});
+
+  final String bookTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (provider.coverage != null) _buildCoverageBar(theme, provider),
-        const SizedBox(height: 12),
-        ...entries.map((entry) => _buildGlossaryCard(theme, entry)),
-      ],
-    );
-  }
-
-  Widget _buildGlossaryCard(ThemeData theme, BookGlossaryEntry entry) {
-    final canonical = entry.canonicalForm?.trim();
-    final context = entry.sourceContext?.trim();
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 15,
-                  backgroundColor: theme.colorScheme.tertiaryContainer,
-                  child: Icon(
-                    Icons.local_offer_outlined,
-                    size: 15,
-                    color: theme.colorScheme.onTertiaryContainer,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry.word,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (canonical != null &&
-                          canonical.isNotEmpty &&
-                          canonical.toLowerCase() !=
-                              entry.word.toLowerCase()) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          canonical,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.outline,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(entry.explanation, style: theme.textTheme.bodyMedium),
-            if (context != null && context.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.45,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '"$context"',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChapterList(ThemeData theme, BookInsightProvider provider) {
-    final coverage = provider.coverage;
-    if (coverage == null) return _buildEmptyTab(theme, '暂无章节数据');
-
-    final summaries = provider.chapterSummaries;
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildCoverageBar(theme, provider),
-        const SizedBox(height: 12),
-        for (var i = 0; i < coverage.totalChapters; i++)
-          if (summaries.containsKey(i))
-            _buildChapterSummaryCard(theme, i, summaries[i]!)
-          else
-            _buildChapterMissingCard(theme, i, coverage.readChapters),
-      ],
-    );
-  }
-
-  Widget _buildChapterSummaryCard(
-    ThemeData theme,
-    int chapterIndex,
-    AISummary summary,
-  ) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: ExpansionTile(
-        leading: CircleAvatar(
-          radius: 14,
-          backgroundColor: FunctionalColors.correct.withValues(alpha: 0.15),
-          child: Icon(
-            Icons.check_circle,
-            size: 16,
-            color: FunctionalColors.correct,
+        Text(
+          '书籍洞察',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
           ),
         ),
-        title: Text(
-          '第 ${chapterIndex + 1} 章',
-          style: theme.textTheme.titleSmall,
-        ),
-        subtitle: Text(
-          '${summary.events.length} 个事件 · ${summary.characterDevelopments.length} 个角色',
-          style: theme.textTheme.labelSmall,
-        ),
-        children: [
-          if (summary.events.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '关键事件',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  ...summary.events.map(
-                    (e) => Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '· ${e.description}',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        const SizedBox(height: 3),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.menu_book_outlined,
+              size: 14,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-          if (summary.readingGuidance.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            const SizedBox(width: 6),
+            Flexible(
               child: Text(
-                summary.readingGuidance,
-                style: theme.textTheme.bodySmall?.copyWith(
+                bookTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
+}
 
-  Widget _buildChapterMissingCard(
-    ThemeData theme,
-    int chapterIndex,
-    int readChapters,
-  ) {
-    final isRead = chapterIndex < readChapters;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: 14,
-          backgroundColor: isRead
-              ? theme.colorScheme.error.withValues(alpha: 0.12)
-              : theme.colorScheme.outlineVariant.withValues(alpha: 0.12),
-          child: Icon(
-            isRead ? Icons.sync : Icons.lock_outline,
-            size: 16,
-            color: isRead ? theme.colorScheme.error : theme.colorScheme.outline,
+class _ToolbarActions extends StatelessWidget {
+  const _ToolbarActions({
+    required this.provider,
+    required this.onSelectBoundary,
+    required this.onAskAI,
+  });
+
+  final BookInsightProvider provider;
+  final ValueChanged<_SpoilerBoundaryMode> onSelectBoundary;
+  final VoidCallback? onAskAI;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width < 980) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PopupMenuButton<_SpoilerBoundaryMode>(
+            tooltip: '剧透边界',
+            icon: const Icon(Icons.visibility_outlined),
+            onSelected: onSelectBoundary,
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: _SpoilerBoundaryMode.follow,
+                child: Text('跟随进度'),
+              ),
+              PopupMenuItem(
+                value: _SpoilerBoundaryMode.manual,
+                child: Text('回看到第 ${provider.boundaryChapter + 1} 章'),
+              ),
+              const PopupMenuItem(
+                value: _SpoilerBoundaryMode.full,
+                child: Text('全书（含剧透）'),
+              ),
+            ],
+          ),
+          IconButton(
+            tooltip: 'AI 提问',
+            icon: const Icon(Icons.auto_awesome_outlined),
+            onPressed: onAskAI,
+          ),
+        ],
+      );
+    }
+
+    final mode = provider.showFullBook
+        ? _SpoilerBoundaryMode.full
+        : provider.isManualReadBoundary
+        ? _SpoilerBoundaryMode.manual
+        : _SpoilerBoundaryMode.follow;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 430,
+          child: SegmentedButton<_SpoilerBoundaryMode>(
+            showSelectedIcon: false,
+            segments: [
+              const ButtonSegment(
+                value: _SpoilerBoundaryMode.follow,
+                label: Text('跟随进度'),
+              ),
+              ButtonSegment(
+                value: _SpoilerBoundaryMode.manual,
+                label: Text('回看到第 ${provider.boundaryChapter + 1} 章'),
+              ),
+              const ButtonSegment(
+                value: _SpoilerBoundaryMode.full,
+                label: Text('全书'),
+              ),
+            ],
+            selected: {mode},
+            onSelectionChanged: (values) => onSelectBoundary(values.single),
           ),
         ),
-        title: Text(
-          '第 ${chapterIndex + 1} 章',
-          style: theme.textTheme.titleSmall,
+        const SizedBox(width: 16),
+        FlowButton.secondary(
+          onPressed: onAskAI,
+          icon: const Icon(Icons.auto_awesome_outlined, size: 16),
+          child: const Text('AI 提问'),
         ),
-        subtitle: Text(
-          isRead ? '尚未生成总结' : '尚未阅读',
-          style: theme.textTheme.labelSmall,
-        ),
-        trailing: isRead
-            ? FlowButton.secondary(
-                onPressed: () {
-                  unawaited(_generateChapterSummary(chapterIndex));
-                },
-                icon: const Icon(Icons.auto_awesome, size: 16),
-                child: const Text('生成'),
-              )
-            : null,
-      ),
+      ],
     );
   }
+}
 
-  Widget _buildCoverageBar(ThemeData theme, BookInsightProvider provider) {
-    final coverage = provider.coverage;
-    if (coverage == null) return const SizedBox.shrink();
-    final readMissingChapters = _readMissingChapters(coverage);
+enum _SpoilerBoundaryMode { follow, manual, full }
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(10),
+class _TabLabel extends StatelessWidget {
+  const _TabLabel({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 8),
+        Text(label),
+      ],
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.child,
+    this.padding = const EdgeInsets.all(18),
+    this.margin = EdgeInsets.zero,
+  });
+
+  final Widget child;
+  final EdgeInsets padding;
+  final EdgeInsets margin;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: margin,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: Padding(padding: padding, child: child),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SquareIcon(
+          icon: icon,
+          background: theme.colorScheme.primaryContainer.withValues(
+            alpha: 0.55,
+          ),
+          foreground: theme.colorScheme.primary,
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.pie_chart_outline,
-                size: 16,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
               Text(
-                '已总结 ${coverage.summarizedChapters}/${coverage.totalChapters} 章',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.primary,
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              if (readMissingChapters.isNotEmpty) ...[
-                const Spacer(),
-                FlowButton.secondary(
-                  onPressed:
-                      _isBackfillingSummaries ||
-                          widget.onGenerateMissingReadChapters == null
-                      ? null
-                      : () {
-                          unawaited(
-                            _generateMissingReadSummaries(readMissingChapters),
-                          );
-                        },
-                  icon: _isBackfillingSummaries
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.playlist_add_check, size: 16),
-                  child: Text(
-                    _isBackfillingSummaries ? '补齐中' : '补齐已读',
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
             ],
           ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: coverage.percentage,
-              minHeight: 6,
-              backgroundColor: theme.colorScheme.primaryContainer.withValues(
-                alpha: 0.4,
+        ),
+        ?trailing,
+      ],
+    );
+  }
+}
+
+class _SquareIcon extends StatelessWidget {
+  const _SquareIcon({
+    required this.icon,
+    required this.background,
+    required this.foreground,
+  });
+
+  final IconData icon;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: 21, color: foreground),
+    );
+  }
+}
+
+class _TextBlock extends StatelessWidget {
+  const _TextBlock({required this.title, required this.text});
+
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final lines = _textLines(text);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (lines.isEmpty)
+          Text(
+            '暂无内容',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          )
+        else
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '• $line',
+                style: theme.textTheme.bodySmall?.copyWith(height: 1.45),
               ),
+            ),
+      ],
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 42, color: theme.colorScheme.primary),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
-          if (coverage.missingChapters.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              '未生成总结: ${coverage.missingChapters.map((i) => 'Ch${i + 1}').join(', ')}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
+          ),
+          if (action != null) ...[
+            const SizedBox(height: 16),
+            action!,
           ],
         ],
       ),
     );
   }
+}
 
-  List<int> _readMissingChapters(BookInsightCoverage coverage) {
-    return coverage.missingChapters
-        .where((chapterIndex) => chapterIndex < coverage.readChapters)
-        .toList(growable: false);
-  }
+class _SkeletonLine extends StatelessWidget {
+  const _SkeletonLine({required this.widthFactor});
 
-  Future<void> _generateChapterSummary(int chapterIndex) async {
-    await widget.onGenerateChapter(chapterIndex);
-    await widget.provider.refresh();
-  }
+  final double widthFactor;
 
-  Future<void> _generateMissingReadSummaries(List<int> chapterIndexes) async {
-    if (_isBackfillingSummaries || chapterIndexes.isEmpty) return;
-    final onGenerate = widget.onGenerateMissingReadChapters;
-    if (onGenerate == null) return;
-
-    setState(() => _isBackfillingSummaries = true);
-    try {
-      final generatedCount = await onGenerate(chapterIndexes);
-      await widget.provider.refresh();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            generatedCount > 0
-                ? '已补齐 $generatedCount 个已读章节摘要'
-                : '没有需要补齐的已读章节摘要',
-          ),
-          behavior: SnackBarBehavior.floating,
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        height: 14,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
         ),
-      );
-    } finally {
-      if (mounted) setState(() => _isBackfillingSummaries = false);
-    }
-  }
-
-  Future<void> _generateReadScopeSynthesis(BookInsightProvider provider) async {
-    await provider.generateReadScopeSynthesis();
-    if (!mounted || provider.error != null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('已生成已读范围分析'),
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }
+}
 
-  Future<void> _confirmAndGenerateFullBook(BookInsightProvider provider) async {
-    final confirmed = await showFlowDialog<bool>(
-      context: context,
-      builder: (dialogContext) => FlowDialog(
-        title: const Text('生成全书分析'),
-        content: const Text('全书分析可能包含尚未阅读章节的情节。'),
-        actions: [
-          FlowButton.text(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          FlowButton.primary(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('生成'),
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({
+    required this.label,
+    this.icon,
+    required this.foreground,
+    required this.background,
+  });
+
+  final String label;
+  final IconData? icon;
+  final Color foreground;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: foreground),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: foreground,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
     );
-    if (confirmed != true) return;
-    await provider.generateFullBookSynthesis();
-    if (!mounted || provider.error != null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('已生成全书分析'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
+}
 
-  Widget _buildEmptyTab(ThemeData theme, String message) {
-    return Center(
-      child: Text(
-        message,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.outline,
+class _CharacterInsightCard extends StatelessWidget {
+  const _CharacterInsightCard({
+    required this.item,
+    required this.selected,
+    required this.canMaintainCharacters,
+    required this.onTap,
+    this.onConfirm,
+    this.onAddAlias,
+    this.onDelete,
+    this.onRemoveAlias,
+  });
+
+  final _CharacterInsightItem item;
+  final bool selected;
+  final bool canMaintainCharacters;
+  final VoidCallback onTap;
+  final VoidCallback? onConfirm;
+  final VoidCallback? onAddAlias;
+  final VoidCallback? onDelete;
+  final ValueChanged<String>? onRemoveAlias;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: selected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outlineVariant,
+          width: selected ? 1.4 : 1,
         ),
       ),
-    );
-  }
-
-  Widget _buildInlineEmpty(ThemeData theme, String message) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32),
-      child: Center(
-        child: Text(
-          message,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.outline,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: selected
+                        ? theme.colorScheme.primaryContainer
+                        : theme.colorScheme.secondaryContainer,
+                    child: Text(
+                      _avatarLetter(item.canonicalName),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: selected
+                            ? theme.colorScheme.onPrimaryContainer
+                            : theme.colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              item.canonicalName,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (item.role != null)
+                              _SmallChip(
+                                label: item.role!,
+                                color: theme.colorScheme.primary,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '首次出现: 第 ${item.firstChapter + 1} 章',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (item.isRegistered)
+                    _StatusPill(
+                      label: '已登记',
+                      foreground: Colors.green.shade700,
+                      background: Colors.green.withValues(alpha: 0.12),
+                    )
+                  else ...[
+                    _StatusPill(
+                      label: 'AI 待登记',
+                      foreground: Colors.orange.shade800,
+                      background: Colors.orange.withValues(alpha: 0.12),
+                    ),
+                    const SizedBox(width: 8),
+                    FlowButton.secondary(
+                      onPressed: canMaintainCharacters ? onConfirm : null,
+                      icon: const Icon(Icons.check, size: 16),
+                      child: const Text('登记'),
+                    ),
+                  ],
+                  if (item.isRegistered)
+                    PopupMenuButton<String>(
+                      tooltip: '人物操作',
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'alias':
+                            onAddAlias?.call();
+                          case 'delete':
+                            onDelete?.call();
+                        }
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                          value: 'alias',
+                          child: ListTile(
+                            leading: Icon(Icons.sell_outlined),
+                            title: Text('添加别名'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: ListTile(
+                            leading: Icon(Icons.delete_outline),
+                            title: Text('删除人物'),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              if (item.aliases.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: item.aliases
+                      .map(
+                        (alias) => Chip(
+                          label: Text(alias),
+                          onDeleted: item.isRegistered && canMaintainCharacters
+                              ? () => onRemoveAlias?.call(alias)
+                              : null,
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+              ],
+              if (item.traits.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: item.traits
+                      .take(6)
+                      .map(
+                        (trait) => _SmallChip(
+                          label: trait,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+              ],
+              if (item.actions.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '人物弧光 / 关键行动',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                for (final action in item.actions.take(4))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 5),
+                    child: Text(
+                      action,
+                      style: theme.textTheme.bodySmall?.copyWith(height: 1.35),
+                    ),
+                  ),
+              ],
+            ],
           ),
         ),
       ),
@@ -1277,39 +2155,871 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   }
 }
 
-class _TimelineEvent {
-  const _TimelineEvent({
-    required this.chapterIndex,
-    required this.description,
-    this.detail,
-    this.source,
+class _SelectedCharacterDetail extends StatelessWidget {
+  const _SelectedCharacterDetail({
+    required this.item,
+    required this.relatedEdges,
+    required this.graph,
   });
 
-  factory _TimelineEvent.fromAnalysis(StoryEvent event) {
-    final source = event.anchors.isEmpty
-        ? null
-        : event.anchors.first.quoteSnippet;
-    return _TimelineEvent(
-      chapterIndex: event.chapterIndex,
-      description: event.description,
-      detail: event.participants.isEmpty
-          ? null
-          : '人物: ${event.participants.join(', ')}',
-      source: source,
+  final _CharacterInsightItem item;
+  final List<GraphEdge> relatedEdges;
+  final CharacterRelationGraph graph;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: theme.colorScheme.primaryContainer,
+                child: Text(
+                  _avatarLetter(item.canonicalName),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          item.canonicalName,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (item.role != null)
+                          _SmallChip(
+                            label: item.role!,
+                            color: theme.colorScheme.primary,
+                          ),
+                        _StatusPill(
+                          label: item.isRegistered ? '已登记' : 'AI 待登记',
+                          foreground: item.isRegistered
+                              ? Colors.green.shade700
+                              : Colors.orange.shade800,
+                          background:
+                              (item.isRegistered ? Colors.green : Colors.orange)
+                                  .withValues(alpha: 0.12),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      item.status?.trim().isNotEmpty == true
+                          ? item.status!
+                          : '该人物的更多定位会随章节洞察逐步补全。',
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.55),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (item.traits.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: item.traits
+                  .map(
+                    (trait) => _SmallChip(
+                      label: trait,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ],
+          if (relatedEdges.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _RelationEvidenceList(edges: relatedEdges, graph: graph),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RelationEvidenceList extends StatelessWidget {
+  const _RelationEvidenceList({required this.edges, required this.graph});
+
+  final List<GraphEdge> edges;
+  final CharacterRelationGraph graph;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '关系证据',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            FlowButton.text(
+              onPressed: null,
+              icon: const Icon(Icons.auto_awesome, size: 16),
+              child: const Text('解释这段关系'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        for (final edge in edges)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${_labelForNode(graph, edge.fromCharacterId)} · ${edge.relation} · ${_labelForNode(graph, edge.toCharacterId)}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                for (final anchor in edge.anchors.take(2))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: _QuoteBox(
+                      text: anchor.quoteSnippet,
+                      label: '原文引证 · 第 ${anchor.chapterIndex + 1} 章',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _RelationGraphView extends StatelessWidget {
+  const _RelationGraphView({
+    required this.graph,
+    required this.selectedName,
+    required this.onSelected,
+  });
+
+  final CharacterRelationGraph graph;
+  final String? selectedName;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final nodes = _graphNodes(graph);
+    if (nodes.isEmpty) {
+      return _EmptyState(
+        icon: Icons.hub_outlined,
+        title: '图谱暂无节点',
+        message: '当前综合结果没有可展示的人物关系节点。',
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = math.max(360.0, constraints.maxWidth);
+        final height = width >= 620 ? 300.0 : 260.0;
+        final positions = _nodePositions(nodes, Size(width, height));
+        final selectedNode = nodes
+            .where(
+              (node) => node.label == selectedName || node.id == selectedName,
+            )
+            .firstOrNull;
+
+        return Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _RelationGraphPainter(
+                    graph: graph,
+                    positions: positions,
+                    nodes: nodes,
+                    selectedNodeId: selectedNode?.id,
+                    colorScheme: theme.colorScheme,
+                  ),
+                ),
+              ),
+              for (final node in nodes)
+                Positioned(
+                  left: positions[node.id]!.dx - 58,
+                  top: positions[node.id]!.dy - 18,
+                  width: 116,
+                  height: 38,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: node.id == selectedNode?.id
+                          ? theme.colorScheme.primaryContainer
+                          : theme.colorScheme.surface,
+                      foregroundColor: node.id == selectedNode?.id
+                          ? theme.colorScheme.onPrimaryContainer
+                          : theme.colorScheme.onSurface,
+                      side: BorderSide(
+                        color: node.id == selectedNode?.id
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outlineVariant,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    onPressed: () => onSelected(node.label),
+                    child: Text(
+                      node.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _RelationGraphPainter extends CustomPainter {
+  const _RelationGraphPainter({
+    required this.graph,
+    required this.positions,
+    required this.nodes,
+    required this.selectedNodeId,
+    required this.colorScheme,
+  });
+
+  final CharacterRelationGraph graph;
+  final Map<String, Offset> positions;
+  final List<GraphNode> nodes;
+  final String? selectedNodeId;
+  final ColorScheme colorScheme;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final nodeIds = nodes.map((node) => node.id).toSet();
+    for (final edge in graph.edges) {
+      if (!nodeIds.contains(edge.fromCharacterId) ||
+          !nodeIds.contains(edge.toCharacterId)) {
+        continue;
+      }
+      final start = positions[edge.fromCharacterId];
+      final end = positions[edge.toCharacterId];
+      if (start == null || end == null) continue;
+      final selected =
+          edge.fromCharacterId == selectedNodeId ||
+          edge.toCharacterId == selectedNodeId;
+      final paint = Paint()
+        ..color = selected
+            ? colorScheme.primary
+            : colorScheme.outline.withValues(alpha: 0.62)
+        ..strokeWidth = selected ? 2.4 : 1.4
+        ..style = PaintingStyle.stroke;
+      canvas.drawLine(start, end, paint);
+      final label = edge.relation.trim();
+      if (label.isEmpty) continue;
+      final midpoint = Offset((start.dx + end.dx) / 2, (start.dy + end.dy) / 2);
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: selected
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: 110);
+      final labelRect = Rect.fromLTWH(
+        midpoint.dx - textPainter.width / 2 - 4,
+        midpoint.dy - textPainter.height / 2 - 2,
+        textPainter.width + 8,
+        textPainter.height + 4,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(labelRect, const Radius.circular(4)),
+        Paint()..color = colorScheme.surface.withValues(alpha: 0.88),
+      );
+      textPainter.paint(
+        canvas,
+        Offset(
+          midpoint.dx - textPainter.width / 2,
+          midpoint.dy - textPainter.height / 2,
+        ),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RelationGraphPainter oldDelegate) {
+    return oldDelegate.graph != graph ||
+        oldDelegate.selectedNodeId != selectedNodeId ||
+        oldDelegate.colorScheme != colorScheme;
+  }
+}
+
+class _SmallChip extends StatelessWidget {
+  const _SmallChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        color: color.withValues(alpha: 0.08),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _QuoteBox extends StatelessWidget {
+  const _QuoteBox({required this.text, this.label});
+
+  final String text;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.44,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (label != null) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.format_quote,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label!,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+          ],
+          Text(
+            '“$text”',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineRail extends StatelessWidget {
+  const _TimelineRail({
+    required this.chapterNumber,
+    required this.locked,
+    required this.active,
+  });
+
+  final int chapterNumber;
+  final bool locked;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = locked
+        ? theme.colorScheme.outline
+        : active
+        ? theme.colorScheme.primary
+        : theme.colorScheme.outlineVariant;
+    return SizedBox(
+      width: 40,
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: color.withValues(alpha: active ? 1 : 0.18),
+            child: locked
+                ? Icon(
+                    Icons.lock_outline,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  )
+                : Text(
+                    '$chapterNumber',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: active ? theme.colorScheme.onPrimary : color,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+          ),
+          Container(
+            width: 2,
+            height: 76,
+            color: color.withValues(alpha: 0.38),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChapterEventPanel extends StatelessWidget {
+  const _ChapterEventPanel({required this.events});
+
+  final List<_ChapterEventView> events;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '关键事件',
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (events.isEmpty)
+          Text(
+            '暂无事件',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          )
+        else
+          for (final event in events)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '• ${event.description}',
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+                  ),
+                  if (event.participants.isNotEmpty ||
+                      event.location != null) ...[
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final participant in event.participants.take(6))
+                          _SmallChip(
+                            label: participant,
+                            color: theme.colorScheme.primary,
+                          ),
+                        if (event.location != null)
+                          _SmallChip(
+                            label: event.location!,
+                            color: theme.colorScheme.tertiary,
+                          ),
+                      ],
+                    ),
+                  ],
+                  if (event.significance?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      event.significance!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (event.source?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 8),
+                    _QuoteBox(text: event.source!, label: '原文引证'),
+                  ],
+                ],
+              ),
+            ),
+      ],
+    );
+  }
+}
+
+class _ReadingGuidancePanel extends StatelessWidget {
+  const _ReadingGuidancePanel({required this.guidance});
+
+  final String guidance;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '阅读引导',
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          guidance.trim().isEmpty ? '暂无阅读引导。' : guidance.trim(),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            height: 1.55,
+            color: guidance.trim().isEmpty
+                ? theme.colorScheme.onSurfaceVariant
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CharacterInsightItem {
+  const _CharacterInsightItem({
+    required this.canonicalName,
+    required this.aliases,
+    required this.role,
+    required this.status,
+    required this.traits,
+    required this.actions,
+    required this.firstChapter,
+    required this.lastChapter,
+    required this.evidence,
+    required this.isRegistered,
+    required this.confirmationCard,
+  });
+
+  final String canonicalName;
+  final List<String> aliases;
+  final String? role;
+  final String? status;
+  final List<String> traits;
+  final List<String> actions;
+  final int firstChapter;
+  final int lastChapter;
+  final List<String> evidence;
+  final bool isRegistered;
+  final BookCharacterCard? confirmationCard;
+
+  factory _CharacterInsightItem.fromRegistry(
+    CharacterRegistryEntry entry, {
+    CharacterCard? analysis,
+    BookCharacterCard? legacy,
+  }) {
+    final aliases =
+        {
+            ...entry.aliases,
+            ...entry.userOverrides,
+            ...?analysis?.aliases,
+          }.where((alias) => alias.trim().isNotEmpty).toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final firstChapter =
+        entry.firstAppearanceChapter ??
+        analysis?.firstChapter ??
+        legacy?.firstSeenChapter ??
+        0;
+    return _CharacterInsightItem(
+      canonicalName: entry.canonicalName,
+      aliases: aliases,
+      role: analysis?.role,
+      status: analysis?.status,
+      traits: analysis?.traits ?? const [],
+      actions: _characterActions(analysis: analysis, legacy: legacy),
+      firstChapter: firstChapter,
+      lastChapter:
+          analysis?.lastChapter ?? legacy?.firstSeenChapter ?? firstChapter,
+      evidence: _characterEvidence(analysis: analysis, legacy: legacy),
+      isRegistered: true,
+      confirmationCard: null,
     );
   }
 
-  factory _TimelineEvent.fromLegacy(StorylineEvent event) {
-    return _TimelineEvent(
-      chapterIndex: event.chapterIndex,
-      description: event.description,
-      detail: event.significance,
-      source: event.source,
+  factory _CharacterInsightItem.fromAnalysis(CharacterCard card) {
+    return _CharacterInsightItem(
+      canonicalName: card.canonicalName,
+      aliases: card.aliases.toList()..sort(),
+      role: card.role,
+      status: card.status,
+      traits: card.traits,
+      actions: _characterActions(analysis: card),
+      firstChapter: card.firstChapter,
+      lastChapter: card.lastChapter,
+      evidence: _characterEvidence(analysis: card),
+      isRegistered: false,
+      confirmationCard: _confirmationCardFor(card),
     );
   }
 
-  final int chapterIndex;
+  factory _CharacterInsightItem.fromLegacy(BookCharacterCard card) {
+    return _CharacterInsightItem(
+      canonicalName: card.canonicalName,
+      aliases: const [],
+      role: null,
+      status: card.currentState,
+      traits: const [],
+      actions: _characterActions(legacy: card),
+      firstChapter: card.firstSeenChapter,
+      lastChapter:
+          card.firstSeenChapter + math.max(0, card.developments.length - 1),
+      evidence: card.evidenceSnippets,
+      isRegistered: false,
+      confirmationCard: card,
+    );
+  }
+}
+
+class _ChapterInsightGroup {
+  const _ChapterInsightGroup({this.summary, List<StoryEvent>? storyEvents})
+    : storyEvents = storyEvents ?? const [];
+
+  final AISummary? summary;
+  final List<StoryEvent> storyEvents;
+
+  List<_ChapterEventView> get events {
+    final items = <_ChapterEventView>[];
+    final seen = <String>{};
+    for (final event in summary?.events ?? const <SummaryEvent>[]) {
+      final key = event.description.trim().toLowerCase();
+      if (key.isEmpty || !seen.add(key)) continue;
+      items.add(_ChapterEventView.fromSummary(event));
+    }
+    for (final event in storyEvents) {
+      final key = event.description.trim().toLowerCase();
+      if (key.isEmpty || !seen.add(key)) continue;
+      items.add(_ChapterEventView.fromStoryEvent(event));
+    }
+    return items;
+  }
+}
+
+class _ChapterEventView {
+  const _ChapterEventView({
+    required this.description,
+    this.source,
+    this.significance,
+    this.participants = const [],
+    this.location,
+  });
+
   final String description;
-  final String? detail;
   final String? source;
+  final String? significance;
+  final List<String> participants;
+  final String? location;
+
+  factory _ChapterEventView.fromSummary(SummaryEvent event) {
+    return _ChapterEventView(
+      description: event.description,
+      source: event.source,
+      significance: event.significance,
+    );
+  }
+
+  factory _ChapterEventView.fromStoryEvent(StoryEvent event) {
+    return _ChapterEventView(
+      description: event.description,
+      source: event.anchors.isEmpty ? null : event.anchors.first.quoteSnippet,
+      participants: event.participants,
+      location: event.location,
+    );
+  }
+}
+
+List<String> _characterActions({
+  CharacterCard? analysis,
+  BookCharacterCard? legacy,
+}) {
+  final actions = <String>[];
+  if (analysis != null) {
+    final prefix = analysis.firstChapter == analysis.lastChapter
+        ? 'Ch ${analysis.firstChapter + 1}'
+        : 'Ch ${analysis.firstChapter + 1}-${analysis.lastChapter + 1}';
+    actions.addAll(
+      analysis.actions
+          .where((action) => action.trim().isNotEmpty)
+          .map((action) => '$prefix: $action'),
+    );
+  }
+  if (legacy != null) {
+    for (var i = 0; i < legacy.developments.length; i++) {
+      final development = legacy.developments[i];
+      if (development.change.trim().isEmpty) continue;
+      actions.add(
+        'Ch ${legacy.firstSeenChapter + i + 1}: ${development.change}',
+      );
+    }
+  }
+  return actions;
+}
+
+List<String> _characterEvidence({
+  CharacterCard? analysis,
+  BookCharacterCard? legacy,
+}) {
+  return [
+    ...?analysis?.anchors.map((anchor) => anchor.quoteSnippet),
+    ...?legacy?.evidenceSnippets,
+  ].where((snippet) => snippet.trim().isNotEmpty).toList(growable: false);
+}
+
+BookCharacterCard _confirmationCardFor(CharacterCard card) {
+  final fallbackSource = card.anchors.isNotEmpty
+      ? card.anchors.first.quoteSnippet
+      : '';
+  return BookCharacterCard(
+    canonicalName: card.canonicalName,
+    firstSeenChapter: card.firstChapter,
+    developments: [
+      for (final action in card.actions)
+        CharacterDevelopment(
+          character: card.canonicalName,
+          change: action,
+          source: fallbackSource,
+          confidence: 'medium',
+        ),
+    ],
+    evidenceSnippets: card.anchors
+        .map((anchor) => anchor.quoteSnippet)
+        .toList(),
+  );
+}
+
+List<GraphNode> _graphNodes(CharacterRelationGraph graph) {
+  if (graph.nodes.isNotEmpty) return graph.nodes;
+  final ids = <String>{};
+  for (final edge in graph.edges) {
+    ids.add(edge.fromCharacterId);
+    ids.add(edge.toCharacterId);
+  }
+  return [
+    for (final id in ids) GraphNode(id: id, label: id),
+  ];
+}
+
+Map<String, Offset> _nodePositions(List<GraphNode> nodes, Size size) {
+  final center = Offset(size.width / 2, size.height / 2);
+  final radiusX = math.max(110.0, size.width / 2 - 90);
+  final radiusY = math.max(70.0, size.height / 2 - 58);
+  if (nodes.length == 1) return {nodes.single.id: center};
+  return {
+    for (var i = 0; i < nodes.length; i++)
+      nodes[i].id: Offset(
+        center.dx +
+            math.cos(-math.pi / 2 + (math.pi * 2 * i / nodes.length)) * radiusX,
+        center.dy +
+            math.sin(-math.pi / 2 + (math.pi * 2 * i / nodes.length)) * radiusY,
+      ),
+  };
+}
+
+GraphNode? _nodeForCharacter(CharacterRelationGraph graph, String? name) {
+  if (name == null) return null;
+  final lower = name.toLowerCase();
+  return _graphNodes(graph)
+      .where(
+        (node) =>
+            node.id.toLowerCase() == lower || node.label.toLowerCase() == lower,
+      )
+      .firstOrNull;
+}
+
+List<GraphEdge> _edgesForSelected(
+  CharacterRelationGraph graph,
+  GraphNode? node,
+  String? selectedName,
+) {
+  if (node == null && selectedName == null) return const [];
+  final lower = selectedName?.toLowerCase();
+  return graph.edges
+      .where((edge) {
+        if (node != null &&
+            (edge.fromCharacterId == node.id ||
+                edge.toCharacterId == node.id)) {
+          return true;
+        }
+        if (lower == null) return false;
+        return edge.fromCharacterId.toLowerCase() == lower ||
+            edge.toCharacterId.toLowerCase() == lower;
+      })
+      .toList(growable: false);
+}
+
+String _labelForNode(CharacterRelationGraph graph, String id) {
+  return _graphNodes(graph).where((node) => node.id == id).firstOrNull?.label ??
+      id;
+}
+
+String _avatarLetter(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return '?';
+  return trimmed.characters.first.toUpperCase();
+}
+
+List<String> _textLines(String text) {
+  return text
+      .split(RegExp(r'[\n；;]+'))
+      .map((line) => line.trim().replaceFirst(RegExp(r'^[-•]\s*'), ''))
+      .where((line) => line.isNotEmpty)
+      .toList(growable: false);
+}
+
+String _formatTime(DateTime value) {
+  final local = value.toLocal();
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${two(local.hour)}:${two(local.minute)}';
 }

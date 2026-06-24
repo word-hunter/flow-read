@@ -49,6 +49,7 @@ class BookInsightProvider extends ChangeNotifier {
   String? _languageCode;
   int _totalChapters = 0;
   int _currentChapter = 0;
+  int? _manualReadBoundaryChapter;
 
   BookStoryline? _storyline;
   BookAnalysisData? _analysisData;
@@ -84,6 +85,16 @@ class BookInsightProvider extends ChangeNotifier {
       ? _isGeneratingFullBookSynthesis
       : _isGeneratingReadScopeSynthesis;
   bool get showFullBook => _showFullBook;
+  bool get isFollowingProgress =>
+      !_showFullBook && _manualReadBoundaryChapter == null;
+  bool get isManualReadBoundary =>
+      !_showFullBook && _manualReadBoundaryChapter != null;
+  int get totalChapters => _totalChapters;
+  int get currentChapter => _currentChapter;
+  int get readChapters => _boundedChapter(_currentChapter) + 1;
+  int get boundaryChapter => _showFullBook
+      ? _boundedChapter(_totalChapters - 1)
+      : _boundedChapter(_manualReadBoundaryChapter ?? _currentChapter);
   String? get error => _error;
   bool get canGenerateSynthesis =>
       _synthesisRunner != null && _analysisData != null;
@@ -94,7 +105,7 @@ class BookInsightProvider extends ChangeNotifier {
       _glossaryEntries.isEmpty &&
       _characterRegistryEntries.isEmpty;
 
-  int get maxChapter => _showFullBook ? _totalChapters - 1 : _currentChapter;
+  int get maxChapter => boundaryChapter;
 
   bool isLoadedForBook(String bookId) => _bookId == bookId;
 
@@ -114,6 +125,14 @@ class BookInsightProvider extends ChangeNotifier {
     _languageCode = languageCode ?? (isNewBook ? null : _languageCode);
     _totalChapters = totalChapters;
     _currentChapter = currentChapter;
+    if (isNewBook) {
+      _showFullBook = false;
+      _manualReadBoundaryChapter = null;
+    } else if (_manualReadBoundaryChapter != null) {
+      _manualReadBoundaryChapter = _boundedChapter(
+        _manualReadBoundaryChapter!,
+      );
+    }
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -123,7 +142,7 @@ class BookInsightProvider extends ChangeNotifier {
         bookId: bookId,
         maxReadChapter: maxChapter,
         totalChapters: totalChapters,
-        readChapters: currentChapter + 1,
+        readChapters: maxChapter + 1,
         bookTitle: _bookTitle,
         author: _author,
         languageCode: _languageCode,
@@ -145,12 +164,39 @@ class BookInsightProvider extends ChangeNotifier {
   }
 
   void toggleShowFullBook() {
-    _showFullBook = !_showFullBook;
+    unawaited(setFullBookMode(!_showFullBook));
+  }
+
+  Future<void> followReadingProgress() async {
+    _showFullBook = false;
+    _manualReadBoundaryChapter = null;
     if (_bookId == null) {
       notifyListeners();
       return;
     }
-    unawaited(refresh());
+    await refresh();
+  }
+
+  Future<void> setReadBoundaryChapter(int chapterIndex) async {
+    _showFullBook = false;
+    _manualReadBoundaryChapter = _boundedChapter(chapterIndex);
+    if (_bookId == null) {
+      notifyListeners();
+      return;
+    }
+    await refresh();
+  }
+
+  Future<void> setFullBookMode(bool enabled) async {
+    _showFullBook = enabled;
+    if (enabled) {
+      _manualReadBoundaryChapter = null;
+    }
+    if (_bookId == null) {
+      notifyListeners();
+      return;
+    }
+    await refresh();
   }
 
   Future<void> addCharacter(String canonicalName) async {
@@ -270,9 +316,9 @@ class BookInsightProvider extends ChangeNotifier {
     try {
       final projection = await _bookInsightSourceScope.loadProjection(
         bookId: bookId,
-        maxReadChapter: fullBook ? _totalChapters - 1 : _currentChapter,
+        maxReadChapter: fullBook ? _totalChapters - 1 : boundaryChapter,
         totalChapters: _totalChapters,
-        readChapters: fullBook ? _totalChapters : _currentChapter + 1,
+        readChapters: fullBook ? _totalChapters : boundaryChapter + 1,
         bookTitle: _bookTitle,
         author: _author,
         languageCode: _languageCode,
@@ -369,5 +415,13 @@ class BookInsightProvider extends ChangeNotifier {
             .toList(growable: false),
       ),
     );
+  }
+
+  int _boundedChapter(int chapterIndex) {
+    if (_totalChapters <= 0) return 0;
+    final last = _totalChapters - 1;
+    if (chapterIndex < 0) return 0;
+    if (chapterIndex > last) return last;
+    return chapterIndex;
   }
 }

@@ -173,6 +173,80 @@ void main() {
     expect(data.storyEvents, hasLength(1));
   });
 
+  test('notifies registry about new characters and aliases', () {
+    final registry = _RecordingCharacterRegistry(
+      entriesByBookId: {
+        'book-1': [
+          CharacterRegistryEntry(
+            canonicalName: 'Eddard Stark',
+            updatedAt: DateTime.utc(2026, 6, 24),
+          ),
+          CharacterRegistryEntry(
+            canonicalName: 'Arya Stark',
+            aliases: const {'Arya'},
+            updatedAt: DateTime.utc(2026, 6, 24),
+          ),
+        ],
+      },
+      canonicalMatches: const {
+        'ned': 'Eddard Stark',
+        'arya': 'Eddard Stark',
+      },
+    );
+
+    BookAnalysisAggregator(characterRegistry: registry).build(
+      scope: scope,
+      totalChapters: 3,
+      chapterInsights: {
+        0: ChapterInsight.fromSummary(
+          const AISummary(
+            events: [],
+            characterDevelopments: [
+              CharacterDevelopment(
+                character: 'Ned',
+                change: 'Studies the omen.',
+                source: 'Ned studied the omen.',
+                confidence: 'high',
+              ),
+              CharacterDevelopment(
+                character: 'Robert Baratheon',
+                change: 'Arrives with the kingly party.',
+                source: 'Robert arrived.',
+                confidence: 'medium',
+              ),
+              CharacterDevelopment(
+                character: 'Arya',
+                change: 'Should stay separate from conflicting alias.',
+                source: 'Arya watched.',
+                confidence: 'medium',
+              ),
+            ],
+            keyVocabulary: [],
+            readingGuidance: '',
+          ),
+        ),
+      },
+    );
+
+    final entries = registry.entriesFor('book-1');
+    expect(
+      entries
+          .singleWhere((entry) => entry.canonicalName == 'Eddard Stark')
+          .aliases,
+      contains('Ned'),
+    );
+    expect(
+      entries
+          .singleWhere((entry) => entry.canonicalName == 'Eddard Stark')
+          .aliases,
+      isNot(contains('Arya')),
+    );
+    expect(
+      entries.any((entry) => entry.canonicalName == 'Robert Baratheon'),
+      isTrue,
+    );
+  });
+
   test('old empty summary cache is accepted as empty analysis input', () {
     final data = const BookAnalysisAggregator().build(
       scope: scope,
@@ -264,4 +338,89 @@ void main() {
     expect(copied.aliases, {'Alice Liddell'});
     expect(() => copied.actions.add('mutate'), throwsUnsupportedError);
   });
+}
+
+final class _RecordingCharacterRegistry
+    implements BookAnalysisCharacterRegistry {
+  _RecordingCharacterRegistry({
+    required Map<String, List<CharacterRegistryEntry>> entriesByBookId,
+    this.canonicalMatches = const {},
+  }) : _entriesByBookId = {
+         for (final entry in entriesByBookId.entries)
+           entry.key: [...entry.value],
+       };
+
+  final Map<String, List<CharacterRegistryEntry>> _entriesByBookId;
+  final Map<String, String> canonicalMatches;
+
+  List<CharacterRegistryEntry> entriesFor(String bookId) {
+    return List.unmodifiable(_entriesByBookId[bookId] ?? const []);
+  }
+
+  @override
+  String? matchCanonical(String bookId, String name) {
+    final normalized = name.trim().toLowerCase();
+    final explicit = canonicalMatches[normalized];
+    if (explicit != null) return explicit;
+    for (final entry
+        in _entriesByBookId[bookId] ?? const <CharacterRegistryEntry>[]) {
+      if (entry.matches(name)) return entry.canonicalName;
+    }
+    return null;
+  }
+
+  @override
+  void registerCharacterMention(
+    String bookId, {
+    required String canonicalName,
+    required String mention,
+    required int chapterIndex,
+  }) {
+    final entries = _entriesByBookId.putIfAbsent(bookId, () => []);
+    final canonical = canonicalName.trim();
+    final rawMention = mention.trim();
+    if (canonical.isEmpty || rawMention.isEmpty) return;
+
+    CharacterRegistryEntry? conflict;
+    for (final entry in entries) {
+      if (entry.matches(rawMention)) {
+        conflict = entry;
+        break;
+      }
+    }
+    if (conflict != null &&
+        conflict.canonicalName.toLowerCase() != canonical.toLowerCase()) {
+      return;
+    }
+
+    final index = entries.indexWhere(
+      (entry) => entry.canonicalName.toLowerCase() == canonical.toLowerCase(),
+    );
+    if (index < 0) {
+      entries.add(
+        CharacterRegistryEntry(
+          canonicalName: canonical,
+          aliases: rawMention.toLowerCase() == canonical.toLowerCase()
+              ? const {}
+              : {rawMention},
+          firstAppearanceChapter: chapterIndex,
+          updatedAt: DateTime.utc(2026, 6, 24),
+        ),
+      );
+      return;
+    }
+
+    final entry = entries[index];
+    if (entry.matches(rawMention) ||
+        rawMention.toLowerCase() == entry.canonicalName.toLowerCase()) {
+      return;
+    }
+    entries[index] = CharacterRegistryEntry(
+      canonicalName: entry.canonicalName,
+      aliases: {...entry.aliases, rawMention},
+      userOverrides: entry.userOverrides,
+      firstAppearanceChapter: entry.firstAppearanceChapter ?? chapterIndex,
+      updatedAt: DateTime.utc(2026, 6, 24),
+    );
+  }
 }
