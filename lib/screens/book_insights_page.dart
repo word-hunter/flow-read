@@ -174,13 +174,19 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   }
 
   Widget _buildStoryline(ThemeData theme, BookInsightProvider provider) {
-    final storyline = provider.storyline;
-    if (storyline == null || storyline.events.isEmpty) {
+    final analysisEvents = provider.analysisData?.storyEvents ?? const [];
+    final timelineEvents = analysisEvents.isNotEmpty
+        ? analysisEvents.map(_TimelineEvent.fromAnalysis).toList()
+        : (provider.storyline?.events ?? const [])
+              .map(_TimelineEvent.fromLegacy)
+              .toList();
+    final hasSynthesisControls = provider.analysisData != null;
+    if (timelineEvents.isEmpty && !hasSynthesisControls) {
       return _buildEmptyTab(theme, '暂无故事线数据');
     }
 
-    final eventsByChapter = <int, List<StorylineEvent>>{};
-    for (final event in storyline.events) {
+    final eventsByChapter = <int, List<_TimelineEvent>>{};
+    for (final event in timelineEvents) {
       eventsByChapter.putIfAbsent(event.chapterIndex, () => []).add(event);
     }
 
@@ -188,21 +194,120 @@ class _BookInsightsPageState extends State<BookInsightsPage>
       padding: const EdgeInsets.all(16),
       children: [
         if (provider.coverage != null) _buildCoverageBar(theme, provider),
+        if (hasSynthesisControls) ...[
+          const SizedBox(height: 12),
+          _buildSynthesisPanel(theme, provider),
+        ],
         const SizedBox(height: 12),
-        for (final chapterIndex in eventsByChapter.keys.toList()..sort())
-          _buildChapterEventGroup(
-            theme,
-            chapterIndex,
-            eventsByChapter[chapterIndex]!,
-          ),
+        if (eventsByChapter.isEmpty)
+          _buildInlineEmpty(theme, '暂无事件数据')
+        else
+          for (final chapterIndex in eventsByChapter.keys.toList()..sort())
+            _buildChapterEventGroup(
+              theme,
+              chapterIndex,
+              eventsByChapter[chapterIndex]!,
+            ),
       ],
+    );
+  }
+
+  Widget _buildSynthesisPanel(ThemeData theme, BookInsightProvider provider) {
+    final synthesis = provider.visibleSynthesis;
+    final canGenerate = provider.canGenerateSynthesis;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.35,
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            provider.showFullBook ? '全书分析' : '已读范围分析',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FlowButton.secondary(
+                onPressed:
+                    canGenerate && !provider.isGeneratingReadScopeSynthesis
+                    ? () {
+                        unawaited(_generateReadScopeSynthesis(provider));
+                      }
+                    : null,
+                icon: provider.isGeneratingReadScopeSynthesis
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome, size: 16),
+                child: Text(
+                  provider.isGeneratingReadScopeSynthesis ? '生成中' : '生成已读范围分析',
+                ),
+              ),
+              FlowButton.secondary(
+                onPressed:
+                    canGenerate && !provider.isGeneratingFullBookSynthesis
+                    ? () {
+                        unawaited(_confirmAndGenerateFullBook(provider));
+                      }
+                    : null,
+                icon: provider.isGeneratingFullBookSynthesis
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.travel_explore, size: 16),
+                child: Text(
+                  provider.isGeneratingFullBookSynthesis
+                      ? '生成中'
+                      : '生成全书分析（可能剧透）',
+                ),
+              ),
+            ],
+          ),
+          if (synthesis != null) ...[
+            const SizedBox(height: 12),
+            Text(synthesis.fullStoryline, style: theme.textTheme.bodyMedium),
+            if (synthesis.keyInsights.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: synthesis.keyInsights
+                    .map(
+                      (insight) => Chip(
+                        label: Text(insight),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+            ],
+          ],
+        ],
+      ),
     );
   }
 
   Widget _buildChapterEventGroup(
     ThemeData theme,
     int chapterIndex,
-    List<StorylineEvent> events,
+    List<_TimelineEvent> events,
   ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -254,11 +359,10 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (event.significance != null &&
-                        event.significance!.isNotEmpty) ...[
+                    if (event.detail != null && event.detail!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
-                        event.significance!,
+                        event.detail!,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -297,11 +401,20 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     final registeredNames = registryEntries
         .map((entry) => entry.canonicalName.toLowerCase())
         .toSet();
-    final cards = provider.characterCards
+    final analysisCards = (provider.analysisData?.characters ?? const [])
         .where(
           (card) => !registeredNames.contains(card.canonicalName.toLowerCase()),
         )
         .toList();
+    final cards = analysisCards.isEmpty
+        ? provider.characterCards
+              .where(
+                (card) => !registeredNames.contains(
+                  card.canonicalName.toLowerCase(),
+                ),
+              )
+              .toList()
+        : const <BookCharacterCard>[];
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -309,7 +422,9 @@ class _BookInsightsPageState extends State<BookInsightsPage>
         if (provider.coverage != null) _buildCoverageBar(theme, provider),
         const SizedBox(height: 12),
         _buildCharacterActions(theme, provider),
-        if (registryEntries.isEmpty && cards.isEmpty) ...[
+        if (registryEntries.isEmpty &&
+            analysisCards.isEmpty &&
+            cards.isEmpty) ...[
           const SizedBox(height: 48),
           Center(
             child: Text(
@@ -322,6 +437,9 @@ class _BookInsightsPageState extends State<BookInsightsPage>
         ],
         ...registryEntries.map(
           (entry) => _buildRegistryCharacterCard(theme, provider, entry),
+        ),
+        ...analysisCards.map(
+          (card) => _buildAnalysisCharacterCard(theme, card),
         ),
         ...cards.map((card) => _buildCharacterCard(theme, provider, card)),
       ],
@@ -570,6 +688,95 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnalysisCharacterCard(ThemeData theme, CharacterCard card) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  child: Text(
+                    card.canonicalName.isNotEmpty
+                        ? card.canonicalName[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    card.canonicalName,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '第 ${card.firstChapter + 1}-${card.lastChapter + 1} 章',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (card.traits.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: card.traits
+                    .take(6)
+                    .map(
+                      (trait) => Chip(
+                        label: Text(trait),
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+            ],
+            if (card.actions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ...card.actions
+                  .take(4)
+                  .map(
+                    (action) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        '· $action',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                  ),
+            ],
           ],
         ),
       ),
@@ -1004,6 +1211,46 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     }
   }
 
+  Future<void> _generateReadScopeSynthesis(BookInsightProvider provider) async {
+    await provider.generateReadScopeSynthesis();
+    if (!mounted || provider.error != null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已生成已读范围分析'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _confirmAndGenerateFullBook(BookInsightProvider provider) async {
+    final confirmed = await showFlowDialog<bool>(
+      context: context,
+      builder: (dialogContext) => FlowDialog(
+        title: const Text('生成全书分析'),
+        content: const Text('全书分析可能包含尚未阅读章节的情节。'),
+        actions: [
+          FlowButton.text(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FlowButton.primary(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('生成'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await provider.generateFullBookSynthesis();
+    if (!mounted || provider.error != null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已生成全书分析'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Widget _buildEmptyTab(ThemeData theme, String message) {
     return Center(
       child: Text(
@@ -1014,4 +1261,55 @@ class _BookInsightsPageState extends State<BookInsightsPage>
       ),
     );
   }
+
+  Widget _buildInlineEmpty(ThemeData theme, String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      child: Center(
+        child: Text(
+          message,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TimelineEvent {
+  const _TimelineEvent({
+    required this.chapterIndex,
+    required this.description,
+    this.detail,
+    this.source,
+  });
+
+  factory _TimelineEvent.fromAnalysis(StoryEvent event) {
+    final source = event.anchors.isEmpty
+        ? null
+        : event.anchors.first.quoteSnippet;
+    return _TimelineEvent(
+      chapterIndex: event.chapterIndex,
+      description: event.description,
+      detail: event.participants.isEmpty
+          ? null
+          : '人物: ${event.participants.join(', ')}',
+      source: source,
+    );
+  }
+
+  factory _TimelineEvent.fromLegacy(StorylineEvent event) {
+    return _TimelineEvent(
+      chapterIndex: event.chapterIndex,
+      description: event.description,
+      detail: event.significance,
+      source: event.source,
+    );
+  }
+
+  final int chapterIndex;
+  final String description;
+  final String? detail;
+  final String? source;
 }

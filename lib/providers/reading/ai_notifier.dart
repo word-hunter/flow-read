@@ -704,6 +704,7 @@ class AINotifier extends Notifier<AIState> {
             summary: summary,
             outputLanguage: state.summaryLanguage,
           );
+      await ref.read(bookInsightProvider).refreshIfLoaded(bookId);
     } catch (e, stackTrace) {
       AppLogger.instance.event(
         'reading_memory.chapter_summary_source_cache_failed',

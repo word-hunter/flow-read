@@ -79,6 +79,19 @@ void main() {
       projection.storyline.events.map((event) => event.description),
       ['Ned finds a direwolf near Winterfell.'],
     );
+    expect(projection.analysisData, isNotNull);
+    expect(
+      projection.analysisData!.storyEvents.map((event) => event.description),
+      ['Ned finds a direwolf near Winterfell.'],
+    );
+    expect(
+      projection.analysisData!.characters.map((card) => card.canonicalName),
+      ['Eddard Stark'],
+    );
+    expect(
+      projection.analysisData!.scope.spoilerBoundary.scope,
+      AIContextScope.readSoFar,
+    );
     expect(
       projection.characterRegistryEntries.map((entry) => entry.canonicalName),
       ['Eddard Stark'],

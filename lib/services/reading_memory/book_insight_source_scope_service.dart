@@ -26,6 +26,7 @@ final class BookInsightSourceScopeProjection {
     required this.sourceId,
     required this.maxReadChapter,
     required this.chapterSummaries,
+    this.analysisData,
     required this.storyline,
     required this.characterCards,
     required this.characterRegistryEntries,
@@ -38,6 +39,7 @@ final class BookInsightSourceScopeProjection {
   final String sourceId;
   final int? maxReadChapter;
   final Map<int, AISummary> chapterSummaries;
+  final BookAnalysisData? analysisData;
   final BookStoryline storyline;
   final List<BookCharacterCard> characterCards;
   final List<CharacterRegistryEntry> characterRegistryEntries;
@@ -249,19 +251,29 @@ class BookInsightSourceScopeService {
       summaryState.summaries,
       boundary,
     );
+    final characterRegistryEntries = await _loadCharacterRegistry(
+      bookId: bookId,
+      maxReadChapter: maxReadChapter,
+    );
+    final analysisData = _buildAnalysisData(
+      bookId: bookId,
+      summaries: summaryState.summaries,
+      boundary: boundary,
+      totalChapters: totalChapters,
+      readChapters: readChapters,
+      languageCode: languageCode,
+      outputLanguage: summaryState.outputLanguage,
+      characterRegistryEntries: characterRegistryEntries,
+    );
     final projection = BookInsightSourceScopeProjection(
       bookId: bookId,
       sourceId: sourceIdForBook(bookId),
       maxReadChapter: maxReadChapter,
       chapterSummaries: Map.unmodifiable(summaryState.summaries),
+      analysisData: analysisData,
       storyline: storyline,
       characterCards: List.unmodifiable(characterCards),
-      characterRegistryEntries: List.unmodifiable(
-        await _loadCharacterRegistry(
-          bookId: bookId,
-          maxReadChapter: maxReadChapter,
-        ),
-      ),
+      characterRegistryEntries: List.unmodifiable(characterRegistryEntries),
       glossaryEntries: List.unmodifiable(await _loadGlossary(bookId)),
       coverage: totalChapters == null
           ? null
@@ -284,6 +296,50 @@ class BookInsightSourceScopeService {
       );
     }
     return projection;
+  }
+
+  BookAnalysisData? _buildAnalysisData({
+    required String bookId,
+    required Map<int, AISummary> summaries,
+    required int boundary,
+    required int? totalChapters,
+    required int? readChapters,
+    required String? languageCode,
+    required String? outputLanguage,
+    required List<CharacterRegistryEntry> characterRegistryEntries,
+  }) {
+    if (summaries.isEmpty) return null;
+    final effectiveTotalChapters = _effectiveTotalChapters(
+      summaries,
+      totalChapters,
+      boundary,
+    );
+    if (effectiveTotalChapters <= 0) return null;
+
+    final scope = _analysisScope(
+      bookId: bookId,
+      boundary: boundary,
+      totalChapters: effectiveTotalChapters,
+      readChapters: readChapters,
+      languageCode: languageCode,
+      outputLanguage: outputLanguage,
+    );
+    final chapterInsights = <int, ChapterInsight>{};
+    for (final entry in summaries.entries) {
+      if (entry.key > boundary) continue;
+      chapterInsights[entry.key] = ChapterInsight.fromSummary(entry.value);
+    }
+    if (chapterInsights.isEmpty) return null;
+
+    return BookAnalysisAggregator(
+      characterRegistry: StaticBookAnalysisCharacterRegistry({
+        bookId: characterRegistryEntries,
+      }),
+    ).build(
+      scope: scope,
+      chapterInsights: chapterInsights,
+      totalChapters: effectiveTotalChapters,
+    );
   }
 
   Future<ExplanationContextBundle> contextFor({
@@ -332,6 +388,7 @@ class BookInsightSourceScopeService {
   }) async {
     final summaries = <int, AISummary>{};
     DateTime? lastGenerated;
+    String? outputLanguage;
     final cache = _cacheService;
     if (cache != null) {
       final entries = await cache.listBookSummaries(bookId);
@@ -353,11 +410,13 @@ class BookInsightSourceScopeService {
       for (final entry in entries) {
         summaries[entry.chapterIndex] = entry.summary;
         lastGenerated = _latest(lastGenerated, entry.updatedAt);
+        outputLanguage ??= _trimOrNull(entry.outputLanguage);
       }
     }
     return _ChapterSummaryState(
       summaries: summaries,
       lastGenerated: lastGenerated,
+      outputLanguage: outputLanguage,
     );
   }
 
@@ -532,14 +591,69 @@ class BookInsightSourceScopeService {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
   }
+
+  static int _effectiveTotalChapters(
+    Map<int, AISummary> summaries,
+    int? totalChapters,
+    int boundary,
+  ) {
+    if (totalChapters != null && totalChapters > 0) return totalChapters;
+    if (summaries.isEmpty) return boundary + 1;
+    final lastSummaryChapter = summaries.keys.reduce((a, b) => a > b ? a : b);
+    final inferred = [
+      boundary + 1,
+      lastSummaryChapter + 1,
+    ].reduce((a, b) => a > b ? a : b);
+    return inferred < 1 ? 1 : inferred;
+  }
+
+  static AnalysisScope _analysisScope({
+    required String bookId,
+    required int boundary,
+    required int totalChapters,
+    required int? readChapters,
+    required String? languageCode,
+    required String? outputLanguage,
+  }) {
+    final sourceLanguage = SourceLanguage.fromCode(languageCode).code;
+    final targetLanguage = _targetOutputLanguage(outputLanguage);
+    final fullBookBoundary = totalChapters <= 0 ? 0 : totalChapters - 1;
+    final coversFullBook =
+        boundary >= fullBookBoundary &&
+        (readChapters == null || readChapters >= totalChapters);
+    if (coversFullBook) {
+      return AnalysisScope.fullBook(
+        bookId: bookId,
+        totalChapters: totalChapters,
+        sourceLanguage: sourceLanguage,
+        outputLanguage: targetLanguage,
+      );
+    }
+    return AnalysisScope.readSoFar(
+      bookId: bookId,
+      currentChapterIndex: boundary.clamp(0, fullBookBoundary).toInt(),
+      sourceLanguage: sourceLanguage,
+      outputLanguage: targetLanguage,
+    );
+  }
+
+  static String _targetOutputLanguage(String? outputLanguage) {
+    final normalized = outputLanguage?.trim();
+    if (normalized != null && normalized.isNotEmpty) {
+      return OutputLanguage.fromCode(normalized).code;
+    }
+    return OutputLanguage.zhHans.code;
+  }
 }
 
 final class _ChapterSummaryState {
   const _ChapterSummaryState({
     required this.summaries,
     required this.lastGenerated,
+    this.outputLanguage,
   });
 
   final Map<int, AISummary> summaries;
   final DateTime? lastGenerated;
+  final String? outputLanguage;
 }

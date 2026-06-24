@@ -233,6 +233,17 @@ final bookInsightSourceScopeServiceProvider =
       );
     });
 
+final bookInsightRepositoryProvider = Provider<BookInsightRepository>((ref) {
+  return BookInsightRepository(cacheService: ref.watch(aiCacheServiceProvider));
+});
+
+final bookSynthesisServiceProvider = Provider<BookSynthesisService>((ref) {
+  return BookSynthesisService(
+    aiService: ref.watch(aiServiceProvider),
+    repository: ref.watch(bookInsightRepositoryProvider),
+  );
+});
+
 final knowledgeRetentionServiceProvider = Provider<KnowledgeRetentionService>((
   ref,
 ) {
@@ -591,6 +602,8 @@ final bookInsightProvider = ChangeNotifierProvider<BookInsightProvider>((ref) {
     bookInsightSourceScopeService: ref.watch(
       bookInsightSourceScopeServiceProvider,
     ),
+    repository: ref.watch(bookInsightRepositoryProvider),
+    synthesisService: ref.watch(bookSynthesisServiceProvider),
   );
   ref.onDispose(() => provider.dispose());
   return provider;

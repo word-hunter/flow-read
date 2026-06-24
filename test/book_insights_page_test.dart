@@ -22,6 +22,7 @@ void main() {
   late AICacheService cacheService;
   late ChapterSummarySourceScopeCache summarySourceScopeCache;
   late BookInsightProvider provider;
+  late List<BookSynthesisRequest> synthesisRequests;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp(
@@ -82,6 +83,7 @@ void main() {
     summarySourceScopeCache = ChapterSummarySourceScopeCache(
       sourceScope: sourceScope,
     );
+    synthesisRequests = [];
     provider = BookInsightProvider(
       cacheService: cacheService,
       glossaryService: glossaryService,
@@ -89,6 +91,22 @@ void main() {
         repository: DriftCharacterRegistryRepository(db.characterRegistryDao),
       ),
       chapterSummarySourceScopeCache: summarySourceScopeCache,
+      synthesisRunner: (request) async {
+        synthesisRequests.add(request);
+        return BookSynthesisResult(
+          fullStoryline:
+              request.analysisData.scope.spoilerBoundary.scope ==
+                  AIContextScope.fullBook
+              ? '全书合成结果'
+              : '已读范围合成结果',
+          characterGraph: const CharacterRelationGraph(),
+          bookMindMap: const MindMapGraph(
+            root: MindMapNode(id: 'root', label: 'Book One'),
+          ),
+          keyInsights: const ['洞察一'],
+          generatedAt: DateTime.utc(2026, 6, 24),
+        );
+      },
     );
     await provider.loadForBook(
       'book-1',
@@ -218,6 +236,54 @@ void main() {
       contains('direwolf'),
     );
     expect(provider.coverage!.summarizedChapters, 1);
+    expect(provider.analysisData, isNotNull);
+    expect(
+      provider.analysisData!.storyEvents.single.description,
+      contains('direwolf'),
+    );
+  });
+
+  test('refreshIfLoaded merges newly generated chapter summaries', () async {
+    expect(provider.analysisData, isNull);
+
+    await summarySourceScopeCache.saveChapterSummary(
+      bookId: 'book-1',
+      bookTitle: 'Book One',
+      chapterIndex: 1,
+      outputLanguage: 'zh',
+      summary: const AISummary(
+        events: [
+          SummaryEvent(
+            description: 'Arya notices a hidden path.',
+            source: 'Arya saw the path.',
+            significance: 'This opens a new route.',
+            confidence: 'high',
+          ),
+        ],
+        characterDevelopments: [
+          CharacterDevelopment(
+            character: 'Arya Stark',
+            change: 'Arya becomes more observant.',
+            source: 'Arya saw the path.',
+            confidence: 'high',
+          ),
+        ],
+        keyVocabulary: [],
+        readingGuidance: '',
+      ),
+    );
+
+    await provider.refreshIfLoaded('book-1');
+
+    expect(provider.analysisData, isNotNull);
+    expect(
+      provider.analysisData!.storyEvents.single.description,
+      contains('hidden path'),
+    );
+    expect(
+      provider.analysisData!.characters.single.canonicalName,
+      'Arya Stark',
+    );
   });
 
   test('confirms AI-inferred characters into registry', () async {
@@ -270,9 +336,90 @@ void main() {
 
     expect(requestedChapters, [0, 1, 2]);
   });
+
+  test('generates read and full book synthesis with isolated scopes', () async {
+    await _seedSummary(
+      summarySourceScopeCache,
+      chapterIndex: 0,
+      eventDescription: 'Arya finds a hidden path.',
+      character: 'Arya Stark',
+      change: 'Arya becomes more observant.',
+    );
+    await provider.loadForBook(
+      'book-1',
+      totalChapters: 8,
+      currentChapter: 2,
+      bookTitle: 'Book One',
+    );
+
+    expect(provider.canGenerateSynthesis, isTrue);
+    expect(
+      provider.analysisData!.storyEvents.single.description,
+      'Arya finds a hidden path.',
+    );
+    expect(
+      provider.analysisData!.characters.single.canonicalName,
+      'Arya Stark',
+    );
+
+    await provider.generateReadScopeSynthesis();
+    await provider.generateFullBookSynthesis();
+
+    expect(synthesisRequests, hasLength(2));
+    expect(
+      synthesisRequests[0].analysisData.scope.spoilerBoundary.scope,
+      AIContextScope.readSoFar,
+    );
+    expect(
+      synthesisRequests[1].analysisData.scope.spoilerBoundary.scope,
+      AIContextScope.fullBook,
+    );
+    expect(
+      synthesisRequests[0].chapterSummaries.single.summary,
+      contains('Arya finds a hidden path.'),
+    );
+    expect(provider.readScopeSynthesis!.fullStoryline, '已读范围合成结果');
+    expect(provider.fullBookSynthesis!.fullStoryline, '全书合成结果');
+    expect(provider.visibleSynthesis, same(provider.readScopeSynthesis));
+  });
 }
 
 Future<void> _pumpTabTransition(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 600));
+}
+
+Future<void> _seedSummary(
+  ChapterSummarySourceScopeCache cache, {
+  required int chapterIndex,
+  required String eventDescription,
+  required String character,
+  required String change,
+}) async {
+  await cache.saveChapterSummary(
+    bookId: 'book-1',
+    bookTitle: 'Book One',
+    chapterIndex: chapterIndex,
+    outputLanguage: 'zh',
+    summary: AISummary(
+      events: [
+        SummaryEvent(
+          description: eventDescription,
+          source: eventDescription,
+          significance: 'Important for the current arc.',
+          confidence: 'high',
+        ),
+      ],
+      characterDevelopments: [
+        CharacterDevelopment(
+          character: character,
+          change: change,
+          source: change,
+          confidence: 'high',
+        ),
+      ],
+      keyVocabulary: const [],
+      readingGuidance: 'Follow the character choice.',
+    ),
+  );
 }
