@@ -76,6 +76,46 @@ void main() {
   );
 
   test(
+    'openBookForReading activates shelf book and enters reader',
+    () async {
+      final metadata = _metadata(
+        id: 'book-1',
+        title: 'Parsed Book',
+        sourcePath: '/tmp/parsed-book.epub',
+      );
+      final currentBook = _RecordingCurrentBookNotifier();
+
+      final container = ProviderContainer(
+        overrides: [
+          bookServiceProvider.overrideWithValue(_FakeBookService([metadata])),
+          epubBookParserProvider.overrideWithValue(
+            (_) async => _book(title: 'Parsed Book'),
+          ),
+          currentBookNotifierProvider.overrideWith(() => currentBook),
+          vocabularyNotifierProvider.overrideWith(_NoopVocabularyNotifier.new),
+          aiAssistantControllerProvider.overrideWith((ref) {
+            throw StateError(
+              'assistant controller should not be constructed during book open',
+            );
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final opened = await container
+          .read(bookshelfNotifierProvider.notifier)
+          .openBookForReading('book-1');
+
+      expect(opened, isTrue);
+      expect(container.read(bookshelfNotifierProvider).activeBookId, 'book-1');
+      expect(container.read(currentBookNotifierProvider).isReading, isTrue);
+      expect(container.read(currentBookNotifierProvider).hasBeenOpened, isTrue);
+      expect(currentBook._chapterSelections, [0]);
+      expect(currentBook._enterReaderCalls, 1);
+    },
+  );
+
+  test(
     'switchToBook logs parser failures with stack and file diagnostics',
     () async {
       final tempDir = await Directory.systemTemp.createTemp(
@@ -417,6 +457,7 @@ class _FakeBookMetadataRepository implements BookMetadataRepository {
 
 class _RecordingCurrentBookNotifier extends CurrentBookNotifier {
   int _invalidations = 0;
+  int _enterReaderCalls = 0;
   final List<int> _chapterSelections = [];
 
   @override
@@ -430,6 +471,12 @@ class _RecordingCurrentBookNotifier extends CurrentBookNotifier {
   @override
   Future<void> goToChapter(int index) async {
     _chapterSelections.add(index);
+  }
+
+  @override
+  void enterReader() {
+    _enterReaderCalls += 1;
+    state = state.copyWith(isReading: true, hasBeenOpened: true);
   }
 }
 

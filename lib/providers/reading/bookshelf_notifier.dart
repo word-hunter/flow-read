@@ -445,6 +445,13 @@ class BookshelfNotifier extends Notifier<BookshelfState> {
     return true;
   }
 
+  Future<bool> openBookForReading(String bookId) async {
+    final opened = await switchToBook(bookId);
+    if (!opened) return false;
+    enterReader();
+    return true;
+  }
+
   void enterReader() {
     ref.read(currentBookNotifierProvider.notifier).enterReader();
   }

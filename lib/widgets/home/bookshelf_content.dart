@@ -137,7 +137,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
                 final shouldLoadExcerpts = constraints.maxWidth >= 920;
                 if (!shouldLoadExcerpts) {
                   return _buildFeaturedArea(
-                    state: bookshelfState,
                     notifier: bookshelfNotifier,
                     settings: settings,
                     featuredBook: featuredBook,
@@ -151,7 +150,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
                   ),
                   builder: (context, snapshot) {
                     return _buildFeaturedArea(
-                      state: bookshelfState,
                       notifier: bookshelfNotifier,
                       settings: settings,
                       featuredBook: featuredBook,
@@ -184,8 +182,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
                     isDifficultyLoading: bookshelfNotifier
                         .isBookDifficultyLoading(b.id),
                     forceDefaultCover: settings.forceDefaultBookCover,
-                    onTap: () =>
-                        _openBook(bookshelfState, bookshelfNotifier, b.id),
+                    onTap: () => _openBook(bookshelfNotifier, b.id),
                     onRename: () => _renameBook(bookshelfNotifier, b),
                     onRemove: () => _confirmRemoveBook(bookshelfNotifier, b),
                   ),
@@ -211,7 +208,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   }
 
   Widget _buildFeaturedArea({
-    required BookshelfState state,
     required BookshelfNotifier notifier,
     required SettingsService settings,
     required BookMetadata featuredBook,
@@ -221,7 +217,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     final readingGoalCard = widget.readingGoalCard;
     if (readingGoalCard == null) {
       return _buildFeaturedBookCard(
-        state: state,
         notifier: notifier,
         settings: settings,
         featuredBook: featuredBook,
@@ -231,7 +226,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     }
 
     final featuredCard = _buildFeaturedBookCard(
-      state: state,
       notifier: notifier,
       settings: settings,
       featuredBook: featuredBook,
@@ -272,7 +266,6 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
   }
 
   Widget _buildFeaturedBookCard({
-    required BookshelfState state,
     required BookshelfNotifier notifier,
     required SettingsService settings,
     required BookMetadata featuredBook,
@@ -294,7 +287,7 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
       forceDefaultCover: settings.forceDefaultBookCover,
       lastReadAt: featuredBook.lastReadAt,
       margin: margin,
-      onContinueReading: () => _openBook(state, notifier, featuredBook.id),
+      onContinueReading: () => _openBook(notifier, featuredBook.id),
       onRename: () => _renameBook(notifier, featuredBook),
       onRemove: () => _confirmRemoveBook(notifier, featuredBook),
     );
@@ -730,21 +723,16 @@ class _BookshelfContentState extends riverpod.ConsumerState<BookshelfContent> {
     );
   }
 
-  void _openBook(
-    BookshelfState state,
-    BookshelfNotifier notifier,
-    String bookId,
-  ) async {
-    final opened = await notifier.switchToBook(bookId);
+  void _openBook(BookshelfNotifier notifier, String bookId) async {
+    final opened = await notifier.openBookForReading(bookId);
     if (!mounted) return;
     if (!opened) {
-      final message = state.errorMessage ?? '打开书籍失败';
+      final message =
+          ref.read(bookshelfNotifierProvider).errorMessage ?? '打开书籍失败';
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
-      return;
     }
-    notifier.enterReader();
   }
 
   Future<void> _confirmRemoveBook(

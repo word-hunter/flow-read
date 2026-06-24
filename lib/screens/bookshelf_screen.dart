@@ -82,6 +82,7 @@ class _NarrowBookshelf extends riverpod.ConsumerWidget {
       body: books.isNotEmpty
           ? _buildBookListWithDifficultyStatus(
               context,
+              ref,
               books,
               bookshelfNotifier,
               settings,
@@ -149,6 +150,7 @@ class _WideBookshelfState extends riverpod.ConsumerState<_WideBookshelf> {
       body: books.isNotEmpty
           ? _buildBookListWithDifficultyStatus(
               context,
+              ref,
               books,
               bookshelfNotifier,
               settings,
@@ -172,6 +174,7 @@ class _WideBookshelfState extends riverpod.ConsumerState<_WideBookshelf> {
 
 Widget _buildBookListWithDifficultyStatus(
   BuildContext context,
+  riverpod.WidgetRef ref,
   List<BookMetadata> books,
   BookshelfNotifier notifier,
   SettingsService settings,
@@ -194,6 +197,7 @@ Widget _buildBookListWithDifficultyStatus(
       Expanded(
         child: _buildBookList(
           context,
+          ref,
           books,
           notifier,
           settings,
@@ -251,6 +255,7 @@ Widget _buildDifficultyLoadingBanner(
 
 Widget _buildBookList(
   BuildContext context,
+  riverpod.WidgetRef ref,
   List<BookMetadata> books,
   BookshelfNotifier notifier,
   SettingsService settings,
@@ -266,6 +271,7 @@ Widget _buildBookList(
         padding: EdgeInsets.only(bottom: index < books.length - 1 ? 16 : 0),
         child: _buildBookCard(
           context,
+          ref,
           books[index],
           theme,
           _BookCardSize.compact,
@@ -289,6 +295,7 @@ Widget _buildBookList(
         itemCount: books.length,
         itemBuilder: (context, index) => _buildBookCard(
           context,
+          ref,
           books[index],
           theme,
           _BookCardSize.medium,
@@ -306,6 +313,7 @@ Widget _buildBookList(
       padding: EdgeInsets.only(bottom: index < books.length - 1 ? 16 : 0),
       child: _buildBookCard(
         context,
+        ref,
         books[index],
         theme,
         _BookCardSize.large,
@@ -320,6 +328,7 @@ enum _BookCardSize { compact, medium, large }
 
 Widget _buildBookCard(
   BuildContext context,
+  riverpod.WidgetRef ref,
   BookMetadata meta,
   ThemeData theme,
   _BookCardSize size,
@@ -343,6 +352,7 @@ Widget _buildBookCard(
   );
   final bookDetails = _buildBookDetails(
     context,
+    ref,
     meta,
     theme,
     progressPercent,
@@ -359,7 +369,7 @@ Widget _buildBookCard(
         ),
       ),
       child: InkWell(
-        onTap: () => _openBook(context, notifier, meta.id),
+        onTap: () => _openBook(context, ref, notifier, meta.id),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -380,7 +390,7 @@ Widget _buildBookCard(
       ),
     ),
     child: InkWell(
-      onTap: () => _openBook(context, notifier, meta.id),
+      onTap: () => _openBook(context, ref, notifier, meta.id),
       borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -421,6 +431,7 @@ Widget _buildCover(
 
 Widget _buildBookDetails(
   BuildContext context,
+  riverpod.WidgetRef ref,
   BookMetadata meta,
   ThemeData theme,
   int progressPercent,
@@ -486,7 +497,7 @@ Widget _buildBookDetails(
       ),
       const SizedBox(height: 16),
       FlowButton.primary(
-        onPressed: () => _openBook(context, notifier, meta.id),
+        onPressed: () => _openBook(context, ref, notifier, meta.id),
         icon: const Icon(Icons.menu_book, size: 18),
         child: const Text('继续阅读'),
       ),
@@ -560,13 +571,16 @@ class _BookDifficultySummary extends StatelessWidget {
 
 void _openBook(
   BuildContext context,
+  riverpod.WidgetRef ref,
   BookshelfNotifier notifier,
   String bookId,
 ) async {
-  await notifier.switchToBook(bookId);
-  if (context.mounted) {
-    notifier.enterReader();
-  }
+  final opened = await notifier.openBookForReading(bookId);
+  if (!context.mounted || opened) return;
+  final message = ref.read(bookshelfNotifierProvider).errorMessage ?? '打开书籍失败';
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message)));
 }
 
 Widget _buildEmptyState(
