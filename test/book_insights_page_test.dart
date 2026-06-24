@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flow_ai/flow_ai.dart';
@@ -157,7 +158,8 @@ void main() {
         home: BookInsightsPage(
           provider: provider,
           bookTitle: 'Book One',
-          onGenerateChapter: (_) async {},
+          onGenerateChapter: (_) async =>
+              const BookInsightChapterGenerationResult.generated(),
         ),
       ),
     );
@@ -183,7 +185,8 @@ void main() {
         home: BookInsightsPage(
           provider: provider,
           bookTitle: 'Book One',
-          onGenerateChapter: (_) async {},
+          onGenerateChapter: (_) async =>
+              const BookInsightChapterGenerationResult.generated(),
         ),
       ),
     );
@@ -198,6 +201,49 @@ void main() {
     expect(find.text('Lord Stark'), findsOneWidget);
     expect(find.text('首次出现: 第 1 章'), findsOneWidget);
     expect(find.text('Other Person'), findsNothing);
+  });
+
+  testWidgets('AI ask button opens the embedded assistant sidebar', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var askedAI = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BookInsightsPage(
+          provider: provider,
+          bookTitle: 'Book One',
+          onGenerateChapter: (_) async =>
+              const BookInsightChapterGenerationResult.generated(),
+          onAskAI: (context) {
+            askedAI = true;
+            return true;
+          },
+          aiPanelBuilder: (onClose) => Center(
+            child: TextButton(
+              onPressed: onClose,
+              child: const Text('AI sidebar from insights'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('AI 提问'));
+    await tester.pumpAndSettle();
+
+    expect(askedAI, isTrue);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('AI sidebar from insights'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('关闭面板'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('AI sidebar from insights'), findsNothing);
   });
 
   test('maintains character registry entries', () async {
@@ -270,6 +316,48 @@ void main() {
       contains('direwolf'),
     );
   });
+
+  test(
+    'ignores fallback chapter summaries in book insights coverage',
+    () async {
+      await summarySourceScopeCache.saveChapterSummary(
+        bookId: 'book-1',
+        bookTitle: 'Book One',
+        chapterIndex: 0,
+        outputLanguage: 'zh',
+        summary: AISummary.fallback('AI 返回了非结构化内容，但没有可展示的文本。'),
+      );
+      await summarySourceScopeCache.saveChapterSummary(
+        bookId: 'book-1',
+        bookTitle: 'Book One',
+        chapterIndex: 1,
+        outputLanguage: 'zh',
+        summary: const AISummary(
+          events: [
+            SummaryEvent(
+              description: 'Arya notices a hidden path.',
+              source: 'Arya saw the path.',
+              significance: 'This opens a new route.',
+              confidence: 'high',
+            ),
+          ],
+          characterDevelopments: [],
+          keyVocabulary: [],
+          readingGuidance: '',
+        ),
+      );
+
+      await provider.loadForBook(
+        'book-1',
+        totalChapters: 8,
+        currentChapter: 2,
+      );
+
+      expect(provider.chapterSummaries.keys, isNot(contains(0)));
+      expect(provider.chapterSummaries.keys, contains(1));
+      expect(provider.coverage!.summarizedChapters, 1);
+    },
+  );
 
   test('refreshIfLoaded merges newly generated chapter summaries', () async {
     expect(provider.analysisData, isNull);
@@ -345,6 +433,41 @@ void main() {
     );
   });
 
+  testWidgets('chapter generate button shows progress while running', (
+    tester,
+  ) async {
+    int? requestedChapter;
+    final completion = Completer<BookInsightChapterGenerationResult>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BookInsightsPage(
+          provider: provider,
+          bookTitle: 'Book One',
+          onGenerateChapter: (chapterIndex) async {
+            requestedChapter = chapterIndex;
+            return completion.future;
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('章节'));
+    await _pumpTabTransition(tester);
+
+    await tester.tap(find.text('生成').first);
+    await tester.pump();
+
+    expect(requestedChapter, 0);
+    expect(find.text('生成中'), findsOneWidget);
+
+    completion.complete(
+      const BookInsightChapterGenerationResult.notGenerated('该章节没有可分析的正文。'),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('生成'), findsWidgets);
+  });
+
   testWidgets('backfills only missing read chapter summaries', (tester) async {
     List<int>? requestedChapters;
 
@@ -353,7 +476,8 @@ void main() {
         home: BookInsightsPage(
           provider: provider,
           bookTitle: 'Book One',
-          onGenerateChapter: (_) async {},
+          onGenerateChapter: (_) async =>
+              const BookInsightChapterGenerationResult.generated(),
           onGenerateMissingReadChapters: (chapters) async {
             requestedChapters = chapters;
             return chapters.length;

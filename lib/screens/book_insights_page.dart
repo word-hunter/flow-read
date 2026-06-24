@@ -8,6 +8,33 @@ import 'package:flow_ai/flow_ai.dart';
 import '../models/book_glossary_entry.dart';
 import '../providers/book_insight_provider.dart';
 import '../widgets/flow/flow_components.dart';
+import '../widgets/reader_shell/reader_right_assistant_panel.dart';
+import '../widgets/reader_shell/reader_workspace_controller.dart';
+
+const _insightBackground = Color(0xFFFEFCF9);
+const _insightBorder = Color(0xFFECE3D7);
+const _insightCard = Color(0xFFFFFEFC);
+const _insightMuted = Color(0xFF6F7785);
+const _insightPrimary = Color(0xFF1677FF);
+const _insightDanger = Color(0xFFD43C3C);
+const _insightText = Color(0xFF172033);
+const _insightHover = Color(0xFFF3F8FF);
+const _insightPrimaryHover = Color(0xFF0F6BEF);
+const _insightPrimaryPressed = Color(0xFF0B5ED7);
+const _insightDangerHover = Color(0xFFFFF4F4);
+const _insightDangerPressed = Color(0xFFFFEAEA);
+
+class BookInsightChapterGenerationResult {
+  const BookInsightChapterGenerationResult.generated()
+    : isGenerated = true,
+      message = null;
+
+  const BookInsightChapterGenerationResult.notGenerated(this.message)
+    : isGenerated = false;
+
+  final bool isGenerated;
+  final String? message;
+}
 
 class BookInsightsPage extends StatefulWidget {
   const BookInsightsPage({
@@ -17,14 +44,17 @@ class BookInsightsPage extends StatefulWidget {
     required this.onGenerateChapter,
     this.onGenerateMissingReadChapters,
     this.onAskAI,
+    this.aiPanelBuilder,
   });
 
   final BookInsightProvider provider;
   final String bookTitle;
-  final Future<void> Function(int chapterIndex) onGenerateChapter;
+  final Future<BookInsightChapterGenerationResult> Function(int chapterIndex)
+  onGenerateChapter;
   final Future<int> Function(List<int> chapterIndexes)?
   onGenerateMissingReadChapters;
-  final VoidCallback? onAskAI;
+  final bool Function(BuildContext context)? onAskAI;
+  final Widget Function(VoidCallback onClose)? aiPanelBuilder;
 
   @override
   State<BookInsightsPage> createState() => _BookInsightsPageState();
@@ -33,9 +63,11 @@ class BookInsightsPage extends StatefulWidget {
 class _BookInsightsPageState extends State<BookInsightsPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late final ReaderWorkspaceController _assistantPanelController;
 
   bool _requestedLoad = false;
   bool _isBackfillingSummaries = false;
+  final Set<int> _generatingChapterIndexes = <int>{};
   String? _selectedCharacterName;
   String _glossaryQuery = '';
   bool _showOnlyUnlockedTerms = false;
@@ -44,6 +76,11 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _assistantPanelController = ReaderWorkspaceController(
+      leftPanelOpen: false,
+      rightPanelOpen: false,
+      rightTab: ReaderRightPanelTab.ai,
+    );
     if (!_requestedLoad) {
       _requestedLoad = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -55,6 +92,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   @override
   void dispose() {
     widget.provider.removeListener(_onProviderChanged);
+    _assistantPanelController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -70,41 +108,89 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     final provider = widget.provider;
 
     return Scaffold(
-      appBar: FlowToolbar(
-        height: 64,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: '返回',
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: _ToolbarTitle(bookTitle: widget.bookTitle),
-        actions: [
-          _ToolbarActions(
-            provider: provider,
-            onSelectBoundary: (mode) => _selectBoundaryMode(provider, mode),
-            onAskAI: widget.onAskAI,
-          ),
-          const SizedBox(width: 8),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(
-              child: _TabLabel(icon: Icons.home_work_outlined, label: '故事线'),
-            ),
-            Tab(
-              child: _TabLabel(icon: Icons.person_outline, label: '人物'),
-            ),
-            Tab(
-              child: _TabLabel(icon: Icons.menu_book_outlined, label: '术语'),
-            ),
-            Tab(
-              child: _TabLabel(icon: Icons.list_alt_outlined, label: '章节'),
-            ),
-          ],
-        ),
+      backgroundColor: _insightBackground,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final showAssistantPanel =
+              _assistantPanelController.isRightPanelOpen &&
+              widget.aiPanelBuilder != null;
+          final mainContent = Column(
+            children: [
+              _BookInsightsHeader(
+                bookTitle: widget.bookTitle,
+                provider: provider,
+                onBack: () => Navigator.pop(context),
+                onSelectBoundary: (mode) => _selectBoundaryMode(provider, mode),
+                onAskAI: widget.onAskAI == null || widget.aiPanelBuilder == null
+                    ? null
+                    : _openAssistantPanel,
+              ),
+              _BookInsightsTabStrip(controller: _tabController),
+              Expanded(child: _buildBody(theme, provider)),
+            ],
+          );
+
+          if (!showAssistantPanel) {
+            return mainContent;
+          }
+
+          if (constraints.maxWidth < 760) {
+            return _buildAssistantPanel();
+          }
+
+          return Row(
+            children: [
+              Expanded(child: mainContent),
+              const VerticalDivider(width: 1, color: _insightBorder),
+              SizedBox(
+                width: _assistantPanelWidth(constraints.maxWidth),
+                child: _buildAssistantPanel(),
+              ),
+            ],
+          );
+        },
       ),
-      body: _buildBody(theme, provider),
+    );
+  }
+
+  void _openAssistantPanel() {
+    final onAskAI = widget.onAskAI;
+    if (onAskAI == null || widget.aiPanelBuilder == null) return;
+    final prepared = onAskAI(context);
+    if (!prepared) return;
+    _assistantPanelController.openRightPanel(ReaderRightPanelTab.ai);
+    if (mounted) setState(() {});
+  }
+
+  void _closeAssistantPanel() {
+    _assistantPanelController.closeRightPanel();
+    if (mounted) setState(() {});
+  }
+
+  void _selectAssistantPanelTab(ReaderRightPanelTab tab) {
+    _assistantPanelController.setRightTab(tab);
+    if (mounted) setState(() {});
+  }
+
+  double _assistantPanelWidth(double availableWidth) {
+    if (availableWidth < 980) return 360;
+    return math.min(430, math.max(380, availableWidth * 0.3));
+  }
+
+  Widget _buildAssistantPanel() {
+    return ReaderRightAssistantPanel(
+      workspaceController: _assistantPanelController,
+      onTabSelected: _selectAssistantPanelTab,
+      onClose: _closeAssistantPanel,
+      dictionaryContent: const _InsightAssistantEmptyState(
+        icon: Icons.text_fields_outlined,
+        message: '在阅读页点选单词后查看释义',
+      ),
+      aiContent: widget.aiPanelBuilder!(_closeAssistantPanel),
+      chapterContent: const _InsightAssistantEmptyState(
+        icon: Icons.insights_outlined,
+        message: '章节统计仍在阅读页显示',
+      ),
     );
   }
 
@@ -209,41 +295,58 @@ class _BookInsightsPageState extends State<BookInsightsPage>
 
   Widget _buildStoryline(ThemeData theme, BookInsightProvider provider) {
     final synthesis = provider.visibleSynthesis;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
+    return Stack(
       children: [
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 920),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (provider.coverage != null)
-                  _buildCoverageStrip(theme, provider),
-                const SizedBox(height: 16),
-                _buildSynthesisOverview(theme, provider, synthesis),
-                if (synthesis != null && synthesis.keyInsights.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _buildKeyInsights(theme, synthesis.keyInsights),
-                ],
-                if (synthesis != null &&
-                    (synthesis.themeAnalysis.trim().isNotEmpty ||
-                        synthesis.structure.trim().isNotEmpty)) ...[
-                  const SizedBox(height: 12),
-                  _buildThemeAndStructure(theme, synthesis),
-                ],
-                if (_hasLockedFuture(provider)) ...[
-                  const SizedBox(height: 12),
-                  _buildLockedCard(
-                    theme,
-                    nextChapter: provider.boundaryChapter + 2,
-                    message: '后续情节发展、人物命运和更深入的主题分析会在读到后解锁。',
+        Positioned.fill(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 118),
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1156),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (provider.coverage != null)
+                        _buildCoverageStrip(theme, provider),
+                      const SizedBox(height: 16),
+                      _buildSynthesisOverview(theme, provider, synthesis),
+                      if (synthesis != null &&
+                          synthesis.keyInsights.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _buildKeyInsights(theme, synthesis.keyInsights),
+                      ],
+                      if (synthesis != null &&
+                          (synthesis.themeAnalysis.trim().isNotEmpty ||
+                              synthesis.structure.trim().isNotEmpty)) ...[
+                        const SizedBox(height: 12),
+                        _buildThemeAndStructure(theme, synthesis),
+                      ],
+                      if (_hasLockedFuture(provider)) ...[
+                        const SizedBox(height: 12),
+                        _buildLockedCard(
+                          theme,
+                          nextChapter: provider.boundaryChapter + 2,
+                          message: '后续情节发展、人物命运和更深入的主题分析会在读到后解锁。',
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-                const SizedBox(height: 20),
-                _buildSynthesisActions(theme, provider),
-              ],
-            ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: _StorylineActionBar(
+            provider: provider,
+            onGenerateReadScope: () =>
+                unawaited(_generateReadScopeSynthesis(provider)),
+            onGenerateFullBook: () =>
+                unawaited(_confirmAndGenerateFullBook(provider)),
           ),
         ),
       ],
@@ -257,6 +360,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   ) {
     if (provider.isGeneratingVisibleSynthesis) {
       return _SectionCard(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -278,16 +382,20 @@ class _BookInsightsPageState extends State<BookInsightsPage>
 
     if (synthesis == null || synthesis.fullStoryline.trim().isEmpty) {
       return _SectionCard(
-        child: _EmptyState(
-          icon: Icons.auto_awesome_outlined,
-          title: '还没有当前范围梗概',
-          message: '生成后会在这里显示截至当前剧透边界的故事主线。',
-          action: FlowButton.primary(
-            onPressed: provider.canGenerateSynthesis
-                ? () => unawaited(_generateReadScopeSynthesis(provider))
-                : null,
-            icon: const Icon(Icons.refresh, size: 16),
-            child: const Text('生成当前范围梗概'),
+        padding: EdgeInsets.zero,
+        child: SizedBox(
+          height: 320,
+          child: _EmptyState(
+            icon: Icons.auto_awesome,
+            title: '还没有当前范围梗概',
+            message: '生成后会在这里显示截至当前剧透边界的故事主线。',
+            action: _InlinePrimaryButton(
+              onPressed: provider.canGenerateSynthesis
+                  ? () => unawaited(_generateReadScopeSynthesis(provider))
+                  : null,
+              icon: Icons.refresh,
+              label: '生成当前范围梗概',
+            ),
           ),
         ),
       );
@@ -302,21 +410,31 @@ class _BookInsightsPageState extends State<BookInsightsPage>
             title: '故事梗概',
             subtitle:
                 '${_boundaryLabel(provider)} · 生成于 ${_formatTime(synthesis.generatedAt)}',
-            trailing: provider.showFullBook
-                ? _StatusPill(
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (provider.showFullBook) ...[
+                  _StatusPill(
                     label: '剧透模式',
                     icon: Icons.warning_amber_outlined,
                     foreground: theme.colorScheme.error,
                     background: theme.colorScheme.errorContainer.withValues(
                       alpha: 0.45,
                     ),
-                  )
-                : null,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                const Icon(Icons.keyboard_arrow_down, color: _insightMuted),
+              ],
+            ),
           ),
           const SizedBox(height: 14),
           Text(
             synthesis.fullStoryline.trim(),
-            style: theme.textTheme.bodyMedium?.copyWith(height: 1.75),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              height: 1.75,
+              color: _insightText,
+            ),
           ),
         ],
       ),
@@ -325,39 +443,55 @@ class _BookInsightsPageState extends State<BookInsightsPage>
 
   Widget _buildKeyInsights(ThemeData theme, List<String> insights) {
     return _SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SectionHeader(
-            icon: Icons.lightbulb_outline,
-            title: '关键洞察',
-          ),
-          const SizedBox(height: 12),
-          for (final insight in insights)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Icon(
-                      Icons.circle,
-                      size: 6,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      insight,
-                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
-                    ),
-                  ),
-                ],
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final title = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _SquareIcon(
+                icon: Icons.lightbulb_outline,
+                background: Color(0xFFFFF3DA),
+                foreground: Color(0xFF8A640F),
               ),
-            ),
-        ],
+              const SizedBox(width: 14),
+              Text(
+                '关键洞察',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: _insightText,
+                ),
+              ),
+            ],
+          );
+          final chips = Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              for (final insight in insights) _InsightChip(label: insight),
+            ],
+          );
+
+          if (constraints.maxWidth < 760) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                title,
+                const SizedBox(height: 12),
+                chips,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              title,
+              const SizedBox(width: 24),
+              Expanded(child: chips),
+            ],
+          );
+        },
       ),
     );
   }
@@ -367,21 +501,31 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     BookSynthesisResult synthesis,
   ) {
     return _SectionCard(
-      padding: EdgeInsets.zero,
-      child: ExpansionTile(
-        initiallyExpanded: true,
-        leading: Icon(
-          Icons.account_tree_outlined,
-          color: theme.colorScheme.primary,
-        ),
-        title: Text(
-          '主题 / 结构',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              const _SquareIcon(
+                icon: Icons.view_sidebar_outlined,
+                background: Color(0xFFF2ECFF),
+                foreground: Color(0xFF5E4B8B),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  '主题 / 结构',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: _insightText,
+                  ),
+                ),
+              ),
+              const Icon(Icons.keyboard_arrow_up, color: _insightMuted),
+            ],
+          ),
+          const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth >= 720;
@@ -398,6 +542,8 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                   children: [
                     themePanel,
                     const SizedBox(height: 14),
+                    Divider(color: _insightBorder),
+                    const SizedBox(height: 14),
                     structurePanel,
                   ],
                 );
@@ -407,12 +553,10 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                 children: [
                   Expanded(child: themePanel),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 34),
                     child: SizedBox(
-                      height: 120,
-                      child: VerticalDivider(
-                        color: theme.colorScheme.outlineVariant,
-                      ),
+                      height: 132,
+                      child: VerticalDivider(color: _insightBorder),
                     ),
                   ),
                   Expanded(child: structurePanel),
@@ -422,50 +566,6 @@ class _BookInsightsPageState extends State<BookInsightsPage>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSynthesisActions(ThemeData theme, BookInsightProvider provider) {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 12,
-      runSpacing: 10,
-      children: [
-        FlowButton.primary(
-          onPressed:
-              provider.canGenerateSynthesis &&
-                  !provider.isGeneratingReadScopeSynthesis
-              ? () => unawaited(_generateReadScopeSynthesis(provider))
-              : null,
-          icon: provider.isGeneratingReadScopeSynthesis
-              ? const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.refresh, size: 16),
-          child: Text(
-            provider.isGeneratingReadScopeSynthesis ? '生成中' : '生成 / 刷新当前范围梗概',
-          ),
-        ),
-        FlowButton.destructive(
-          onPressed:
-              provider.canGenerateSynthesis &&
-                  !provider.isGeneratingFullBookSynthesis
-              ? () => unawaited(_confirmAndGenerateFullBook(provider))
-              : null,
-          icon: provider.isGeneratingFullBookSynthesis
-              ? const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.warning_amber_outlined, size: 16),
-          child: Text(
-            provider.isGeneratingFullBookSynthesis ? '生成中' : '生成全书梗概（含剧透）',
-          ),
-        ),
-      ],
     );
   }
 
@@ -1012,6 +1112,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     int chapterIndex,
     bool isRead,
   ) {
+    final isGenerating = _generatingChapterIndexes.contains(chapterIndex);
     return _SectionCard(
       child: Row(
         children: [
@@ -1037,9 +1138,16 @@ class _BookInsightsPageState extends State<BookInsightsPage>
           ),
           if (isRead)
             FlowButton.secondary(
-              onPressed: () => unawaited(_generateChapterSummary(chapterIndex)),
-              icon: const Icon(Icons.auto_awesome, size: 16),
-              child: const Text('生成'),
+              onPressed: isGenerating
+                  ? null
+                  : () => unawaited(_generateChapterSummary(chapterIndex)),
+              icon: isGenerating
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome, size: 16),
+              child: Text(isGenerating ? '生成中' : '生成'),
             ),
         ],
       ),
@@ -1067,8 +1175,9 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                 borderRadius: BorderRadius.circular(999),
                 child: LinearProgressIndicator(
                   value: coverage.percentage,
-                  minHeight: 7,
-                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  minHeight: 8,
+                  backgroundColor: const Color(0xFFF2EEE8),
+                  valueColor: const AlwaysStoppedAnimation(_insightPrimary),
                 ),
               ),
             ),
@@ -1076,12 +1185,13 @@ class _BookInsightsPageState extends State<BookInsightsPage>
             Text(
               '${(coverage.percentage * 100).round()}%',
               style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: _insightMuted,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
         );
-        final button = FlowButton.secondary(
+        final button = OutlinedButton.icon(
           onPressed:
               _isBackfillingSummaries ||
                   readMissingChapters.isEmpty ||
@@ -1097,36 +1207,97 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.playlist_add_check, size: 16),
-          child: Text(_isBackfillingSummaries ? '补齐中' : '补齐已读'),
+          label: Text(_isBackfillingSummaries ? '补齐中' : '补齐已读'),
+          style: ButtonStyle(
+            fixedSize: WidgetStateProperty.all(const Size(132, 40)),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return _insightMuted;
+              }
+              return _insightPrimary;
+            }),
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return _insightCard;
+              }
+              if (states.contains(WidgetState.pressed)) {
+                return const Color(0xFFEAF4FF);
+              }
+              if (states.contains(WidgetState.hovered) ||
+                  states.contains(WidgetState.focused)) {
+                return _insightHover;
+              }
+              return _insightCard;
+            }),
+            overlayColor: WidgetStateProperty.all(Colors.transparent),
+            side: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return const BorderSide(color: Color(0xFFE5DDD2));
+              }
+              if (states.contains(WidgetState.hovered) ||
+                  states.contains(WidgetState.focused) ||
+                  states.contains(WidgetState.pressed)) {
+                return const BorderSide(color: _insightPrimary, width: 1.2);
+              }
+              return const BorderSide(color: Color(0xFF9BC5FF));
+            }),
+            shape: WidgetStateProperty.all(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            textStyle: WidgetStateProperty.all(
+              theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
         );
 
-        return DecoratedBox(
+        return Container(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(
-              alpha: 0.36,
-            ),
+            color: _insightCard,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
+            border: Border.all(color: _insightBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 14,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 60),
             child: compact
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      status,
-                      const SizedBox(height: 12),
-                      progress,
-                      const SizedBox(height: 12),
-                      Align(alignment: Alignment.centerRight, child: button),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                        child: status,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: progress,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: button,
+                        ),
+                      ),
                     ],
                   )
                 : Row(
                     children: [
-                      SizedBox(width: 150, child: status),
+                      const SizedBox(width: 18),
+                      SizedBox(width: 160, child: status),
                       Expanded(child: progress),
                       const SizedBox(width: 20),
                       button,
+                      const SizedBox(width: 18),
                     ],
                   ),
           ),
@@ -1140,27 +1311,35 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     required int nextChapter,
     required String message,
   }) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant,
-          style: BorderStyle.solid,
-        ),
-        color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.18,
-        ),
+    return CustomPaint(
+      painter: const _DashedRoundedBorderPainter(
+        color: Color(0xFFD5CDC2),
+        radius: 8,
       ),
-      child: Padding(
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: _insightCard.withValues(alpha: 0.72),
+        ),
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: theme.colorScheme.outlineVariant,
-              child: Icon(
+            Container(
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [Color(0xFFC7C7C7), Color(0xFFE4E1DC)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
                 Icons.lock_outline,
-                color: theme.colorScheme.onSurfaceVariant,
+                color: Colors.white,
+                size: 22,
               ),
             ),
             const SizedBox(width: 16),
@@ -1172,14 +1351,14 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                     '第 $nextChapter 章后解锁',
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: _insightMuted,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     message,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: _insightMuted,
                     ),
                   ),
                 ],
@@ -1374,8 +1553,35 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   }
 
   Future<void> _generateChapterSummary(int chapterIndex) async {
-    await widget.onGenerateChapter(chapterIndex);
-    await widget.provider.refresh();
+    if (_generatingChapterIndexes.contains(chapterIndex)) return;
+    setState(() => _generatingChapterIndexes.add(chapterIndex));
+    try {
+      final result = await widget.onGenerateChapter(chapterIndex);
+      await widget.provider.refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.isGenerated
+                ? '已生成第 ${chapterIndex + 1} 章洞察'
+                : '未生成第 ${chapterIndex + 1} 章洞察：${result.message ?? 'AI 未返回可用总结，请稍后重试或检查模型服务响应。'}',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('第 ${chapterIndex + 1} 章洞察生成失败：$e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _generatingChapterIndexes.remove(chapterIndex));
+      }
+    }
   }
 
   Future<void> _generateMissingReadSummaries(List<int> chapterIndexes) async {
@@ -1538,47 +1744,438 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   }
 }
 
-class _ToolbarTitle extends StatelessWidget {
-  const _ToolbarTitle({required this.bookTitle});
+class _BookInsightsHeader extends StatelessWidget {
+  const _BookInsightsHeader({
+    required this.bookTitle,
+    required this.provider,
+    required this.onBack,
+    required this.onSelectBoundary,
+    required this.onAskAI,
+  });
 
   final String bookTitle;
+  final BookInsightProvider provider;
+  final VoidCallback onBack;
+  final ValueChanged<_SpoilerBoundaryMode> onSelectBoundary;
+  final VoidCallback? onAskAI;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '书籍洞察',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 3),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.menu_book_outlined,
-              size: 14,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
+    final width = MediaQuery.sizeOf(context).width;
+    final horizontal = width >= 1100 ? 52.0 : 16.0;
+    final compact = width < 900;
+
+    return Container(
+      height: compact ? 108 : 116,
+      decoration: const BoxDecoration(
+        color: _insightBackground,
+        border: Border(bottom: BorderSide(color: _insightBorder)),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: compact ? 12 : 18,
+            left: 0,
+            right: 0,
+            child: Center(
               child: Text(
-                bookTitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                '书籍洞察',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: _insightText,
                 ),
               ),
             ),
+          ),
+          Positioned(
+            left: horizontal,
+            top: compact ? 38 : 40,
+            child: _RoundBackButton(onPressed: onBack),
+          ),
+          Positioned(
+            left: horizontal,
+            right: compact ? 96 : null,
+            top: compact ? 78 : 82,
+            child: _BookTitleLine(
+              title: bookTitle,
+              maxWidth: compact ? null : 420,
+            ),
+          ),
+          Positioned(
+            right: horizontal,
+            top: compact ? 34 : 36,
+            child: _ToolbarActions(
+              provider: provider,
+              onSelectBoundary: onSelectBoundary,
+              onAskAI: onAskAI,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoundBackButton extends StatelessWidget {
+  const _RoundBackButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: 44,
+      child: IconButton(
+        tooltip: '返回',
+        onPressed: onPressed,
+        icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return const Color(0xFFEAF4FF);
+            }
+            if (states.contains(WidgetState.hovered) ||
+                states.contains(WidgetState.focused)) {
+              return _insightHover;
+            }
+            return _insightCard;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.hovered) ||
+                states.contains(WidgetState.focused) ||
+                states.contains(WidgetState.pressed)) {
+              return _insightPrimary;
+            }
+            return _insightText;
+          }),
+          overlayColor: WidgetStateProperty.all(Colors.transparent),
+          shape: WidgetStateProperty.all(const CircleBorder()),
+          side: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.hovered) ||
+                states.contains(WidgetState.focused) ||
+                states.contains(WidgetState.pressed)) {
+              return const BorderSide(color: Color(0xFF9BC5FF));
+            }
+            return const BorderSide(color: _insightBorder);
+          }),
+        ),
+      ),
+    );
+  }
+}
+
+class _BookTitleLine extends StatelessWidget {
+  const _BookTitleLine({
+    required this.title,
+    required this.maxWidth,
+  });
+
+  final String title;
+  final double? maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final content = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 18,
+          height: 24,
+          decoration: BoxDecoration(
+            color: const Color(0xFF314A63),
+            borderRadius: BorderRadius.circular(3),
+          ),
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.menu_book,
+            size: 12,
+            color: Color(0xFFE8DCC7),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: const Color(0xFF2E3442),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        const Icon(Icons.keyboard_arrow_down, size: 16, color: _insightMuted),
+      ],
+    );
+
+    if (maxWidth == null) return content;
+    return SizedBox(width: maxWidth, child: content);
+  }
+}
+
+class _BookInsightsTabStrip extends StatelessWidget {
+  const _BookInsightsTabStrip({required this.controller});
+
+  final TabController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      height: 58,
+      decoration: const BoxDecoration(
+        color: _insightBackground,
+        border: Border(bottom: BorderSide(color: _insightBorder)),
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1160),
+          child: TabBar(
+            controller: controller,
+            indicatorColor: _insightPrimary,
+            indicatorWeight: 3,
+            indicatorSize: TabBarIndicatorSize.tab,
+            indicatorPadding: const EdgeInsets.symmetric(horizontal: 42),
+            dividerColor: Colors.transparent,
+            labelColor: _insightPrimary,
+            unselectedLabelColor: _insightMuted,
+            overlayColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.pressed)) {
+                return const Color(0xFFE5F1FF);
+              }
+              if (states.contains(WidgetState.hovered) ||
+                  states.contains(WidgetState.focused)) {
+                return _insightHover;
+              }
+              return Colors.transparent;
+            }),
+            splashBorderRadius: BorderRadius.circular(8),
+            labelStyle: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+            unselectedLabelStyle: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+            tabs: const [
+              Tab(
+                child: _TabLabel(icon: Icons.home_work_outlined, label: '故事线'),
+              ),
+              Tab(
+                child: _TabLabel(icon: Icons.person_outline, label: '人物'),
+              ),
+              Tab(
+                child: _TabLabel(icon: Icons.menu_book_outlined, label: '术语'),
+              ),
+              Tab(
+                child: _TabLabel(icon: Icons.list_alt_outlined, label: '章节'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StorylineActionBar extends StatelessWidget {
+  const _StorylineActionBar({
+    required this.provider,
+    required this.onGenerateReadScope,
+    required this.onGenerateFullBook,
+  });
+
+  final BookInsightProvider provider;
+  final VoidCallback onGenerateReadScope;
+  final VoidCallback onGenerateFullBook;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 88,
+      decoration: BoxDecoration(
+        color: _insightBackground.withValues(alpha: 0.97),
+        border: const Border(top: BorderSide(color: _insightBorder)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, -8),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 20,
+          runSpacing: 10,
+          children: [
+            _StoryActionButton.primary(
+              onPressed:
+                  provider.canGenerateSynthesis &&
+                      !provider.isGeneratingReadScopeSynthesis
+                  ? onGenerateReadScope
+                  : null,
+              loading: provider.isGeneratingReadScopeSynthesis,
+              icon: Icons.refresh,
+              label: provider.isGeneratingReadScopeSynthesis
+                  ? '生成中'
+                  : '生成 / 刷新当前范围梗概',
+            ),
+            _StoryActionButton.danger(
+              onPressed:
+                  provider.canGenerateSynthesis &&
+                      !provider.isGeneratingFullBookSynthesis
+                  ? onGenerateFullBook
+                  : null,
+              loading: provider.isGeneratingFullBookSynthesis,
+              icon: Icons.warning_amber_outlined,
+              label: provider.isGeneratingFullBookSynthesis
+                  ? '生成中'
+                  : '生成全书梗概（含剧透）',
+            ),
           ],
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _StoryActionButton extends StatelessWidget {
+  const _StoryActionButton._({
+    required this.onPressed,
+    required this.loading,
+    required this.icon,
+    required this.label,
+    required this.danger,
+  });
+
+  const _StoryActionButton.primary({
+    required VoidCallback? onPressed,
+    required bool loading,
+    required IconData icon,
+    required String label,
+  }) : this._(
+         onPressed: onPressed,
+         loading: loading,
+         icon: icon,
+         label: label,
+         danger: false,
+       );
+
+  const _StoryActionButton.danger({
+    required VoidCallback? onPressed,
+    required bool loading,
+    required IconData icon,
+    required String label,
+  }) : this._(
+         onPressed: onPressed,
+         loading: loading,
+         icon: icon,
+         label: label,
+         danger: true,
+       );
+
+  final VoidCallback? onPressed;
+  final bool loading;
+  final IconData icon;
+  final String label;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final textStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
+      fontWeight: FontWeight.w800,
+    );
+    final spinner = SizedBox.square(
+      dimension: 16,
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        color: danger ? _insightDanger : Colors.white,
+      ),
+    );
+
+    if (danger) {
+      return SizedBox(
+        width: 292,
+        height: 48,
+        child: OutlinedButton.icon(
+          onPressed: onPressed,
+          icon: loading ? spinner : Icon(icon, size: 18),
+          label: Text(label),
+          style: ButtonStyle(
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return _insightMuted;
+              }
+              return _insightDanger;
+            }),
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.pressed)) {
+                return _insightDangerPressed;
+              }
+              if (states.contains(WidgetState.hovered) ||
+                  states.contains(WidgetState.focused)) {
+                return _insightDangerHover;
+              }
+              return _insightCard;
+            }),
+            overlayColor: WidgetStateProperty.all(Colors.transparent),
+            side: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return const BorderSide(color: Color(0xFFE5DDD2));
+              }
+              if (states.contains(WidgetState.hovered) ||
+                  states.contains(WidgetState.focused) ||
+                  states.contains(WidgetState.pressed)) {
+                return const BorderSide(color: _insightDanger, width: 1.2);
+              }
+              return const BorderSide(color: Color(0xFFFF6B6B));
+            }),
+            shape: WidgetStateProperty.all(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            textStyle: WidgetStateProperty.all(textStyle),
+            fixedSize: WidgetStateProperty.all(const Size(292, 48)),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: 320,
+      height: 48,
+      child: FilledButton.icon(
+        onPressed: onPressed,
+        icon: loading ? spinner : Icon(icon, size: 18),
+        label: Text(label),
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return const Color(0xFF9BCBFF);
+            }
+            if (states.contains(WidgetState.pressed)) {
+              return _insightPrimaryPressed;
+            }
+            if (states.contains(WidgetState.hovered) ||
+                states.contains(WidgetState.focused)) {
+              return _insightPrimaryHover;
+            }
+            return _insightPrimary;
+          }),
+          foregroundColor: WidgetStateProperty.all(Colors.white),
+          overlayColor: WidgetStateProperty.all(Colors.transparent),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          textStyle: WidgetStateProperty.all(textStyle),
+          fixedSize: WidgetStateProperty.all(const Size(320, 48)),
+        ),
+      ),
     );
   }
 }
@@ -1604,6 +2201,30 @@ class _ToolbarActions extends StatelessWidget {
           PopupMenuButton<_SpoilerBoundaryMode>(
             tooltip: '剧透边界',
             icon: const Icon(Icons.visibility_outlined),
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.pressed)) {
+                  return const Color(0xFFEAF4FF);
+                }
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)) {
+                  return _insightHover;
+                }
+                return Colors.transparent;
+              }),
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused) ||
+                    states.contains(WidgetState.pressed)) {
+                  return _insightPrimary;
+                }
+                return _insightText;
+              }),
+              overlayColor: WidgetStateProperty.all(Colors.transparent),
+              shape: WidgetStateProperty.all(
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
             onSelected: onSelectBoundary,
             itemBuilder: (context) => [
               const PopupMenuItem(
@@ -1624,6 +2245,30 @@ class _ToolbarActions extends StatelessWidget {
             tooltip: 'AI 提问',
             icon: const Icon(Icons.auto_awesome_outlined),
             onPressed: onAskAI,
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.pressed)) {
+                  return const Color(0xFFEAF4FF);
+                }
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)) {
+                  return _insightHover;
+                }
+                return Colors.transparent;
+              }),
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused) ||
+                    states.contains(WidgetState.pressed)) {
+                  return _insightPrimary;
+                }
+                return _insightText;
+              }),
+              overlayColor: WidgetStateProperty.all(Colors.transparent),
+              shape: WidgetStateProperty.all(
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
           ),
         ],
       );
@@ -1639,9 +2284,62 @@ class _ToolbarActions extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          width: 430,
+          width: 380,
           child: SegmentedButton<_SpoilerBoundaryMode>(
             showSelectedIcon: false,
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              side: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused) ||
+                    states.contains(WidgetState.pressed)) {
+                  return const BorderSide(color: Color(0xFFB7D7FF));
+                }
+                return const BorderSide(color: _insightBorder);
+              }),
+              shape: WidgetStateProperty.all(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  if (states.contains(WidgetState.pressed)) {
+                    return const Color(0xFFD8EBFF);
+                  }
+                  if (states.contains(WidgetState.hovered) ||
+                      states.contains(WidgetState.focused)) {
+                    return const Color(0xFFDFF0FF);
+                  }
+                  return const Color(0xFFEAF4FF);
+                }
+                if (states.contains(WidgetState.pressed)) {
+                  return const Color(0xFFEAF4FF);
+                }
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)) {
+                  return _insightHover;
+                }
+                return _insightCard;
+              }),
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return _insightPrimary;
+                }
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused) ||
+                    states.contains(WidgetState.pressed)) {
+                  return _insightPrimary;
+                }
+                return const Color(0xFF2E3442);
+              }),
+              textStyle: WidgetStateProperty.all(
+                Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              overlayColor: WidgetStateProperty.all(Colors.transparent),
+            ),
             segments: [
               const ButtonSegment(
                 value: _SpoilerBoundaryMode.follow,
@@ -1661,10 +2359,51 @@ class _ToolbarActions extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
-        FlowButton.secondary(
+        OutlinedButton.icon(
           onPressed: onAskAI,
           icon: const Icon(Icons.auto_awesome_outlined, size: 16),
-          child: const Text('AI 提问'),
+          label: const Text('AI 提问'),
+          style: ButtonStyle(
+            minimumSize: WidgetStateProperty.all(const Size(112, 40)),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return _insightMuted;
+              }
+              return _insightPrimary;
+            }),
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.pressed)) {
+                return const Color(0xFFEAF4FF);
+              }
+              if (states.contains(WidgetState.hovered) ||
+                  states.contains(WidgetState.focused)) {
+                return _insightHover;
+              }
+              return _insightCard;
+            }),
+            overlayColor: WidgetStateProperty.all(Colors.transparent),
+            side: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return const BorderSide(color: Color(0xFFE5DDD2));
+              }
+              if (states.contains(WidgetState.hovered) ||
+                  states.contains(WidgetState.focused) ||
+                  states.contains(WidgetState.pressed)) {
+                return const BorderSide(color: _insightPrimary, width: 1.2);
+              }
+              return const BorderSide(color: Color(0xFF9BC5FF));
+            }),
+            shape: WidgetStateProperty.all(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            textStyle: WidgetStateProperty.all(
+              Theme.of(context).textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -1705,13 +2444,19 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
+    return Container(
       margin: margin,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
+      decoration: BoxDecoration(
+        color: _insightCard,
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
+        border: Border.all(color: _insightBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Padding(padding: padding, child: child),
     );
@@ -1753,6 +2498,7 @@ class _SectionHeader extends StatelessWidget {
                 title,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
+                  color: _insightText,
                 ),
               ),
               if (subtitle != null) ...[
@@ -1760,7 +2506,7 @@ class _SectionHeader extends StatelessWidget {
                 Text(
                   subtitle!,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: _insightMuted,
                   ),
                 ),
               ],
@@ -1791,11 +2537,136 @@ class _SquareIcon extends StatelessWidget {
       height: 42,
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(999),
       ),
       alignment: Alignment.center,
       child: Icon(icon, size: 21, color: foreground),
     );
+  }
+}
+
+class _InlinePrimaryButton extends StatelessWidget {
+  const _InlinePrimaryButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+  });
+
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: FilledButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 17),
+        label: Text(label),
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return const Color(0xFFB9DFFF);
+            }
+            if (states.contains(WidgetState.pressed)) {
+              return const Color(0xFF66B1FF);
+            }
+            if (states.contains(WidgetState.hovered) ||
+                states.contains(WidgetState.focused)) {
+              return const Color(0xFF78BCFF);
+            }
+            return const Color(0xFF8DC5FF);
+          }),
+          foregroundColor: WidgetStateProperty.all(Colors.white),
+          overlayColor: WidgetStateProperty.all(Colors.transparent),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          textStyle: WidgetStateProperty.all(
+            Theme.of(context).textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 18),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InsightChip extends StatelessWidget {
+  const _InsightChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final textStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: const Color(0xFF354154),
+      fontWeight: FontWeight.w500,
+    );
+    return Container(
+      constraints: const BoxConstraints(minHeight: 32),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: _insightCard,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _insightBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.circle, size: 6, color: _insightPrimary),
+          const SizedBox(width: 10),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 310),
+            child: Text(label, style: textStyle, softWrap: true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashedRoundedBorderPainter extends CustomPainter {
+  const _DashedRoundedBorderPainter({
+    required this.color,
+    required this.radius,
+  });
+
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final rect = Offset.zero & size;
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(rect.deflate(0.5), Radius.circular(radius)),
+      );
+
+    const dashLength = 6.0;
+    const gapLength = 4.0;
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final end = math.min(distance + dashLength, metric.length);
+        canvas.drawPath(metric.extractPath(distance, end), paint);
+        distance = end + gapLength;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedRoundedBorderPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.radius != radius;
   }
 }
 
@@ -1816,6 +2687,7 @@ class _TextBlock extends StatelessWidget {
           title,
           style: theme.textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.w800,
+            color: _insightText,
           ),
         ),
         const SizedBox(height: 8),
@@ -1823,7 +2695,7 @@ class _TextBlock extends StatelessWidget {
           Text(
             '暂无内容',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: _insightMuted,
             ),
           )
         else
@@ -1832,10 +2704,48 @@ class _TextBlock extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 6),
               child: Text(
                 '• $line',
-                style: theme.textTheme.bodySmall?.copyWith(height: 1.45),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  height: 1.45,
+                  color: const Color(0xFF354154),
+                ),
               ),
             ),
       ],
+    );
+  }
+}
+
+class _InsightAssistantEmptyState extends StatelessWidget {
+  const _InsightAssistantEmptyState({
+    required this.icon,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 36, color: _insightMuted),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: _insightMuted,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1858,30 +2768,33 @@ class _EmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 42, color: theme.colorScheme.primary),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 48, color: _insightPrimary),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: _insightText,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: _insightMuted,
+              ),
             ),
-          ),
-          if (action != null) ...[
-            const SizedBox(height: 16),
-            action!,
+            if (action != null) ...[
+              const SizedBox(height: 18),
+              action!,
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

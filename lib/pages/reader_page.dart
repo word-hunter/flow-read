@@ -13,6 +13,7 @@ import '../models/content_block.dart';
 import '../models/reading_memory_overlay.dart';
 import '../models/reading_position.dart';
 import '../models/reading_search_result.dart';
+import '../providers/book_insight_provider.dart';
 import '../providers/reading/bookmark_notifier.dart';
 import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/bookshelf_notifier.dart';
@@ -641,10 +642,54 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
           builder: (_) => BookInsightsPage(
             provider: provider,
             bookTitle: book.title,
+            onAskAI: (_) {
+              final settings = ref.read(settingsProvider);
+              if (!settings.aiFeaturesEnabled) return false;
+              final assistant = ref.read(aiAssistantControllerProvider);
+              final scope = provider.showFullBook
+                  ? AIContextScope.fullBook
+                  : AIContextScope.readSoFar;
+              final contextText = _bookInsightAssistantContext(
+                provider,
+                book.title,
+              );
+              assistant.setContext(
+                AIContextSnapshot(
+                  source: AIContextSource.readerSelectedText,
+                  bookId: bookshelf.activeBookId,
+                  chapterIndex: provider.boundaryChapter,
+                  chapterTitle: '书籍洞察：${book.title}',
+                  selectedText: contextText,
+                  surroundingPassage: contextText,
+                  scope: scope,
+                  spoilerBoundary: SpoilerBoundary.chapter(
+                    bookId: bookshelf.activeBookId!,
+                    chapterIndex: provider.boundaryChapter,
+                    scope: scope,
+                  ),
+                  sourceLanguage: book.language ?? 'en',
+                ),
+              );
+              return true;
+            },
+            aiPanelBuilder: (onClose) => AIAssistantPanel(
+              controller: ref.read(aiAssistantControllerProvider),
+              embedded: true,
+              onClose: onClose,
+            ),
             onGenerateChapter: (chapterIndex) async {
-              await ref
+              final generated = await ref
                   .read(aiNotifierProvider.notifier)
                   .generateSummaryForChapter(chapterIndex);
+              if (generated > 0) {
+                return const BookInsightChapterGenerationResult.generated();
+              }
+              final aiState = ref.read(aiNotifierProvider);
+              return BookInsightChapterGenerationResult.notGenerated(
+                aiState.chapterAIStatus?.message ??
+                    aiState.errorMessage ??
+                    'AI 未返回可用总结，请稍后重试或检查模型服务响应。',
+              );
             },
             onGenerateMissingReadChapters: (chapterIndexes) {
               return ref
@@ -655,6 +700,29 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         ),
       ),
     );
+  }
+
+  String _bookInsightAssistantContext(
+    BookInsightProvider provider,
+    String bookTitle,
+  ) {
+    final synthesis = provider.visibleSynthesis;
+    final parts = <String>[
+      '书名：$bookTitle',
+      if (provider.showFullBook)
+        '范围：全书'
+      else
+        '范围：截至第 ${provider.boundaryChapter + 1} 章',
+      if (synthesis?.fullStoryline.trim().isNotEmpty == true)
+        '故事梗概：${synthesis!.fullStoryline.trim()}',
+      if (synthesis?.keyInsights.isNotEmpty == true)
+        '关键洞察：${synthesis!.keyInsights.join('；')}',
+      if (synthesis?.themeAnalysis.trim().isNotEmpty == true)
+        '主题分析：${synthesis!.themeAnalysis.trim()}',
+      if (synthesis?.structure.trim().isNotEmpty == true)
+        '结构：${synthesis!.structure.trim()}',
+    ];
+    return parts.join('\n');
   }
 
   bool _openAssistantFromCurrentWord() {
