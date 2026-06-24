@@ -1,8 +1,14 @@
 import 'dart:io';
 
+import 'tool_env.dart';
+
 Future<void> main(List<String> args) async {
   final flutter = await _resolveFlutterCommand();
-  final flutterArgs = <String>['run', ..._withDefaultDevice(args)];
+  final env = await loadToolEnv();
+  final flutterArgs = <String>[
+    'run',
+    ..._withConfiguredAIDebugMirror(_withDefaultDevice(args), env),
+  ];
 
   final process = await Process.start(
     flutter.executable,
@@ -13,6 +19,24 @@ Future<void> main(List<String> args) async {
   if (exitCode != 0) {
     exit(exitCode);
   }
+}
+
+List<String> _withConfiguredAIDebugMirror(
+  List<String> args,
+  Map<String, String> env,
+) {
+  final mirrorDir = env['FLOW_AI_DEBUG_TRACE_MIRROR_DIR']?.trim();
+  if (_isHelpCommand(args) ||
+      !_hasDartDefine(args, 'FLOW_AI_DEBUG_TRACE', 'true') ||
+      _hasDartDefineKey(args, 'FLOW_AI_DEBUG_TRACE_MIRROR_DIR') ||
+      mirrorDir == null ||
+      mirrorDir.isEmpty) {
+    return args;
+  }
+  return [
+    ...args,
+    '--dart-define=FLOW_AI_DEBUG_TRACE_MIRROR_DIR=$mirrorDir',
+  ];
 }
 
 List<String> _withDefaultDevice(List<String> args) {
@@ -33,6 +57,28 @@ bool _hasDeviceSelector(List<String> args) {
 
 bool _isHelpCommand(List<String> args) {
   return args.contains('-h') || args.contains('--help');
+}
+
+bool _hasDartDefine(List<String> args, String key, String value) {
+  for (var i = 0; i < args.length; i += 1) {
+    final arg = args[i];
+    if (arg == '--dart-define' && i + 1 < args.length) {
+      if (args[i + 1] == '$key=$value') return true;
+    }
+    if (arg == '--dart-define=$key=$value') return true;
+  }
+  return false;
+}
+
+bool _hasDartDefineKey(List<String> args, String key) {
+  for (var i = 0; i < args.length; i += 1) {
+    final arg = args[i];
+    if (arg == '--dart-define' && i + 1 < args.length) {
+      if (args[i + 1].startsWith('$key=')) return true;
+    }
+    if (arg.startsWith('--dart-define=$key=')) return true;
+  }
+  return false;
 }
 
 Future<_FlutterCommand> _resolveFlutterCommand() async {

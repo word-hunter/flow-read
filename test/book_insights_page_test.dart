@@ -2,11 +2,15 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flow_ai/flow_ai.dart';
+import 'package:flow_read/models/book.dart';
 import 'package:flow_read/models/book_glossary_entry.dart';
+import 'package:flow_read/models/chapter.dart';
 import 'package:flow_read/providers/book_insight_provider.dart';
 import 'package:flow_read/screens/book_insights_page.dart';
 import 'package:flow_read/services/book_glossary_service.dart';
 import 'package:flow_read/services/character_registry.dart';
+import 'package:flow_read/services/book_insight_chapter_catalog.dart';
+import 'package:flow_read/services/reading_memory/book_insight_source_scope_service.dart';
 import 'package:flow_read/services/reading_memory/chapter_summary_source_scope_cache.dart';
 import 'package:flow_read/services/reading_memory/source_scope_service.dart';
 import 'package:flow_read/storage/database/app_database.dart'
@@ -317,6 +321,76 @@ void main() {
     );
   });
 
+  testWidgets('renders story events without matching chapter summaries', (
+    tester,
+  ) async {
+    final eventOnlyProvider = BookInsightProvider(
+      cacheService: cacheService,
+      bookInsightSourceScopeService: _FakeBookInsightSourceScopeService(
+        BookInsightSourceScopeProjection(
+          bookId: 'book-1',
+          sourceId: 'book:book-1',
+          maxReadChapter: 0,
+          chapterSummaries: const {},
+          analysisData: BookAnalysisData(
+            bookId: 'book-1',
+            scope: AnalysisScope.readSoFar(
+              bookId: 'book-1',
+              currentChapterIndex: 0,
+            ),
+            storyEvents: [
+              StoryEvent(
+                description: 'The first snow reaches Winterfell.',
+                chapterIndex: 0,
+              ),
+            ],
+            coverage: 0.2,
+            schemaVersion: '1.0.0',
+            analyzedAt: DateTime.utc(2026, 6, 24),
+          ),
+          storyline: BookStoryline.empty('book-1'),
+          characterCards: const [],
+          characterRegistryEntries: const [],
+          glossaryEntries: const [],
+          coverage: const BookInsightCoverage(
+            summarizedChapters: 0,
+            totalChapters: 3,
+            readChapters: 1,
+            missingChapters: [0],
+          ),
+        ),
+      ),
+    );
+    addTearDown(eventOnlyProvider.dispose);
+    await eventOnlyProvider.loadForBook(
+      'book-1',
+      totalChapters: 3,
+      currentChapter: 0,
+      bookTitle: 'Book One',
+    );
+
+    expect(eventOnlyProvider.chapterSummaries, isEmpty);
+    expect(eventOnlyProvider.analysisData?.storyEvents, hasLength(1));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BookInsightsPage(
+          provider: eventOnlyProvider,
+          bookTitle: 'Book One',
+          onGenerateChapter: (_) async =>
+              const BookInsightChapterGenerationResult.generated(),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('章节'));
+    await _pumpTabTransition(tester);
+
+    expect(find.text('The first snow reaches Winterfell.'), findsOneWidget);
+  });
+
   test(
     'ignores fallback chapter summaries in book insights coverage',
     () async {
@@ -495,6 +569,189 @@ void main() {
     expect(requestedChapters, [0, 1, 2]);
   });
 
+  testWidgets('backfills only analyzable body chapters in story map', (
+    tester,
+  ) async {
+    List<int>? requestedChapters;
+    final storyMapProvider = BookInsightProvider(
+      cacheService: cacheService,
+      bookInsightSourceScopeService: _FakeBookInsightSourceScopeService(
+        BookInsightSourceScopeProjection(
+          bookId: 'book-1',
+          sourceId: 'book:book-1',
+          maxReadChapter: 1,
+          chapterSummaries: const {},
+          storyline: BookStoryline.empty('book-1'),
+          characterCards: const [],
+          characterRegistryEntries: const [],
+          glossaryEntries: const [],
+          coverage: const BookInsightCoverage(
+            summarizedChapters: 0,
+            totalChapters: 3,
+            readChapters: 2,
+            missingChapters: [0, 1],
+          ),
+        ),
+      ),
+    );
+    addTearDown(storyMapProvider.dispose);
+    await storyMapProvider.loadForBook(
+      'book-1',
+      totalChapters: 3,
+      currentChapter: 1,
+      bookTitle: 'Book One',
+    );
+    final chapterCatalog = BookInsightChapterCatalog.fromBook(
+      const Book(
+        title: 'Book One',
+        author: 'Author',
+        chapters: [
+          Chapter(
+            title: 'Preface',
+            plainText:
+                'This preface explains how the book was edited and prepared.',
+            rawHtml: '',
+          ),
+          Chapter(
+            title: 'Chapter One',
+            plainText:
+                'Alice finds the old map and walks into the valley before dawn.',
+            rawHtml: '',
+          ),
+          Chapter(
+            title: 'Chapter Two',
+            plainText:
+                'Alice follows the river road and finds a hidden bridge.',
+            rawHtml: '',
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BookInsightsPage(
+          provider: storyMapProvider,
+          bookTitle: 'Book One',
+          chapterCatalog: chapterCatalog,
+          onGenerateChapter: (_) async =>
+              const BookInsightChapterGenerationResult.generated(),
+          onGenerateMissingReadChapters: (chapters) async {
+            requestedChapters = chapters;
+            return chapters.length;
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('章节'));
+    await _pumpTabTransition(tester);
+    await tester.tap(find.byIcon(Icons.playlist_add_check));
+    await tester.pump();
+
+    expect(find.textContaining('Preface'), findsNothing);
+    expect(requestedChapters, [1]);
+  });
+
+  testWidgets('chapter generation feedback uses story map display number', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    int? requestedChapter;
+    final storyMapProvider = BookInsightProvider(
+      cacheService: cacheService,
+      bookInsightSourceScopeService: _FakeBookInsightSourceScopeService(
+        BookInsightSourceScopeProjection(
+          bookId: 'book-1',
+          sourceId: 'book:book-1',
+          maxReadChapter: 3,
+          chapterSummaries: {
+            1: _summaryWithEvent('Alice enters the valley.'),
+            2: _summaryWithEvent('Alice finds the bridge.'),
+          },
+          storyline: BookStoryline.empty('book-1'),
+          characterCards: const [],
+          characterRegistryEntries: const [],
+          glossaryEntries: const [],
+          coverage: const BookInsightCoverage(
+            summarizedChapters: 2,
+            totalChapters: 4,
+            readChapters: 4,
+            missingChapters: [3],
+          ),
+        ),
+      ),
+    );
+    addTearDown(storyMapProvider.dispose);
+    await storyMapProvider.loadForBook(
+      'book-1',
+      totalChapters: 4,
+      currentChapter: 3,
+      bookTitle: 'Book One',
+    );
+    final chapterCatalog = BookInsightChapterCatalog.fromBook(
+      const Book(
+        title: 'Book One',
+        author: 'Author',
+        chapters: [
+          Chapter(
+            title: 'Preface',
+            plainText:
+                'This preface explains how the book was edited and prepared.',
+            rawHtml: '',
+          ),
+          Chapter(
+            title: 'Chapter One',
+            plainText:
+                'Alice finds the old map and walks into the valley before dawn.',
+            rawHtml: '',
+          ),
+          Chapter(
+            title: 'Chapter Two',
+            plainText:
+                'Alice follows the river road and finds a hidden bridge.',
+            rawHtml: '',
+          ),
+          Chapter(
+            title: 'Chapter Three',
+            plainText: 'Alice crosses the bridge and discovers a quiet house.',
+            rawHtml: '',
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BookInsightsPage(
+            provider: storyMapProvider,
+            bookTitle: 'Book One',
+            chapterCatalog: chapterCatalog,
+            onGenerateChapter: (chapterIndex) async {
+              requestedChapter = chapterIndex;
+              return const BookInsightChapterGenerationResult.notGenerated(
+                '章节总结已生成。',
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('章节'));
+    await _pumpTabTransition(tester);
+    await tester.tap(find.text('生成'));
+    await tester.pump();
+
+    expect(requestedChapter, 3);
+    expect(find.text('未生成第 3 章洞察：章节总结已生成。'), findsOneWidget);
+    expect(find.textContaining('第 4 章洞察'), findsNothing);
+  });
+
   test('reloads projections when spoiler boundary changes', () async {
     await _seedSummary(
       summarySourceScopeCache,
@@ -568,6 +825,132 @@ void main() {
     expect(synthesis.characterGraph.edges.single.relation, '同行');
   });
 
+  test(
+    'does not store synthesis when AI returns no visible storyline',
+    () async {
+      final emptySynthesisProvider = BookInsightProvider(
+        cacheService: cacheService,
+        bookInsightSourceScopeService: _FakeBookInsightSourceScopeService(
+          _projectionWithAnalysis(),
+        ),
+        synthesisRunner: (_) async => BookSynthesisResult(
+          fullStoryline: '   ',
+          characterGraph: const CharacterRelationGraph(),
+          bookMindMap: const MindMapGraph(
+            root: MindMapNode(id: 'root', label: 'Book One'),
+          ),
+          generatedAt: DateTime.utc(2026, 6, 24),
+        ),
+      );
+      addTearDown(emptySynthesisProvider.dispose);
+      await emptySynthesisProvider.loadForBook(
+        'book-1',
+        totalChapters: 8,
+        currentChapter: 2,
+        bookTitle: 'Book One',
+      );
+
+      final generated = await emptySynthesisProvider
+          .generateReadScopeSynthesis();
+
+      expect(generated, isFalse);
+      expect(emptySynthesisProvider.visibleSynthesis, isNull);
+      expect(emptySynthesisProvider.error, 'AI 未返回可展示的当前范围梗概');
+    },
+  );
+
+  testWidgets('read scope synthesis button updates visible storyline', (
+    tester,
+  ) async {
+    final synthesisProvider = BookInsightProvider(
+      cacheService: cacheService,
+      bookInsightSourceScopeService: _FakeBookInsightSourceScopeService(
+        _projectionWithAnalysis(),
+      ),
+      synthesisRunner: (_) async => BookSynthesisResult(
+        fullStoryline: '已读范围合成结果',
+        characterGraph: const CharacterRelationGraph(),
+        bookMindMap: const MindMapGraph(
+          root: MindMapNode(id: 'root', label: 'Book One'),
+        ),
+        generatedAt: DateTime.utc(2026, 6, 24),
+      ),
+    );
+    addTearDown(synthesisProvider.dispose);
+    await synthesisProvider.loadForBook(
+      'book-1',
+      totalChapters: 8,
+      currentChapter: 2,
+      bookTitle: 'Book One',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BookInsightsPage(
+          provider: synthesisProvider,
+          bookTitle: 'Book One',
+          onGenerateChapter: (_) async =>
+              const BookInsightChapterGenerationResult.generated(),
+        ),
+      ),
+    );
+
+    expect(find.text('还没有当前范围梗概'), findsOneWidget);
+
+    await tester.tap(find.text('生成当前范围梗概'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.text('已读范围合成结果'), findsOneWidget);
+    expect(find.text('还没有当前范围梗概'), findsNothing);
+    expect(find.text('已生成当前范围梗概'), findsOneWidget);
+  });
+
+  testWidgets('read scope synthesis button reports empty AI result', (
+    tester,
+  ) async {
+    final emptySynthesisProvider = BookInsightProvider(
+      cacheService: cacheService,
+      bookInsightSourceScopeService: _FakeBookInsightSourceScopeService(
+        _projectionWithAnalysis(),
+      ),
+      synthesisRunner: (_) async => BookSynthesisResult(
+        fullStoryline: '',
+        characterGraph: const CharacterRelationGraph(),
+        bookMindMap: const MindMapGraph(
+          root: MindMapNode(id: 'root', label: 'Book One'),
+        ),
+        generatedAt: DateTime.utc(2026, 6, 24),
+      ),
+    );
+    addTearDown(emptySynthesisProvider.dispose);
+    await emptySynthesisProvider.loadForBook(
+      'book-1',
+      totalChapters: 8,
+      currentChapter: 2,
+      bookTitle: 'Book One',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BookInsightsPage(
+          provider: emptySynthesisProvider,
+          bookTitle: 'Book One',
+          onGenerateChapter: (_) async =>
+              const BookInsightChapterGenerationResult.generated(),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('生成当前范围梗概'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.text('还没有当前范围梗概'), findsOneWidget);
+    expect(find.text('AI 未返回可展示的当前范围梗概'), findsOneWidget);
+    expect(find.text('已生成当前范围梗概'), findsNothing);
+  });
+
   test('generates read and full book synthesis with isolated scopes', () async {
     await _seedSummary(
       summarySourceScopeCache,
@@ -620,6 +1003,59 @@ Future<void> _pumpTabTransition(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 600));
 }
 
+AISummary _summaryWithEvent(String description) {
+  return AISummary(
+    events: [
+      SummaryEvent(
+        description: description,
+        source: description,
+        significance: 'Important for the current arc.',
+        confidence: 'high',
+      ),
+    ],
+    characterDevelopments: const [],
+    keyVocabulary: const [],
+    readingGuidance: 'Follow the current scene.',
+  );
+}
+
+BookInsightSourceScopeProjection _projectionWithAnalysis() {
+  return BookInsightSourceScopeProjection(
+    bookId: 'book-1',
+    sourceId: 'book:book-1',
+    maxReadChapter: 0,
+    chapterSummaries: {
+      0: _summaryWithEvent('Arya finds a hidden path.'),
+    },
+    analysisData: BookAnalysisData(
+      bookId: 'book-1',
+      scope: AnalysisScope.readSoFar(
+        bookId: 'book-1',
+        currentChapterIndex: 0,
+      ),
+      storyEvents: [
+        StoryEvent(
+          description: 'Arya finds a hidden path.',
+          chapterIndex: 0,
+        ),
+      ],
+      coverage: 1,
+      schemaVersion: '1.0.0',
+      analyzedAt: DateTime.utc(2026, 6, 24),
+    ),
+    storyline: BookStoryline.empty('book-1'),
+    characterCards: const [],
+    characterRegistryEntries: const [],
+    glossaryEntries: const [],
+    coverage: const BookInsightCoverage(
+      summarizedChapters: 1,
+      totalChapters: 3,
+      readChapters: 1,
+      missingChapters: [],
+    ),
+  );
+}
+
 Future<void> _seedSummary(
   ChapterSummarySourceScopeCache cache, {
   required int chapterIndex,
@@ -653,4 +1089,25 @@ Future<void> _seedSummary(
       readingGuidance: 'Follow the character choice.',
     ),
   );
+}
+
+class _FakeBookInsightSourceScopeService extends BookInsightSourceScopeService {
+  _FakeBookInsightSourceScopeService(this.projection);
+
+  final BookInsightSourceScopeProjection projection;
+
+  @override
+  Future<BookInsightSourceScopeProjection> loadProjection({
+    required String bookId,
+    int? maxReadChapter,
+    int? totalChapters,
+    int? readChapters,
+    String? bookTitle,
+    String? author,
+    String? languageCode,
+    Iterable<int>? includedChapterIndexes,
+    bool syncInspectableCaches = true,
+  }) async {
+    return projection;
+  }
 }

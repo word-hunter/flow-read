@@ -37,6 +37,10 @@ class ChapterAIJob {
   Future<ChapterSummaryJobResult> generateSummary(
     ChapterSummaryJobRequest request,
   ) async {
+    if (request.chapterText.trim().isEmpty) {
+      throw StateError('章节正文为空，无法生成总结');
+    }
+
     final metadata = ChapterAIJobMetadata.forChapter(
       bookId: request.bookId,
       chapterIndex: request.chapterIndex,
@@ -55,17 +59,24 @@ class ChapterAIJob {
       sourceLanguage: metadata.sourceLanguage.code,
     );
     if (cached != null) {
-      return ChapterSummaryJobResult(
-        summary: AISummary.fromJson(jsonDecode(cached) as Map<String, dynamic>),
-        status: const ChapterAIStatus.cacheHit(
-          ChapterAIFeature.summary,
-          '已读取缓存的章节总结。',
-        ),
-        fromCache: true,
+      final summary = AISummary.fromJson(
+        jsonDecode(cached) as Map<String, dynamic>,
       );
+      if (summary.isEmpty || ChapterAIStatus.isSummaryFallback(summary)) {
+        // Old builds could persist fallback summaries as successful cache hits.
+        // Treat those as misses so a real summary can be regenerated.
+      } else {
+        return ChapterSummaryJobResult(
+          summary: summary,
+          status: const ChapterAIStatus.cacheHit(
+            ChapterAIFeature.summary,
+            '已读取缓存的章节总结。',
+          ),
+          fromCache: true,
+        );
+      }
     }
 
-    ChapterSummaryJobResult? result;
     await for (final summary in _model.generateSummary(
       chapterText: request.chapterText,
       vocabulary: request.vocabulary,
@@ -73,27 +84,27 @@ class ChapterAIJob {
       sourceLanguage: metadata.sourceLanguage,
       spoilerBoundary: metadata.spoilerBoundary,
     )) {
+      final status = ChapterAIStatus.fromSummary(summary);
       await _usage.recordChapterSummaryGenerated();
-      await _cache.saveSummary(
-        bookId: request.bookId,
-        chapterIndex: request.chapterIndex,
-        outputLanguage: metadata.outputLanguage.code,
-        jsonString: jsonEncode(summary.toJson()),
-        contentHash: metadata.contentHash,
-        promptVersion: metadata.promptVersion,
-        sourceLanguage: metadata.sourceLanguage.code,
-      );
-      result = ChapterSummaryJobResult(
+      if (status.kind != ChapterAIStatusKind.fallback && !summary.isEmpty) {
+        await _cache.saveSummary(
+          bookId: request.bookId,
+          chapterIndex: request.chapterIndex,
+          outputLanguage: metadata.outputLanguage.code,
+          jsonString: jsonEncode(summary.toJson()),
+          contentHash: metadata.contentHash,
+          promptVersion: metadata.promptVersion,
+          sourceLanguage: metadata.sourceLanguage.code,
+        );
+      }
+      return ChapterSummaryJobResult(
         summary: summary,
-        status: ChapterAIStatus.fromSummary(summary),
+        status: status,
         fromCache: false,
       );
     }
 
-    if (result == null) {
-      throw StateError('AI 未返回章节总结');
-    }
-    return result;
+    throw StateError('AI 未返回章节总结');
   }
 
   Future<ChapterPracticeJobResult> generatePractice(

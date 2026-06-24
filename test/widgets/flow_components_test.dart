@@ -115,9 +115,96 @@ void main() {
       expect(find.text('移出书架'), findsOneWidget);
 
       await tester.tap(find.text('重命名'));
+      expect(selected, isNull);
       await tester.pumpAndSettle();
 
       expect(selected, 'rename');
+    });
+
+    testWidgets('FlowMenuButton can navigate from macOS popover selection', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _ShellHost(
+          shellId: ShellId.macosStandard,
+          child: Builder(
+            builder: (context) {
+              return FlowMenuButton<String>(
+                tooltip: '更多',
+                entries: const [
+                  FlowMenuItem(
+                    value: 'bookInsights',
+                    icon: Icons.dashboard_outlined,
+                    label: '故事地图',
+                  ),
+                ],
+                onSelected: (_) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const Scaffold(
+                        body: Center(child: Text('故事地图页面')),
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('更多'),
+              );
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('更多'));
+      await tester.pumpAndSettle();
+      expect(find.text('故事地图'), findsOneWidget);
+
+      await tester.tap(find.text('故事地图'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('故事地图页面'), findsOneWidget);
+    });
+
+    testWidgets('FlowMenuButton can navigate from MenuAnchor selection', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _ShellHost(
+          shellId: ShellId.windows,
+          child: Builder(
+            builder: (context) {
+              return FlowMenuButton<String>(
+                tooltip: '更多',
+                entries: const [
+                  FlowMenuItem(
+                    value: 'bookInsights',
+                    icon: Icons.dashboard_outlined,
+                    label: '故事地图',
+                  ),
+                ],
+                onSelected: (_) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const Scaffold(
+                        body: Center(child: Text('故事地图页面')),
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('更多'),
+              );
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('更多'));
+      await tester.pumpAndSettle();
+      expect(find.text('故事地图'), findsOneWidget);
+
+      await tester.tap(find.text('故事地图'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('故事地图页面'), findsOneWidget);
     });
 
     testWidgets('FlowTextField renders Cupertino input on iOS shell', (
@@ -252,7 +339,7 @@ void main() {
 
     test('FlowToolbar includes bottom preferred height', () {
       const toolbar = FlowToolbar(
-        title: Text('书籍洞察'),
+        title: Text('故事地图'),
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(48),
           child: SizedBox(height: 48),

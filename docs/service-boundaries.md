@@ -109,7 +109,7 @@ UI 触发 → ReadingProvider._onAnalyzeSelected() / _generateChapterSummary()
 | Service | 职责 |
 |---------|------|
 | `SettingsService` | 全局设置持久化（`ChangeNotifier`，Drift `settings`） |
-| `flow_read_atmosphere` package | City 时间主题、天空/草地氛围背景、resolver 与 inherited scope；由 app shell 注入，不持有持久化 |
+| `flow_read_atmosphere` package | City 时间主题、可选天空/草地氛围背景、resolver 与 inherited scope；由 app shell 注入，不持有持久化，当前 app shell 隐藏背景绘制层 |
 | `BackupService` | 备份/恢复/导入（ZIP 打包）；构造时必须注入 `AppDatabase`，导出从 Drift DAO 组装兼容 `boxes` payload，schema v1/v2 导入均恢复到 Drift；WordHunter 导入必须显式注入词汇/上下文 service |
 | `AppLogger` | JSONL 文件日志（脱敏） |
 | `DiagnosticExportService` | 诊断报告 ZIP 导出，统计信息优先从 Drift 读取 |

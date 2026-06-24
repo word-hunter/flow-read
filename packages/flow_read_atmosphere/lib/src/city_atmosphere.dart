@@ -11,6 +11,7 @@ class CityAtmosphere extends StatelessWidget {
   final CityAtmosphereSettings settings;
   final Widget child;
   final bool enabled;
+  final bool showBackground;
   final CityAtmosphereClock clock;
 
   const CityAtmosphere({
@@ -18,6 +19,7 @@ class CityAtmosphere extends StatelessWidget {
     required this.settings,
     required this.child,
     this.enabled = true,
+    this.showBackground = true,
     this.clock = DateTime.now,
   });
 
@@ -36,6 +38,14 @@ class CityAtmosphere extends StatelessWidget {
       settings: settings,
     );
     final intensity = settings.normalizedIntensity.clamp(0.0, 1.0).toDouble();
+
+    if (!showBackground) {
+      return CityThemeScope(
+        preset: preset,
+        settings: settings,
+        child: child,
+      );
+    }
 
     return CityThemeScope(
       preset: preset,

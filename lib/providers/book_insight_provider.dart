@@ -50,6 +50,7 @@ class BookInsightProvider extends ChangeNotifier {
   int _totalChapters = 0;
   int _currentChapter = 0;
   int? _manualReadBoundaryChapter;
+  Set<int>? _includedChapterIndexes;
 
   BookStoryline? _storyline;
   BookAnalysisData? _analysisData;
@@ -116,6 +117,7 @@ class BookInsightProvider extends ChangeNotifier {
     String? bookTitle,
     String? author,
     String? languageCode,
+    Iterable<int>? includedChapterIndexes,
   }) async {
     if (_isLoading && _bookId == bookId) return;
     final isNewBook = _bookId != bookId;
@@ -125,6 +127,7 @@ class BookInsightProvider extends ChangeNotifier {
     _languageCode = languageCode ?? (isNewBook ? null : _languageCode);
     _totalChapters = totalChapters;
     _currentChapter = currentChapter;
+    _includedChapterIndexes = _includedChapterSet(includedChapterIndexes);
     if (isNewBook) {
       _showFullBook = false;
       _manualReadBoundaryChapter = null;
@@ -146,6 +149,7 @@ class BookInsightProvider extends ChangeNotifier {
         bookTitle: _bookTitle,
         author: _author,
         languageCode: _languageCode,
+        includedChapterIndexes: _includedChapterIndexes,
       );
       _chapterSummaries = projection.chapterSummaries;
       _glossaryEntries = projection.glossaryEntries;
@@ -282,6 +286,7 @@ class BookInsightProvider extends ChangeNotifier {
       bookTitle: _bookTitle,
       author: _author,
       languageCode: _languageCode,
+      includedChapterIndexes: _includedChapterIndexes,
     );
   }
 
@@ -290,24 +295,24 @@ class BookInsightProvider extends ChangeNotifier {
     await refresh();
   }
 
-  Future<void> generateReadScopeSynthesis() async {
-    await _generateSynthesis(fullBook: false);
+  Future<bool> generateReadScopeSynthesis() async {
+    return _generateSynthesis(fullBook: false);
   }
 
-  Future<void> generateFullBookSynthesis() async {
-    await _generateSynthesis(fullBook: true);
+  Future<bool> generateFullBookSynthesis() async {
+    return _generateSynthesis(fullBook: true);
   }
 
-  Future<void> _generateSynthesis({required bool fullBook}) async {
+  Future<bool> _generateSynthesis({required bool fullBook}) async {
     final runner = _synthesisRunner;
     final bookId = _bookId;
-    if (runner == null || bookId == null) return;
+    if (runner == null || bookId == null) return false;
 
     if (fullBook) {
-      if (_isGeneratingFullBookSynthesis) return;
+      if (_isGeneratingFullBookSynthesis) return false;
       _isGeneratingFullBookSynthesis = true;
     } else {
-      if (_isGeneratingReadScopeSynthesis) return;
+      if (_isGeneratingReadScopeSynthesis) return false;
       _isGeneratingReadScopeSynthesis = true;
     }
     _error = null;
@@ -322,11 +327,12 @@ class BookInsightProvider extends ChangeNotifier {
         bookTitle: _bookTitle,
         author: _author,
         languageCode: _languageCode,
+        includedChapterIndexes: _includedChapterIndexes,
       );
       final analysis = projection.analysisData;
       if (analysis == null) {
         _error = '暂无可分析的章节总结';
-        return;
+        return false;
       }
       final result = await runner(
         BookSynthesisRequest(
@@ -336,6 +342,10 @@ class BookInsightProvider extends ChangeNotifier {
           chapterSummaries: _synthesisChapterSummaries(projection),
         ),
       );
+      if (result.fullStoryline.trim().isEmpty) {
+        _error = fullBook ? 'AI 未返回可展示的全书梗概' : 'AI 未返回可展示的当前范围梗概';
+        return false;
+      }
       if (fullBook) {
         _fullBookSynthesis = result;
       } else {
@@ -348,8 +358,10 @@ class BookInsightProvider extends ChangeNotifier {
         _storyline = projection.storyline;
         _characterCards = projection.characterCards;
       }
+      return true;
     } catch (e) {
       _error = fullBook ? '生成全书分析失败: $e' : '生成已读范围分析失败: $e';
+      return false;
     } finally {
       if (fullBook) {
         _isGeneratingFullBookSynthesis = false;
@@ -423,5 +435,13 @@ class BookInsightProvider extends ChangeNotifier {
     if (chapterIndex < 0) return 0;
     if (chapterIndex > last) return last;
     return chapterIndex;
+  }
+
+  Set<int>? _includedChapterSet(Iterable<int>? chapterIndexes) {
+    if (chapterIndexes == null) return null;
+    return {
+      for (final chapterIndex in chapterIndexes)
+        if (chapterIndex >= 0) chapterIndex,
+    };
   }
 }

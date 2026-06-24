@@ -83,7 +83,9 @@ class _FlowMenuButtonState<T> extends State<FlowMenuButton<T>> {
           minWidth: widget.minWidth,
           onSelected: (value) {
             _controller.close();
-            widget.onSelected(value);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) widget.onSelected(value);
+            });
           },
         ),
       ],

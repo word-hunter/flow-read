@@ -7,6 +7,7 @@ import 'package:flow_ai/flow_ai.dart';
 
 import '../models/book_glossary_entry.dart';
 import '../providers/book_insight_provider.dart';
+import '../services/book_insight_chapter_catalog.dart';
 import '../widgets/flow/flow_components.dart';
 import '../widgets/reader_shell/reader_right_assistant_panel.dart';
 import '../widgets/reader_shell/reader_workspace_controller.dart';
@@ -42,6 +43,7 @@ class BookInsightsPage extends StatefulWidget {
     required this.provider,
     required this.bookTitle,
     required this.onGenerateChapter,
+    this.chapterCatalog,
     this.onGenerateMissingReadChapters,
     this.onAskAI,
     this.aiPanelBuilder,
@@ -49,6 +51,7 @@ class BookInsightsPage extends StatefulWidget {
 
   final BookInsightProvider provider;
   final String bookTitle;
+  final BookInsightChapterCatalog? chapterCatalog;
   final Future<BookInsightChapterGenerationResult> Function(int chapterIndex)
   onGenerateChapter;
   final Future<int> Function(List<int> chapterIndexes)?
@@ -224,7 +227,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
           const CircularProgressIndicator(strokeWidth: 2),
           const SizedBox(height: 16),
           Text(
-            '正在整理书籍洞察',
+            '正在整理故事地图',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -326,7 +329,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                         const SizedBox(height: 12),
                         _buildLockedCard(
                           theme,
-                          nextChapter: provider.boundaryChapter + 2,
+                          nextChapter: _nextLockedChapterNumber(provider),
                           message: '后续情节发展、人物命运和更深入的主题分析会在读到后解锁。',
                         ),
                       ],
@@ -596,7 +599,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
             const SizedBox(height: 12),
             _buildLockedCard(
               theme,
-              nextChapter: provider.boundaryChapter + 2,
+              nextChapter: _nextLockedChapterNumber(provider),
               message: '后续登场人物会在读到对应章节后显示。',
             ),
           ],
@@ -707,7 +710,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
         if (_hasLockedFuture(provider))
           _buildLockedCard(
             theme,
-            nextChapter: provider.boundaryChapter + 2,
+            nextChapter: _nextLockedChapterNumber(provider),
             message: '包含后续情节发展、人物命运与重要关系。',
           ),
       ],
@@ -886,7 +889,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
                   const SizedBox(height: 4),
                   _buildLockedCard(
                     theme,
-                    nextChapter: provider.boundaryChapter + 2,
+                    nextChapter: _nextLockedChapterNumber(provider),
                     message: '该术语可能含有潜在剧透内容，解锁后可查看完整解释与原文语境。',
                   ),
                 ],
@@ -975,6 +978,10 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     final coverage = provider.coverage;
     if (coverage == null) return _buildEmptyTab(theme, '暂无章节数据');
     final chapterGroups = _chapterGroups(provider);
+    final chapterEntries = _chapterEntriesForCoverage(coverage);
+    if (chapterEntries.isEmpty) {
+      return _buildEmptyTab(theme, '暂无可分析的正文章节');
+    }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 96),
@@ -987,13 +994,12 @@ class _BookInsightsPageState extends State<BookInsightsPage>
               children: [
                 _buildCoverageStrip(theme, provider),
                 const SizedBox(height: 18),
-                for (var i = 0; i < coverage.totalChapters; i++)
+                for (final entry in chapterEntries)
                   _buildChapterTimelineItem(
                     theme,
                     provider,
-                    chapterIndex: i,
-                    group: chapterGroups[i],
-                    readChapters: coverage.readChapters,
+                    chapter: entry,
+                    group: chapterGroups[entry.rawChapterIndex],
                   ),
               ],
             ),
@@ -1006,18 +1012,18 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   Widget _buildChapterTimelineItem(
     ThemeData theme,
     BookInsightProvider provider, {
-    required int chapterIndex,
+    required BookInsightChapterEntry chapter,
     required _ChapterInsightGroup? group,
-    required int readChapters,
   }) {
+    final chapterIndex = chapter.rawChapterIndex;
     final isUnlocked = chapterIndex <= provider.boundaryChapter;
-    final isRead = chapterIndex < readChapters;
+    final isRead = chapterIndex <= provider.currentChapter;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _TimelineRail(
-          chapterNumber: chapterIndex + 1,
+          chapterNumber: chapter.displayNumber,
           locked: !isUnlocked,
           active: isUnlocked && group != null,
         ),
@@ -1028,12 +1034,12 @@ class _BookInsightsPageState extends State<BookInsightsPage>
             child: !isUnlocked
                 ? _buildLockedCard(
                     theme,
-                    nextChapter: chapterIndex + 1,
-                    message: '第 ${chapterIndex + 1} 章后解锁更多内容。',
+                    nextChapter: chapter.displayNumber,
+                    message: '第 ${chapter.displayNumber} 章后解锁更多内容。',
                   )
                 : group != null
-                ? _buildChapterSummaryCard(theme, chapterIndex, group)
-                : _buildChapterMissingCard(theme, chapterIndex, isRead),
+                ? _buildChapterSummaryCard(theme, chapter, group)
+                : _buildChapterMissingCard(theme, chapter, isRead),
           ),
         ),
       ],
@@ -1042,76 +1048,81 @@ class _BookInsightsPageState extends State<BookInsightsPage>
 
   Widget _buildChapterSummaryCard(
     ThemeData theme,
-    int chapterIndex,
+    BookInsightChapterEntry chapter,
     _ChapterInsightGroup group,
   ) {
     final summary = group.summary;
     final events = group.events;
+    final chapterLabel = _chapterDisplayLabel(chapter);
     return _SectionCard(
       padding: EdgeInsets.zero,
-      child: ExpansionTile(
-        initiallyExpanded: chapterIndex < 2,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-        childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-        title: Row(
-          children: [
-            Text(
-              '第 ${chapterIndex + 1} 章',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                events.isNotEmpty ? events.first.description : '已总结',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+      child: Material(
+        type: MaterialType.transparency,
+        child: ExpansionTile(
+          initiallyExpanded: chapter.displayNumber <= 2,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          title: Row(
+            children: [
+              Text(
+                chapterLabel,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
                 ),
               ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  events.isNotEmpty ? events.first.description : '已总结',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 760;
+                final eventPanel = _ChapterEventPanel(events: events);
+                final guidancePanel = _ReadingGuidancePanel(
+                  guidance: summary?.readingGuidance ?? '',
+                );
+                if (!isWide) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      eventPanel,
+                      const SizedBox(height: 14),
+                      guidancePanel,
+                    ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 2, child: eventPanel),
+                    const SizedBox(width: 22),
+                    Expanded(child: guidancePanel),
+                  ],
+                );
+              },
             ),
           ],
         ),
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth >= 760;
-              final eventPanel = _ChapterEventPanel(events: events);
-              final guidancePanel = _ReadingGuidancePanel(
-                guidance: summary?.readingGuidance ?? '',
-              );
-              if (!isWide) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    eventPanel,
-                    const SizedBox(height: 14),
-                    guidancePanel,
-                  ],
-                );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 2, child: eventPanel),
-                  const SizedBox(width: 22),
-                  Expanded(child: guidancePanel),
-                ],
-              );
-            },
-          ),
-        ],
       ),
     );
   }
 
   Widget _buildChapterMissingCard(
     ThemeData theme,
-    int chapterIndex,
+    BookInsightChapterEntry chapter,
     bool isRead,
   ) {
+    final chapterIndex = chapter.rawChapterIndex;
     final isGenerating = _generatingChapterIndexes.contains(chapterIndex);
     return _SectionCard(
       child: Row(
@@ -1121,7 +1132,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '第 ${chapterIndex + 1} 章',
+                  _chapterDisplayLabel(chapter),
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -1140,7 +1151,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
             FlowButton.secondary(
               onPressed: isGenerating
                   ? null
-                  : () => unawaited(_generateChapterSummary(chapterIndex)),
+                  : () => unawaited(_generateChapterSummary(chapter)),
               icon: isGenerating
                   ? const SizedBox.square(
                       dimension: 16,
@@ -1157,7 +1168,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   Widget _buildCoverageStrip(ThemeData theme, BookInsightProvider provider) {
     final coverage = provider.coverage;
     if (coverage == null) return const SizedBox.shrink();
-    final readMissingChapters = _readMissingChapters(coverage);
+    final readMissingChapters = _readMissingChapters(provider);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1428,23 +1439,73 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     for (final event
         in provider.analysisData?.storyEvents ?? const <StoryEvent>[]) {
       groups
-          .putIfAbsent(event.chapterIndex, () => const _ChapterInsightGroup())
+          .putIfAbsent(event.chapterIndex, () => _ChapterInsightGroup())
           .storyEvents
           .add(event);
     }
     return groups;
   }
 
-  List<int> _readMissingChapters(BookInsightCoverage coverage) {
+  List<BookInsightChapterEntry> _chapterEntriesForCoverage(
+    BookInsightCoverage coverage,
+  ) {
+    final entries = widget.chapterCatalog?.entries;
+    if (entries != null) return entries;
+    return [
+      for (var i = 0; i < coverage.totalChapters; i += 1)
+        BookInsightChapterEntry(
+          rawChapterIndex: i,
+          displayNumber: i + 1,
+          title: '第 ${i + 1} 章',
+        ),
+    ];
+  }
+
+  String _chapterDisplayLabel(BookInsightChapterEntry chapter) {
+    final defaultTitle = '第 ${chapter.displayNumber} 章';
+    final title = chapter.title.trim();
+    if (title.isEmpty || title == defaultTitle) return defaultTitle;
+    return '$defaultTitle · $title';
+  }
+
+  List<int> _readMissingChapters(BookInsightProvider provider) {
+    final coverage = provider.coverage;
+    if (coverage == null) return const [];
+    final catalog = widget.chapterCatalog;
+    if (catalog != null) {
+      return coverage.missingChapters
+          .where(
+            (chapterIndex) =>
+                catalog.containsRawChapter(chapterIndex) &&
+                chapterIndex <= provider.boundaryChapter,
+          )
+          .toList(growable: false);
+    }
     return coverage.missingChapters
         .where((chapterIndex) => chapterIndex < coverage.readChapters)
         .toList(growable: false);
   }
 
   bool _hasLockedFuture(BookInsightProvider provider) {
+    final catalog = widget.chapterCatalog;
+    if (catalog != null) {
+      return !provider.showFullBook &&
+          catalog.firstLockedAfter(provider.boundaryChapter) != null;
+    }
     return !provider.showFullBook &&
         provider.totalChapters > 0 &&
         provider.boundaryChapter < provider.totalChapters - 1;
+  }
+
+  int _nextLockedChapterNumber(BookInsightProvider provider) {
+    final catalog = widget.chapterCatalog;
+    if (catalog != null) {
+      return catalog
+              .firstLockedAfter(provider.boundaryChapter)
+              ?.displayNumber ??
+          catalog.entries.length;
+    }
+    return provider.boundaryChapter + 2;
   }
 
   String _boundaryLabel(BookInsightProvider provider) {
@@ -1552,7 +1613,9 @@ class _BookInsightsPageState extends State<BookInsightsPage>
     await provider.setFullBookMode(true);
   }
 
-  Future<void> _generateChapterSummary(int chapterIndex) async {
+  Future<void> _generateChapterSummary(BookInsightChapterEntry chapter) async {
+    final chapterIndex = chapter.rawChapterIndex;
+    final chapterNumber = chapter.displayNumber;
     if (_generatingChapterIndexes.contains(chapterIndex)) return;
     setState(() => _generatingChapterIndexes.add(chapterIndex));
     try {
@@ -1563,8 +1626,8 @@ class _BookInsightsPageState extends State<BookInsightsPage>
         SnackBar(
           content: Text(
             result.isGenerated
-                ? '已生成第 ${chapterIndex + 1} 章洞察'
-                : '未生成第 ${chapterIndex + 1} 章洞察：${result.message ?? 'AI 未返回可用总结，请稍后重试或检查模型服务响应。'}',
+                ? '已生成第 $chapterNumber 章洞察'
+                : '未生成第 $chapterNumber 章洞察：${result.message ?? 'AI 未返回可用总结，请稍后重试或检查模型服务响应。'}',
           ),
           behavior: SnackBarBehavior.floating,
         ),
@@ -1573,7 +1636,7 @@ class _BookInsightsPageState extends State<BookInsightsPage>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('第 ${chapterIndex + 1} 章洞察生成失败：$e'),
+          content: Text('第 $chapterNumber 章洞察生成失败：$e'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -1610,8 +1673,18 @@ class _BookInsightsPageState extends State<BookInsightsPage>
   }
 
   Future<void> _generateReadScopeSynthesis(BookInsightProvider provider) async {
-    await provider.generateReadScopeSynthesis();
-    if (!mounted || provider.error != null) return;
+    final generated = await provider.generateReadScopeSynthesis();
+    if (!mounted) return;
+    if (!generated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.error ?? 'AI 未返回可展示的当前范围梗概'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('已生成当前范围梗概'),
@@ -1639,8 +1712,18 @@ class _BookInsightsPageState extends State<BookInsightsPage>
       ),
     );
     if (confirmed != true) return;
-    await provider.generateFullBookSynthesis();
-    if (!mounted || provider.error != null) return;
+    final generated = await provider.generateFullBookSynthesis();
+    if (!mounted) return;
+    if (!generated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.error ?? 'AI 未返回可展示的全书梗概'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('已生成全书梗概'),
@@ -1780,7 +1863,7 @@ class _BookInsightsHeader extends StatelessWidget {
             right: 0,
             child: Center(
               child: Text(
-                '书籍洞察',
+                '故事地图',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w500,
                   color: _insightText,
@@ -3737,8 +3820,8 @@ class _CharacterInsightItem {
 }
 
 class _ChapterInsightGroup {
-  const _ChapterInsightGroup({this.summary, List<StoryEvent>? storyEvents})
-    : storyEvents = storyEvents ?? const [];
+  _ChapterInsightGroup({this.summary, List<StoryEvent>? storyEvents})
+    : storyEvents = [...?storyEvents];
 
   final AISummary? summary;
   final List<StoryEvent> storyEvents;

@@ -6,8 +6,10 @@ import 'package:path_provider/path_provider.dart';
 
 class AIDebugTraceConfig {
   static const key = 'FLOW_AI_DEBUG_TRACE';
+  static const mirrorDirectoryKey = 'FLOW_AI_DEBUG_TRACE_MIRROR_DIR';
   static const enabled =
       bool.fromEnvironment(key) && !bool.fromEnvironment('dart.vm.product');
+  static const mirrorDirectoryPath = String.fromEnvironment(mirrorDirectoryKey);
 
   const AIDebugTraceConfig._();
 }
@@ -16,9 +18,12 @@ class AIDebugTraceRecorder {
   AIDebugTraceRecorder({
     required this.enabled,
     Future<Directory> Function()? directoryProvider,
+    Future<Directory?> Function()? mirrorDirectoryProvider,
     DateTime Function()? clock,
     this.filePrefix = 'flow_read_ai_trace',
   }) : _directoryProvider = directoryProvider ?? _defaultDirectoryProvider,
+       _mirrorDirectoryProvider =
+           mirrorDirectoryProvider ?? _defaultMirrorDirectoryProvider,
        _clock = clock ?? DateTime.now;
 
   static final AIDebugTraceRecorder instance = AIDebugTraceRecorder(
@@ -28,6 +33,7 @@ class AIDebugTraceRecorder {
   final bool enabled;
   final String filePrefix;
   final Future<Directory> Function() _directoryProvider;
+  final Future<Directory?> Function() _mirrorDirectoryProvider;
   final DateTime Function() _clock;
 
   Future<void> _writeQueue = Future<void>.value();
@@ -114,18 +120,33 @@ class AIDebugTraceRecorder {
   Future<void> drain() => _writeQueue.catchError((Object _) {});
 
   Future<void> _writeEntry(Map<String, Object?> entry) async {
+    final line = '${jsonEncode(entry)}\n';
     final directory = await _directoryProvider();
+    await _writeLine(directory, line, announcement: 'trace file');
+
+    final mirrorDirectory = await _mirrorDirectoryProvider();
+    if (mirrorDirectory == null || mirrorDirectory.path == directory.path) {
+      return;
+    }
+    await _writeLine(mirrorDirectory, line, announcement: 'trace mirror');
+  }
+
+  Future<void> _writeLine(
+    Directory directory,
+    String line, {
+    required String announcement,
+  }) async {
     await directory.create(recursive: true);
     final file = File(
       '${directory.path}${Platform.pathSeparator}'
       '$filePrefix-${_formatDate(_clock())}.jsonl',
     );
     if (_announcedPaths.add(file.path)) {
-      stdout.writeln('[FlowRead][AI Debug] trace file: ${file.path}');
+      stdout.writeln('[FlowRead][AI Debug] $announcement: ${file.path}');
       stdout.writeln('[FlowRead][AI Debug] viewer: make ai-debug-viewer');
     }
     await file.writeAsString(
-      '${jsonEncode(entry)}\n',
+      line,
       mode: FileMode.append,
       flush: true,
     );
@@ -134,6 +155,21 @@ class AIDebugTraceRecorder {
   static Future<Directory> _defaultDirectoryProvider() async {
     final supportDir = await getApplicationSupportDirectory();
     return Directory('${supportDir.path}${Platform.pathSeparator}ai_debug');
+  }
+
+  static Future<Directory?> _defaultMirrorDirectoryProvider() async {
+    final configured = AIDebugTraceConfig.mirrorDirectoryPath.trim();
+    if (configured.isEmpty) return null;
+    final path = _isAbsolutePath(configured)
+        ? configured
+        : '${Directory.current.path}${Platform.pathSeparator}$configured';
+    return Directory(path);
+  }
+
+  static bool _isAbsolutePath(String path) {
+    if (path.startsWith(Platform.pathSeparator)) return true;
+    if (!Platform.isWindows) return path.startsWith('/');
+    return path.startsWith(r'\\') || RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path);
   }
 
   Map<String, Object?> _sanitizeHeaders(Map<String, String> headers) {

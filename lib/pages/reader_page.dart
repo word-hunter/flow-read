@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:flow_read_atmosphere/flow_read_atmosphere.dart';
-import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, ValueNotifier, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
@@ -28,6 +29,7 @@ import '../providers/settings_provider.dart';
 import '../layout/app_platform_class.dart';
 import '../layout/reader_layout_policy.dart';
 import '../layout/reader_layout_spec.dart';
+import '../services/book_insight_chapter_catalog.dart';
 import '../services/reader_layout_engine.dart';
 import '../services/word_level_service.dart';
 import '../theme/app_constants.dart';
@@ -60,6 +62,17 @@ part 'reader_keyboard_mixin.dart';
 part 'reader_viewport_mixin.dart';
 
 enum _ReaderSidebarMode { word, assistant }
+
+@visibleForTesting
+Future<BookInsightProvider?> readBookInsightProviderWhenReady({
+  required Future<void> Function() waitForDatabase,
+  required BookInsightProvider Function() readProvider,
+  required bool Function() mounted,
+}) async {
+  await waitForDatabase();
+  if (!mounted()) return null;
+  return readProvider();
+}
 
 class ReaderPage extends riverpod.ConsumerStatefulWidget {
   const ReaderPage({super.key});
@@ -618,13 +631,20 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     _openAssistantPanel(assistant);
   }
 
-  void _openBookInsights() {
+  Future<void> _openBookInsights() async {
     final bookshelf = ref.read(bookshelfNotifierProvider);
     final book = bookshelf.book;
     final currentBookState = ref.read(currentBookNotifierProvider);
     if (book == null || bookshelf.activeBookId == null) return;
+    final navigator = Navigator.of(context);
+    final insightChapterCatalog = BookInsightChapterCatalog.fromBook(book);
 
-    final provider = ref.read(bookInsightProvider);
+    final provider = await readBookInsightProviderWhenReady(
+      waitForDatabase: () => ref.read(appDatabaseProvider.future),
+      readProvider: () => ref.read(bookInsightProvider),
+      mounted: () => mounted,
+    );
+    if (provider == null) return;
     unawaited(
       provider.loadForBook(
         bookshelf.activeBookId!,
@@ -633,15 +653,17 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
         bookTitle: book.title,
         author: book.author,
         languageCode: book.language,
+        includedChapterIndexes: insightChapterCatalog.rawChapterIndexes,
       ),
     );
     _hideReadingReminder();
     unawaited(
-      Navigator.of(context).push(
+      navigator.push(
         MaterialPageRoute(
           builder: (_) => BookInsightsPage(
             provider: provider,
             bookTitle: book.title,
+            chapterCatalog: insightChapterCatalog,
             onAskAI: (_) {
               final settings = ref.read(settingsProvider);
               if (!settings.aiFeaturesEnabled) return false;
@@ -658,7 +680,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
                   source: AIContextSource.readerSelectedText,
                   bookId: bookshelf.activeBookId,
                   chapterIndex: provider.boundaryChapter,
-                  chapterTitle: '书籍洞察：${book.title}',
+                  chapterTitle: '故事地图：${book.title}',
                   selectedText: contextText,
                   surroundingPassage: contextText,
                   scope: scope,

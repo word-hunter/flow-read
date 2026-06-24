@@ -89,9 +89,11 @@ void main() {
       await settings.setApiKey('sk-secret-token-value');
 
       final traceDir = Directory('${tempDir.path}/ai_debug');
+      final mirrorTraceDir = Directory('${tempDir.path}/ai_debug_mirror');
       final recorder = AIDebugTraceRecorder(
         enabled: true,
         directoryProvider: () async => traceDir,
+        mirrorDirectoryProvider: () async => mirrorTraceDir,
         clock: () => DateTime(2026, 6, 13, 9, 30),
       );
       final client = LLMClient(
@@ -146,6 +148,54 @@ void main() {
       expect(responseTrace['body'], contains('完整响应'));
       expect(metadata['action'], 'explain');
       expect(metadata['providerId'], 'openai_compatible');
+
+      final mirrorTraceFile = File(
+        '${mirrorTraceDir.path}/flow_read_ai_trace-2026-06-13.jsonl',
+      );
+      expect(await mirrorTraceFile.exists(), isTrue);
+      expect(
+        await mirrorTraceFile.readAsString(),
+        await traceFile.readAsString(),
+      );
     },
   );
+
+  test('streamChat requests streaming completions and parses SSE', () async {
+    await settings.setAIProvider('openai_compatible');
+    await settings.setAIBaseUrl('https://llm.example.com/v1/');
+    await settings.setAIModel('reader-model');
+    await settings.setApiKey('test-key');
+
+    final client = LLMClient(
+      () => settings.aiProviderConfig,
+      httpClient: MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['stream'], isTrue);
+        expect(body['response_format'], {'type': 'json_object'});
+
+        return http.Response(
+          [
+            'data: {"choices":[{"delta":{"content":"{\\"ok\\""}}]}',
+            '',
+            'data: {"choices":[{"delta":{"content":":true}"}}]}',
+            '',
+            'data: [DONE]',
+            '',
+          ].join('\n'),
+          200,
+          headers: {'content-type': 'text/event-stream; charset=utf-8'},
+        );
+      }),
+    );
+
+    final chunks = await client
+        .streamChat(
+          systemPrompt: 'system',
+          userPrompt: 'user',
+          jsonMode: true,
+        )
+        .toList();
+
+    expect(chunks.join(), '{"ok":true}');
+  });
 }

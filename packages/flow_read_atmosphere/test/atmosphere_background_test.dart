@@ -95,6 +95,24 @@ void main() {
     expect(find.byType(CustomPaint), findsNothing);
   });
 
+  testWidgets('CityAtmosphere can hide the background layer', (tester) async {
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: CityAtmosphere(
+          settings: const CityAtmosphereSettings(enabled: true),
+          showBackground: false,
+          clock: () => DateTime(2026, 6, 9, 6),
+          child: const SizedBox(width: 80, height: 80),
+        ),
+      ),
+    );
+
+    expect(find.byType(CityThemeScope), findsOneWidget);
+    expect(find.byType(AtmosphereBackground), findsNothing);
+    expect(find.byType(CustomPaint), findsNothing);
+  });
+
   testWidgets('CityAtmosphere creates a scope only when enabled', (
     tester,
   ) async {

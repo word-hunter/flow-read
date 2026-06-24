@@ -67,7 +67,12 @@ class ChapterAIStatus {
       );
 
   factory ChapterAIStatus.fromSummary(AISummary summary) {
-    return isSummaryFallback(summary)
+    return summary.isEmpty
+        ? const ChapterAIStatus.fallback(
+            ChapterAIFeature.summary,
+            'AI 未返回可用章节总结。',
+          )
+        : isSummaryFallback(summary)
         ? const ChapterAIStatus.fallback(
             ChapterAIFeature.summary,
             'AI 返回了非结构化内容，已显示安全 fallback。',

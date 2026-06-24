@@ -234,11 +234,14 @@ class BookInsightSourceScopeService {
     String? bookTitle,
     String? author,
     String? languageCode,
+    Iterable<int>? includedChapterIndexes,
     bool syncInspectableCaches = true,
   }) async {
+    final includedChapters = _includedChapterSet(includedChapterIndexes);
     final summaryState = await _loadChapterSummaries(
       bookId: bookId,
       maxReadChapter: maxReadChapter,
+      includedChapterIndexes: includedChapters,
     );
     final boundary = maxReadChapter ?? _lastChapter(summaryState.summaries);
     final storyline = _bookInsightAggregator.buildStorylineFromChapters(
@@ -254,6 +257,7 @@ class BookInsightSourceScopeService {
     final characterRegistryEntries = await _loadCharacterRegistry(
       bookId: bookId,
       maxReadChapter: maxReadChapter,
+      includedChapterIndexes: includedChapters,
     );
     final analysisResult = await _buildAnalysisData(
       bookId: bookId,
@@ -281,12 +285,14 @@ class BookInsightSourceScopeService {
       glossaryEntries: List.unmodifiable(await _loadGlossary(bookId)),
       coverage: totalChapters == null
           ? null
-          : _bookInsightAggregator.buildCoverage(
-              bookId,
-              totalChapters,
-              summaryState.summaries.keys.toSet(),
-              readChapters ?? _readChapters(maxReadChapter, totalChapters),
-              summaryState.lastGenerated,
+          : _buildCoverage(
+              bookId: bookId,
+              totalChapters: totalChapters,
+              cachedChapters: summaryState.summaries.keys.toSet(),
+              readChapters:
+                  readChapters ?? _readChapters(maxReadChapter, totalChapters),
+              lastGenerated: summaryState.lastGenerated,
+              includedChapterIndexes: includedChapters,
             ),
       lastGenerated: summaryState.lastGenerated,
     );
@@ -401,6 +407,7 @@ class BookInsightSourceScopeService {
   Future<_ChapterSummaryState> _loadChapterSummaries({
     required String bookId,
     int? maxReadChapter,
+    Set<int>? includedChapterIndexes,
   }) async {
     final summaries = <int, AISummary>{};
     DateTime? lastGenerated;
@@ -412,6 +419,10 @@ class BookInsightSourceScopeService {
         if (maxReadChapter != null && entry.chapterIndex > maxReadChapter) {
           continue;
         }
+        if (!_chapterIncluded(entry.chapterIndex, includedChapterIndexes)) {
+          continue;
+        }
+        if (!_isUsableChapterSummary(entry.summary)) continue;
         summaries[entry.chapterIndex] = entry.summary;
         lastGenerated = _latest(lastGenerated, entry.generatedAt);
       }
@@ -424,6 +435,10 @@ class BookInsightSourceScopeService {
         maxChapter: maxReadChapter,
       );
       for (final entry in entries) {
+        if (!_chapterIncluded(entry.chapterIndex, includedChapterIndexes)) {
+          continue;
+        }
+        if (!_isUsableChapterSummary(entry.summary)) continue;
         summaries[entry.chapterIndex] = entry.summary;
         lastGenerated = _latest(lastGenerated, entry.updatedAt);
         outputLanguage ??= _trimOrNull(entry.outputLanguage);
@@ -452,9 +467,14 @@ class BookInsightSourceScopeService {
     return entries;
   }
 
+  static bool _isUsableChapterSummary(AISummary summary) {
+    return !summary.isEmpty && !ChapterAIStatus.isSummaryFallback(summary);
+  }
+
   Future<List<CharacterRegistryEntry>> _loadCharacterRegistry({
     required String bookId,
     int? maxReadChapter,
+    Set<int>? includedChapterIndexes,
   }) async {
     final registry = _characterRegistry;
     if (registry == null) return const [];
@@ -464,6 +484,10 @@ class BookInsightSourceScopeService {
         .where((entry) => entry.canonicalName.trim().isNotEmpty)
         .where((entry) {
           final firstChapter = entry.firstAppearanceChapter;
+          if (firstChapter != null &&
+              !_chapterIncluded(firstChapter, includedChapterIndexes)) {
+            return false;
+          }
           return maxReadChapter == null ||
               firstChapter == null ||
               firstChapter <= maxReadChapter;
@@ -590,6 +614,70 @@ class BookInsightSourceScopeService {
     if (totalChapters <= 0) return 0;
     if (maxReadChapter == null) return totalChapters;
     return (maxReadChapter + 1).clamp(0, totalChapters).toInt();
+  }
+
+  BookInsightCoverage _buildCoverage({
+    required String bookId,
+    required int totalChapters,
+    required Set<int> cachedChapters,
+    required int readChapters,
+    required DateTime? lastGenerated,
+    required Set<int>? includedChapterIndexes,
+  }) {
+    if (includedChapterIndexes == null) {
+      return _bookInsightAggregator.buildCoverage(
+        bookId,
+        totalChapters,
+        cachedChapters,
+        readChapters,
+        lastGenerated,
+      );
+    }
+
+    final included =
+        includedChapterIndexes
+            .where(
+              (chapterIndex) =>
+                  chapterIndex >= 0 && chapterIndex < totalChapters,
+            )
+            .toList()
+          ..sort();
+    final readBoundary = readChapters <= 0 ? -1 : readChapters - 1;
+    final includedCached = {
+      for (final chapterIndex in included)
+        if (cachedChapters.contains(chapterIndex)) chapterIndex,
+    };
+    final missing = [
+      for (final chapterIndex in included)
+        if (chapterIndex <= readBoundary &&
+            !includedCached.contains(chapterIndex))
+          chapterIndex,
+    ];
+    return BookInsightCoverage(
+      summarizedChapters: includedCached.length,
+      totalChapters: included.length,
+      readChapters: included
+          .where((chapterIndex) => chapterIndex <= readBoundary)
+          .length,
+      missingChapters: missing,
+      lastGenerated: lastGenerated,
+    );
+  }
+
+  static Set<int>? _includedChapterSet(Iterable<int>? chapterIndexes) {
+    if (chapterIndexes == null) return null;
+    return {
+      for (final chapterIndex in chapterIndexes)
+        if (chapterIndex >= 0) chapterIndex,
+    };
+  }
+
+  static bool _chapterIncluded(
+    int chapterIndex,
+    Set<int>? includedChapterIndexes,
+  ) {
+    return includedChapterIndexes == null ||
+        includedChapterIndexes.contains(chapterIndex);
   }
 
   static int _lastChapter(Map<int, AISummary> summaries) {

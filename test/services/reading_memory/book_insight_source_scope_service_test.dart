@@ -159,6 +159,38 @@ void main() {
     expect(jsonEncode(termPayload), isNot(contains('elsewhere')));
   });
 
+  test('filters source projection to analyzable raw chapter indexes', () async {
+    await _seedBookInsightData(
+      chapterSummaryCache: chapterSummaryCache,
+      glossary: glossary,
+      registry: registry,
+    );
+
+    final projection = await service.loadProjection(
+      bookId: 'book-1',
+      maxReadChapter: 3,
+      totalChapters: 4,
+      readChapters: 4,
+      includedChapterIndexes: const [3],
+      bookTitle: 'Book One',
+      author: 'Author One',
+      languageCode: 'en',
+    );
+
+    expect(projection.chapterSummaries.keys, [3]);
+    expect(
+      projection.storyline.events.map((event) => event.description),
+      ['The direwolf later reveals a future betrayal.'],
+    );
+    expect(projection.coverage?.totalChapters, 1);
+    expect(projection.coverage?.readChapters, 1);
+    expect(projection.coverage?.missingChapters, isEmpty);
+    expect(
+      projection.analysisData!.storyEvents.map((event) => event.chapterIndex),
+      [3],
+    );
+  });
+
   test(
     'deletes book-scoped insight data without touching other books',
     () async {

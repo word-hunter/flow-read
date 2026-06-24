@@ -593,19 +593,18 @@ final bookGlossaryDaoProvider = Provider<BookGlossaryDao>((ref) {
 
 final bookInsightProvider = ChangeNotifierProvider<BookInsightProvider>((ref) {
   final provider = BookInsightProvider(
-    cacheService: ref.watch(aiCacheServiceProvider),
-    glossaryService: ref.watch(bookGlossaryServiceProvider),
-    characterRegistry: ref.watch(characterRegistryProvider),
-    chapterSummarySourceScopeCache: ref.watch(
+    cacheService: ref.read(aiCacheServiceProvider),
+    glossaryService: ref.read(bookGlossaryServiceProvider),
+    characterRegistry: ref.read(characterRegistryProvider),
+    chapterSummarySourceScopeCache: ref.read(
       chapterSummarySourceScopeCacheProvider,
     ),
-    bookInsightSourceScopeService: ref.watch(
+    bookInsightSourceScopeService: ref.read(
       bookInsightSourceScopeServiceProvider,
     ),
-    repository: ref.watch(bookInsightRepositoryProvider),
-    synthesisService: ref.watch(bookSynthesisServiceProvider),
+    repository: ref.read(bookInsightRepositoryProvider),
+    synthesisService: ref.read(bookSynthesisServiceProvider),
   );
-  ref.onDispose(() => provider.dispose());
   return provider;
 });
 

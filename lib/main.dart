@@ -28,6 +28,8 @@ import 'widgets/word_mastery_confetti.dart';
 
 import 'package:flow_design_system/flow_design_system.dart';
 
+const _showCityAtmosphereBackground = false;
+
 void main() {
   runZonedGuarded(
     () async {
@@ -438,6 +440,7 @@ class _FlowReadAppState extends State<FlowReadApp> {
                 context,
                 CityAtmosphere(
                   enabled: true,
+                  showBackground: _showCityAtmosphereBackground,
                   settings: settings.cityAtmosphereSettings,
                   child: Builder(
                     builder: (context) {
@@ -445,7 +448,10 @@ class _FlowReadAppState extends State<FlowReadApp> {
                       final content = WordMasteryConfettiHost(
                         child: child ?? const SizedBox.shrink(),
                       );
-                      if (scopedTheme == null) return content;
+                      if (scopedTheme == null ||
+                          !_showCityAtmosphereBackground) {
+                        return content;
+                      }
 
                       final theme = Theme.of(context);
                       return Theme(

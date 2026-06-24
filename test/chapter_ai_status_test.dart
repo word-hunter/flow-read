@@ -21,6 +21,11 @@ void main() {
       );
 
       expect(
+        ChapterAIStatus.fromSummary(AISummary.empty()).kind,
+        ChapterAIStatusKind.fallback,
+      );
+
+      expect(
         ChapterAIStatus.fromSummary(
           const AISummary(
             events: [

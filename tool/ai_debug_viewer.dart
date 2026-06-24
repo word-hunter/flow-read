@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'tool_env.dart';
+
 const _defaultPort = 18731;
 const _bundleIds = <String>[
   'com.example.flowRead.debug',
@@ -184,9 +186,18 @@ Future<Directory?> _findFirstTraceDirectory() async {
 
 Future<List<Directory>> _traceDirectories() async {
   final home = Platform.environment['HOME'];
-  if (home == null || home.isEmpty) return const [];
 
   final directories = <Directory>[];
+  final env = await loadToolEnv();
+  final mirrorDir = env['FLOW_AI_DEBUG_TRACE_MIRROR_DIR']?.trim();
+  if (mirrorDir != null && mirrorDir.isNotEmpty) {
+    directories.add(Directory(mirrorDir));
+  }
+
+  if (home == null || home.isEmpty) {
+    return directories;
+  }
+
   if (Platform.isMacOS) {
     for (final bundleId in _bundleIds) {
       directories.add(

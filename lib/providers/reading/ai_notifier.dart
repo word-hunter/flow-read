@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flow_ai/flow_ai.dart';
 import '../../models/learning_item.dart';
 import '../../services/app_logger.dart';
+import '../../services/book_insight_chapter_catalog.dart';
 import '../../services/learning_item_service.dart';
 import '../../services/settings_service.dart';
 import '../settings_provider.dart';
@@ -439,11 +440,13 @@ class AINotifier extends Notifier<AIState> {
           outputLanguage: OutputLanguage.fromCode(state.summaryLanguage),
         ),
       );
-      await _saveChapterSummarySourceScope(
-        bookId: bookId,
-        chapterIndex: _currentChapter,
-        summary: result.summary,
-      );
+      if (_isPersistableChapterSummary(result.summary)) {
+        await _saveChapterSummarySourceScope(
+          bookId: bookId,
+          chapterIndex: _currentChapter,
+          summary: result.summary,
+        );
+      }
       state = state.copyWith(
         aiSummary: result.summary,
         chapterAIStatus: result.status,
@@ -463,8 +466,8 @@ class AINotifier extends Notifier<AIState> {
     }
   }
 
-  Future<void> generateSummaryForChapter(int chapterIndex) async {
-    await generateSummariesForReadChapters([chapterIndex]);
+  Future<int> generateSummaryForChapter(int chapterIndex) async {
+    return generateSummariesForReadChapters([chapterIndex]);
   }
 
   Future<int> generateSummariesForReadChapters(
@@ -475,18 +478,29 @@ class AINotifier extends Notifier<AIState> {
     if (book == null || bookId == null || !_ensureAIReady()) return 0;
 
     final maxReadChapter = _currentChapter;
+    final chapterCatalog = BookInsightChapterCatalog.fromBook(book);
     final targets =
         chapterIndexes
             .where(
               (chapterIndex) =>
                   chapterIndex >= 0 &&
                   chapterIndex < book.chapters.length &&
-                  chapterIndex <= maxReadChapter,
+                  chapterIndex <= maxReadChapter &&
+                  chapterCatalog.containsRawChapter(chapterIndex),
             )
             .toSet()
             .toList()
           ..sort();
-    if (targets.isEmpty) return 0;
+    if (targets.isEmpty) {
+      state = state.copyWith(
+        chapterAIStatus: const ChapterAIStatus.failed(
+          ChapterAIFeature.summary,
+          '该目录项不是可分析的正文章节。',
+        ),
+        clearError: true,
+      );
+      return 0;
+    }
 
     state = state.copyWith(
       isGeneratingSummary: true,
@@ -501,21 +515,33 @@ class AINotifier extends Notifier<AIState> {
       final job = _createChapterAIJob();
       for (final chapterIndex in targets) {
         final chapter = book.chapters[chapterIndex];
+        final chapterText = chapter.plainText.trim();
+        if (chapterText.isEmpty) {
+          lastStatus = const ChapterAIStatus.failed(
+            ChapterAIFeature.summary,
+            '该章节没有可分析的正文。',
+          );
+          continue;
+        }
+
         final result = await job.generateSummary(
           ChapterSummaryJobRequest(
             bookId: bookId,
             chapterIndex: chapterIndex,
-            chapterText: chapter.plainText,
+            chapterText: chapterText,
             vocabulary: const [],
             outputLanguage: OutputLanguage.fromCode(state.summaryLanguage),
           ),
         );
-        await _saveChapterSummarySourceScope(
-          bookId: bookId,
-          chapterIndex: chapterIndex,
-          summary: result.summary,
-        );
-        completed += 1;
+        final persistable = _isPersistableChapterSummary(result.summary);
+        if (persistable) {
+          await _saveChapterSummarySourceScope(
+            bookId: bookId,
+            chapterIndex: chapterIndex,
+            summary: result.summary,
+          );
+          completed += 1;
+        }
         lastStatus = result.status;
         if (chapterIndex == _currentChapter) {
           currentChapterSummary = result.summary;
@@ -704,7 +730,6 @@ class AINotifier extends Notifier<AIState> {
             summary: summary,
             outputLanguage: state.summaryLanguage,
           );
-      await ref.read(bookInsightProvider).refreshIfLoaded(bookId);
     } catch (e, stackTrace) {
       AppLogger.instance.event(
         'reading_memory.chapter_summary_source_cache_failed',
@@ -718,6 +743,10 @@ class AINotifier extends Notifier<AIState> {
         stackTrace: stackTrace,
       );
     }
+  }
+
+  bool _isPersistableChapterSummary(AISummary summary) {
+    return !summary.isEmpty && !ChapterAIStatus.isSummaryFallback(summary);
   }
 
   String _chapterPreviewOpening(String chapterText) {

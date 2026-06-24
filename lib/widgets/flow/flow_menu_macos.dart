@@ -102,7 +102,11 @@ class _MacOsFlowMenuButtonState<T> extends State<_MacOsFlowMenuButton<T>> {
 
     if (!mounted) return;
     setState(() => _isOpen = false);
-    if (selected != null) widget.onSelected(selected);
+    if (selected != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onSelected(selected);
+      });
+    }
   }
 
   @override

@@ -154,6 +154,7 @@ class LLMClient {
       systemPrompt,
       userPrompt,
       jsonMode: jsonMode,
+      stream: true,
     );
 
     final uri = _chatCompletionsUri(config);
@@ -229,6 +230,7 @@ class LLMClient {
     String systemPrompt,
     String userPrompt, {
     bool jsonMode = false,
+    bool stream = false,
   }) {
     final messages = <Map<String, String>>[
       {'role': 'system', 'content': systemPrompt},
@@ -239,7 +241,7 @@ class LLMClient {
       'model': config.model,
       'messages': messages,
       'temperature': 0.3,
-      'stream': false,
+      'stream': stream,
     };
 
     if (jsonMode) {

@@ -88,6 +88,94 @@ void main() {
   });
 
   test(
+    'summary fallback is returned but not cached as generated content',
+    () async {
+      final model = _FakeChapterAIModel(
+        summary: AISummary.fallback('AI 返回了非结构化内容，但没有可展示的文本。'),
+      );
+      final cache = _FakeChapterAICache();
+      final usage = _FakeChapterAIUsage();
+      final job = ChapterAIJob(model: model, cache: cache, usage: usage);
+
+      final result = await job.generateSummary(
+        const ChapterSummaryJobRequest(
+          bookId: 'book-one',
+          chapterIndex: 3,
+          chapterText: _chapterText,
+          vocabulary: ['threshold'],
+          outputLanguage: OutputLanguage.zhHans,
+        ),
+      );
+
+      expect(result.fromCache, isFalse);
+      expect(result.status.kind, ChapterAIStatusKind.fallback);
+      expect(result.summary.readingGuidance, contains('非结构化内容'));
+      expect(usage.summaryCount, 1);
+      expect(cache.summarySaves, isEmpty);
+    },
+  );
+
+  test('summary ignores cached fallback and regenerates', () async {
+    final model = _FakeChapterAIModel(summary: _summary);
+    final cache = _FakeChapterAICache(
+      summaryJson: jsonEncode(
+        AISummary.fallback('AI 返回了非结构化内容，但没有可展示的文本。').toJson(),
+      ),
+    );
+    final usage = _FakeChapterAIUsage();
+    final job = ChapterAIJob(model: model, cache: cache, usage: usage);
+
+    final result = await job.generateSummary(
+      const ChapterSummaryJobRequest(
+        bookId: 'book-one',
+        chapterIndex: 3,
+        chapterText: _chapterText,
+        vocabulary: ['threshold'],
+        outputLanguage: OutputLanguage.zhHans,
+      ),
+    );
+
+    expect(result.fromCache, isFalse);
+    expect(result.status.kind, ChapterAIStatusKind.generated);
+    expect(model.summaryCalls, 1);
+    expect(usage.summaryCount, 1);
+    expect(cache.summarySaves, hasLength(1));
+  });
+
+  test('summary rejects blank chapter text before cache or AI calls', () async {
+    final model = _FakeChapterAIModel(summary: _summary);
+    final cache = _FakeChapterAICache(
+      summaryJson: jsonEncode(_summary.toJson()),
+    );
+    final usage = _FakeChapterAIUsage();
+    final job = ChapterAIJob(model: model, cache: cache, usage: usage);
+
+    await expectLater(
+      job.generateSummary(
+        const ChapterSummaryJobRequest(
+          bookId: 'book-one',
+          chapterIndex: 0,
+          chapterText: ' \n\t ',
+          vocabulary: [],
+          outputLanguage: OutputLanguage.zhHans,
+        ),
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.toString(),
+          'message',
+          contains('章节正文为空'),
+        ),
+      ),
+    );
+
+    expect(model.summaryCalls, 0);
+    expect(cache.summaryLoads, isEmpty);
+    expect(cache.summarySaves, isEmpty);
+    expect(usage.summaryCount, 0);
+  });
+
+  test(
     'practice generation uses read-so-far boundary and event cache key',
     () async {
       final model = _FakeChapterAIModel(practice: _practice);

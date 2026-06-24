@@ -359,7 +359,7 @@ class ReaderNavBar extends StatelessWidget {
                   const FlowMenuItem(
                     value: 'bookInsights',
                     icon: Icons.dashboard_outlined,
-                    label: '书籍洞察',
+                    label: '故事地图',
                   ),
                 ],
                 builder: (context, isOpen, toggle) => _compactIconButton(
