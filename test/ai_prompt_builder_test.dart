@@ -112,6 +112,53 @@ void main() {
     expect(prompt.userPrompt, contains('Alice opened the door'));
   });
 
+  test(
+    'book synthesis prompt includes analysis scope and spoiler boundary',
+    () {
+      final prompt = const PromptBuilder().buildBookSynthesis(
+        BookSynthesisPromptRequest(
+          bookId: 'book-1',
+          bookTitle: 'Wonderland',
+          startChapterIndex: 0,
+          endChapterIndex: 4,
+          coverage: 0.8,
+          scopeHash: 'scope-a',
+          analysisSchemaVersion: '1.0.0',
+          sourceLanguage: SourceLanguage.english,
+          outputLanguage: OutputLanguage.zhHans,
+          spoilerBoundary: SpoilerBoundary.chapter(
+            bookId: 'book-1',
+            chapterIndex: 4,
+            scope: AIContextScope.readSoFar,
+          ),
+          chapterSummaries: const [
+            {
+              'chapter_index': 0,
+              'summary': 'Alice follows the rabbit.',
+            },
+          ],
+          characterCards: const [
+            {'name': 'Alice'},
+          ],
+          storyEvents: const [
+            {'description': 'Alice follows a rabbit.', 'chapter_index': 0},
+          ],
+          themes: const ['curiosity'],
+        ),
+      );
+
+      expect(prompt.systemPrompt, contains('Reduce stage'));
+      expect(prompt.systemPrompt, contains('AnalysisScope'));
+      expect(prompt.systemPrompt, contains('Spoiler boundary'));
+      expect(prompt.systemPrompt, contains('"characterGraph"'));
+      expect(prompt.systemPrompt, contains('"bookMindMap"'));
+      expect(prompt.userPrompt, contains('scope_hash: scope-a'));
+      expect(prompt.userPrompt, contains('"chapter_summaries"'));
+      expect(prompt.userPrompt, contains('"character_cards"'));
+      expect(prompt.userPrompt, contains('allowed_units: chapters 0..4'));
+    },
+  );
+
   test('article summary prompt carries browser context', () {
     final prompt = const PromptBuilder().buildArticleSummary(
       ArticlePromptRequest(

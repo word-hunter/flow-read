@@ -314,6 +314,46 @@ class CharacterMergePromptRequest {
   });
 }
 
+class BookSynthesisPromptRequest {
+  final String bookId;
+  final String bookTitle;
+  final String? author;
+  final int startChapterIndex;
+  final int endChapterIndex;
+  final double coverage;
+  final String scopeHash;
+  final String analysisSchemaVersion;
+  final SourceLanguage sourceLanguage;
+  final OutputLanguage outputLanguage;
+  final SpoilerBoundary spoilerBoundary;
+  final List<Map<String, dynamic>> chapterSummaries;
+  final List<Map<String, dynamic>> characterCards;
+  final List<Map<String, dynamic>> storyEvents;
+  final List<Map<String, dynamic>> locations;
+  final List<String> themes;
+  final bool budgetDowngraded;
+
+  const BookSynthesisPromptRequest({
+    required this.bookId,
+    required this.bookTitle,
+    this.author,
+    required this.startChapterIndex,
+    required this.endChapterIndex,
+    required this.coverage,
+    required this.scopeHash,
+    required this.analysisSchemaVersion,
+    required this.sourceLanguage,
+    required this.outputLanguage,
+    required this.spoilerBoundary,
+    this.chapterSummaries = const [],
+    this.characterCards = const [],
+    this.storyEvents = const [],
+    this.locations = const [],
+    this.themes = const [],
+    this.budgetDowngraded = false,
+  });
+}
+
 class PromptSections {
   static String flowReadRole(SourceLanguage sourceLanguage) {
     return 'You are a Flow Read reading tutor embedded in a Flutter reading app. '
@@ -487,6 +527,101 @@ ${request.chapterText}
 
 ## Key Vocabulary to Consider
 $vocabList''';
+
+    return _result(request, systemPrompt, userPrompt);
+  }
+
+  PromptBuildResult buildBookSynthesis(BookSynthesisPromptRequest request) {
+    final inputPayload = jsonEncode({
+      'book': {
+        'id': request.bookId,
+        'title': request.bookTitle,
+        if (request.author != null && request.author!.trim().isNotEmpty)
+          'author': request.author,
+      },
+      'analysis_scope': {
+        'start_chapter_index': request.startChapterIndex,
+        'end_chapter_index': request.endChapterIndex,
+        'scope_hash': request.scopeHash,
+        'coverage': request.coverage,
+        'schema_version': request.analysisSchemaVersion,
+        'budget_downgraded': request.budgetDowngraded,
+      },
+      'chapter_summaries': request.chapterSummaries,
+      'character_cards': request.characterCards,
+      'story_events': request.storyEvents,
+      'locations': request.locations,
+      'themes': request.themes,
+    });
+
+    final systemPrompt = [
+      _preamble(
+        sourceLanguage: request.sourceLanguage,
+        outputLanguage: request.outputLanguage,
+        spoilerBoundary: request.spoilerBoundary,
+      ),
+      'Task: perform the Reduce stage of a Map-Reduce book analysis. '
+          'Generate a concise whole-scope synthesis from the structured data only. '
+          'Do not infer characters, relationships, motivations, events, themes, or endings that are not present in the input.',
+      'AnalysisScope: chapters ${request.startChapterIndex}..${request.endChapterIndex}; '
+          'scope_hash=${request.scopeHash}; coverage=${request.coverage.toStringAsFixed(3)}. '
+          'If budget_downgraded is true, acknowledge uncertainty by keeping claims conservative.',
+      PromptSections.strictJsonSchema('''{
+  "fullStoryline": "Coherent storyline for the allowed scope (${request.outputLanguage.promptLabel}, 500-1000 Chinese characters or equivalent)",
+  "characterGraph": {
+    "nodes": [
+      {"id": "stable_character_id", "label": "Character name", "role": "Role in the provided scope", "group": "optional group"}
+    ],
+    "edges": [
+      {
+        "from": "source_character_id",
+        "to": "target_character_id",
+        "relation": "Relationship supported by the input (${request.outputLanguage.promptLabel})",
+        "confidence": 0.0,
+        "anchors": []
+      }
+    ]
+  },
+  "bookMindMap": {
+    "root": {
+      "id": "root",
+      "label": "${request.bookTitle}",
+      "children": [
+        {"id": "plot", "label": "Plot", "children": []},
+        {"id": "characters", "label": "Characters", "children": []},
+        {"id": "themes", "label": "Themes", "children": []}
+      ]
+    }
+  },
+  "structure": "Story structure analysis with chapter references (${request.outputLanguage.promptLabel})",
+  "themeAnalysis": "Theme development across the allowed scope (${request.outputLanguage.promptLabel})",
+  "keyInsights": [
+    "A key reading insight grounded in the input (${request.outputLanguage.promptLabel})"
+  ]
+}'''),
+      'Limits: at most 20 graph nodes, at most 30 graph edges, at most 5 mind-map children per node, and 3-5 key insights. '
+          'Prefer empty arrays over unsupported claims. Use source anchors only when the input includes them.',
+    ].join('\n\n');
+
+    final userPrompt =
+        '''## Book
+title: ${request.bookTitle}
+book_id: ${request.bookId}
+author: ${request.author ?? ''}
+
+## AnalysisScope
+start_chapter_index: ${request.startChapterIndex}
+end_chapter_index: ${request.endChapterIndex}
+scope_hash: ${request.scopeHash}
+coverage: ${request.coverage.toStringAsFixed(3)}
+
+## Spoiler Boundary
+allowed_units: ${request.spoilerBoundary.allowedUnits}
+current_unit: ${request.spoilerBoundary.currentUnitId}
+scope: ${request.spoilerBoundary.scope.promptValue}
+
+## Structured Input
+$inputPayload''';
 
     return _result(request, systemPrompt, userPrompt);
   }
@@ -936,6 +1071,7 @@ Return JSON array of suggestions like:
       ArticlePromptRequest r => r.sourceLanguage,
       BookGlossaryPromptRequest r => r.sourceLanguage,
       ParagraphInsightPromptRequest r => r.sourceLanguage,
+      BookSynthesisPromptRequest r => r.sourceLanguage,
       _ => SourceLanguage.english,
     };
     final outputLanguage = switch (request) {
@@ -948,6 +1084,7 @@ Return JSON array of suggestions like:
       ArticlePromptRequest r => r.outputLanguage,
       BookGlossaryPromptRequest r => r.outputLanguage,
       ParagraphInsightPromptRequest r => r.outputLanguage,
+      BookSynthesisPromptRequest r => r.outputLanguage,
       _ => OutputLanguage.zhHans,
     };
     final spoilerBoundary = switch (request) {
@@ -960,6 +1097,7 @@ Return JSON array of suggestions like:
       ArticlePromptRequest r => r.spoilerBoundary,
       BookGlossaryPromptRequest r => r.spoilerBoundary,
       ParagraphInsightPromptRequest r => r.spoilerBoundary,
+      BookSynthesisPromptRequest r => r.spoilerBoundary,
       _ => SpoilerBoundary.currentPassage(),
     };
     return PromptBuildResult(
