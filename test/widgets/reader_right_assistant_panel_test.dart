@@ -38,9 +38,23 @@ void main() {
                 return Container(
                   key: probeKey,
                   color: scheme.surface,
-                  child: Text(
-                    'probe',
-                    style: TextStyle(color: scheme.onSurface),
+                  child: Column(
+                    children: [
+                      Text(
+                        'probe',
+                        style: TextStyle(color: scheme.onSurface),
+                      ),
+                      Text(
+                        'outline probe',
+                        style: TextStyle(color: scheme.outline),
+                      ),
+                      Container(
+                        key: const Key('assistant-low-surface-probe'),
+                        color: scheme.surfaceContainerLow,
+                        width: 1,
+                        height: 1,
+                      ),
+                    ],
                   ),
                 );
               },
@@ -51,9 +65,17 @@ void main() {
     );
 
     final probe = tester.widget<Container>(find.byKey(probeKey));
-    expect(probe.color, AppSurfaceTokens.cityLight().assistantSurface);
+    expect(probe.color, const Color(0xFFFCFEFF));
 
     final label = tester.widget<Text>(find.text('probe'));
     expect(label.style?.color, CityThemeTokens.sunny.textPrimary);
+
+    final outlineLabel = tester.widget<Text>(find.text('outline probe'));
+    expect(outlineLabel.style?.color, CityThemeTokens.sunny.textSecondary);
+
+    final lowSurface = tester.widget<Container>(
+      find.byKey(const Key('assistant-low-surface-probe')),
+    );
+    expect(lowSurface.color, const Color(0xFFF7FAFD));
   });
 }

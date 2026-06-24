@@ -263,10 +263,28 @@ ThemeData _resolveAssistantPanelTheme(
     surface: surface,
     alpha: surface.computeLuminance() < 0.45 ? 0.18 : 0.11,
   );
+  final lowestSurface = _neutralSurfaceFor(
+    surface: surface,
+    dark: const Color(0xFF111B28),
+    light: Colors.white,
+  );
+  final lowSurface = _neutralSurfaceFor(
+    surface: surface,
+    dark: const Color(0xFF162233),
+    light: const Color(0xFFF7FAFD),
+  );
+  final highSurface = _neutralSurfaceFor(
+    surface: surface,
+    dark: const Color(0xFF202D40),
+    light: const Color(0xFFEFF4FA),
+  );
 
   return theme.copyWith(
     colorScheme: colorScheme.copyWith(
       surface: surface,
+      surfaceContainerLowest: lowestSurface,
+      surfaceContainerLow: lowSurface,
+      surfaceContainerHigh: highSurface,
       surfaceContainerHighest: elevatedSurface,
       onSurface: onSurface,
       onSurfaceVariant: onSurfaceVariant,
@@ -276,9 +294,18 @@ ThemeData _resolveAssistantPanelTheme(
         primaryContainer,
         preferred: onSurface,
       ),
+      outline: onSurfaceVariant,
       outlineVariant: tokens.panelBorderColor,
     ),
   );
+}
+
+Color _neutralSurfaceFor({
+  required Color surface,
+  required Color dark,
+  required Color light,
+}) {
+  return surface.computeLuminance() < 0.45 ? dark : light;
 }
 
 Color _tintedSurface({
