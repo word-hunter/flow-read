@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'models/ai_text_analysis.dart';
 import 'models/ai_chapter_preview.dart';
+import 'models/ai_result.dart';
 import 'models/ai_summary.dart';
 import 'models/ai_practice_questions.dart';
 import 'models/word_analysis.dart';
@@ -23,8 +24,21 @@ class AIService {
     PromptBuildResult prompt, {
     bool jsonMode = false,
     Map<String, Object?> debugMetadata = const {},
-  }) {
-    return _client.chat(
+  }) async {
+    final result = await executePromptWithResult(
+      prompt,
+      jsonMode: jsonMode,
+      debugMetadata: debugMetadata,
+    );
+    return result.value;
+  }
+
+  Future<AIResult<String>> executePromptWithResult(
+    PromptBuildResult prompt, {
+    bool jsonMode = false,
+    Map<String, Object?> debugMetadata = const {},
+  }) async {
+    final response = await _client.chatWithResult(
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: jsonMode,
@@ -36,9 +50,31 @@ class AIService {
         ...debugMetadata,
       },
     );
+    return _wrapResult(
+      response,
+      response.content,
+      promptVersion: prompt.promptVersion,
+    );
   }
 
   Future<AITextAnalysis> analyzeText({
+    required String selectedText,
+    required String currentPassage,
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
+    final result = await analyzeTextWithResult(
+      selectedText: selectedText,
+      currentPassage: currentPassage,
+      sourceLanguage: sourceLanguage,
+      outputLanguage: outputLanguage,
+      spoilerBoundary: spoilerBoundary,
+    );
+    return result.value;
+  }
+
+  Future<AIResult<AITextAnalysis>> analyzeTextWithResult({
     required String selectedText,
     required String currentPassage,
     SourceLanguage? sourceLanguage,
@@ -57,7 +93,7 @@ class AIService {
       ),
     );
 
-    final response = await _client.chat(
+    final response = await _client.chatWithResult(
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: true,
@@ -65,16 +101,31 @@ class AIService {
     );
 
     final result = _parseJsonOrFallback(
-      response,
+      response.content,
       AITextAnalysis.fromJson,
       (raw) => AITextAnalysis.fallback(raw),
       'text_analysis',
     );
     _validateTextAnalysis(result, selectedText);
-    return result;
+    return _wrapResult(response, result, promptVersion: prompt.promptVersion);
   }
 
   Future<String> translateText(
+    String selectedText, {
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
+    final result = await translateTextWithResult(
+      selectedText,
+      sourceLanguage: sourceLanguage,
+      outputLanguage: outputLanguage,
+      spoilerBoundary: spoilerBoundary,
+    );
+    return result.value;
+  }
+
+  Future<AIResult<String>> translateTextWithResult(
     String selectedText, {
     SourceLanguage? sourceLanguage,
     OutputLanguage outputLanguage = OutputLanguage.zhHans,
@@ -90,13 +141,17 @@ class AIService {
       ),
     );
 
-    final response = await _client.chat(
+    final response = await _client.chatWithResult(
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       debugMetadata: _promptTraceMetadata('translation', prompt),
     );
 
-    return response.trim();
+    return _wrapResult(
+      response,
+      response.content.trim(),
+      promptVersion: prompt.promptVersion,
+    );
   }
 
   Stream<AISummary> generateSummary({
@@ -106,6 +161,23 @@ class AIService {
     SourceLanguage? sourceLanguage,
     SpoilerBoundary? spoilerBoundary,
   }) async* {
+    final result = await generateSummaryWithResult(
+      chapterText: chapterText,
+      vocabulary: vocabulary,
+      language: language,
+      sourceLanguage: sourceLanguage,
+      spoilerBoundary: spoilerBoundary,
+    );
+    yield result.value;
+  }
+
+  Future<AIResult<AISummary>> generateSummaryWithResult({
+    required String chapterText,
+    required List<String> vocabulary,
+    required String language,
+    SourceLanguage? sourceLanguage,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
     final prompt = _promptBuilder.buildChapterSummary(
       ChapterSummaryPromptRequest(
         chapterText: chapterText,
@@ -119,28 +191,43 @@ class AIService {
       ),
     );
 
-    final buffer = StringBuffer();
-
-    await for (final chunk in _client.streamChat(
+    final response = await _client.chatWithResult(
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: true,
       debugMetadata: _promptTraceMetadata('chapter_summary', prompt),
-    )) {
-      buffer.write(chunk);
-    }
+    );
 
     final summary = _parseJsonOrFallback(
-      buffer.toString(),
+      response.content,
       AISummary.fromJson,
       AISummary.fallback,
       'chapter_summary',
     );
     _validateSummary(summary, chapterText);
-    yield summary;
+    return _wrapResult(response, summary, promptVersion: prompt.promptVersion);
   }
 
   Future<AIChapterPreview> generateChapterPreview({
+    required String chapterTitle,
+    required String openingText,
+    required List<String> vocabulary,
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
+    final result = await generateChapterPreviewWithResult(
+      chapterTitle: chapterTitle,
+      openingText: openingText,
+      vocabulary: vocabulary,
+      sourceLanguage: sourceLanguage,
+      outputLanguage: outputLanguage,
+      spoilerBoundary: spoilerBoundary,
+    );
+    return result.value;
+  }
+
+  Future<AIResult<AIChapterPreview>> generateChapterPreviewWithResult({
     required String chapterTitle,
     required String openingText,
     required List<String> vocabulary,
@@ -162,19 +249,20 @@ class AIService {
       ),
     );
 
-    final response = await _client.chat(
+    final response = await _client.chatWithResult(
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: true,
       debugMetadata: _promptTraceMetadata('chapter_preview', prompt),
     );
 
-    return _parseJsonOrFallback(
-      response,
+    final preview = _parseJsonOrFallback(
+      response.content,
       AIChapterPreview.fromJson,
       AIChapterPreview.fallback,
       'chapter_preview',
     );
+    return _wrapResult(response, preview, promptVersion: prompt.promptVersion);
   }
 
   Stream<AIPracticeSet> generatePractice({
@@ -185,6 +273,25 @@ class AIService {
     OutputLanguage outputLanguage = OutputLanguage.zhHans,
     SpoilerBoundary? spoilerBoundary,
   }) async* {
+    final result = await generatePracticeWithResult(
+      chapterText: chapterText,
+      vocabulary: vocabulary,
+      events: events,
+      sourceLanguage: sourceLanguage,
+      outputLanguage: outputLanguage,
+      spoilerBoundary: spoilerBoundary,
+    );
+    yield result.value;
+  }
+
+  Future<AIResult<AIPracticeSet>> generatePracticeWithResult({
+    required String chapterText,
+    required List<String> vocabulary,
+    required List<SummaryEvent> events,
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
     final prompt = _promptBuilder.buildPractice(
       PracticePromptRequest(
         chapterText: chapterText,
@@ -203,28 +310,43 @@ class AIService {
       ),
     );
 
-    final buffer = StringBuffer();
-
-    await for (final chunk in _client.streamChat(
+    final response = await _client.chatWithResult(
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: true,
       debugMetadata: _promptTraceMetadata('practice', prompt),
-    )) {
-      buffer.write(chunk);
-    }
+    );
 
     final practice = _parseJsonOrFallback(
-      buffer.toString(),
+      response.content,
       AIPracticeSet.fromJson,
       AIPracticeSet.fallback,
       'practice',
     );
     _validatePractice(practice, chapterText);
-    yield practice;
+    return _wrapResult(response, practice, promptVersion: prompt.promptVersion);
   }
 
   Future<WordAnalysis> analyzeWord({
+    required String word,
+    required String sentence,
+    required String chapterContext,
+    SourceLanguage? sourceLanguage,
+    OutputLanguage outputLanguage = OutputLanguage.zhHans,
+    SpoilerBoundary? spoilerBoundary,
+  }) async {
+    final result = await analyzeWordWithResult(
+      word: word,
+      sentence: sentence,
+      chapterContext: chapterContext,
+      sourceLanguage: sourceLanguage,
+      outputLanguage: outputLanguage,
+      spoilerBoundary: spoilerBoundary,
+    );
+    return result.value;
+  }
+
+  Future<AIResult<WordAnalysis>> analyzeWordWithResult({
     required String word,
     required String sentence,
     required String chapterContext,
@@ -245,19 +367,20 @@ class AIService {
       ),
     );
 
-    final response = await _client.chat(
+    final response = await _client.chatWithResult(
       systemPrompt: prompt.systemPrompt,
       userPrompt: prompt.userPrompt,
       jsonMode: true,
       debugMetadata: _promptTraceMetadata('word_analysis', prompt),
     );
 
-    return _parseJsonOrFallback(
-      response,
+    final analysis = _parseJsonOrFallback(
+      response.content,
       WordAnalysis.fromJson,
       WordAnalysis.fallback,
       'word_analysis',
     );
+    return _wrapResult(response, analysis, promptVersion: prompt.promptVersion);
   }
 
   Future<String> explainBookGlossaryTerm({
@@ -378,6 +501,21 @@ class AIService {
       'outputLanguage': prompt.outputLanguage.code,
       'spoilerBoundary': _spoilerBoundaryTrace(prompt.spoilerBoundary),
     };
+  }
+
+  AIResult<T> _wrapResult<T>(
+    ChatCompletionResult response,
+    T value, {
+    int? promptVersion,
+  }) {
+    return AIResult<T>(
+      value: value,
+      usage: response.usage,
+      durationMs: response.durationMs,
+      providerId: response.providerId,
+      model: response.model,
+      promptVersion: promptVersion,
+    );
   }
 
   Map<String, Object?> _spoilerBoundaryTrace(SpoilerBoundary boundary) {

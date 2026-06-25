@@ -122,26 +122,37 @@ class _FakeSummaryAIService extends AIService {
   final List<String> summaryChapterTexts = [];
 
   @override
-  Stream<AISummary> generateSummary({
+  Future<AIResult<AISummary>> generateSummaryWithResult({
     required String chapterText,
     required List<String> vocabulary,
     required String language,
     SourceLanguage? sourceLanguage,
     SpoilerBoundary? spoilerBoundary,
-  }) async* {
+  }) async {
     summaryChapterTexts.add(chapterText);
-    yield const AISummary(
-      events: [
-        SummaryEvent(
-          description: 'Alice finds the old map.',
-          source: 'Alice finds the old map.',
-          significance: 'Starts the route.',
-          confidence: 'high',
-        ),
-      ],
-      characterDevelopments: [],
-      keyVocabulary: [],
-      readingGuidance: '继续关注地图线索。',
+    return const AIResult(
+      value: AISummary(
+        events: [
+          SummaryEvent(
+            description: 'Alice finds the old map.',
+            source: 'Alice finds the old map.',
+            significance: 'Starts the route.',
+            confidence: 'high',
+          ),
+        ],
+        characterDevelopments: [],
+        keyVocabulary: [],
+        readingGuidance: '继续关注地图线索。',
+      ),
+      usage: TokenUsageInfo(
+        promptTokens: 30,
+        completionTokens: 10,
+        totalTokens: 40,
+      ),
+      providerId: 'fake',
+      model: 'fake-model',
+      durationMs: 20,
+      promptVersion: 42,
     );
   }
 }

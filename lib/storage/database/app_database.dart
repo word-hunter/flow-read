@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dao/book_dao.dart';
 import 'dao/book_glossary_dao.dart';
 import 'dao/bookmark_dao.dart';
+import 'dao/ai_usage_dao.dart';
 import 'dao/character_registry_dao.dart';
 import 'dao/dictionary_cache_dao.dart';
 import 'dao/learning_analytics_dao.dart';
@@ -25,7 +26,7 @@ part 'app_database.g.dart';
 
 const _dbFileName = 'flow_read.db';
 
-const _schemaVersion = 2;
+const _schemaVersion = 3;
 
 @DriftDatabase(
   tables: [
@@ -52,8 +53,10 @@ const _schemaVersion = 2;
     SourceScopeCache,
     ReviewCandidates,
     Settings,
+    AiUsageEvents,
   ],
   daos: [
+    AiUsageDao,
     BookDao,
     BookGlossaryDao,
     BookmarkDao,
@@ -73,6 +76,8 @@ const _schemaVersion = 2;
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase._(super.e);
+
+  AppDatabase.forTesting(super.e);
 
   static Future<AppDatabase> create() async {
     final dbPath = await _databasePath();
@@ -112,6 +117,9 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(memoryEvents);
         await m.createTable(sourceScopeCache);
         await m.createTable(reviewCandidates);
+      }
+      if (from < 3) {
+        await m.createTable(aiUsageEvents);
       }
     },
   );

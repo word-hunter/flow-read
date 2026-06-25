@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flow_read/providers/backup_provider.dart';
 import 'package:flow_read/providers/reading/bookshelf_notifier.dart';
+import 'package:flow_read/providers/reading/services_provider.dart';
 import 'package:flow_read/providers/settings_provider.dart';
 import 'package:flow_read/screens/settings_screen.dart';
 import 'package:flow_read/services/app_links.dart';
 import 'package:flow_read/services/app_version.dart';
 import 'package:flow_read/services/backup_service.dart';
 import 'package:flow_read/services/settings_service.dart';
+import 'package:flow_read/storage/database/app_database.dart';
 import 'package:flow_read/widgets/settings/settings_shared.dart';
 
 import 'support/test_storage.dart';
@@ -16,11 +18,12 @@ import 'support/test_storage.dart';
 void main() {
   late SettingsService settings;
   late BackupService backup;
+  late AppDatabase db;
 
   setUp(() async {
     await initTestStorage('flow_read_widget_test_');
     await openFlowReadTestStorage();
-    final db = await createTestAppDatabase();
+    db = await createTestAppDatabase();
     settings = SettingsService(db.settingsDao);
     await settings.init();
     backup = BackupService(settings, database: db);
@@ -33,6 +36,7 @@ void main() {
       riverpod.ProviderScope(
         overrides: [
           backupProvider.overrideWith((ref) => backup),
+          appDatabaseProvider.overrideWith((ref) async => db),
           bookshelfNotifierProvider.overrideWith(_EmptyBookshelfNotifier.new),
           settingsProvider.overrideWith((ref) => settings),
         ],

@@ -12170,6 +12170,933 @@ class SettingsCompanion extends UpdateCompanion<SettingsEntry> {
   }
 }
 
+class $AiUsageEventsTable extends AiUsageEvents
+    with TableInfo<$AiUsageEventsTable, AIUsageEvent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AiUsageEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _sourceTypeMeta = const VerificationMeta(
+    'sourceType',
+  );
+  @override
+  late final GeneratedColumn<String> sourceType = GeneratedColumn<String>(
+    'source_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceIdMeta = const VerificationMeta(
+    'sourceId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceId = GeneratedColumn<String>(
+    'source_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bookIdMeta = const VerificationMeta('bookId');
+  @override
+  late final GeneratedColumn<String> bookId = GeneratedColumn<String>(
+    'book_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _chapterIndexMeta = const VerificationMeta(
+    'chapterIndex',
+  );
+  @override
+  late final GeneratedColumn<int> chapterIndex = GeneratedColumn<int>(
+    'chapter_index',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _providerIdMeta = const VerificationMeta(
+    'providerId',
+  );
+  @override
+  late final GeneratedColumn<String> providerId = GeneratedColumn<String>(
+    'provider_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _operationMeta = const VerificationMeta(
+    'operation',
+  );
+  @override
+  late final GeneratedColumn<String> operation = GeneratedColumn<String>(
+    'operation',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _promptTokensMeta = const VerificationMeta(
+    'promptTokens',
+  );
+  @override
+  late final GeneratedColumn<int> promptTokens = GeneratedColumn<int>(
+    'prompt_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _completionTokensMeta = const VerificationMeta(
+    'completionTokens',
+  );
+  @override
+  late final GeneratedColumn<int> completionTokens = GeneratedColumn<int>(
+    'completion_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _totalTokensMeta = const VerificationMeta(
+    'totalTokens',
+  );
+  @override
+  late final GeneratedColumn<int> totalTokens = GeneratedColumn<int>(
+    'total_tokens',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMsMeta = const VerificationMeta(
+    'durationMs',
+  );
+  @override
+  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
+    'duration_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _billableMeta = const VerificationMeta(
+    'billable',
+  );
+  @override
+  late final GeneratedColumn<bool> billable = GeneratedColumn<bool>(
+    'billable',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("billable" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _promptVersionMeta = const VerificationMeta(
+    'promptVersion',
+  );
+  @override
+  late final GeneratedColumn<int> promptVersion = GeneratedColumn<int>(
+    'prompt_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _requestIdMeta = const VerificationMeta(
+    'requestId',
+  );
+  @override
+  late final GeneratedColumn<String> requestId = GeneratedColumn<String>(
+    'request_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sourceType,
+    sourceId,
+    bookId,
+    chapterIndex,
+    providerId,
+    model,
+    operation,
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    durationMs,
+    billable,
+    promptVersion,
+    requestId,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ai_usage_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AIUsageEvent> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('source_type')) {
+      context.handle(
+        _sourceTypeMeta,
+        sourceType.isAcceptableOrUnknown(data['source_type']!, _sourceTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceTypeMeta);
+    }
+    if (data.containsKey('source_id')) {
+      context.handle(
+        _sourceIdMeta,
+        sourceId.isAcceptableOrUnknown(data['source_id']!, _sourceIdMeta),
+      );
+    }
+    if (data.containsKey('book_id')) {
+      context.handle(
+        _bookIdMeta,
+        bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta),
+      );
+    }
+    if (data.containsKey('chapter_index')) {
+      context.handle(
+        _chapterIndexMeta,
+        chapterIndex.isAcceptableOrUnknown(
+          data['chapter_index']!,
+          _chapterIndexMeta,
+        ),
+      );
+    }
+    if (data.containsKey('provider_id')) {
+      context.handle(
+        _providerIdMeta,
+        providerId.isAcceptableOrUnknown(data['provider_id']!, _providerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_providerIdMeta);
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_modelMeta);
+    }
+    if (data.containsKey('operation')) {
+      context.handle(
+        _operationMeta,
+        operation.isAcceptableOrUnknown(data['operation']!, _operationMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_operationMeta);
+    }
+    if (data.containsKey('prompt_tokens')) {
+      context.handle(
+        _promptTokensMeta,
+        promptTokens.isAcceptableOrUnknown(
+          data['prompt_tokens']!,
+          _promptTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('completion_tokens')) {
+      context.handle(
+        _completionTokensMeta,
+        completionTokens.isAcceptableOrUnknown(
+          data['completion_tokens']!,
+          _completionTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_tokens')) {
+      context.handle(
+        _totalTokensMeta,
+        totalTokens.isAcceptableOrUnknown(
+          data['total_tokens']!,
+          _totalTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('duration_ms')) {
+      context.handle(
+        _durationMsMeta,
+        durationMs.isAcceptableOrUnknown(data['duration_ms']!, _durationMsMeta),
+      );
+    }
+    if (data.containsKey('billable')) {
+      context.handle(
+        _billableMeta,
+        billable.isAcceptableOrUnknown(data['billable']!, _billableMeta),
+      );
+    }
+    if (data.containsKey('prompt_version')) {
+      context.handle(
+        _promptVersionMeta,
+        promptVersion.isAcceptableOrUnknown(
+          data['prompt_version']!,
+          _promptVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('request_id')) {
+      context.handle(
+        _requestIdMeta,
+        requestId.isAcceptableOrUnknown(data['request_id']!, _requestIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AIUsageEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AIUsageEvent(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      sourceType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_type'],
+      )!,
+      sourceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_id'],
+      ),
+      bookId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}book_id'],
+      ),
+      chapterIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}chapter_index'],
+      ),
+      providerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider_id'],
+      )!,
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      )!,
+      operation: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}operation'],
+      )!,
+      promptTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}prompt_tokens'],
+      ),
+      completionTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}completion_tokens'],
+      ),
+      totalTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_tokens'],
+      ),
+      durationMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_ms'],
+      ),
+      billable: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}billable'],
+      )!,
+      promptVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}prompt_version'],
+      ),
+      requestId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}request_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AiUsageEventsTable createAlias(String alias) {
+    return $AiUsageEventsTable(attachedDatabase, alias);
+  }
+}
+
+class AIUsageEvent extends DataClass implements Insertable<AIUsageEvent> {
+  final int id;
+  final String sourceType;
+  final String? sourceId;
+  final String? bookId;
+  final int? chapterIndex;
+  final String providerId;
+  final String model;
+  final String operation;
+  final int? promptTokens;
+  final int? completionTokens;
+  final int? totalTokens;
+  final int? durationMs;
+  final bool billable;
+  final int? promptVersion;
+  final String? requestId;
+  final DateTime createdAt;
+  const AIUsageEvent({
+    required this.id,
+    required this.sourceType,
+    this.sourceId,
+    this.bookId,
+    this.chapterIndex,
+    required this.providerId,
+    required this.model,
+    required this.operation,
+    this.promptTokens,
+    this.completionTokens,
+    this.totalTokens,
+    this.durationMs,
+    required this.billable,
+    this.promptVersion,
+    this.requestId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['source_type'] = Variable<String>(sourceType);
+    if (!nullToAbsent || sourceId != null) {
+      map['source_id'] = Variable<String>(sourceId);
+    }
+    if (!nullToAbsent || bookId != null) {
+      map['book_id'] = Variable<String>(bookId);
+    }
+    if (!nullToAbsent || chapterIndex != null) {
+      map['chapter_index'] = Variable<int>(chapterIndex);
+    }
+    map['provider_id'] = Variable<String>(providerId);
+    map['model'] = Variable<String>(model);
+    map['operation'] = Variable<String>(operation);
+    if (!nullToAbsent || promptTokens != null) {
+      map['prompt_tokens'] = Variable<int>(promptTokens);
+    }
+    if (!nullToAbsent || completionTokens != null) {
+      map['completion_tokens'] = Variable<int>(completionTokens);
+    }
+    if (!nullToAbsent || totalTokens != null) {
+      map['total_tokens'] = Variable<int>(totalTokens);
+    }
+    if (!nullToAbsent || durationMs != null) {
+      map['duration_ms'] = Variable<int>(durationMs);
+    }
+    map['billable'] = Variable<bool>(billable);
+    if (!nullToAbsent || promptVersion != null) {
+      map['prompt_version'] = Variable<int>(promptVersion);
+    }
+    if (!nullToAbsent || requestId != null) {
+      map['request_id'] = Variable<String>(requestId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AiUsageEventsCompanion toCompanion(bool nullToAbsent) {
+    return AiUsageEventsCompanion(
+      id: Value(id),
+      sourceType: Value(sourceType),
+      sourceId: sourceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceId),
+      bookId: bookId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bookId),
+      chapterIndex: chapterIndex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chapterIndex),
+      providerId: Value(providerId),
+      model: Value(model),
+      operation: Value(operation),
+      promptTokens: promptTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(promptTokens),
+      completionTokens: completionTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completionTokens),
+      totalTokens: totalTokens == null && nullToAbsent
+          ? const Value.absent()
+          : Value(totalTokens),
+      durationMs: durationMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMs),
+      billable: Value(billable),
+      promptVersion: promptVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(promptVersion),
+      requestId: requestId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(requestId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AIUsageEvent.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AIUsageEvent(
+      id: serializer.fromJson<int>(json['id']),
+      sourceType: serializer.fromJson<String>(json['sourceType']),
+      sourceId: serializer.fromJson<String?>(json['sourceId']),
+      bookId: serializer.fromJson<String?>(json['bookId']),
+      chapterIndex: serializer.fromJson<int?>(json['chapterIndex']),
+      providerId: serializer.fromJson<String>(json['providerId']),
+      model: serializer.fromJson<String>(json['model']),
+      operation: serializer.fromJson<String>(json['operation']),
+      promptTokens: serializer.fromJson<int?>(json['promptTokens']),
+      completionTokens: serializer.fromJson<int?>(json['completionTokens']),
+      totalTokens: serializer.fromJson<int?>(json['totalTokens']),
+      durationMs: serializer.fromJson<int?>(json['durationMs']),
+      billable: serializer.fromJson<bool>(json['billable']),
+      promptVersion: serializer.fromJson<int?>(json['promptVersion']),
+      requestId: serializer.fromJson<String?>(json['requestId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sourceType': serializer.toJson<String>(sourceType),
+      'sourceId': serializer.toJson<String?>(sourceId),
+      'bookId': serializer.toJson<String?>(bookId),
+      'chapterIndex': serializer.toJson<int?>(chapterIndex),
+      'providerId': serializer.toJson<String>(providerId),
+      'model': serializer.toJson<String>(model),
+      'operation': serializer.toJson<String>(operation),
+      'promptTokens': serializer.toJson<int?>(promptTokens),
+      'completionTokens': serializer.toJson<int?>(completionTokens),
+      'totalTokens': serializer.toJson<int?>(totalTokens),
+      'durationMs': serializer.toJson<int?>(durationMs),
+      'billable': serializer.toJson<bool>(billable),
+      'promptVersion': serializer.toJson<int?>(promptVersion),
+      'requestId': serializer.toJson<String?>(requestId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  AIUsageEvent copyWith({
+    int? id,
+    String? sourceType,
+    Value<String?> sourceId = const Value.absent(),
+    Value<String?> bookId = const Value.absent(),
+    Value<int?> chapterIndex = const Value.absent(),
+    String? providerId,
+    String? model,
+    String? operation,
+    Value<int?> promptTokens = const Value.absent(),
+    Value<int?> completionTokens = const Value.absent(),
+    Value<int?> totalTokens = const Value.absent(),
+    Value<int?> durationMs = const Value.absent(),
+    bool? billable,
+    Value<int?> promptVersion = const Value.absent(),
+    Value<String?> requestId = const Value.absent(),
+    DateTime? createdAt,
+  }) => AIUsageEvent(
+    id: id ?? this.id,
+    sourceType: sourceType ?? this.sourceType,
+    sourceId: sourceId.present ? sourceId.value : this.sourceId,
+    bookId: bookId.present ? bookId.value : this.bookId,
+    chapterIndex: chapterIndex.present ? chapterIndex.value : this.chapterIndex,
+    providerId: providerId ?? this.providerId,
+    model: model ?? this.model,
+    operation: operation ?? this.operation,
+    promptTokens: promptTokens.present ? promptTokens.value : this.promptTokens,
+    completionTokens: completionTokens.present
+        ? completionTokens.value
+        : this.completionTokens,
+    totalTokens: totalTokens.present ? totalTokens.value : this.totalTokens,
+    durationMs: durationMs.present ? durationMs.value : this.durationMs,
+    billable: billable ?? this.billable,
+    promptVersion: promptVersion.present
+        ? promptVersion.value
+        : this.promptVersion,
+    requestId: requestId.present ? requestId.value : this.requestId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  AIUsageEvent copyWithCompanion(AiUsageEventsCompanion data) {
+    return AIUsageEvent(
+      id: data.id.present ? data.id.value : this.id,
+      sourceType: data.sourceType.present
+          ? data.sourceType.value
+          : this.sourceType,
+      sourceId: data.sourceId.present ? data.sourceId.value : this.sourceId,
+      bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      chapterIndex: data.chapterIndex.present
+          ? data.chapterIndex.value
+          : this.chapterIndex,
+      providerId: data.providerId.present
+          ? data.providerId.value
+          : this.providerId,
+      model: data.model.present ? data.model.value : this.model,
+      operation: data.operation.present ? data.operation.value : this.operation,
+      promptTokens: data.promptTokens.present
+          ? data.promptTokens.value
+          : this.promptTokens,
+      completionTokens: data.completionTokens.present
+          ? data.completionTokens.value
+          : this.completionTokens,
+      totalTokens: data.totalTokens.present
+          ? data.totalTokens.value
+          : this.totalTokens,
+      durationMs: data.durationMs.present
+          ? data.durationMs.value
+          : this.durationMs,
+      billable: data.billable.present ? data.billable.value : this.billable,
+      promptVersion: data.promptVersion.present
+          ? data.promptVersion.value
+          : this.promptVersion,
+      requestId: data.requestId.present ? data.requestId.value : this.requestId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AIUsageEvent(')
+          ..write('id: $id, ')
+          ..write('sourceType: $sourceType, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('bookId: $bookId, ')
+          ..write('chapterIndex: $chapterIndex, ')
+          ..write('providerId: $providerId, ')
+          ..write('model: $model, ')
+          ..write('operation: $operation, ')
+          ..write('promptTokens: $promptTokens, ')
+          ..write('completionTokens: $completionTokens, ')
+          ..write('totalTokens: $totalTokens, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('billable: $billable, ')
+          ..write('promptVersion: $promptVersion, ')
+          ..write('requestId: $requestId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    sourceType,
+    sourceId,
+    bookId,
+    chapterIndex,
+    providerId,
+    model,
+    operation,
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    durationMs,
+    billable,
+    promptVersion,
+    requestId,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AIUsageEvent &&
+          other.id == this.id &&
+          other.sourceType == this.sourceType &&
+          other.sourceId == this.sourceId &&
+          other.bookId == this.bookId &&
+          other.chapterIndex == this.chapterIndex &&
+          other.providerId == this.providerId &&
+          other.model == this.model &&
+          other.operation == this.operation &&
+          other.promptTokens == this.promptTokens &&
+          other.completionTokens == this.completionTokens &&
+          other.totalTokens == this.totalTokens &&
+          other.durationMs == this.durationMs &&
+          other.billable == this.billable &&
+          other.promptVersion == this.promptVersion &&
+          other.requestId == this.requestId &&
+          other.createdAt == this.createdAt);
+}
+
+class AiUsageEventsCompanion extends UpdateCompanion<AIUsageEvent> {
+  final Value<int> id;
+  final Value<String> sourceType;
+  final Value<String?> sourceId;
+  final Value<String?> bookId;
+  final Value<int?> chapterIndex;
+  final Value<String> providerId;
+  final Value<String> model;
+  final Value<String> operation;
+  final Value<int?> promptTokens;
+  final Value<int?> completionTokens;
+  final Value<int?> totalTokens;
+  final Value<int?> durationMs;
+  final Value<bool> billable;
+  final Value<int?> promptVersion;
+  final Value<String?> requestId;
+  final Value<DateTime> createdAt;
+  const AiUsageEventsCompanion({
+    this.id = const Value.absent(),
+    this.sourceType = const Value.absent(),
+    this.sourceId = const Value.absent(),
+    this.bookId = const Value.absent(),
+    this.chapterIndex = const Value.absent(),
+    this.providerId = const Value.absent(),
+    this.model = const Value.absent(),
+    this.operation = const Value.absent(),
+    this.promptTokens = const Value.absent(),
+    this.completionTokens = const Value.absent(),
+    this.totalTokens = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.billable = const Value.absent(),
+    this.promptVersion = const Value.absent(),
+    this.requestId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  AiUsageEventsCompanion.insert({
+    this.id = const Value.absent(),
+    required String sourceType,
+    this.sourceId = const Value.absent(),
+    this.bookId = const Value.absent(),
+    this.chapterIndex = const Value.absent(),
+    required String providerId,
+    required String model,
+    required String operation,
+    this.promptTokens = const Value.absent(),
+    this.completionTokens = const Value.absent(),
+    this.totalTokens = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.billable = const Value.absent(),
+    this.promptVersion = const Value.absent(),
+    this.requestId = const Value.absent(),
+    required DateTime createdAt,
+  }) : sourceType = Value(sourceType),
+       providerId = Value(providerId),
+       model = Value(model),
+       operation = Value(operation),
+       createdAt = Value(createdAt);
+  static Insertable<AIUsageEvent> custom({
+    Expression<int>? id,
+    Expression<String>? sourceType,
+    Expression<String>? sourceId,
+    Expression<String>? bookId,
+    Expression<int>? chapterIndex,
+    Expression<String>? providerId,
+    Expression<String>? model,
+    Expression<String>? operation,
+    Expression<int>? promptTokens,
+    Expression<int>? completionTokens,
+    Expression<int>? totalTokens,
+    Expression<int>? durationMs,
+    Expression<bool>? billable,
+    Expression<int>? promptVersion,
+    Expression<String>? requestId,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sourceType != null) 'source_type': sourceType,
+      if (sourceId != null) 'source_id': sourceId,
+      if (bookId != null) 'book_id': bookId,
+      if (chapterIndex != null) 'chapter_index': chapterIndex,
+      if (providerId != null) 'provider_id': providerId,
+      if (model != null) 'model': model,
+      if (operation != null) 'operation': operation,
+      if (promptTokens != null) 'prompt_tokens': promptTokens,
+      if (completionTokens != null) 'completion_tokens': completionTokens,
+      if (totalTokens != null) 'total_tokens': totalTokens,
+      if (durationMs != null) 'duration_ms': durationMs,
+      if (billable != null) 'billable': billable,
+      if (promptVersion != null) 'prompt_version': promptVersion,
+      if (requestId != null) 'request_id': requestId,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  AiUsageEventsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? sourceType,
+    Value<String?>? sourceId,
+    Value<String?>? bookId,
+    Value<int?>? chapterIndex,
+    Value<String>? providerId,
+    Value<String>? model,
+    Value<String>? operation,
+    Value<int?>? promptTokens,
+    Value<int?>? completionTokens,
+    Value<int?>? totalTokens,
+    Value<int?>? durationMs,
+    Value<bool>? billable,
+    Value<int?>? promptVersion,
+    Value<String?>? requestId,
+    Value<DateTime>? createdAt,
+  }) {
+    return AiUsageEventsCompanion(
+      id: id ?? this.id,
+      sourceType: sourceType ?? this.sourceType,
+      sourceId: sourceId ?? this.sourceId,
+      bookId: bookId ?? this.bookId,
+      chapterIndex: chapterIndex ?? this.chapterIndex,
+      providerId: providerId ?? this.providerId,
+      model: model ?? this.model,
+      operation: operation ?? this.operation,
+      promptTokens: promptTokens ?? this.promptTokens,
+      completionTokens: completionTokens ?? this.completionTokens,
+      totalTokens: totalTokens ?? this.totalTokens,
+      durationMs: durationMs ?? this.durationMs,
+      billable: billable ?? this.billable,
+      promptVersion: promptVersion ?? this.promptVersion,
+      requestId: requestId ?? this.requestId,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sourceType.present) {
+      map['source_type'] = Variable<String>(sourceType.value);
+    }
+    if (sourceId.present) {
+      map['source_id'] = Variable<String>(sourceId.value);
+    }
+    if (bookId.present) {
+      map['book_id'] = Variable<String>(bookId.value);
+    }
+    if (chapterIndex.present) {
+      map['chapter_index'] = Variable<int>(chapterIndex.value);
+    }
+    if (providerId.present) {
+      map['provider_id'] = Variable<String>(providerId.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
+    if (operation.present) {
+      map['operation'] = Variable<String>(operation.value);
+    }
+    if (promptTokens.present) {
+      map['prompt_tokens'] = Variable<int>(promptTokens.value);
+    }
+    if (completionTokens.present) {
+      map['completion_tokens'] = Variable<int>(completionTokens.value);
+    }
+    if (totalTokens.present) {
+      map['total_tokens'] = Variable<int>(totalTokens.value);
+    }
+    if (durationMs.present) {
+      map['duration_ms'] = Variable<int>(durationMs.value);
+    }
+    if (billable.present) {
+      map['billable'] = Variable<bool>(billable.value);
+    }
+    if (promptVersion.present) {
+      map['prompt_version'] = Variable<int>(promptVersion.value);
+    }
+    if (requestId.present) {
+      map['request_id'] = Variable<String>(requestId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AiUsageEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('sourceType: $sourceType, ')
+          ..write('sourceId: $sourceId, ')
+          ..write('bookId: $bookId, ')
+          ..write('chapterIndex: $chapterIndex, ')
+          ..write('providerId: $providerId, ')
+          ..write('model: $model, ')
+          ..write('operation: $operation, ')
+          ..write('promptTokens: $promptTokens, ')
+          ..write('completionTokens: $completionTokens, ')
+          ..write('totalTokens: $totalTokens, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('billable: $billable, ')
+          ..write('promptVersion: $promptVersion, ')
+          ..write('requestId: $requestId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -12213,6 +13140,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $SettingsTable settings = $SettingsTable(this);
+  late final $AiUsageEventsTable aiUsageEvents = $AiUsageEventsTable(this);
   late final Index idxBooksLanguage = Index(
     'idx_books_language',
     'CREATE INDEX idx_books_language ON books (language)',
@@ -12341,6 +13269,23 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_review_candidates_status',
     'CREATE INDEX idx_review_candidates_status ON review_candidates (status)',
   );
+  late final Index idxAiUsageBookTime = Index(
+    'idx_ai_usage_book_time',
+    'CREATE INDEX idx_ai_usage_book_time ON ai_usage_events (book_id, created_at)',
+  );
+  late final Index idxAiUsageOperation = Index(
+    'idx_ai_usage_operation',
+    'CREATE INDEX idx_ai_usage_operation ON ai_usage_events (operation)',
+  );
+  late final Index idxAiUsageModelTime = Index(
+    'idx_ai_usage_model_time',
+    'CREATE INDEX idx_ai_usage_model_time ON ai_usage_events (provider_id, model, created_at)',
+  );
+  late final Index idxAiUsageSource = Index(
+    'idx_ai_usage_source',
+    'CREATE INDEX idx_ai_usage_source ON ai_usage_events (source_type, source_id)',
+  );
+  late final AiUsageDao aiUsageDao = AiUsageDao(this as AppDatabase);
   late final BookDao bookDao = BookDao(this as AppDatabase);
   late final BookGlossaryDao bookGlossaryDao = BookGlossaryDao(
     this as AppDatabase,
@@ -12404,6 +13349,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     sourceScopeCache,
     reviewCandidates,
     settings,
+    aiUsageEvents,
     idxBooksLanguage,
     idxBooksLastRead,
     idxUserVocabLangCanonical,
@@ -12436,6 +13382,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     idxSourceScopeCacheSource,
     idxReviewCandidatesEntity,
     idxReviewCandidatesStatus,
+    idxAiUsageBookTime,
+    idxAiUsageOperation,
+    idxAiUsageModelTime,
+    idxAiUsageSource,
   ];
 }
 
@@ -18714,6 +19664,425 @@ typedef $$SettingsTableProcessedTableManager =
       SettingsEntry,
       PrefetchHooks Function()
     >;
+typedef $$AiUsageEventsTableCreateCompanionBuilder =
+    AiUsageEventsCompanion Function({
+      Value<int> id,
+      required String sourceType,
+      Value<String?> sourceId,
+      Value<String?> bookId,
+      Value<int?> chapterIndex,
+      required String providerId,
+      required String model,
+      required String operation,
+      Value<int?> promptTokens,
+      Value<int?> completionTokens,
+      Value<int?> totalTokens,
+      Value<int?> durationMs,
+      Value<bool> billable,
+      Value<int?> promptVersion,
+      Value<String?> requestId,
+      required DateTime createdAt,
+    });
+typedef $$AiUsageEventsTableUpdateCompanionBuilder =
+    AiUsageEventsCompanion Function({
+      Value<int> id,
+      Value<String> sourceType,
+      Value<String?> sourceId,
+      Value<String?> bookId,
+      Value<int?> chapterIndex,
+      Value<String> providerId,
+      Value<String> model,
+      Value<String> operation,
+      Value<int?> promptTokens,
+      Value<int?> completionTokens,
+      Value<int?> totalTokens,
+      Value<int?> durationMs,
+      Value<bool> billable,
+      Value<int?> promptVersion,
+      Value<String?> requestId,
+      Value<DateTime> createdAt,
+    });
+
+class $$AiUsageEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $AiUsageEventsTable> {
+  $$AiUsageEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bookId => $composableBuilder(
+    column: $table.bookId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get providerId => $composableBuilder(
+    column: $table.providerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get operation => $composableBuilder(
+    column: $table.operation,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get promptTokens => $composableBuilder(
+    column: $table.promptTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get completionTokens => $composableBuilder(
+    column: $table.completionTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalTokens => $composableBuilder(
+    column: $table.totalTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get billable => $composableBuilder(
+    column: $table.billable,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get promptVersion => $composableBuilder(
+    column: $table.promptVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get requestId => $composableBuilder(
+    column: $table.requestId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AiUsageEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AiUsageEventsTable> {
+  $$AiUsageEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceId => $composableBuilder(
+    column: $table.sourceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bookId => $composableBuilder(
+    column: $table.bookId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get providerId => $composableBuilder(
+    column: $table.providerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get operation => $composableBuilder(
+    column: $table.operation,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get promptTokens => $composableBuilder(
+    column: $table.promptTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get completionTokens => $composableBuilder(
+    column: $table.completionTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalTokens => $composableBuilder(
+    column: $table.totalTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get billable => $composableBuilder(
+    column: $table.billable,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get promptVersion => $composableBuilder(
+    column: $table.promptVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get requestId => $composableBuilder(
+    column: $table.requestId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AiUsageEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AiUsageEventsTable> {
+  $$AiUsageEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceType => $composableBuilder(
+    column: $table.sourceType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceId =>
+      $composableBuilder(column: $table.sourceId, builder: (column) => column);
+
+  GeneratedColumn<String> get bookId =>
+      $composableBuilder(column: $table.bookId, builder: (column) => column);
+
+  GeneratedColumn<int> get chapterIndex => $composableBuilder(
+    column: $table.chapterIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get providerId => $composableBuilder(
+    column: $table.providerId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<String> get operation =>
+      $composableBuilder(column: $table.operation, builder: (column) => column);
+
+  GeneratedColumn<int> get promptTokens => $composableBuilder(
+    column: $table.promptTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get completionTokens => $composableBuilder(
+    column: $table.completionTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalTokens => $composableBuilder(
+    column: $table.totalTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get billable =>
+      $composableBuilder(column: $table.billable, builder: (column) => column);
+
+  GeneratedColumn<int> get promptVersion => $composableBuilder(
+    column: $table.promptVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get requestId =>
+      $composableBuilder(column: $table.requestId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AiUsageEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AiUsageEventsTable,
+          AIUsageEvent,
+          $$AiUsageEventsTableFilterComposer,
+          $$AiUsageEventsTableOrderingComposer,
+          $$AiUsageEventsTableAnnotationComposer,
+          $$AiUsageEventsTableCreateCompanionBuilder,
+          $$AiUsageEventsTableUpdateCompanionBuilder,
+          (
+            AIUsageEvent,
+            BaseReferences<_$AppDatabase, $AiUsageEventsTable, AIUsageEvent>,
+          ),
+          AIUsageEvent,
+          PrefetchHooks Function()
+        > {
+  $$AiUsageEventsTableTableManager(_$AppDatabase db, $AiUsageEventsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AiUsageEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AiUsageEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AiUsageEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> sourceType = const Value.absent(),
+                Value<String?> sourceId = const Value.absent(),
+                Value<String?> bookId = const Value.absent(),
+                Value<int?> chapterIndex = const Value.absent(),
+                Value<String> providerId = const Value.absent(),
+                Value<String> model = const Value.absent(),
+                Value<String> operation = const Value.absent(),
+                Value<int?> promptTokens = const Value.absent(),
+                Value<int?> completionTokens = const Value.absent(),
+                Value<int?> totalTokens = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<bool> billable = const Value.absent(),
+                Value<int?> promptVersion = const Value.absent(),
+                Value<String?> requestId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => AiUsageEventsCompanion(
+                id: id,
+                sourceType: sourceType,
+                sourceId: sourceId,
+                bookId: bookId,
+                chapterIndex: chapterIndex,
+                providerId: providerId,
+                model: model,
+                operation: operation,
+                promptTokens: promptTokens,
+                completionTokens: completionTokens,
+                totalTokens: totalTokens,
+                durationMs: durationMs,
+                billable: billable,
+                promptVersion: promptVersion,
+                requestId: requestId,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String sourceType,
+                Value<String?> sourceId = const Value.absent(),
+                Value<String?> bookId = const Value.absent(),
+                Value<int?> chapterIndex = const Value.absent(),
+                required String providerId,
+                required String model,
+                required String operation,
+                Value<int?> promptTokens = const Value.absent(),
+                Value<int?> completionTokens = const Value.absent(),
+                Value<int?> totalTokens = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<bool> billable = const Value.absent(),
+                Value<int?> promptVersion = const Value.absent(),
+                Value<String?> requestId = const Value.absent(),
+                required DateTime createdAt,
+              }) => AiUsageEventsCompanion.insert(
+                id: id,
+                sourceType: sourceType,
+                sourceId: sourceId,
+                bookId: bookId,
+                chapterIndex: chapterIndex,
+                providerId: providerId,
+                model: model,
+                operation: operation,
+                promptTokens: promptTokens,
+                completionTokens: completionTokens,
+                totalTokens: totalTokens,
+                durationMs: durationMs,
+                billable: billable,
+                promptVersion: promptVersion,
+                requestId: requestId,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AiUsageEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AiUsageEventsTable,
+      AIUsageEvent,
+      $$AiUsageEventsTableFilterComposer,
+      $$AiUsageEventsTableOrderingComposer,
+      $$AiUsageEventsTableAnnotationComposer,
+      $$AiUsageEventsTableCreateCompanionBuilder,
+      $$AiUsageEventsTableUpdateCompanionBuilder,
+      (
+        AIUsageEvent,
+        BaseReferences<_$AppDatabase, $AiUsageEventsTable, AIUsageEvent>,
+      ),
+      AIUsageEvent,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -18764,4 +20133,6 @@ class $AppDatabaseManager {
       $$ReviewCandidatesTableTableManager(_db, _db.reviewCandidates);
   $$SettingsTableTableManager get settings =>
       $$SettingsTableTableManager(_db, _db.settings);
+  $$AiUsageEventsTableTableManager get aiUsageEvents =>
+      $$AiUsageEventsTableTableManager(_db, _db.aiUsageEvents);
 }

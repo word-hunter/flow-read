@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import 'ai_debug_trace_recorder.dart';
 import 'ai_provider_config.dart';
+import 'models/token_usage_info.dart';
 
 enum AIClientErrorType {
   unauthorized,
@@ -24,6 +25,34 @@ class AIClientException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class ChatCompletionResult {
+  const ChatCompletionResult({
+    required this.content,
+    required this.providerId,
+    required this.model,
+    required this.durationMs,
+    this.usage,
+  });
+
+  final String content;
+  final TokenUsageInfo? usage;
+  final String providerId;
+  final String model;
+  final int durationMs;
+}
+
+class ChatStreamChunk {
+  const ChatStreamChunk({
+    this.content = '',
+    this.usage,
+    this.isFinal = false,
+  });
+
+  final String content;
+  final TokenUsageInfo? usage;
+  final bool isFinal;
 }
 
 class LLMClient {
@@ -121,6 +150,21 @@ class LLMClient {
     bool jsonMode = false,
     Map<String, Object?> debugMetadata = const {},
   }) async {
+    final result = await chatWithResult(
+      systemPrompt: systemPrompt,
+      userPrompt: userPrompt,
+      jsonMode: jsonMode,
+      debugMetadata: debugMetadata,
+    );
+    return result.content;
+  }
+
+  Future<ChatCompletionResult> chatWithResult({
+    required String systemPrompt,
+    required String userPrompt,
+    bool jsonMode = false,
+    Map<String, Object?> debugMetadata = const {},
+  }) async {
     final config = _configProvider();
     _ensureApiKey(config);
 
@@ -141,6 +185,22 @@ class LLMClient {
   }
 
   Stream<String> streamChat({
+    required String systemPrompt,
+    required String userPrompt,
+    bool jsonMode = false,
+    Map<String, Object?> debugMetadata = const {},
+  }) async* {
+    await for (final chunk in streamChatWithChunks(
+      systemPrompt: systemPrompt,
+      userPrompt: userPrompt,
+      jsonMode: jsonMode,
+      debugMetadata: debugMetadata,
+    )) {
+      if (chunk.content.isNotEmpty) yield chunk.content;
+    }
+  }
+
+  Stream<ChatStreamChunk> streamChatWithChunks({
     required String systemPrompt,
     required String userPrompt,
     bool jsonMode = false,
@@ -174,9 +234,9 @@ class LLMClient {
           in response.stream
               .transform(utf8.decoder)
               .transform(const LineSplitter())) {
-        await for (final content in _processStreamChunk(chunk)) {
-          buffer.write(content);
-          yield content;
+        await for (final parsedChunk in _processStreamChunk(chunk)) {
+          buffer.write(parsedChunk.content);
+          yield parsedChunk;
         }
       }
       _recordHttpTrace(
@@ -260,7 +320,7 @@ class LLMClient {
     }
   }
 
-  Future<String> _doChat(
+  Future<ChatCompletionResult> _doChat(
     Map<String, dynamic> body,
     AIProviderConfig config, {
     required int attempt,
@@ -281,7 +341,8 @@ class LLMClient {
             body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 120));
-      final content = _handleResponse(response);
+      final durationMs = stopwatch.elapsedMilliseconds;
+      final result = _handleResponse(response, config, durationMs);
       _recordHttpTrace(
         operation: 'chat',
         config: config,
@@ -295,7 +356,7 @@ class LLMClient {
           'attempt': attempt,
         },
       );
-      return content;
+      return result;
     } catch (error) {
       _recordHttpTrace(
         operation: 'chat',
@@ -315,8 +376,8 @@ class LLMClient {
     }
   }
 
-  Future<String> _retryRequest(
-    Future<String> Function(int attempt) request,
+  Future<T> _retryRequest<T>(
+    Future<T> Function(int attempt) request,
   ) async {
     var attempts = 0;
     const maxRetries = 3;
@@ -375,7 +436,11 @@ class LLMClient {
     );
   }
 
-  String _handleResponse(http.Response response) {
+  ChatCompletionResult _handleResponse(
+    http.Response response,
+    AIProviderConfig config,
+    int durationMs,
+  ) {
     if (response.statusCode == 401 || response.statusCode == 403) {
       throw AIClientException(
         'API authentication failed (${response.statusCode}). Please check your API key.',
@@ -418,7 +483,13 @@ class LLMClient {
           AIClientErrorType.unknown,
         );
       }
-      return content;
+      return ChatCompletionResult(
+        content: content,
+        usage: TokenUsageInfo.tryFromJson(data),
+        providerId: config.definition.id,
+        model: config.model,
+        durationMs: durationMs,
+      );
     } catch (e) {
       if (e is AIClientException) rethrow;
       throw AIClientException(
@@ -455,19 +526,34 @@ class LLMClient {
     }
   }
 
-  Stream<String> _processStreamChunk(String chunk) async* {
+  Stream<ChatStreamChunk> _processStreamChunk(String chunk) async* {
     final trimmed = chunk.trim();
     if (!trimmed.startsWith('data: ')) return;
     final data = trimmed.substring(6);
-    if (data == '[DONE]') return;
+    if (data == '[DONE]') {
+      yield const ChatStreamChunk(isFinal: true);
+      return;
+    }
 
     try {
       final parsed = jsonDecode(data) as Map<String, dynamic>;
+      final usage = TokenUsageInfo.tryFromJson(parsed);
       final choices = parsed['choices'] as List<dynamic>?;
-      if (choices == null || choices.isEmpty) return;
+      if (choices == null || choices.isEmpty) {
+        if (usage != null) {
+          yield ChatStreamChunk(usage: usage, isFinal: true);
+        }
+        return;
+      }
       final delta = choices.first['delta'] as Map<String, dynamic>?;
       final content = delta?['content'] as String?;
-      if (content != null) yield content;
+      if (content != null || usage != null) {
+        yield ChatStreamChunk(
+          content: content ?? '',
+          usage: usage,
+          isFinal: usage != null,
+        );
+      }
     } catch (_) {}
   }
 

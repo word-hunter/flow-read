@@ -9,6 +9,8 @@ import '../../services/app_logger.dart';
 import '../../services/book_insight_chapter_catalog.dart';
 import '../../services/learning_item_service.dart';
 import '../../services/settings_service.dart';
+import '../../storage/repositories/ai_usage_repository.dart';
+import '../ai_usage_provider.dart';
 import '../settings_provider.dart';
 import 'bookshelf_notifier.dart';
 import 'current_book_notifier.dart';
@@ -173,7 +175,7 @@ class AINotifier extends Notifier<AIState> {
       clearError: true,
     );
     try {
-      final analysis = await ai.analyzeText(
+      final result = await ai.analyzeTextWithResult(
         selectedText: request.selectedText,
         currentPassage: request.currentPassage,
         sourceLanguage: request.sourceLanguage,
@@ -182,7 +184,12 @@ class AINotifier extends Notifier<AIState> {
         ),
         spoilerBoundary: request.spoilerBoundary,
       );
+      final analysis = result.value;
       _settings.incrementAIUsage(textAnalysis: true);
+      await _recordAIUsage(
+        result: result,
+        operation: AIUsageOperation.textAnalysis,
+      );
       if (state.isAnalyzingText) {
         state = state.copyWith(
           aiTextAnalysis: analysis,
@@ -208,13 +215,18 @@ class AINotifier extends Notifier<AIState> {
       clearError: true,
     );
     try {
-      final translation = await ai.translateText(
+      final result = await ai.translateTextWithResult(
         text,
         sourceLanguage: SourceLanguage.inferFromText(text),
         outputLanguage: OutputLanguage.fromCode(
           effectiveTargetExplanationLanguage,
         ),
         spoilerBoundary: SpoilerBoundary.currentPassage(),
+      );
+      final translation = result.value;
+      await _recordAIUsage(
+        result: result,
+        operation: AIUsageOperation.translation,
       );
       if (state.isTranslatingText) {
         state = state.copyWith(
@@ -384,7 +396,7 @@ class AINotifier extends Notifier<AIState> {
     if (ai == null) return;
     state = state.copyWith(isAnalyzingWord: true, aiWordAnalysis: null);
     try {
-      final analysis = await ai.analyzeWord(
+      final result = await ai.analyzeWordWithResult(
         word: word,
         sentence: sentence,
         chapterContext: chapterText,
@@ -392,7 +404,12 @@ class AINotifier extends Notifier<AIState> {
         outputLanguage: outputLanguage,
         spoilerBoundary: SpoilerBoundary.currentPassage(),
       );
+      final analysis = result.value;
       _settings.incrementAIUsage(wordAnalysis: true);
+      await _recordAIUsage(
+        result: result,
+        operation: AIUsageOperation.wordAnalysis,
+      );
       state = state.copyWith(
         aiWordAnalysis: analysis,
         isAnalyzingWord: false,
@@ -623,7 +640,7 @@ class AINotifier extends Notifier<AIState> {
       }
 
       if (ai == null) return;
-      final preview = await ai.generateChapterPreview(
+      final result = await ai.generateChapterPreviewWithResult(
         chapterTitle: chapter.title,
         openingText: openingText,
         vocabulary: vocabulary,
@@ -633,6 +650,13 @@ class AINotifier extends Notifier<AIState> {
           bookId: bookId,
           chapterIndex: _currentChapter,
         ),
+      );
+      final preview = result.value;
+      await _recordAIUsage(
+        result: result,
+        operation: AIUsageOperation.chapterPreview,
+        bookId: bookId,
+        chapterIndex: _currentChapter,
       );
       state = state.copyWith(
         aiChapterPreview: preview,
@@ -705,11 +729,81 @@ class AINotifier extends Notifier<AIState> {
       aiService: ai,
       cache: _aiCache,
       usageAdapter: CallbackChapterAIUsageAdapter(
-        onSummaryGenerated: () =>
-            _settings.incrementAIUsage(chapterSummary: true),
-        onPracticeGenerated: () => _settings.incrementAIUsage(practice: true),
+        onSummaryGenerated:
+            ({
+              required String bookId,
+              required int chapterIndex,
+              AIResult<AISummary>? result,
+            }) async {
+              _settings.incrementAIUsage(chapterSummary: true);
+              await _recordAIUsage(
+                result: result,
+                operation: AIUsageOperation.chapterSummary,
+                bookId: bookId,
+                chapterIndex: chapterIndex,
+              );
+            },
+        onPracticeGenerated:
+            ({
+              required String bookId,
+              required int chapterIndex,
+              AIResult<AIPracticeSet>? result,
+            }) async {
+              _settings.incrementAIUsage(practice: true);
+              await _recordAIUsage(
+                result: result,
+                operation: AIUsageOperation.chapterPractice,
+                bookId: bookId,
+                chapterIndex: chapterIndex,
+              );
+            },
       ),
     );
+  }
+
+  Future<void> _recordAIUsage<T>({
+    required AIResult<T>? result,
+    required AIUsageOperation operation,
+    String? bookId,
+    int? chapterIndex,
+  }) async {
+    if (result == null || result.cacheHit) return;
+    final resolvedBookId = bookId ?? _activeBookId;
+    final resolvedChapterIndex = chapterIndex ?? _currentChapter;
+    try {
+      final repository = await ref.read(aiUsageRepositoryProvider.future);
+      await repository.recordCall(
+        sourceType: resolvedBookId == null
+            ? AIUsageSourceType.global
+            : AIUsageSourceType.book,
+        sourceId: resolvedBookId,
+        bookId: resolvedBookId,
+        chapterIndex: resolvedBookId == null ? null : resolvedChapterIndex,
+        providerId: result.providerId,
+        model: result.model,
+        operation: operation,
+        usage: result.usage,
+        durationMs: result.durationMs,
+        promptVersion: result.promptVersion,
+      );
+      ref.invalidate(globalAIUsageProvider);
+      if (resolvedBookId != null) {
+        ref.invalidate(bookAIUsageProvider(resolvedBookId));
+      }
+    } catch (error, stackTrace) {
+      AppLogger.instance.event(
+        'ai.usage_record_failed',
+        level: AppLogLevel.warning,
+        source: 'ai',
+        metadata: {
+          'operation': operation.value,
+          'bookId': resolvedBookId,
+          'chapterIndex': resolvedChapterIndex,
+        },
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   Future<void> _saveChapterSummarySourceScope({

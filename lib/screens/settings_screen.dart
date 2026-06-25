@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 import '../providers/backup_provider.dart';
+import '../providers/ai_usage_provider.dart';
 import '../providers/reading/ai_notifier.dart';
 import '../providers/reading/bookshelf_notifier.dart';
 import '../providers/reading/services_provider.dart';
@@ -421,6 +422,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
               ),
               SettingsSection.ai => SettingsAISection(
                 settings: settings,
+                aiUsageSummary: ref.watch(globalAIUsageProvider),
                 apiKeyController: _apiKeyController,
                 baseUrlController: _baseUrlController,
                 modelController: _modelController,
@@ -451,6 +453,7 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
                 onTestConnection: () => unawaited(_testConnection(settings)),
                 onClearConfig: () => unawaited(_clearAIConfig(settings)),
                 onClearCache: _showClearCacheDialog,
+                onClearUsageHistory: _showClearAIUsageHistoryDialog,
                 aiCacheEntryCount: _aiCacheEntryCount,
                 cacheStatsLoading: _cacheStatsLoading,
               ),
@@ -688,6 +691,36 @@ class _SettingsScreenState extends riverpod.ConsumerState<SettingsScreen> {
               }
             },
             child: const Text('确认清除'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showClearAIUsageHistoryDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => FlowDialog(
+        title: const Text('清空 AI 用量历史'),
+        content: const Text('将删除本机记录的 AI Token 消耗历史。AI 配置、缓存、书籍和阅读数据不会被删除。'),
+        actions: [
+          FlowButton.text(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+          FlowButton.primary(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final repository = await ref.read(
+                aiUsageRepositoryProvider.future,
+              );
+              await repository.clearAll();
+              ref.invalidate(globalAIUsageProvider);
+              if (mounted) {
+                _showSnackBar('AI 用量历史已清空');
+              }
+            },
+            child: const Text('确认清空'),
           ),
         ],
       ),

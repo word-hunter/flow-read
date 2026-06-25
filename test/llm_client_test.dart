@@ -80,6 +80,108 @@ void main() {
     );
   });
 
+  test('chatWithResult extracts token usage from response', () async {
+    await settings.setAIProvider('openai_compatible');
+    await settings.setAIBaseUrl('https://llm.example.com/v1/');
+    await settings.setAIModel('reader-model');
+    await settings.setApiKey('test-key');
+
+    final client = LLMClient(
+      () => settings.aiProviderConfig,
+      httpClient: MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {'content': 'tracked response'},
+              },
+            ],
+            'usage': {
+              'prompt_tokens': 1523,
+              'completion_tokens': 418,
+              'total_tokens': 1941,
+            },
+          }),
+          200,
+        );
+      }),
+    );
+
+    final result = await client.chatWithResult(
+      systemPrompt: 'system',
+      userPrompt: 'user',
+    );
+
+    expect(result.content, 'tracked response');
+    expect(result.providerId, 'openai_compatible');
+    expect(result.model, 'reader-model');
+    expect(result.usage?.promptTokens, 1523);
+    expect(result.usage?.completionTokens, 418);
+    expect(result.usage?.totalTokens, 1941);
+  });
+
+  test(
+    'concurrent chatWithResult keeps token usage with each result',
+    () async {
+      await settings.setAIProvider('openai_compatible');
+      await settings.setAIBaseUrl('https://llm.example.com/v1/');
+      await settings.setAIModel('reader-model');
+      await settings.setApiKey('test-key');
+
+      final client = LLMClient(
+        () => settings.aiProviderConfig,
+        httpClient: MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final messages = body['messages'] as List<dynamic>;
+          final userPrompt = messages.last['content'] as String;
+          if (userPrompt == 'first') {
+            await Future<void>.delayed(const Duration(milliseconds: 20));
+            return http.Response(
+              jsonEncode({
+                'choices': [
+                  {
+                    'message': {'content': 'first response'},
+                  },
+                ],
+                'usage': {
+                  'prompt_tokens': 10,
+                  'completion_tokens': 5,
+                  'total_tokens': 15,
+                },
+              }),
+              200,
+            );
+          }
+          return http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {'content': 'second response'},
+                },
+              ],
+              'usage': {
+                'prompt_tokens': 20,
+                'completion_tokens': 7,
+                'total_tokens': 27,
+              },
+            }),
+            200,
+          );
+        }),
+      );
+
+      final results = await Future.wait([
+        client.chatWithResult(systemPrompt: 'system', userPrompt: 'first'),
+        client.chatWithResult(systemPrompt: 'system', userPrompt: 'second'),
+      ]);
+
+      expect(results[0].content, 'first response');
+      expect(results[0].usage?.totalTokens, 15);
+      expect(results[1].content, 'second response');
+      expect(results[1].usage?.totalTokens, 27);
+    },
+  );
+
   test(
     'chat writes AI debug trace with full prompt and redacted key',
     () async {

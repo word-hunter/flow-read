@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/settings_service.dart';
+import '../../storage/repositories/ai_usage_repository.dart';
+import '../ai_usage/global_usage_panel.dart';
 import 'package:flow_ai/flow_ai.dart';
 import '../flow/flow_components.dart';
 import 'settings_shared.dart';
@@ -23,8 +26,10 @@ class SettingsAISection extends StatelessWidget {
     required this.onTestConnection,
     required this.onClearConfig,
     required this.onClearCache,
+    required this.onClearUsageHistory,
     required this.aiCacheEntryCount,
     required this.cacheStatsLoading,
+    required this.aiUsageSummary,
     required this.aiAutomationMode,
     required this.onAutomationModeChanged,
   });
@@ -44,8 +49,10 @@ class SettingsAISection extends StatelessWidget {
   final VoidCallback onTestConnection;
   final VoidCallback onClearConfig;
   final VoidCallback onClearCache;
+  final VoidCallback onClearUsageHistory;
   final int? aiCacheEntryCount;
   final bool cacheStatsLoading;
+  final AsyncValue<AIUsageSummary> aiUsageSummary;
   final AIAutomationMode aiAutomationMode;
   final ValueChanged<AIAutomationMode> onAutomationModeChanged;
 
@@ -228,6 +235,11 @@ class SettingsAISection extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 16),
+        GlobalAIUsagePanel(
+          summary: aiUsageSummary,
+          onClearAll: onClearUsageHistory,
         ),
         const SizedBox(height: 16),
         SettingsCard(

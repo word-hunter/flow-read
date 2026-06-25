@@ -9,7 +9,7 @@ Last updated: 2026-06-15
 Flow Read runtime storage is Drift-only.
 
 - Database file: `flow_read.db`
-- Current Drift schema version: `2`
+- Current Drift schema version: `3`
 - Startup entrypoint: `bootstrapStorage()`
 - Runtime source of truth: Drift DAOs and repository interfaces
 - Legacy backup compatibility: `.flow.bak` still serializes data under `boxes` keys defined by `LegacyBackupBoxNames`
@@ -46,6 +46,7 @@ repositories/snapshot providers for the app.
 | `source_scope_cache` | ReadingMemoryDao | Deletable source-scoped cache payloads; current cacheType convention includes `chapter_summary`, `storyline_context`, `character_registry`, `term_index`, and `article_reading_context` |
 | `review_candidates` | ReadingMemoryDao | Memory-derived candidates for future review conversion |
 | `settings` | SettingsDao | App settings, including global `strictPrivacyMode` |
+| `ai_usage_events` | AiUsageDao | Regenerable AI API call/token usage diagnostics, excluded from backup export |
 
 ## Legacy Backup Keys
 
@@ -144,6 +145,10 @@ Backup files use the `.flow.bak` zip format:
 Local-only settings such as folder paths, bookmarks, last backup timestamps, and
 secrets are excluded unless the relevant user setting explicitly includes
 secrets.
+
+AI token usage rows in `ai_usage_events` are local diagnostics and are not
+exported into `.flow.bak`; clearing them does not affect books, vocabulary,
+reading progress, AI cache, or AI provider configuration.
 
 ## Storage Change Checklist
 

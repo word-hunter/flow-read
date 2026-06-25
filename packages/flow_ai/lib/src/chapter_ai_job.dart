@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'models/ai_result.dart';
 import 'models/ai_practice_questions.dart';
 import 'models/ai_summary.dart';
 import 'models/chapter_ai_status.dart';
@@ -77,15 +78,20 @@ class ChapterAIJob {
       }
     }
 
-    await for (final summary in _model.generateSummary(
+    await for (final aiResult in _model.generateSummary(
       chapterText: request.chapterText,
       vocabulary: request.vocabulary,
       outputLanguage: metadata.outputLanguage,
       sourceLanguage: metadata.sourceLanguage,
       spoilerBoundary: metadata.spoilerBoundary,
     )) {
+      final summary = aiResult.value;
       final status = ChapterAIStatus.fromSummary(summary);
-      await _usage.recordChapterSummaryGenerated();
+      await _usage.recordChapterSummaryGenerated(
+        bookId: request.bookId,
+        chapterIndex: request.chapterIndex,
+        result: aiResult,
+      );
       if (status.kind != ChapterAIStatusKind.fallback && !summary.isEmpty) {
         await _cache.saveSummary(
           bookId: request.bookId,
@@ -148,7 +154,7 @@ class ChapterAIJob {
     }
 
     ChapterPracticeJobResult? result;
-    await for (final practice in _model.generatePractice(
+    await for (final aiResult in _model.generatePractice(
       chapterText: request.chapterText,
       vocabulary: request.vocabulary,
       events: request.events,
@@ -156,7 +162,12 @@ class ChapterAIJob {
       outputLanguage: metadata.outputLanguage,
       spoilerBoundary: metadata.spoilerBoundary,
     )) {
-      await _usage.recordPracticeGenerated();
+      final practice = aiResult.value;
+      await _usage.recordPracticeGenerated(
+        bookId: request.bookId,
+        chapterIndex: request.chapterIndex,
+        result: aiResult,
+      );
       await _cache.savePractice(
         bookId: request.bookId,
         chapterIndex: request.chapterIndex,
@@ -279,7 +290,7 @@ class ChapterPracticeJobResult {
 abstract class ChapterAIModelAdapter {
   int get promptVersion;
 
-  Stream<AISummary> generateSummary({
+  Stream<AIResult<AISummary>> generateSummary({
     required String chapterText,
     required List<String> vocabulary,
     required OutputLanguage outputLanguage,
@@ -287,7 +298,7 @@ abstract class ChapterAIModelAdapter {
     required SpoilerBoundary spoilerBoundary,
   });
 
-  Stream<AIPracticeSet> generatePractice({
+  Stream<AIResult<AIPracticeSet>> generatePractice({
     required String chapterText,
     required List<String> vocabulary,
     required List<SummaryEvent> events,
@@ -306,14 +317,14 @@ class AIServiceChapterAIModelAdapter implements ChapterAIModelAdapter {
   int get promptVersion => _service.promptVersion;
 
   @override
-  Stream<AISummary> generateSummary({
+  Stream<AIResult<AISummary>> generateSummary({
     required String chapterText,
     required List<String> vocabulary,
     required OutputLanguage outputLanguage,
     required SourceLanguage sourceLanguage,
     required SpoilerBoundary spoilerBoundary,
-  }) {
-    return _service.generateSummary(
+  }) async* {
+    yield await _service.generateSummaryWithResult(
       chapterText: chapterText,
       vocabulary: vocabulary,
       language: outputLanguage.code,
@@ -323,15 +334,15 @@ class AIServiceChapterAIModelAdapter implements ChapterAIModelAdapter {
   }
 
   @override
-  Stream<AIPracticeSet> generatePractice({
+  Stream<AIResult<AIPracticeSet>> generatePractice({
     required String chapterText,
     required List<String> vocabulary,
     required List<SummaryEvent> events,
     required SourceLanguage sourceLanguage,
     required OutputLanguage outputLanguage,
     required SpoilerBoundary spoilerBoundary,
-  }) {
-    return _service.generatePractice(
+  }) async* {
+    yield await _service.generatePracticeWithResult(
       chapterText: chapterText,
       vocabulary: vocabulary,
       events: events,
@@ -521,9 +532,17 @@ class NoopChapterAICacheAdapter implements ChapterAICacheAdapter {
 }
 
 abstract class ChapterAIUsageAdapter {
-  Future<void> recordChapterSummaryGenerated();
+  Future<void> recordChapterSummaryGenerated({
+    required String bookId,
+    required int chapterIndex,
+    AIResult<AISummary>? result,
+  });
 
-  Future<void> recordPracticeGenerated();
+  Future<void> recordPracticeGenerated({
+    required String bookId,
+    required int chapterIndex,
+    AIResult<AIPracticeSet>? result,
+  });
 }
 
 class CallbackChapterAIUsageAdapter implements ChapterAIUsageAdapter {
@@ -532,22 +551,56 @@ class CallbackChapterAIUsageAdapter implements ChapterAIUsageAdapter {
     required this.onPracticeGenerated,
   });
 
-  final Future<void> Function() onSummaryGenerated;
-  final Future<void> Function() onPracticeGenerated;
+  final Future<void> Function({
+    required String bookId,
+    required int chapterIndex,
+    AIResult<AISummary>? result,
+  })
+  onSummaryGenerated;
+  final Future<void> Function({
+    required String bookId,
+    required int chapterIndex,
+    AIResult<AIPracticeSet>? result,
+  })
+  onPracticeGenerated;
 
   @override
-  Future<void> recordChapterSummaryGenerated() => onSummaryGenerated();
+  Future<void> recordChapterSummaryGenerated({
+    required String bookId,
+    required int chapterIndex,
+    AIResult<AISummary>? result,
+  }) => onSummaryGenerated(
+    bookId: bookId,
+    chapterIndex: chapterIndex,
+    result: result,
+  );
 
   @override
-  Future<void> recordPracticeGenerated() => onPracticeGenerated();
+  Future<void> recordPracticeGenerated({
+    required String bookId,
+    required int chapterIndex,
+    AIResult<AIPracticeSet>? result,
+  }) => onPracticeGenerated(
+    bookId: bookId,
+    chapterIndex: chapterIndex,
+    result: result,
+  );
 }
 
 class NoopChapterAIUsageAdapter implements ChapterAIUsageAdapter {
   const NoopChapterAIUsageAdapter();
 
   @override
-  Future<void> recordChapterSummaryGenerated() async {}
+  Future<void> recordChapterSummaryGenerated({
+    required String bookId,
+    required int chapterIndex,
+    AIResult<AISummary>? result,
+  }) async {}
 
   @override
-  Future<void> recordPracticeGenerated() async {}
+  Future<void> recordPracticeGenerated({
+    required String bookId,
+    required int chapterIndex,
+    AIResult<AIPracticeSet>? result,
+  }) async {}
 }

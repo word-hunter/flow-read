@@ -59,6 +59,9 @@ void main() {
     expect(result.fromCache, isFalse);
     expect(result.status.kind, ChapterAIStatusKind.generated);
     expect(usage.summaryCount, 1);
+    expect(usage.lastSummaryBookId, 'book-one');
+    expect(usage.lastSummaryChapterIndex, 3);
+    expect(usage.lastSummaryUsage?.totalTokens, 140);
     expect(model.summaryCalls, 1);
     expect(model.lastSummary!.sourceLanguage, SourceLanguage.english);
     expect(model.lastSummary!.outputLanguage, OutputLanguage.zhHans);
@@ -197,6 +200,9 @@ void main() {
       expect(result.fromCache, isFalse);
       expect(result.status.kind, ChapterAIStatusKind.generated);
       expect(usage.practiceCount, 1);
+      expect(usage.lastPracticeBookId, 'book-one');
+      expect(usage.lastPracticeChapterIndex, 4);
+      expect(usage.lastPracticeUsage?.totalTokens, 105);
       expect(model.practiceCalls, 1);
       expect(model.lastPractice!.events.single.source, _event.source);
       expect(model.lastPractice!.outputLanguage, OutputLanguage.zhHans);
@@ -279,7 +285,7 @@ class _FakeChapterAIModel implements ChapterAIModelAdapter {
   int get promptVersion => 42;
 
   @override
-  Stream<AISummary> generateSummary({
+  Stream<AIResult<AISummary>> generateSummary({
     required String chapterText,
     required List<String> vocabulary,
     required OutputLanguage outputLanguage,
@@ -295,11 +301,24 @@ class _FakeChapterAIModel implements ChapterAIModelAdapter {
       spoilerBoundary: spoilerBoundary,
     );
     final result = summary;
-    if (result != null) yield result;
+    if (result != null) {
+      yield AIResult(
+        value: result,
+        usage: const TokenUsageInfo(
+          promptTokens: 100,
+          completionTokens: 40,
+          totalTokens: 140,
+        ),
+        providerId: 'fake',
+        model: 'fake-model',
+        durationMs: 120,
+        promptVersion: promptVersion,
+      );
+    }
   }
 
   @override
-  Stream<AIPracticeSet> generatePractice({
+  Stream<AIResult<AIPracticeSet>> generatePractice({
     required String chapterText,
     required List<String> vocabulary,
     required List<SummaryEvent> events,
@@ -317,7 +336,20 @@ class _FakeChapterAIModel implements ChapterAIModelAdapter {
       spoilerBoundary: spoilerBoundary,
     );
     final result = practice;
-    if (result != null) yield result;
+    if (result != null) {
+      yield AIResult(
+        value: result,
+        usage: const TokenUsageInfo(
+          promptTokens: 80,
+          completionTokens: 25,
+          totalTokens: 105,
+        ),
+        providerId: 'fake',
+        model: 'fake-model',
+        durationMs: 90,
+        promptVersion: promptVersion,
+      );
+    }
   }
 }
 
@@ -424,15 +456,35 @@ class _FakeChapterAICache implements ChapterAICacheAdapter {
 class _FakeChapterAIUsage implements ChapterAIUsageAdapter {
   int summaryCount = 0;
   int practiceCount = 0;
+  String? lastSummaryBookId;
+  int? lastSummaryChapterIndex;
+  TokenUsageInfo? lastSummaryUsage;
+  String? lastPracticeBookId;
+  int? lastPracticeChapterIndex;
+  TokenUsageInfo? lastPracticeUsage;
 
   @override
-  Future<void> recordChapterSummaryGenerated() async {
+  Future<void> recordChapterSummaryGenerated({
+    required String bookId,
+    required int chapterIndex,
+    AIResult<AISummary>? result,
+  }) async {
     summaryCount += 1;
+    lastSummaryBookId = bookId;
+    lastSummaryChapterIndex = chapterIndex;
+    lastSummaryUsage = result?.usage;
   }
 
   @override
-  Future<void> recordPracticeGenerated() async {
+  Future<void> recordPracticeGenerated({
+    required String bookId,
+    required int chapterIndex,
+    AIResult<AIPracticeSet>? result,
+  }) async {
     practiceCount += 1;
+    lastPracticeBookId = bookId;
+    lastPracticeChapterIndex = chapterIndex;
+    lastPracticeUsage = result?.usage;
   }
 }
 

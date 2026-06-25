@@ -34,6 +34,7 @@ Generated model adapters are no longer part of the runtime model contract.
 | Source scope cache | `source_scope_cache` | `SourceScopeCacheEntry` |
 | Review candidates | `review_candidates` | `ReviewCandidate` |
 | Settings | `settings` | `SettingsService` values |
+| AI usage diagnostics | `ai_usage_events` | `AIUsageEvent`, `AIUsageSummary` |
 
 ## Reader Models
 
@@ -80,6 +81,8 @@ Generated model adapters are no longer part of the runtime model contract.
 | `AIContextSnapshot` | Shared assistant context snapshot |
 | `AIAssistantActionType` | Assistant action enum |
 | `AIActionResult` | Assistant action result |
+| `AIResult<T>` | Business AI result plus provider/model/duration/token metadata |
+| `TokenUsageInfo` | OpenAI-compatible prompt/completion/total token usage |
 | `AIAssistantSession` | Lightweight assistant session |
 | `AIChatMessage` | Assistant chat message |
 | `AIAssistantCitation` | Answer citation anchor |

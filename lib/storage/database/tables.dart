@@ -852,3 +852,53 @@ class Settings extends Table {
   @override
   Set<Column> get primaryKey => {key};
 }
+
+// ---------------------------------------------------------------------------
+// Table 24: ai_usage_events
+// ---------------------------------------------------------------------------
+
+@DataClassName('AIUsageEvent')
+@TableIndex(name: 'idx_ai_usage_book_time', columns: {#bookId, #createdAt})
+@TableIndex(name: 'idx_ai_usage_operation', columns: {#operation})
+@TableIndex(
+  name: 'idx_ai_usage_model_time',
+  columns: {#providerId, #model, #createdAt},
+)
+@TableIndex(name: 'idx_ai_usage_source', columns: {#sourceType, #sourceId})
+class AiUsageEvents extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get sourceType => text().named('source_type')();
+
+  TextColumn get sourceId => text().named('source_id').nullable()();
+
+  TextColumn get bookId => text().named('book_id').nullable()();
+
+  IntColumn get chapterIndex => integer().named('chapter_index').nullable()();
+
+  TextColumn get providerId => text().named('provider_id')();
+
+  TextColumn get model => text()();
+
+  TextColumn get operation => text()();
+
+  IntColumn get promptTokens => integer().named('prompt_tokens').nullable()();
+
+  IntColumn get completionTokens =>
+      integer().named('completion_tokens').nullable()();
+
+  IntColumn get totalTokens => integer().named('total_tokens').nullable()();
+
+  IntColumn get durationMs => integer().named('duration_ms').nullable()();
+
+  BoolColumn get billable => boolean().withDefault(const Constant(true))();
+
+  IntColumn get promptVersion => integer().named('prompt_version').nullable()();
+
+  TextColumn get requestId => text().named('request_id').nullable()();
+
+  DateTimeColumn get createdAt => dateTime().named('created_at')();
+
+  @override
+  String get tableName => 'ai_usage_events';
+}

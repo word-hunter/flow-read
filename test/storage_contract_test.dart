@@ -48,12 +48,13 @@ void main() {
       backupDataBoxes,
       isNot(contains(LegacyBackupBoxNames.dictionaryCacheFor('en'))),
     );
+    expect(backupDataBoxes, isNot(contains('ai_usage_events')));
   });
 
   test('Drift storage opens with the current schema version', () async {
     final db = await createTestAppDatabase();
 
-    expect(db.schemaVersion, 2);
+    expect(db.schemaVersion, 3);
     expect(await db.settingsDao.allEntries(), isEmpty);
   });
 }
