@@ -2126,6 +2126,7 @@ class _StoryActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final textStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
       fontWeight: FontWeight.w800,
+      color: Colors.white,
     );
     const spinner = SizedBox.square(
       dimension: 16,
@@ -2141,7 +2142,7 @@ class _StoryActionButton extends StatelessWidget {
         height: 48,
         child: FlowButton.destructive(
           onPressed: onPressed,
-          icon: loading ? spinner : Icon(icon, size: 18),
+          icon: loading ? spinner : Icon(icon, size: 18, color: Colors.white),
           child: Text(label, style: textStyle),
         ),
       );
@@ -2152,7 +2153,7 @@ class _StoryActionButton extends StatelessWidget {
       height: 48,
       child: FlowButton.primary(
         onPressed: onPressed,
-        icon: loading ? spinner : Icon(icon, size: 18),
+        icon: loading ? spinner : Icon(icon, size: 18, color: Colors.white),
         child: Text(label, style: textStyle),
       ),
     );

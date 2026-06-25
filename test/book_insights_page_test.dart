@@ -906,6 +906,75 @@ void main() {
     expect(find.text('已生成当前范围梗概'), findsOneWidget);
   });
 
+  testWidgets('storyline action buttons use light foreground colors', (
+    tester,
+  ) async {
+    final synthesisProvider = BookInsightProvider(
+      cacheService: cacheService,
+      bookInsightSourceScopeService: _FakeBookInsightSourceScopeService(
+        _projectionWithAnalysis(),
+      ),
+      synthesisRunner: (_) async => BookSynthesisResult(
+        fullStoryline: '已读范围合成结果',
+        characterGraph: const CharacterRelationGraph(),
+        bookMindMap: const MindMapGraph(
+          root: MindMapNode(id: 'root', label: 'Book One'),
+        ),
+        generatedAt: DateTime.utc(2026, 6, 24),
+      ),
+    );
+    addTearDown(synthesisProvider.dispose);
+    await synthesisProvider.loadForBook(
+      'book-1',
+      totalChapters: 8,
+      currentChapter: 2,
+      bookTitle: 'Book One',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BookInsightsPage(
+          provider: synthesisProvider,
+          bookTitle: 'Book One',
+          onGenerateChapter: (_) async =>
+              const BookInsightChapterGenerationResult.generated(),
+        ),
+      ),
+    );
+
+    final primaryLabel = tester.widget<Text>(
+      find.text('生成 / 刷新当前范围梗概'),
+    );
+    final dangerLabel = tester.widget<Text>(
+      find.text('生成全书梗概（含剧透）'),
+    );
+    final primaryButton = find.ancestor(
+      of: find.text('生成 / 刷新当前范围梗概'),
+      matching: find.byType(FilledButton),
+    );
+    final dangerButton = find.ancestor(
+      of: find.text('生成全书梗概（含剧透）'),
+      matching: find.byType(FilledButton),
+    );
+    final primaryIcon = tester.widget<Icon>(
+      find.descendant(
+        of: primaryButton,
+        matching: find.byIcon(Icons.refresh),
+      ),
+    );
+    final dangerIcon = tester.widget<Icon>(
+      find.descendant(
+        of: dangerButton,
+        matching: find.byIcon(Icons.warning_amber_outlined),
+      ),
+    );
+
+    expect(primaryLabel.style?.color, Colors.white);
+    expect(dangerLabel.style?.color, Colors.white);
+    expect(primaryIcon.color, Colors.white);
+    expect(dangerIcon.color, Colors.white);
+  });
+
   testWidgets('read scope synthesis button reports empty AI result', (
     tester,
   ) async {
