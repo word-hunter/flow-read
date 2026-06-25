@@ -17,13 +17,8 @@ const _insightBorder = Color(0xFFECE3D7);
 const _insightCard = Color(0xFFFFFEFC);
 const _insightMuted = Color(0xFF6F7785);
 const _insightPrimary = Color(0xFF1677FF);
-const _insightDanger = Color(0xFFD43C3C);
 const _insightText = Color(0xFF172033);
 const _insightHover = Color(0xFFF3F8FF);
-const _insightPrimaryHover = Color(0xFF0F6BEF);
-const _insightPrimaryPressed = Color(0xFF0B5ED7);
-const _insightDangerHover = Color(0xFFFFF4F4);
-const _insightDangerPressed = Color(0xFFFFEAEA);
 
 class BookInsightChapterGenerationResult {
   const BookInsightChapterGenerationResult.generated()
@@ -1202,66 +1197,26 @@ class _BookInsightsPageState extends State<BookInsightsPage>
             ),
           ],
         );
-        final button = OutlinedButton.icon(
-          onPressed:
-              _isBackfillingSummaries ||
-                  readMissingChapters.isEmpty ||
-                  widget.onGenerateMissingReadChapters == null
-              ? null
-              : () => unawaited(
-                  _generateMissingReadSummaries(readMissingChapters),
-                ),
-          icon: _isBackfillingSummaries
-              ? const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.playlist_add_check, size: 16),
-          label: Text(_isBackfillingSummaries ? '补齐中' : '补齐已读'),
-          style: ButtonStyle(
-            fixedSize: WidgetStateProperty.all(const Size(132, 40)),
-            foregroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) {
-                return _insightMuted;
-              }
-              return _insightPrimary;
-            }),
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) {
-                return _insightCard;
-              }
-              if (states.contains(WidgetState.pressed)) {
-                return const Color(0xFFEAF4FF);
-              }
-              if (states.contains(WidgetState.hovered) ||
-                  states.contains(WidgetState.focused)) {
-                return _insightHover;
-              }
-              return _insightCard;
-            }),
-            overlayColor: WidgetStateProperty.all(Colors.transparent),
-            side: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) {
-                return const BorderSide(color: Color(0xFFE5DDD2));
-              }
-              if (states.contains(WidgetState.hovered) ||
-                  states.contains(WidgetState.focused) ||
-                  states.contains(WidgetState.pressed)) {
-                return const BorderSide(color: _insightPrimary, width: 1.2);
-              }
-              return const BorderSide(color: Color(0xFF9BC5FF));
-            }),
-            shape: WidgetStateProperty.all(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            textStyle: WidgetStateProperty.all(
-              theme.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+        final button = SizedBox(
+          width: 132,
+          height: 40,
+          child: FlowButton.secondary(
+            onPressed:
+                _isBackfillingSummaries ||
+                    readMissingChapters.isEmpty ||
+                    widget.onGenerateMissingReadChapters == null
+                ? null
+                : () => unawaited(
+                    _generateMissingReadSummaries(readMissingChapters),
+                  ),
+            icon: _isBackfillingSummaries
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.playlist_add_check, size: 16),
+            child: Text(_isBackfillingSummaries ? '补齐中' : '补齐已读'),
           ),
         );
 
@@ -2172,11 +2127,11 @@ class _StoryActionButton extends StatelessWidget {
     final textStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
       fontWeight: FontWeight.w800,
     );
-    final spinner = SizedBox.square(
+    const spinner = SizedBox.square(
       dimension: 16,
       child: CircularProgressIndicator(
         strokeWidth: 2,
-        color: danger ? _insightDanger : Colors.white,
+        color: Colors.white,
       ),
     );
 
@@ -2184,47 +2139,10 @@ class _StoryActionButton extends StatelessWidget {
       return SizedBox(
         width: 292,
         height: 48,
-        child: OutlinedButton.icon(
+        child: FlowButton.destructive(
           onPressed: onPressed,
           icon: loading ? spinner : Icon(icon, size: 18),
-          label: Text(label),
-          style: ButtonStyle(
-            foregroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) {
-                return _insightMuted;
-              }
-              return _insightDanger;
-            }),
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.pressed)) {
-                return _insightDangerPressed;
-              }
-              if (states.contains(WidgetState.hovered) ||
-                  states.contains(WidgetState.focused)) {
-                return _insightDangerHover;
-              }
-              return _insightCard;
-            }),
-            overlayColor: WidgetStateProperty.all(Colors.transparent),
-            side: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) {
-                return const BorderSide(color: Color(0xFFE5DDD2));
-              }
-              if (states.contains(WidgetState.hovered) ||
-                  states.contains(WidgetState.focused) ||
-                  states.contains(WidgetState.pressed)) {
-                return const BorderSide(color: _insightDanger, width: 1.2);
-              }
-              return const BorderSide(color: Color(0xFFFF6B6B));
-            }),
-            shape: WidgetStateProperty.all(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            textStyle: WidgetStateProperty.all(textStyle),
-            fixedSize: WidgetStateProperty.all(const Size(292, 48)),
-          ),
+          child: Text(label, style: textStyle),
         ),
       );
     }
@@ -2232,32 +2150,10 @@ class _StoryActionButton extends StatelessWidget {
     return SizedBox(
       width: 320,
       height: 48,
-      child: FilledButton.icon(
+      child: FlowButton.primary(
         onPressed: onPressed,
         icon: loading ? spinner : Icon(icon, size: 18),
-        label: Text(label),
-        style: ButtonStyle(
-          backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.disabled)) {
-              return const Color(0xFF9BCBFF);
-            }
-            if (states.contains(WidgetState.pressed)) {
-              return _insightPrimaryPressed;
-            }
-            if (states.contains(WidgetState.hovered) ||
-                states.contains(WidgetState.focused)) {
-              return _insightPrimaryHover;
-            }
-            return _insightPrimary;
-          }),
-          foregroundColor: WidgetStateProperty.all(Colors.white),
-          overlayColor: WidgetStateProperty.all(Colors.transparent),
-          shape: WidgetStateProperty.all(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-          textStyle: WidgetStateProperty.all(textStyle),
-          fixedSize: WidgetStateProperty.all(const Size(320, 48)),
-        ),
+        child: Text(label, style: textStyle),
       ),
     );
   }
@@ -2442,50 +2338,13 @@ class _ToolbarActions extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
-        OutlinedButton.icon(
-          onPressed: onAskAI,
-          icon: const Icon(Icons.auto_awesome_outlined, size: 16),
-          label: const Text('AI 提问'),
-          style: ButtonStyle(
-            minimumSize: WidgetStateProperty.all(const Size(112, 40)),
-            foregroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) {
-                return _insightMuted;
-              }
-              return _insightPrimary;
-            }),
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.pressed)) {
-                return const Color(0xFFEAF4FF);
-              }
-              if (states.contains(WidgetState.hovered) ||
-                  states.contains(WidgetState.focused)) {
-                return _insightHover;
-              }
-              return _insightCard;
-            }),
-            overlayColor: WidgetStateProperty.all(Colors.transparent),
-            side: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.disabled)) {
-                return const BorderSide(color: Color(0xFFE5DDD2));
-              }
-              if (states.contains(WidgetState.hovered) ||
-                  states.contains(WidgetState.focused) ||
-                  states.contains(WidgetState.pressed)) {
-                return const BorderSide(color: _insightPrimary, width: 1.2);
-              }
-              return const BorderSide(color: Color(0xFF9BC5FF));
-            }),
-            shape: WidgetStateProperty.all(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            textStyle: WidgetStateProperty.all(
-              Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+        SizedBox(
+          width: 112,
+          height: 40,
+          child: FlowButton.secondary(
+            onPressed: onAskAI,
+            icon: const Icon(Icons.auto_awesome_outlined, size: 16),
+            child: const Text('AI 提问'),
           ),
         ),
       ],
@@ -2643,36 +2502,13 @@ class _InlinePrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 44,
-      child: FilledButton.icon(
+      child: FlowButton.primary(
         onPressed: onPressed,
         icon: Icon(icon, size: 17),
-        label: Text(label),
-        style: ButtonStyle(
-          backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.disabled)) {
-              return const Color(0xFFB9DFFF);
-            }
-            if (states.contains(WidgetState.pressed)) {
-              return const Color(0xFF66B1FF);
-            }
-            if (states.contains(WidgetState.hovered) ||
-                states.contains(WidgetState.focused)) {
-              return const Color(0xFF78BCFF);
-            }
-            return const Color(0xFF8DC5FF);
-          }),
-          foregroundColor: WidgetStateProperty.all(Colors.white),
-          overlayColor: WidgetStateProperty.all(Colors.transparent),
-          shape: WidgetStateProperty.all(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-          textStyle: WidgetStateProperty.all(
-            Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          padding: WidgetStateProperty.all(
-            const EdgeInsets.symmetric(horizontal: 18),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
@@ -3370,30 +3206,25 @@ class _RelationGraphView extends StatelessWidget {
                   top: positions[node.id]!.dy - 18,
                   width: 116,
                   height: 38,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: node.id == selectedNode?.id
-                          ? theme.colorScheme.primaryContainer
-                          : theme.colorScheme.surface,
-                      foregroundColor: node.id == selectedNode?.id
-                          ? theme.colorScheme.onPrimaryContainer
-                          : theme.colorScheme.onSurface,
-                      side: BorderSide(
-                        color: node.id == selectedNode?.id
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.outlineVariant,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                    onPressed: () => onSelected(node.label),
-                    child: Text(
-                      node.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: node.id == selectedNode?.id
+                        ? FlowButton.tonal(
+                            onPressed: () => onSelected(node.label),
+                            child: Text(
+                              node.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          )
+                        : FlowButton.secondary(
+                            onPressed: () => onSelected(node.label),
+                            child: Text(
+                              node.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                   ),
                 ),
             ],
