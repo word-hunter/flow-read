@@ -1,0 +1,19 @@
+# Keep repository text files consistent across Windows and macOS.
+* text=auto eol=lf
+
+# Windows command scripts require CRLF when checked out.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Explicitly identify common binary assets.
+*.epub binary
+*.gif binary
+*.icns binary
+*.ico binary
+*.jpeg binary
+*.jpg binary
+*.otf binary
+*.png binary
+*.ttf binary
+*.webp binary
+*.zip binary
