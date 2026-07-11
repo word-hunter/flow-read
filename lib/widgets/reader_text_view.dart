@@ -25,6 +25,31 @@ typedef WordTapCallback =
       int? contextWordEnd,
     });
 
+class ReaderTextSemantics extends StatelessWidget {
+  final String text;
+  final Widget child;
+  final VoidCallback? onLongPress;
+
+  const ReaderTextSemantics({
+    super.key,
+    required this.text,
+    required this.child,
+    this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label: text,
+      hint: '可选择文本查词',
+      excludeSemantics: true,
+      onLongPress: onLongPress,
+      child: child,
+    );
+  }
+}
+
 List<String> splitIntoParagraphs(String text) {
   final paragraphs = <String>[];
   final blocks = text.split(RegExp(r'\n\s*\n'));
@@ -505,7 +530,16 @@ Widget buildBlockWidget(
         );
       }
 
-      return Padding(padding: padding, child: textWidget);
+      return Padding(
+        padding: padding,
+        child: ReaderTextSemantics(
+          text: block.plainText,
+          onLongPress: onParagraphLongPress == null
+              ? null
+              : () => onParagraphLongPress(block.plainText),
+          child: textWidget,
+        ),
+      );
 
     case ImageBlock():
       if (block.bytes == null) {

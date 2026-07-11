@@ -175,6 +175,39 @@ void main() {
     expect(_colorFor(tappableTexts, 'mystery'), unknownColor);
   });
 
+  testWidgets(
+    'reader exposes one paragraph semantic node instead of word links',
+    (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: buildBlockWidget(
+              TextBlock(
+                type: BlockType.paragraph,
+                spans: const [StyledText('known learning mystery')],
+              ),
+              result,
+              ThemeData(),
+              onWordTapped: (_, _, _, _, {contextWordStart, contextWordEnd}) {},
+              colorSettings: colorSettings,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.bySemanticsLabel('known learning mystery'), findsOneWidget);
+      expect(find.bySemanticsLabel('known'), findsNothing);
+      expect(find.bySemanticsLabel('learning'), findsNothing);
+      expect(find.bySemanticsLabel('mystery'), findsNothing);
+      expect(_tappableTextSpans(_richTextSpan(tester)), hasLength(3));
+      semantics.dispose();
+    },
+  );
+
   testWidgets('dark reader remaps low-contrast vocabulary colors', (
     tester,
   ) async {
@@ -1284,6 +1317,18 @@ List<_TappableTextProbe> _tappableTextSpans(InlineSpan span) {
 
   visit(span);
   return result;
+}
+
+InlineSpan _richTextSpan(WidgetTester tester) {
+  return tester
+      .widget<RichText>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is RichText &&
+              widget.text.toPlainText() == 'known learning mystery',
+        ),
+      )
+      .text;
 }
 
 Color? _colorFor(List<_TappableTextProbe> items, String text) {

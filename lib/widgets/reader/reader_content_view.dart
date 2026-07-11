@@ -295,30 +295,40 @@ class ReaderContentView extends StatelessWidget {
         !hasMemoryOverlay) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: _buildDropCapParagraph(paragraph, baseStyle, cityPreset),
+        child: ReaderTextSemantics(
+          text: paragraph,
+          child: _buildDropCapParagraph(paragraph, baseStyle, cityPreset),
+        ),
       );
     }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Text.rich(
-        buildHighlightedParagraph(
-          paragraph,
-          result,
-          theme,
-          onWordTapped: onWordTapped,
-          fontSize: config.fontSize,
-          lineHeight: config.lineHeight,
-          fontFamily: config.fontFamily,
-          baseTextColor: _readerTextColor(config, cityPreset, theme.brightness),
-          colorSettings: colorSettings,
-          searchQuery: searchQuery,
-          lookupHighlightWord: lookupHighlightWord,
-          memoryOverlay: memoryOverlay,
-          wordLevelService: wordLevelService,
-          languageModule: activeLanguageModule,
+      child: ReaderTextSemantics(
+        text: paragraph,
+        child: Text.rich(
+          buildHighlightedParagraph(
+            paragraph,
+            result,
+            theme,
+            onWordTapped: onWordTapped,
+            fontSize: config.fontSize,
+            lineHeight: config.lineHeight,
+            fontFamily: config.fontFamily,
+            baseTextColor: _readerTextColor(
+              config,
+              cityPreset,
+              theme.brightness,
+            ),
+            colorSettings: colorSettings,
+            searchQuery: searchQuery,
+            lookupHighlightWord: lookupHighlightWord,
+            memoryOverlay: memoryOverlay,
+            wordLevelService: wordLevelService,
+            languageModule: activeLanguageModule,
+          ),
+          style: baseStyle,
         ),
-        style: baseStyle,
       ),
     );
   }
