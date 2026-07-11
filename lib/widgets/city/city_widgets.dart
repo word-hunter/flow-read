@@ -6,13 +6,13 @@ BoxDecoration cityCardDecoration(BuildContext context) {
 
   return BoxDecoration(
     color: city.cardSurface,
-    borderRadius: BorderRadius.circular(22),
+    borderRadius: BorderRadius.circular(12),
     border: Border.all(color: city.warmBorder),
     boxShadow: [
       BoxShadow(
         color: city.warmShadow,
-        blurRadius: 24,
-        offset: const Offset(0, 12),
+        blurRadius: 12,
+        offset: const Offset(0, 4),
       ),
     ],
   );

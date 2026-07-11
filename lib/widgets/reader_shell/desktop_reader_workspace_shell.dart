@@ -153,18 +153,11 @@ class _WorkspacePaneFrame extends StatelessWidget {
     final tokens = AppSurfaceTokens.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: tokens.panelBorderColor),
-        boxShadow: [
-          BoxShadow(
-            color: tokens.panelShadowColor,
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: child,
       ),
     );
@@ -194,18 +187,11 @@ class _WorkspaceCenterFrame extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: backgroundColor ?? tokens.readerOpaqueSurface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: borderColor ?? tokens.readerPageBorderColor),
-        boxShadow: [
-          BoxShadow(
-            color: tokens.panelShadowColor,
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: Column(
           children: [
             toolbar,

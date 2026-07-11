@@ -58,6 +58,7 @@ class FeaturedBookCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
+      key: const ValueKey('featured-book-card-surface'),
       margin: margin,
       padding: const EdgeInsets.all(24),
       decoration: _cardDecoration(context, theme),
@@ -223,25 +224,14 @@ class FeaturedBookCard extends StatelessWidget {
     if (city == null) {
       return BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.36),
         ),
       );
     }
 
-    return cityCardDecoration(context).copyWith(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          city.cardSurface,
-          city.skyBottom.withValues(alpha: 0.62),
-          city.cardSurface,
-        ],
-        stops: const [0, 0.58, 1],
-      ),
-    );
+    return cityCardDecoration(context);
   }
 
   Widget _buildContinueTag(BuildContext context, ThemeData theme) {
@@ -320,65 +310,46 @@ class FeaturedBookCard extends StatelessWidget {
 
     return Container(
       constraints: const BoxConstraints(minHeight: 238),
-      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color:
-            city?.panelSurface.withValues(alpha: 0.72) ??
-            theme.colorScheme.surface.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
+        border: Border(left: BorderSide(color: borderColor)),
       ),
-      child: Stack(
+      padding: const EdgeInsets.fromLTRB(24, 8, 4, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _ReadingInfoDecorationPainter(
-                activeBlue: activeBlue,
-                borderColor: borderColor,
-              ),
-            ),
+          Icon(
+            Icons.format_quote,
+            size: 22,
+            color: activeBlue.withValues(alpha: 0.36),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.format_quote,
-                  size: 22,
-                  color: activeBlue.withValues(alpha: 0.36),
-                ),
-                const SizedBox(height: 6),
-                _ReadingExcerptPreview(
-                  excerpts: readingExcerpts,
-                  isLoading: isLoadingReadingExcerpts,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  accent: activeBlue,
-                ),
-                const SizedBox(height: 16),
-                _ReadingInfoRow(
-                  icon: Icons.timeline_outlined,
-                  label: '章节进度',
-                  value: _chapterLabel(),
-                  color: textSecondary,
-                ),
-                const SizedBox(height: 8),
-                _ReadingInfoRow(
-                  icon: Icons.flag_outlined,
-                  label: '剩余内容',
-                  value: _remainingProgressText(),
-                  color: textSecondary,
-                ),
-                const SizedBox(height: 8),
-                _ReadingInfoRow(
-                  icon: Icons.schedule,
-                  label: '最近阅读',
-                  value: lastReadAt != null ? _dateText(lastReadAt!) : '还没有记录',
-                  color: textSecondary,
-                ),
-              ],
-            ),
+          const SizedBox(height: 6),
+          _ReadingExcerptPreview(
+            excerpts: readingExcerpts,
+            isLoading: isLoadingReadingExcerpts,
+            textPrimary: textPrimary,
+            textSecondary: textSecondary,
+            accent: activeBlue,
+          ),
+          const SizedBox(height: 16),
+          _ReadingInfoRow(
+            icon: Icons.timeline_outlined,
+            label: '章节进度',
+            value: _chapterLabel(),
+            color: textSecondary,
+          ),
+          const SizedBox(height: 8),
+          _ReadingInfoRow(
+            icon: Icons.flag_outlined,
+            label: '剩余内容',
+            value: _remainingProgressText(),
+            color: textSecondary,
+          ),
+          const SizedBox(height: 8),
+          _ReadingInfoRow(
+            icon: Icons.schedule,
+            label: '最近阅读',
+            value: lastReadAt != null ? _dateText(lastReadAt!) : '还没有记录',
+            color: textSecondary,
           ),
         ],
       ),
@@ -656,91 +627,5 @@ class _ReadingExcerptPreview extends StatelessWidget {
     }
     if (isLoading) return '正在提取当前书籍片段...';
     return '暂未找到适合展示的书中片段。';
-  }
-}
-
-class _ReadingInfoDecorationPainter extends CustomPainter {
-  final Color activeBlue;
-  final Color borderColor;
-
-  const _ReadingInfoDecorationPainter({
-    required this.activeBlue,
-    required this.borderColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final sunPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..color = const Color(0xFFFFC95C).withValues(alpha: 0.12);
-    final rayPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round
-      ..color = const Color(0xFFFFC95C).withValues(alpha: 0.18);
-    final cloudPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..color = activeBlue.withValues(alpha: 0.055);
-    final linePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round
-      ..color = activeBlue.withValues(alpha: 0.10);
-    final warmLinePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round
-      ..color = borderColor.withValues(alpha: 0.62);
-
-    final sunCenter = Offset(size.width * 0.78, size.height * 0.72);
-    canvas.drawCircle(sunCenter, 22, sunPaint);
-    for (var index = 0; index < 8; index++) {
-      final angle = index * pi / 4;
-      final start = sunCenter + Offset(cos(angle), sin(angle)) * 30;
-      final end = sunCenter + Offset(cos(angle), sin(angle)) * 38;
-      canvas.drawLine(start, end, rayPaint);
-    }
-
-    canvas.drawOval(
-      Rect.fromLTWH(size.width * 0.62, size.height * 0.64, 76, 30),
-      cloudPaint,
-    );
-    canvas.drawOval(
-      Rect.fromLTWH(size.width * 0.53, size.height * 0.70, 88, 34),
-      cloudPaint,
-    );
-    canvas.drawOval(
-      Rect.fromLTWH(size.width * 0.72, size.height * 0.78, 94, 30),
-      cloudPaint,
-    );
-
-    final path = Path()
-      ..moveTo(size.width * 0.18, size.height * 0.88)
-      ..cubicTo(
-        size.width * 0.38,
-        size.height * 0.75,
-        size.width * 0.60,
-        size.height * 0.98,
-        size.width * 0.92,
-        size.height * 0.84,
-      );
-    canvas.drawPath(path, linePaint);
-
-    canvas.drawLine(
-      Offset(size.width * 0.54, size.height * 0.25),
-      Offset(size.width * 0.84, size.height * 0.25),
-      warmLinePaint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.64, size.height * 0.33),
-      Offset(size.width * 0.92, size.height * 0.33),
-      warmLinePaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_ReadingInfoDecorationPainter oldDelegate) {
-    return oldDelegate.activeBlue != activeBlue ||
-        oldDelegate.borderColor != borderColor;
   }
 }

@@ -73,6 +73,13 @@ void main() {
     expect(find.textContaining('First rotating excerpt'), findsOneWidget);
     expect(find.textContaining('Second rotating excerpt'), findsNothing);
 
+    final surface = tester.widget<Container>(
+      find.byKey(const ValueKey('featured-book-card-surface')),
+    );
+    final decoration = surface.decoration! as BoxDecoration;
+    expect(decoration.gradient, isNull);
+    expect(decoration.borderRadius, BorderRadius.circular(12));
+
     await tester.pump(const Duration(seconds: 7));
     await tester.pump(const Duration(milliseconds: 300));
 
