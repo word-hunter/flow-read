@@ -26,6 +26,17 @@ void main() {
       expect(theme.visualDensity, VisualDensity.standard);
       expect(theme.appBarTheme.toolbarHeight, 40);
       expect(theme.scaffoldBackgroundColor, palette.lightColorScheme.surface);
+      expect(theme.textTheme.bodyMedium?.fontFamily, 'Microsoft YaHei UI');
+      expect(
+        theme.textTheme.bodyMedium?.fontFamilyFallback,
+        containsAllInOrder(<String>[
+          'Microsoft YaHei',
+          'Microsoft JhengHei UI',
+          'DengXian',
+          'SimSun',
+          'Segoe UI',
+        ]),
+      );
     });
 
     test('produces correct ThemeData for classic dark', () {

@@ -63,6 +63,15 @@ const windowsNavigationTokens = _WindowsNavigationTokens();
 class WindowsShell implements Shell {
   const WindowsShell();
 
+  static const _uiFontFamily = 'Microsoft YaHei UI';
+  static const _fontFamilyFallback = <String>[
+    'Microsoft YaHei',
+    'Microsoft JhengHei UI',
+    'DengXian',
+    'SimSun',
+    'Segoe UI',
+  ];
+
   @override
   ShellId get id => ShellId.windows;
 
@@ -99,6 +108,8 @@ class WindowsShell implements Shell {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: surface,
       visualDensity: VisualDensity.standard,
+      fontFamily: _uiFontFamily,
+      fontFamilyFallback: _fontFamilyFallback,
       extensions: [_readerTokens(colors, surface, isDark)],
       appBarTheme: AppBarTheme(
         elevation: 0,
