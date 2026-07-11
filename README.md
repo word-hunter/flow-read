@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/word-hunter/flow-read/actions/workflows/ci.yml"><img src="https://github.com/word-hunter/flow-read/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/word-hunter/flow-read/releases"><img src="https://img.shields.io/github/v/release/word-hunter/flow-read?include_prereleases" alt="Release"></a>
-  <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-3.44.0-02569B?logo=flutter&logoColor=white" alt="Flutter"></a>
+  <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-3.44.6-02569B?logo=flutter&logoColor=white" alt="Flutter"></a>
   <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-%5E3.11.5-0175C2?logo=dart&logoColor=white" alt="Dart"></a>
   <a href="https://github.com/word-hunter/flow-read/releases"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey" alt="macOS and Windows"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/word-hunter/flow-read" alt="License"></a>

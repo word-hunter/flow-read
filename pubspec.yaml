@@ -69,7 +69,7 @@ dependencies:
   drift: ^2.33.0
   sqlite3: ^3.0.0
   flutter_tts: ^4.2.5
-  just_audio: ^0.9.43
+  just_audio: ^0.10.6
   confetti: ^0.8.0
   riverpod_lint: ^3.1.3
 
