@@ -635,7 +635,8 @@ void main() {
     expect(restoredBook?.title, 'Imported Book');
     expect(
       restoredBook?.sourcePath,
-      '${documentsDir.path}/books/imported-book.epub',
+      '${documentsDir.path}${Platform.pathSeparator}books'
+      '${Platform.pathSeparator}imported-book.epub',
     );
     expect(
       await File(restoredBook!.sourcePath).readAsString(),
@@ -736,10 +737,15 @@ void main() {
     final restored = (await db.bookDao.getById('book-file'))!;
     final restoredSource = File(restored.sourcePath);
     final restoredCover = File(restored.coverPath!);
-    expect(restored.sourcePath, '${documentsDir.path}/books/book-file.epub');
+    expect(
+      restored.sourcePath,
+      '${documentsDir.path}${Platform.pathSeparator}books'
+      '${Platform.pathSeparator}book-file.epub',
+    );
     expect(
       restored.coverPath,
-      '${documentsDir.path}/books/book-file_cover.png',
+      '${documentsDir.path}${Platform.pathSeparator}books'
+      '${Platform.pathSeparator}book-file_cover.png',
     );
     expect(await restoredSource.readAsBytes(), sourceBytes);
     expect(await restoredCover.readAsBytes(), coverBytes);
@@ -889,7 +895,8 @@ void main() {
     expect(restoredBook?.title, 'Legacy Book');
     expect(
       restoredBook?.sourcePath,
-      '${documentsDir.path}/books/legacy-book.epub',
+      '${documentsDir.path}${Platform.pathSeparator}books'
+      '${Platform.pathSeparator}legacy-book.epub',
     );
     expect(await File(restoredBook!.sourcePath).readAsBytes(), sourceBytes);
     expect(

@@ -1,11 +1,17 @@
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
+
+import 'flutter_command.dart';
+
 const _pubspecPath = 'pubspec.yaml';
 const _changelogPath = 'CHANGELOG.md';
 const _appVersionPath = 'lib/services/app_version.dart';
 const _macosAppIconToolPath = 'tool/sync_macos_app_icon.dart';
 const _defaultDistDir = 'dist';
 const _appBundleName = 'FlowRead.app';
+const _windowsBundleName = 'FlowRead';
+const _windowsExecutableName = 'FlowRead.exe';
 const _requiredReleaseEntitlements = [
   'com.apple.security.network.client',
   'com.apple.security.files.user-selected.read-write',
@@ -79,8 +85,36 @@ Future<void> _packageLocal(List<String> args) async {
     await _runFlutterCommand(['test']);
   }
 
-  await _buildMacosApp(version, configuration);
+  if (Platform.isMacOS) {
+    await _packageMacos(
+      version: version,
+      configuration: configuration,
+      outputDir: outputDir,
+      skipArchiveCheck: skipArchiveCheck,
+      allowAdhocSignature: allowAdhocSignature,
+    );
+  } else if (Platform.isWindows) {
+    await _packageWindows(
+      version: version,
+      configuration: configuration,
+      outputDir: outputDir,
+      skipArchiveCheck: skipArchiveCheck,
+    );
+  } else {
+    throw ReleaseException(
+      'Local desktop packaging is supported on macOS and Windows.',
+    );
+  }
+}
 
+Future<void> _packageMacos({
+  required AppVersion version,
+  required String configuration,
+  required String outputDir,
+  required bool skipArchiveCheck,
+  required bool allowAdhocSignature,
+}) async {
+  await _buildMacosApp(version, configuration);
   final appPath = _macosAppPath(configuration);
   await _verifyMacosApp(appPath, version);
 
@@ -126,7 +160,44 @@ Future<void> _packageLocal(List<String> args) async {
   }
 
   if (!skipArchiveCheck) {
-    await _verifyArchive(zipPath, version);
+    await _verifyMacosArchive(zipPath, version);
+  }
+
+  stdout.writeln('');
+  stdout.writeln('Local package ready: $zipPath');
+}
+
+Future<void> _packageWindows({
+  required AppVersion version,
+  required String configuration,
+  required String outputDir,
+  required bool skipArchiveCheck,
+}) async {
+  await _buildWindowsApp(version, configuration);
+  final appPath = _windowsAppPath(configuration);
+  await _verifyWindowsApp(appPath, version);
+
+  Directory(outputDir).createSync(recursive: true);
+  final zipPath = _joinPath(
+    outputDir,
+    'flow_read-windows-x64-${version.releaseName}-$configuration-local.zip',
+  );
+  final zipFile = File(zipPath);
+  if (zipFile.existsSync()) {
+    zipFile.deleteSync();
+  }
+
+  await _zipDirectory(
+    source: Directory(appPath),
+    zipPath: zipPath,
+    rootName: _windowsBundleName,
+  );
+  if (!zipFile.existsSync() || zipFile.lengthSync() == 0) {
+    throw ReleaseException('Package was not created: $zipPath.');
+  }
+
+  if (!skipArchiveCheck) {
+    await _verifyWindowsArchive(zipPath, version);
   }
 
   stdout.writeln('');
@@ -174,7 +245,9 @@ void _validateReleaseMetadata(
     );
   }
   _checkAppVersionFile(version);
-  _checkMacosAppIcon();
+  if (Platform.isMacOS) {
+    _checkMacosAppIcon();
+  }
 }
 
 void _notes(List<String> args) {
@@ -273,12 +346,17 @@ void _writeVersion(AppVersion version) {
 void _checkAppVersionFile(AppVersion version) {
   final content = _readRequiredFile(_appVersionPath);
   final expected = _appVersionContent(version);
-  if (content.trim() != expected.trim()) {
+  if (_normalizeLineEndings(content).trim() !=
+      _normalizeLineEndings(expected).trim()) {
     throw ReleaseException(
       '$_appVersionPath does not match pubspec.yaml version ${version.full}. '
       'Run dart run tool/release.dart bump <major|minor|patch> or update it.',
     );
   }
+}
+
+String _normalizeLineEndings(String value) {
+  return value.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 }
 
 void _checkMacosAppIcon() {
@@ -495,16 +573,100 @@ String _macosAppPath(String configuration) {
   );
 }
 
+String _windowsAppPath(String configuration) {
+  final productDir = switch (configuration) {
+    'debug' => 'Debug',
+    'release' => 'Release',
+    _ => throw UsageException('Invalid configuration: $configuration.'),
+  };
+  return _joinPath(
+    _joinPath(_joinPath('build/windows', 'x64'), 'runner'),
+    productDir,
+  );
+}
+
 Future<void> _buildMacosApp(AppVersion version, String configuration) async {
   await _runFlutterCommand([
     'build',
     'macos',
+    '--no-pub',
     '--$configuration',
     '--build-name',
     version.name,
     '--build-number',
     version.build.toString(),
   ]);
+}
+
+Future<void> _buildWindowsApp(
+  AppVersion version,
+  String configuration,
+) async {
+  await _runFlutterCommand([
+    'build',
+    'windows',
+    '--no-pub',
+    '--$configuration',
+    '--build-name',
+    version.name,
+    '--build-number',
+    version.build.toString(),
+  ]);
+}
+
+Future<void> _verifyWindowsApp(
+  String appPath,
+  AppVersion version,
+) async {
+  final appDir = Directory(appPath);
+  if (!appDir.existsSync()) {
+    throw ReleaseException('Build did not produce $appPath.');
+  }
+
+  final requiredPaths = [
+    _joinPath(appPath, _windowsExecutableName),
+    _joinPath(appPath, 'flutter_windows.dll'),
+    _joinPath(appPath, 'sqlite3.dll'),
+    _joinPath(_joinPath(appPath, 'data'), 'flutter_assets'),
+  ];
+  final missingPaths = requiredPaths.where((path) {
+    final type = FileSystemEntity.typeSync(path);
+    return type == FileSystemEntityType.notFound;
+  }).toList();
+  if (missingPaths.isNotEmpty) {
+    throw ReleaseException(
+      'Windows bundle is incomplete. Missing: ${missingPaths.join(', ')}.',
+    );
+  }
+
+  final dataPath = _joinPath(appPath, 'data');
+  final runtimeCandidates = [
+    _joinPath(dataPath, 'app.so'),
+    _joinPath(_joinPath(dataPath, 'flutter_assets'), 'kernel_blob.bin'),
+  ].map(File.new).where((file) => file.existsSync()).toList();
+  if (runtimeCandidates.isEmpty) {
+    throw ReleaseException(
+      'Windows runtime version check failed: app payload was not found.',
+    );
+  }
+
+  final expectedMarkers = [
+    'Flow Read ${version.shortDisplay}',
+    'FlowRead/${version.releaseName}',
+  ];
+  final missingMarkers = expectedMarkers
+      .where(
+        (marker) => !runtimeCandidates.any(
+          (file) => _fileContainsBytes(file, marker.codeUnits),
+        ),
+      )
+      .toList();
+  if (missingMarkers.isNotEmpty) {
+    throw ReleaseException(
+      'Windows runtime version mismatch: missing '
+      '${missingMarkers.map((marker) => '"$marker"').join(', ')}.',
+    );
+  }
 }
 
 Future<void> _verifyMacosBundleVersion(
@@ -655,7 +817,7 @@ void _verifySigningIdentity(
   );
 }
 
-Future<void> _verifyArchive(String zipPath, AppVersion version) async {
+Future<void> _verifyMacosArchive(String zipPath, AppVersion version) async {
   final tempDir = Directory.systemTemp.createTempSync(
     'flow_read_package_check_',
   );
@@ -675,7 +837,54 @@ Future<void> _verifyArchive(String zipPath, AppVersion version) async {
   }
 }
 
-Future<void> _runCommand(String executable, List<String> arguments) async {
+Future<void> _zipDirectory({
+  required Directory source,
+  required String zipPath,
+  required String rootName,
+}) async {
+  final encoder = ZipFileEncoder()..create(zipPath);
+  try {
+    await for (final entity in source.list(
+      recursive: true,
+      followLinks: false,
+    )) {
+      if (entity is! File) continue;
+      final relativePath = entity.path
+          .substring(source.path.length)
+          .replaceFirst(RegExp(r'^[\\/]+'), '')
+          .replaceAll(Platform.pathSeparator, '/');
+      await encoder.addFile(entity, '$rootName/$relativePath');
+    }
+  } finally {
+    await encoder.close();
+  }
+}
+
+Future<void> _verifyWindowsArchive(
+  String zipPath,
+  AppVersion version,
+) async {
+  final tempDir = Directory.systemTemp.createTempSync(
+    'flow_read_windows_package_check_',
+  );
+  try {
+    await extractFileToDisk(zipPath, tempDir.path);
+    await _verifyWindowsApp(
+      _joinPath(tempDir.path, _windowsBundleName),
+      version,
+    );
+  } finally {
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
+  }
+}
+
+Future<void> _runCommand(
+  String executable,
+  List<String> arguments, {
+  Map<String, String>? environment,
+}) async {
   stdout.writeln('');
   stdout.writeln('> ${_formatCommand(executable, arguments)}');
   try {
@@ -683,6 +892,7 @@ Future<void> _runCommand(String executable, List<String> arguments) async {
       executable,
       arguments,
       mode: ProcessStartMode.inheritStdio,
+      environment: environment,
     );
     final exitCode = await process.exitCode;
     if (exitCode != 0) {
@@ -700,26 +910,15 @@ Future<void> _runCommand(String executable, List<String> arguments) async {
 }
 
 Future<void> _runFlutterCommand(List<String> arguments) async {
-  final command = await _resolveFlutterCommand();
-  await _runCommand(command.executable, [...command.prefixArgs, ...arguments]);
-}
-
-Future<_Command> _resolveFlutterCommand() async {
-  if (await _isExecutableAvailable('fvm', ['--version'])) {
-    return const _Command('fvm', ['flutter']);
-  }
-  return const _Command('flutter', []);
-}
-
-Future<bool> _isExecutableAvailable(
-  String executable,
-  List<String> arguments,
-) async {
   try {
-    final result = await Process.run(executable, arguments);
-    return result.exitCode == 0;
-  } on ProcessException {
-    return false;
+    final command = await resolveFlutterCommand();
+    await _runCommand(command.executable, [
+      ...command.prefixArgs,
+      '--no-version-check',
+      ...arguments,
+    ], environment: command.environment);
+  } on FlutterCommandException catch (error) {
+    throw ReleaseException(error.message);
   }
 }
 
@@ -804,14 +1003,9 @@ Usage:
   dart run tool/release.dart bump <major|minor|patch> [--build 12] [--channel alpha] [--date YYYY-MM-DD] [--exclude-scope 2.0]
   dart run tool/release.dart verify-macos-app <FlowRead.app> [--version 1.2.3]
   dart run tool/release.dart package-local [--configuration release|debug] [--output-dir dist] [--skip-pub-get] [--skip-tests] [--skip-archive-check] [--allow-adhoc-signature]
+
+package-local automatically builds the macOS or Windows x64 desktop target for the current host.
 ''');
-}
-
-class _Command {
-  const _Command(this.executable, this.prefixArgs);
-
-  final String executable;
-  final List<String> prefixArgs;
 }
 
 class AppVersion {

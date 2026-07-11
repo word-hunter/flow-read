@@ -9,14 +9,14 @@
   <a href="https://github.com/word-hunter/flow-read/releases"><img src="https://img.shields.io/github/v/release/word-hunter/flow-read?include_prereleases" alt="Release"></a>
   <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-3.44.0-02569B?logo=flutter&logoColor=white" alt="Flutter"></a>
   <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-%5E3.11.5-0175C2?logo=dart&logoColor=white" alt="Dart"></a>
-  <a href="https://github.com/word-hunter/flow-read/releases"><img src="https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple" alt="macOS"></a>
+  <a href="https://github.com/word-hunter/flow-read/releases"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey" alt="macOS and Windows"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/word-hunter/flow-read" alt="License"></a>
   <a href="https://github.com/word-hunter/flow-read/commits/main"><img src="https://img.shields.io/github/last-commit/word-hunter/flow-read" alt="Last Commit"></a>
 </p>
 
 Flow Read 是一款面向英语阅读和词汇积累的 Flutter 应用，把书架、EPUB 阅读、查词、AI 辅助和本地备份放在同一个安静的工作流里。
 
-当前公开发布目标以 macOS 桌面端为主。代码结构也保留了 Flutter 多端能力，但移动端和其他桌面平台需要单独验证后再作为正式发行目标。
+当前公开发布目标以 macOS 桌面端为主；Windows 桌面端支持本地运行、构建和 zip 打包，仍作为实验性平台验证。移动端和其他桌面平台需要单独验证后再作为正式发行目标。
 
 ## 应用截图
 
@@ -35,14 +35,23 @@ Flow Read 是一款面向英语阅读和词汇积累的 Flutter 应用，把书�
 
 ## 本地运行
 
-项目使用 Flutter。仓库通过 `.fvmrc` 固定 SDK 版本，推荐使用 FVM：
+项目使用 Flutter。仓库通过 `.fvmrc` 固定 SDK 版本，推荐使用 FVM。以下命令在 macOS 和 Windows PowerShell 中相同，启动脚本会自动选择当前系统对应的桌面设备：
 
 ```bash
 fvm flutter pub get
-make run
+fvm dart run tool/run_app.dart
 ```
 
-如果不使用 FVM，请确认本地 `flutter --version` 与 `.fvmrc` 中的版本一致。
+如果不使用 FVM，请确认本地 `flutter --version` 与 `.fvmrc` 中的版本一致，然后运行：
+
+```bash
+flutter pub get
+dart run tool/run_app.dart
+```
+
+macOS 仍可使用 `make run` 作为快捷方式；Windows 不需要安装 `make`。可通过 `--device-id` 覆盖自动选择的设备，例如 `dart run tool/run_app.dart --device-id windows`。
+
+Windows 桌面开发还需要 Visual Studio 的“使用 C++ 的桌面开发”工作负载、Windows SDK，以及 `flutter_tts` 构建所需的 NuGet CLI。使用 `flutter doctor -v` 确认 `Visual Studio - develop Windows apps` 检查通过，并确保 `nuget.exe` 在 PATH 中；工具也会自动识别 `%LOCALAPPDATA%\NuGet\nuget.exe`。
 
 ## 常用检查
 
@@ -54,7 +63,13 @@ git diff --check
 
 ## 发布与安装
 
-当前 GitHub Release 产物是 macOS zip 包。除非具体 Release 说明另有标注，请默认它未经过 Apple 公证；安装时可能需要在 macOS 安全设置中手动允许运行。
+本地打包命令会按宿主系统自动构建 macOS 或 Windows x64，并在 `dist/` 生成 zip：
+
+```bash
+dart run tool/release.dart package-local
+```
+
+Windows zip 解压后运行 `FlowRead/FlowRead.exe`，必须保留同目录的 DLL 和 `data/`。首次 Windows 构建会由 `sqlite3` 的 Dart build hook 从其官方 Release 下载并校验 SQLite DLL，之后会随应用一起打包。当前 GitHub Release 产物仍以 macOS zip 为主；除非具体 Release 说明另有标注，请默认它未经过 Apple 公证，安装时可能需要在 macOS 安全设置中手动允许运行。
 
 发布流程见 [Release Runbook](docs/release-runbook.md)。版本号不会随普通功能开发自动更新。
 

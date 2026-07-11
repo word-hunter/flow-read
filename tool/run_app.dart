@@ -1,23 +1,31 @@
 import 'dart:io';
 
+import 'flutter_command.dart';
 import 'tool_env.dart';
 
 Future<void> main(List<String> args) async {
-  final flutter = await _resolveFlutterCommand();
-  final env = await loadToolEnv();
-  final flutterArgs = <String>[
-    'run',
-    ..._withConfiguredAIDebugMirror(_withDefaultDevice(args), env),
-  ];
+  try {
+    final flutter = await resolveFlutterCommand();
+    final env = await loadToolEnv();
+    final flutterArgs = <String>[
+      '--no-version-check',
+      'run',
+      ..._withConfiguredAIDebugMirror(_withDefaultDevice(args), env),
+    ];
 
-  final process = await Process.start(
-    flutter.executable,
-    [...flutter.prefixArgs, ...flutterArgs],
-    mode: ProcessStartMode.inheritStdio,
-  );
-  final exitCode = await process.exitCode;
-  if (exitCode != 0) {
-    exit(exitCode);
+    final process = await Process.start(
+      flutter.executable,
+      [...flutter.prefixArgs, ...flutterArgs],
+      mode: ProcessStartMode.inheritStdio,
+      environment: flutter.environment,
+    );
+    final exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      exit(exitCode);
+    }
+  } on FlutterCommandException catch (error) {
+    stderr.writeln(error.message);
+    exitCode = 1;
   }
 }
 
@@ -40,10 +48,15 @@ List<String> _withConfiguredAIDebugMirror(
 }
 
 List<String> _withDefaultDevice(List<String> args) {
-  if (!Platform.isMacOS || _hasDeviceSelector(args) || _isHelpCommand(args)) {
+  if (_hasDeviceSelector(args) || _isHelpCommand(args)) {
     return args;
   }
-  return [...args, '-d', 'macos'];
+  final device = switch (Platform.operatingSystem) {
+    'macos' => 'macos',
+    'windows' => 'windows',
+    _ => null,
+  };
+  return device == null ? args : [...args, '-d', device];
 }
 
 bool _hasDeviceSelector(List<String> args) {
@@ -79,33 +92,4 @@ bool _hasDartDefineKey(List<String> args, String key) {
     if (arg.startsWith('--dart-define=$key=')) return true;
   }
   return false;
-}
-
-Future<_FlutterCommand> _resolveFlutterCommand() async {
-  if (await _isExecutableAvailable('fvm', ['--version'])) {
-    return const _FlutterCommand(executable: 'fvm', prefixArgs: ['flutter']);
-  }
-  return const _FlutterCommand(executable: 'flutter', prefixArgs: []);
-}
-
-Future<bool> _isExecutableAvailable(
-  String executable,
-  List<String> args,
-) async {
-  try {
-    final result = await Process.run(executable, args);
-    return result.exitCode == 0;
-  } catch (_) {
-    return false;
-  }
-}
-
-class _FlutterCommand {
-  final String executable;
-  final List<String> prefixArgs;
-
-  const _FlutterCommand({
-    required this.executable,
-    this.prefixArgs = const [],
-  });
 }

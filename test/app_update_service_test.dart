@@ -174,6 +174,10 @@ void main() {
     );
   });
 
+  final macosArchiveSkip = Platform.isWindows
+      ? 'macOS app bundles require POSIX modes'
+      : false;
+
   group('downloadAndExtract', () {
     test('extracts zip containing .app and returns app path', () async {
       final zipBytes = _createAppZip();
@@ -203,7 +207,7 @@ void main() {
 
       expect(appPath, endsWith('.app'));
       expect(File('$appPath/Contents/Info.plist').existsSync(), isTrue);
-    });
+    }, skip: macosArchiveSkip);
 
     test('uses ditto for macOS app archive extraction', () async {
       final zipFile = File('${Directory.systemTemp.path}/flow_read_test.zip')
@@ -254,7 +258,7 @@ void main() {
         zipFile.path,
         extractDir.path,
       ]);
-    });
+    }, skip: macosArchiveSkip);
 
     test('throws when macOS archive extraction command fails', () async {
       final zipFile = File('${Directory.systemTemp.path}/flow_read_test.zip')
@@ -319,6 +323,7 @@ void main() {
         expect(executable.existsSync(), isTrue);
         expect(executable.statSync().mode & 0x40, isNot(0));
       },
+      skip: macosArchiveSkip,
     );
 
     test('throws when zip contains no .app bundle', () async {
@@ -451,7 +456,7 @@ void main() {
       expect(phases, contains(AppUpdatePhase.extracting));
       expect(phases, contains(AppUpdatePhase.complete));
       expect(progressValues.last, 1.0);
-    });
+    }, skip: macosArchiveSkip);
 
     test('throws AppUpdateException on HTTP error', () async {
       final service = AppUpdateService(

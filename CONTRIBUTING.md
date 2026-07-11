@@ -17,10 +17,12 @@ Flow Read is a Flutter app pinned by `.fvmrc`. Prefer FVM:
 
 ```bash
 fvm flutter pub get
-make run
+fvm dart run tool/run_app.dart
 ```
 
-If FVM is unavailable, use a local Flutter SDK that matches `.fvmrc`.
+The run tool selects the macOS or Windows desktop device for the current host.
+Windows does not require `make`. If FVM is unavailable, use a local Flutter SDK
+that matches `.fvmrc` and run `dart run tool/run_app.dart`.
 
 ## Checks
 
@@ -40,6 +42,10 @@ dart run tool/release.dart current
 dart run tool/release.dart check
 dart run tool/release.dart package-local
 ```
+
+`package-local` selects the current host platform. It produces a macOS app zip
+on macOS or a self-contained Windows x64 zip containing `FlowRead.exe` on
+Windows.
 
 When updating `assets/brand/flow_read_logo.png`, regenerate the macOS app
 switcher icon before sharing changes:

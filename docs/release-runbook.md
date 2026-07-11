@@ -1,5 +1,7 @@
 # Release Runbook
 
+> @source tool/release.dart .github/workflows/release.yml .github/workflows/ci.yml
+
 This runbook describes the public release flow for Flow Read.
 
 ## Release Policy
@@ -58,14 +60,36 @@ dart run tool/release.dart package-local
 
 If FVM is unavailable, use the matching local Flutter SDK.
 
-The local package command verifies both macOS bundle metadata and Flutter
-runtime version markers, then creates a zip under `dist/`.
+The local package command selects the current host OS. On macOS it verifies
+bundle metadata, runtime version markers, entitlements, and signing before
+creating a zip under `dist/`. On Windows it builds the x64 runner, verifies the
+self-contained bundle and runtime version markers, and creates a zip under
+`dist/`.
 
 Before manually launching the app, quit any already running Flow Read process,
 especially local Debug builds. Debug/Profile builds use a separate bundle
 identifier, but an old process can still make visual verification misleading.
 Confirm the built app displays the expected version in both the About surface
 and Settings.
+
+## Windows Local Package
+
+Install Visual Studio with the **Desktop development with C++** workload, a
+Windows SDK, and the NuGet CLI required by `flutter_tts`. Confirm
+`flutter doctor -v` reports that Windows development is available and ensure
+`nuget.exe` is on PATH. The tool also recognizes
+`%LOCALAPPDATA%\NuGet\nuget.exe`. Run the same local package command:
+
+```powershell
+dart run tool/release.dart package-local
+```
+
+The output is named
+`dist/flow_read-windows-x64-<version>-release-local.zip`. Extract the whole
+archive and launch `FlowRead/FlowRead.exe`; the executable is not portable
+without its adjacent DLL files and `data/` directory. Windows remains an
+experimental local package target until signing, installer behavior, and the
+public release policy are explicitly approved.
 
 ## macOS Entitlements
 

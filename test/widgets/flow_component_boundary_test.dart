@@ -15,7 +15,7 @@ void main() {
 
     for (final entity in Directory('lib').listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
-      final path = entity.path;
+      final path = entity.path.replaceAll('\\', '/');
       if (allowedPrefixes.any(path.startsWith)) continue;
 
       final lines = entity.readAsLinesSync();

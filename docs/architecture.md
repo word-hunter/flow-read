@@ -1,8 +1,8 @@
 # Flow Read Architecture
 
-> @source lib/main.dart lib/platform/flow_shell_resolver.dart lib/providers/ lib/storage/storage_bootstrap.dart lib/storage/database/bootstrap.dart lib/theme/city_theme_tokens.dart lib/widgets/flow/flow_components.dart packages/flow_design_system/lib/theme/flow_theme.dart packages/flow_design_system/lib/palettes/classic.dart
+> @source lib/main.dart lib/platform/flow_shell_resolver.dart lib/providers/ lib/storage/storage_bootstrap.dart lib/storage/database/bootstrap.dart lib/theme/city_theme_tokens.dart lib/widgets/flow/flow_components.dart packages/flow_design_system/lib/theme/flow_theme.dart packages/flow_design_system/lib/palettes/classic.dart windows/CMakeLists.txt tool/run_app.dart tool/release.dart
 
-Last updated: 2026-06-13
+Last updated: 2026-07-11
 
 ## 分层架构
 
@@ -97,5 +97,5 @@ HomeScreen → ReadingDeskScreen → ReaderPage（正文）
 | macOS | stable | 原生菜单、AppUpdateInstaller、MacPermissionDiagnostics、Bookmark 文件夹访问 |
 | iPad | experimental | ios/ 工程存在，导入/阅读闭环可用，布局待适配 |
 | iPhone | 兼容性 | 不崩溃即可，非完整支持 |
-| Windows | experimental | Dart UI 走 `WindowsShell` Fluent token；原生打包、CI、安装器仍未纳入正式发布 |
+| Windows | experimental | Dart UI 走 `WindowsShell` Fluent token；Windows Runner、本地 x64 zip 打包和 CI 构建可用，安装器与正式发布仍待验证 |
 | Linux | experimental | Dart UI 显式走 `macosStandard` 桌面 shell token；原生工程、CI、打包仍未纳入正式发布 |
