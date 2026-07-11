@@ -1160,6 +1160,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
     final config = ref.watch(readingConfigNotifierProvider);
     final readingTime = ref.watch(readingTimeNotifierProvider);
     final settings = ref.watch(settingsProvider);
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) ||
+        settings.cityAtmosphereSettings.reduceMotion;
     final bookshelf = ref.watch(bookshelfNotifierProvider);
     _scheduleBookOpenTocPreference(
       bookId: bookshelf.activeBookId,
@@ -1348,6 +1351,7 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
               config: config,
               child: DesktopReaderWorkspaceShell(
                 workspaceController: _workspaceController,
+                reduceMotion: reduceMotion,
                 toolbar: buildToolbar(),
                 centerContent: buildContent(),
                 rightPanel: _buildWorkspaceRightPanel(),
@@ -1393,7 +1397,9 @@ class _ReaderPageState extends riverpod.ConsumerState<ReaderPage>
                             children: [
                               Expanded(child: buildContent()),
                               AnimatedSize(
-                                duration: const Duration(milliseconds: 250),
+                                duration: reduceMotion
+                                    ? Duration.zero
+                                    : const Duration(milliseconds: 250),
                                 curve: Curves.easeInOut,
                                 alignment: Alignment.topCenter,
                                 child: _sidebarOpen

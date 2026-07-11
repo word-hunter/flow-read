@@ -13,6 +13,7 @@ class ReaderWorkspaceController extends ChangeNotifier {
   ReaderRightPanelTab _rightTab;
   double _leftPanelWidth;
   double _rightPanelWidth;
+  bool _animatePanelTransitions = true;
 
   ReaderWorkspaceController({
     bool leftPanelOpen = true,
@@ -34,10 +35,12 @@ class ReaderWorkspaceController extends ChangeNotifier {
   ReaderRightPanelTab get rightTab => _rightTab;
   double get leftPanelWidth => _leftPanelWidth;
   double get rightPanelWidth => _rightPanelWidth;
+  bool get animatePanelTransitions => _animatePanelTransitions;
 
   bool get isTocOpen => _isLeftPanelOpen && _leftTab == ReaderLeftPanelTab.toc;
 
-  void openToc() {
+  void openToc({bool animate = true}) {
+    _animatePanelTransitions = animate;
     if (!_isLeftPanelOpen) {
       _isLeftPanelOpen = true;
     }
@@ -45,7 +48,8 @@ class ReaderWorkspaceController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleToc() {
+  void toggleToc({bool animate = true}) {
+    _animatePanelTransitions = animate;
     if (isTocOpen) {
       _isLeftPanelOpen = false;
     } else {
@@ -55,13 +59,15 @@ class ReaderWorkspaceController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleLeftPanel() {
+  void toggleLeftPanel({bool animate = true}) {
+    _animatePanelTransitions = animate;
     _isLeftPanelOpen = !_isLeftPanelOpen;
     notifyListeners();
   }
 
-  void setLeftPanelOpen(bool open) {
+  void setLeftPanelOpen(bool open, {bool animate = true}) {
     if (_isLeftPanelOpen == open) return;
+    _animatePanelTransitions = animate;
     _isLeftPanelOpen = open;
     notifyListeners();
   }
@@ -82,25 +88,29 @@ class ReaderWorkspaceController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setRightPanelOpen(bool open) {
+  void setRightPanelOpen(bool open, {bool animate = true}) {
     if (_isRightPanelOpen == open) return;
+    _animatePanelTransitions = animate;
     _isRightPanelOpen = open;
     notifyListeners();
   }
 
-  void openRightPanel(ReaderRightPanelTab tab) {
+  void openRightPanel(ReaderRightPanelTab tab, {bool animate = true}) {
+    _animatePanelTransitions = animate;
     _isRightPanelOpen = true;
     _rightTab = tab;
     notifyListeners();
   }
 
-  void closeRightPanel() {
+  void closeRightPanel({bool animate = true}) {
     if (!_isRightPanelOpen) return;
+    _animatePanelTransitions = animate;
     _isRightPanelOpen = false;
     notifyListeners();
   }
 
-  void toggleRightPanel() {
+  void toggleRightPanel({bool animate = true}) {
+    _animatePanelTransitions = animate;
     _isRightPanelOpen = !_isRightPanelOpen;
     notifyListeners();
   }
@@ -121,7 +131,8 @@ class ReaderWorkspaceController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void enterImmersive() {
+  void enterImmersive({bool animate = true}) {
+    _animatePanelTransitions = animate;
     _isLeftPanelOpen = false;
     _isRightPanelOpen = false;
     notifyListeners();

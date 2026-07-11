@@ -38,12 +38,14 @@ class DesktopReaderWorkspaceShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = AppSurfaceTokens.of(context);
-    final openDuration = reduceMotion
-        ? ReaderMotionTokens.reducedMotionDuration
-        : ReaderMotionTokens.panelOpenDuration;
-    final closeDuration = reduceMotion
-        ? ReaderMotionTokens.reducedMotionDuration
-        : ReaderMotionTokens.panelCloseDuration;
+    final animatePanels =
+        workspaceController.animatePanelTransitions && !reduceMotion;
+    final openDuration = animatePanels
+        ? ReaderMotionTokens.panelOpenDuration
+        : Duration.zero;
+    final closeDuration = animatePanels
+        ? ReaderMotionTokens.panelCloseDuration
+        : Duration.zero;
 
     return DecoratedBox(
       decoration: BoxDecoration(

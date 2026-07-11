@@ -35,9 +35,11 @@ void main() {
     test('toggle left panel', () {
       controller.toggleLeftPanel();
       expect(controller.isLeftPanelOpen, false);
+      expect(controller.animatePanelTransitions, true);
 
-      controller.toggleLeftPanel();
+      controller.toggleLeftPanel(animate: false);
       expect(controller.isLeftPanelOpen, true);
+      expect(controller.animatePanelTransitions, false);
     });
 
     test('set left tab', () {
@@ -57,9 +59,10 @@ void main() {
     });
 
     test('open right panel with tab', () {
-      controller.openRightPanel(ReaderRightPanelTab.ai);
+      controller.openRightPanel(ReaderRightPanelTab.ai, animate: false);
       expect(controller.isRightPanelOpen, true);
       expect(controller.rightTab, ReaderRightPanelTab.ai);
+      expect(controller.animatePanelTransitions, false);
     });
 
     test('close right panel', () {

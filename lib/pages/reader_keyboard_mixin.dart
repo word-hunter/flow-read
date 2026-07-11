@@ -40,19 +40,22 @@ mixin ReaderKeyboardMixin on riverpod.ConsumerState<ReaderPage> {
 
     if (isMetaAlt && _isWorkspaceEnabled) {
       if (key == LogicalKeyboardKey.keyL) {
-        _workspaceController.toggleLeftPanel();
+        _workspaceController.toggleLeftPanel(animate: false);
         return KeyEventResult.handled;
       }
       if (key == LogicalKeyboardKey.keyT) {
-        _workspaceController.openToc();
+        _workspaceController.openToc(animate: false);
         return KeyEventResult.handled;
       }
       if (key == LogicalKeyboardKey.keyR) {
-        _workspaceController.toggleRightPanel();
+        _workspaceController.toggleRightPanel(animate: false);
         return KeyEventResult.handled;
       }
       if (key == LogicalKeyboardKey.keyD) {
-        _workspaceController.openRightPanel(ReaderRightPanelTab.dictionary);
+        _workspaceController.openRightPanel(
+          ReaderRightPanelTab.dictionary,
+          animate: false,
+        );
         return KeyEventResult.handled;
       }
       if (key == LogicalKeyboardKey.keyA) {
@@ -60,7 +63,7 @@ mixin ReaderKeyboardMixin on riverpod.ConsumerState<ReaderPage> {
         return KeyEventResult.handled;
       }
       if (key == LogicalKeyboardKey.keyI) {
-        _workspaceController.enterImmersive();
+        _workspaceController.enterImmersive(animate: false);
         return KeyEventResult.handled;
       }
     }
@@ -96,13 +99,7 @@ mixin ReaderKeyboardMixin on riverpod.ConsumerState<ReaderPage> {
 
     if ((target - current).abs() < 1) return;
 
-    unawaited(
-      _scrollController.animateTo(
-        target,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-      ),
-    );
+    _scrollController.jumpTo(target);
   }
 
   void _turnChapter(int direction) {
