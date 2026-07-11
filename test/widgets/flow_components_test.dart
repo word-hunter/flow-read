@@ -74,6 +74,19 @@ void main() {
       expect(decoration.borderRadius, BorderRadius.circular(6));
       expect(decoration.boxShadow, isNull);
       expect(find.text('继续阅读'), findsOneWidget);
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('继续阅读')),
+      );
+      await tester.pump();
+      expect(
+        tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale,
+        0.97,
+      );
+
+      await gesture.up();
+      await tester.pump();
+      expect(tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale, 1);
     });
 
     testWidgets('FlowMenuButton renders macOS popover on macOS shell', (

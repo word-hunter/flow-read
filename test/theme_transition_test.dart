@@ -6,6 +6,7 @@ void main() {
   testWidgets('ThemeTransitionHost can wrap MaterialApp', (tester) async {
     await tester.pumpWidget(
       const ThemeTransitionHost(
+        reduceMotion: true,
         child: MaterialApp(home: Scaffold(body: Text('Flow Read'))),
       ),
     );

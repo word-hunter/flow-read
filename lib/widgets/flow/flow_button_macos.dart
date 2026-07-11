@@ -163,45 +163,50 @@ class _MacOsButtonState extends State<_MacOsButton> {
         onTapUp: _enabled ? (_) => _setPressed(false) : null,
         onTapCancel: _enabled ? () => _setPressed(false) : null,
         behavior: HitTestBehavior.opaque,
-        child: AnimatedOpacity(
-          opacity: _enabled ? 1.0 : 0.4,
+        child: AnimatedScale(
+          scale: _pressed ? 0.97 : 1,
           duration: _duration,
-          child: AnimatedContainer(
+          curve: Curves.easeOutCubic,
+          child: AnimatedOpacity(
+            opacity: _enabled ? 1.0 : 0.4,
             duration: _duration,
-            curve: Curves.easeOut,
-            decoration: BoxDecoration(
-              color: _backgroundColor(theme),
-              borderRadius: const BorderRadius.all(_borderRadius),
-              border: _border(theme),
-            ),
-            constraints: BoxConstraints(
-              minWidth: _minWidth,
-              minHeight: _height,
-            ),
-            padding: _padding,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (widget.icon != null) ...[
-                  IconTheme(
-                    data: IconThemeData(color: fg, size: _iconSize),
-                    child: widget.icon!,
+            child: AnimatedContainer(
+              duration: _duration,
+              curve: Curves.easeOut,
+              decoration: BoxDecoration(
+                color: _backgroundColor(theme),
+                borderRadius: const BorderRadius.all(_borderRadius),
+                border: _border(theme),
+              ),
+              constraints: BoxConstraints(
+                minWidth: _minWidth,
+                minHeight: _height,
+              ),
+              padding: _padding,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (widget.icon != null) ...[
+                    IconTheme(
+                      data: IconThemeData(color: fg, size: _iconSize),
+                      child: widget.icon!,
+                    ),
+                    SizedBox(width: _iconGap),
+                  ],
+                  Flexible(
+                    child: DefaultTextStyle(
+                      style: (theme.textTheme.labelLarge ?? const TextStyle())
+                          .copyWith(
+                            color: fg,
+                            fontWeight: FontWeight.w500,
+                            height: 1,
+                          ),
+                      child: widget.child,
+                    ),
                   ),
-                  SizedBox(width: _iconGap),
                 ],
-                Flexible(
-                  child: DefaultTextStyle(
-                    style: (theme.textTheme.labelLarge ?? const TextStyle())
-                        .copyWith(
-                          color: fg,
-                          fontWeight: FontWeight.w500,
-                          height: 1,
-                        ),
-                    child: widget.child,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

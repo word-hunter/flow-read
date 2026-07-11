@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -350,7 +349,7 @@ class FeaturedBookCard extends StatelessWidget {
                   color: activeBlue.withValues(alpha: 0.36),
                 ),
                 const SizedBox(height: 6),
-                _ReadingExcerptCarousel(
+                _ReadingExcerptPreview(
                   excerpts: readingExcerpts,
                   isLoading: isLoadingReadingExcerpts,
                   textPrimary: textPrimary,
@@ -595,14 +594,14 @@ class _ReadingInfoRow extends StatelessWidget {
   }
 }
 
-class _ReadingExcerptCarousel extends StatefulWidget {
+class _ReadingExcerptPreview extends StatelessWidget {
   final List<String> excerpts;
   final bool isLoading;
   final Color textPrimary;
   final Color textSecondary;
   final Color accent;
 
-  const _ReadingExcerptCarousel({
+  const _ReadingExcerptPreview({
     required this.excerpts,
     required this.isLoading,
     required this.textPrimary,
@@ -611,57 +610,12 @@ class _ReadingExcerptCarousel extends StatefulWidget {
   });
 
   @override
-  State<_ReadingExcerptCarousel> createState() =>
-      _ReadingExcerptCarouselState();
-}
-
-class _ReadingExcerptCarouselState extends State<_ReadingExcerptCarousel> {
-  static const _rotationDuration = Duration(seconds: 7);
-  Timer? _timer;
-  int _index = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _configureTimer();
-  }
-
-  @override
-  void didUpdateWidget(_ReadingExcerptCarousel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!listEquals(oldWidget.excerpts, widget.excerpts)) {
-      _index = 0;
-      _configureTimer();
-    } else if (oldWidget.isLoading != widget.isLoading) {
-      _configureTimer();
-    }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _configureTimer() {
-    _timer?.cancel();
-    _timer = null;
-    if (widget.isLoading || widget.excerpts.length < 2) return;
-    _timer = Timer.periodic(_rotationDuration, (_) {
-      if (!mounted) return;
-      setState(() {
-        _index = (_index + 1) % widget.excerpts.length;
-      });
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final excerpt = _currentExcerpt;
-    final hasExcerpts = widget.excerpts.isNotEmpty;
+    final hasExcerpts = excerpts.isNotEmpty;
     final excerptStyle = theme.textTheme.bodyMedium?.copyWith(
-      color: hasExcerpts ? widget.textPrimary : widget.textSecondary,
+      color: hasExcerpts ? textPrimary : textSecondary,
       height: 1.42,
       fontWeight: hasExcerpts ? FontWeight.w600 : FontWeight.w500,
     );
@@ -675,70 +629,32 @@ class _ReadingExcerptCarouselState extends State<_ReadingExcerptCarousel> {
         Text(
           hasExcerpts ? '书中片段' : '阅读片段',
           style: theme.textTheme.labelSmall?.copyWith(
-            color: widget.accent,
+            color: accent,
             fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 6),
         SizedBox(
           height: lineHeight * 3,
-          child: ClipRect(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 260),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              layoutBuilder: (currentChild, previousChildren) {
-                return Stack(
-                  alignment: Alignment.topLeft,
-                  children: [
-                    ...previousChildren,
-                    ?currentChild,
-                  ],
-                );
-              },
-              child: Align(
-                key: ValueKey(excerpt),
-                alignment: Alignment.topLeft,
-                child: Text(
-                  excerpt,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: excerptStyle,
-                ),
-              ),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Text(
+              excerpt,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: excerptStyle,
             ),
           ),
         ),
-        if (widget.excerpts.length > 1) ...[
-          const SizedBox(height: 12),
-          Row(
-            children: List.generate(widget.excerpts.length, (index) {
-              final selected = index == _index;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-                margin: const EdgeInsets.only(right: 5),
-                width: selected ? 16 : 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? widget.accent.withValues(alpha: 0.70)
-                      : widget.accent.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              );
-            }),
-          ),
-        ],
       ],
     );
   }
 
   String get _currentExcerpt {
-    if (widget.excerpts.isNotEmpty) {
-      return widget.excerpts[_index.clamp(0, widget.excerpts.length - 1)];
+    if (excerpts.isNotEmpty) {
+      return excerpts.first;
     }
-    if (widget.isLoading) return '正在提取当前书籍片段...';
+    if (isLoading) return '正在提取当前书籍片段...';
     return '暂未找到适合展示的书中片段。';
   }
 }

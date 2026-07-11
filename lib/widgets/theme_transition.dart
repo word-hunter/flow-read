@@ -5,23 +5,29 @@ import 'package:flutter/rendering.dart';
 
 typedef ThemeMutation = Future<void> Function();
 
-const _themeRevealDuration = Duration(milliseconds: 760);
-const _themeRevealCurve = Cubic(0.4, 0, 0.2, 1);
+const _themeRevealDuration = Duration(milliseconds: 280);
+const _reducedMotionDuration = Duration(milliseconds: 100);
+const _themeRevealCurve = Cubic(0.23, 1, 0.32, 1);
 
 class ThemeTransitionController {
   _ThemeTransitionHostState? _state;
 
-  Future<void> run(ThemeMutation mutation) {
+  Future<void> run(ThemeMutation mutation, {bool reduceMotion = false}) {
     final state = _state;
     if (state == null || !state.mounted) return mutation();
-    return state.run(mutation);
+    return state.run(mutation, reduceMotion: reduceMotion);
   }
 }
 
 class ThemeTransitionHost extends StatefulWidget {
   final Widget child;
+  final bool reduceMotion;
 
-  const ThemeTransitionHost({super.key, required this.child});
+  const ThemeTransitionHost({
+    super.key,
+    required this.child,
+    this.reduceMotion = false,
+  });
 
   @override
   State<ThemeTransitionHost> createState() => _ThemeTransitionHostState();
@@ -54,6 +60,7 @@ class _ThemeTransitionHostState extends State<ThemeTransitionHost>
   final _transitionController = ThemeTransitionController();
   late final AnimationController _controller;
   ui.Image? _snapshot;
+  bool _activeReduceMotion = false;
 
   @override
   void initState() {
@@ -73,7 +80,10 @@ class _ThemeTransitionHostState extends State<ThemeTransitionHost>
     super.dispose();
   }
 
-  Future<void> run(ThemeMutation mutation) async {
+  Future<void> run(
+    ThemeMutation mutation, {
+    bool reduceMotion = false,
+  }) async {
     final image = await _captureCurrentFrame();
     if (image == null) {
       await mutation();
@@ -82,6 +92,10 @@ class _ThemeTransitionHostState extends State<ThemeTransitionHost>
 
     _controller.stop();
     _controller.value = 0;
+    _activeReduceMotion = widget.reduceMotion || reduceMotion;
+    _controller.duration = _activeReduceMotion
+        ? _reducedMotionDuration
+        : _themeRevealDuration;
     _disposeSnapshot();
 
     setState(() {
@@ -144,6 +158,12 @@ class _ThemeTransitionHostState extends State<ThemeTransitionHost>
                 child: AnimatedBuilder(
                   animation: _controller,
                   builder: (context, child) {
+                    if (_activeReduceMotion) {
+                      return Opacity(
+                        opacity: 1 - _controller.value,
+                        child: child,
+                      );
+                    }
                     final progress = _themeRevealCurve.transform(
                       _controller.value,
                     );
@@ -218,5 +238,6 @@ Future<void> runThemeTransition(
     await mutation();
     return;
   }
-  await transition.run(mutation);
+  final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+  await transition.run(mutation, reduceMotion: reduceMotion);
 }

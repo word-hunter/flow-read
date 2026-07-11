@@ -7,8 +7,9 @@ class ReaderMotionTokens {
   static const panelCloseDuration = Duration(milliseconds: 180);
   static const panelSwitchDuration = Duration(milliseconds: 140);
 
-  static const openCurve = Curves.easeOutCubic;
-  static const closeCurve = Curves.easeInCubic;
+  static const strongEaseOut = Cubic(0.23, 1, 0.32, 1);
+  static const openCurve = strongEaseOut;
+  static const closeCurve = strongEaseOut;
 
   static const reducedMotionDuration = Duration(milliseconds: 80);
 }

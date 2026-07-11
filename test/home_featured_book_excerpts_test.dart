@@ -38,7 +38,7 @@ void main() {
     },
   );
 
-  testWidgets('featured card rotates book excerpts on wide layouts', (
+  testWidgets('featured card keeps a stable book excerpt on wide layouts', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -71,11 +71,13 @@ void main() {
     expect(find.text('4 章'), findsNothing);
     expect(find.textContaining('书中片段'), findsOneWidget);
     expect(find.textContaining('First rotating excerpt'), findsOneWidget);
+    expect(find.textContaining('Second rotating excerpt'), findsNothing);
 
     await tester.pump(const Duration(seconds: 7));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.textContaining('Second rotating excerpt'), findsOneWidget);
+    expect(find.textContaining('First rotating excerpt'), findsOneWidget);
+    expect(find.textContaining('Second rotating excerpt'), findsNothing);
   });
 }
 

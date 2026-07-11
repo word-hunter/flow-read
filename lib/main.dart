@@ -425,6 +425,7 @@ class _FlowReadAppState extends State<FlowReadApp> {
         );
 
         return ThemeTransitionHost(
+          reduceMotion: settings.cityAtmosphereSettings.reduceMotion,
           child: MaterialApp(
             navigatorKey: _navigatorKey,
             navigatorObservers: [_routeObserver],
